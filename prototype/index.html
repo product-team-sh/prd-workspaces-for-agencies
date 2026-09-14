@@ -3576,30 +3576,34 @@ function ring(done,total,tone){
      A + W    account holds a floor or a pool, the workspace adds to it or draws  */
 let setSel="fields";
 const SETS=[
- ["profile","Profile","user","U","Yours, unchanged in either context."],
- ["notif","Notifications","user","U","Yours. Muting per workspace is a separate ask and out of scope."],
- ["sig","Email Signature","user","U","Yours, per mailbox."],
+ ["profile","My Profile","user","U","Yours, unchanged in either context. Name, phone, time zone, email and password belong to a person, not a place."],
 
  ["users","Users &amp; Teams","company","A + W",
-  "Identity is account level: a person exists once. <b>Membership is per workspace</b>, and that is the new axis. Inside a client this lists only who is a member here."],
+  "Identity is account level: a person exists once. <b>Membership is per workspace</b>, and that is the new axis. Inside a client this lists only who is a member here. Teams stay an account grouping and do not cross into workspaces."],
+ ["admin","Admin Settings","company","A &rarr; W",
+  "Six of the seven groups become Pattern A: account default, workspace override, agency can lock. Verification on import and AI categorisation spend account credits and default to locked. <b>Security (SSO, authorised domain, MFA) stays account only</b> and is not shown inside a client."],
  ["fields","Prospect Fields","company","W",
-  "Per workspace. Today there is one shared set, which the card names as a problem: a field one client needs shows up for every client."],
+  "Per workspace. Today there is one shared set, which the card names as a problem: a field one client needs shows up for every client. A new workspace starts with System fields and can copy the agency's."],
  ["pout","Prospect Outcomes","company","A &rarr; W",
   "The account taxonomy always applies. A workspace may <b>add</b> an outcome, never delete an account one, or the cross-client roll-up breaks."],
  ["cout","Call Outcome","company","A &rarr; W","Same rule as prospect outcomes."],
+ ["sched","Schedules","company","A &rarr; W",
+  "Account schedules are inherited read-only. A workspace adds its own and sets its own default, because a client in another time zone needs a different sending window."],
+ ["ooo","Out of Office","company","A &rarr; W",
+  "Account default for the pause rule; a workspace may override. Cheap, and a client with a long cycle may want a longer pause."],
+ ["safety","Safety Settings","company","A &rarr; W",
+  "Stop the sequence for a whole company when one person replies. Prospects are per workspace, so the setting is naturally workspace shaped."],
  ["integ","Integrations","company","W",
-  "Per workspace. One CRM connection shared by every client is a live complaint today."],
- ["hook","Webhook","company","W","Per workspace, and the payload gains a workspace id."],
+  "<b>CRM connections are per user today</b>, and one person's HubSpot receives every client's prospects. New: a connection is made inside a workspace and fires only for it. The same person in two workspaces connects twice."],
+ ["hook","Webhook","company","W","Per workspace, and the payload gains a workspace id. A webhook that fires for every client's events cannot be handed to one client."],
  ["api","API Key","company","W only",
   "<b>No account level key that can act across every workspace.</b> That is a security decision, not a convenience. Existing keys get pinned to the agency workspace."],
- ["mcp","MCP","company","W","Same reasoning as the API key."],
+ ["mcp","MCP","company","W","Same reasoning as the API key. The workspace boundary is the first permission gate this page has ever had."],
  ["ctd","Custom Tracking Domain","company","A pool &rarr; W",
   "The account holds the pool; a domain is assigned to exactly one workspace. Mirrors the mailbox rule."],
- ["admin","Admin Settings","company","A &rarr; W",
-  "The whole block becomes Pattern A. Account sets the default, workspace overrides, agency can lock the override off."],
  ["dnc","Do Not Contact List","company","A floor + W",
-  "The account list is always enforced and <b>cannot be overridden</b>. A workspace only adds to it. Suppression may get stricter, never looser."],
- ["dncall","Do Not Call List","company","A floor + W","Same rule as the do-not-contact list."],
+  "Already client aware today (All Clients or Specific Client). Global lists are the floor and <b>cannot be removed here</b>; client lists become this workspace's. Suppression gets stricter, never looser."],
+ ["dncall","Do Not Call List","company","A floor + W","Same rule as the do-not-contact list, and the item is no longer hidden from agencies."],
  ["wl","Whitelabel","agency","A",
   "Account level only. Nobody in the market brands per client, and a Linked workspace keeps its own brand. <b>Not present inside a client workspace.</b>"],
  ["bill","Billing &amp; Subscription","agency","A + W alloc",
@@ -3613,7 +3617,7 @@ function vSettings(){
  const allowed=x=>{
   if(x[2]==="user") return true;
   if(x[2]==="agency") return agency;
-  if(asC) return ["fields","pout","dnc"].indexOf(x[0])>-1;
+  if(asC) return ["fields","pout","sched","dnc"].indexOf(x[0])>-1;
   return true;
  };
  const vis=SETS.filter(allowed), hidden=SETS.filter(function(x){return !allowed(x)});
@@ -4396,6 +4400,9 @@ function cSettings(c){
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" aria-label="${l}"></button></div>`).join("")}
    <p class="sub" style="margin-top:10px">Only about this workspace. Nothing about ${AGENCY.name}'s other clients reaches you.</p></div></div>
+  ${seesC(c,"sequences")?`<div class="panel"><div class="panel-h"><span class="panel-t">Workspace settings</span></div><div class="panel-b" style="padding-top:4px">
+   ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Agency default, add your own"}</span></div>`).join("")}
+   <p class="sub" style="margin-top:10px">Only what the sequences you run need. Everything else about this workspace is ${AGENCY.name}'s to administer.</p></div></div>`:""}
  </div>`;
 }
 function vClientSide(){
