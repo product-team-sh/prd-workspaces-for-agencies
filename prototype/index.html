@@ -116,13 +116,19 @@ svg{display:block}
 .sb.is-open{width:240px;box-shadow:2px 0 8px rgba(31,41,55,.08)}
 /* everything that is not an icon is clipped rather than removed, so the width
    transition carries it and nothing reflows. Matches the real nav item, which
-   sets overflow:hidden and animates all .2s. */
+   sets overflow:hidden and animates all .2s. Labels fade in only after a delay
+   (opening) and fade out immediately (closing): fading in at the same speed as
+   collapsed created a ~250ms window where full-opacity multi-word group labels
+   ("Across your clients", "Owned by the agency") sat inside a rail still near
+   its 57px collapsed width, wrapping and clipping mid-word. Bug found 15 Sep
+   2026 from a screenshot caught mid-transition on an iPad. */
 .sb .lbl,.sb .nav-badge,.sb .nav-new,.sb-group,.sb .nm,.sb .ws-ctx,.sb-brand span,.sb .ws-btn svg{
  opacity:0;transition:opacity .15s ease-in-out}
 .sb:hover .lbl,.sb:hover .nav-badge,.sb:hover .nav-new,.sb:hover .sb-group,.sb:hover .nm,
 .sb:hover .ws-ctx,.sb:hover .sb-brand span,.sb:hover .ws-btn svg,
 .sb.is-open .lbl,.sb.is-open .nav-badge,.sb.is-open .nav-new,.sb.is-open .sb-group,
-.sb.is-open .nm,.sb.is-open .ws-ctx,.sb.is-open .sb-brand span,.sb.is-open .ws-btn svg{opacity:1}
+.sb.is-open .nm,.sb.is-open .ws-ctx,.sb.is-open .sb-brand span,.sb.is-open .ws-btn svg{
+ opacity:1;transition:opacity .15s ease-in-out .25s}
 /* a count still has to be visible on a collapsed icon, or the one thing the
    rail exists to signal is the thing it hides. The real sidebar solves it the
    same way: position:absolute on the icon, top:-2px left:15px. */
@@ -160,7 +166,7 @@ svg{display:block}
 .ws-btn svg{color:var(--gray-11)}
 .ws-ctx{display:block;font-size:11px;font-weight:500;color:var(--gray-15);margin-top:1px}
 /* group labels are also new: the real rail is one flat list. Grouping earns its
-   keep once Dashboard/Work queue/Client Management/Billing exist beside the base
+   keep once Home/Work queue/Client Management/Billing exist beside the base
    product's items, which the real rail never has to distinguish. */
 .sb-group{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);
  padding:12px 12px 4px}
@@ -831,7 +837,7 @@ input[disabled].invite-email{background:var(--gray-19);color:var(--gray-12);curs
   </nav>
   <div class="main">
     <header class="topbar">
-      <div class="crumb"><span class="crumb-tail" id="crumbTail">Dashboard</span></div>
+      <div class="crumb"><span class="crumb-tail" id="crumbTail">Home</span></div>
       <div class="tb-search srch">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z"/><path d="M14.293 14.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
         <input type="text" id="dq" placeholder="Search prospects, sequences, email accounts, clients" autocomplete="off">
@@ -873,9 +879,8 @@ const I={
  radar:['0 0 24 24','<path fill="currentColor" d="M11.575 2.94a1 1 0 0 1 .98.073l9 6a1 1 0 0 1 0 1.664l-9 6a1 1 0 0 1-.98.073l-.13-.073-9-6a1 1 0 0 1 0-1.664l9-6 .13-.074ZM4.803 9.844 12 14.642l7.197-4.797L12 5.045l-7.197 4.8Z"/><path fill="currentColor" d="M2 19.845v-10a1 1 0 1 1 2 0v10a1 1 0 0 0 1 1h5.38l.101.005a1 1 0 0 1 0 1.99l-.101.005H5a3 3 0 0 1-3-3Zm18-4.407V9.845a1 1 0 1 1 2 0v5.592a1 1 0 0 1-2 0ZM14 21.845v-4a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0ZM20 21.845v-2a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0ZM17 21.845v-1a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0Z"/>'],
  analytics:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M2 13a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6Zm6 0H4v6h4v-6Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M8 8.993a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-10Zm6 0h-4v10h4v-10Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M14 5.007a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-14Zm6 0h-4v14h4v-14Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 19.993a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" clip-rule="evenodd"/>'],
  billing:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M3.879 3.886A3 3 0 0 1 6 3.008h10a2 2 0 0 1 2 2v2a2 2 0 0 1 2 2v3a1 1 0 1 1-2 0v-3H6a3 3 0 0 1-1-.172v9.171a1 1 0 0 0 1 1h12v-3a1 1 0 1 1 2 0v3a2 2 0 0 1-2 2H6a3 3 0 0 1-3-3v-12a3 3 0 0 1 .879-2.12ZM5 6.008a1 1 0 0 0 1 1h10v-2H6a1 1 0 0 0-1 1Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M16 13a1 1 0 0 0 0 2h3v-2h-3Zm-2.121-1.121A3 3 0 0 1 16 11h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a3 3 0 0 1-2.121-5.121Z" clip-rule="evenodd"/>'],
- growth:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M7.5 18.79a8 8 0 0 0-4 1.07 1 1 0 0 1-1-1.731 10 10 0 0 1 9.5-.27 10 10 0 0 1 9.5.27 1 1 0 0 1-1 1.732 8 8 0 0 0-8 0 1 1 0 0 1-1 0 8 8 0 0 0-4-1.072ZM7.5 5.793a8 8 0 0 0-4 1.072 1 1 0 1 1-1-1.732 10 10 0 0 1 9.5-.27 10 10 0 0 1 9.5.27 1 1 0 0 1-1 1.732 8 8 0 0 0-8 0 1 1 0 0 1-1 0 8 8 0 0 0-4-1.072Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1ZM12 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1ZM21 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Z" clip-rule="evenodd"/>'],
  queue:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M3 5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5Zm2 0v2h1V5H5Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2Zm2 0v2h1v-2H5Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 17a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2Zm2 0v2h1v-2H5Z" clip-rule="evenodd"/><path fill="currentColor" d="M10 5a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1ZM10 19a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1Z"/>'],
- dash:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm7 0H5v4h5V5Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 15a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4Zm7 0H5v4h5v-4Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M14 5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V5Zm5 0h-3v14h3V5Z" clip-rule="evenodd"/>'],
+ dash:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.43Z" clip-rule="evenodd"/>'],
  back:['0 0 24 24','<path fill="currentColor" d="M10.707 5.293a1 1 0 0 1 0 1.414L6.414 11H20a1 1 0 1 1 0 2H6.414l4.293 4.293a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414l6-6a1 1 0 0 1 1.414 0Z"/>'],
  usage:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M12 4a8 8 0 1 0 8 8 1 1 0 1 1 2 0c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2a1 1 0 1 1 0 2Z" clip-rule="evenodd"/><path fill="currentColor" d="M12 6a1 1 0 0 1 1 1v4.586l2.707 2.707a1 1 0 0 1-1.414 1.414l-3-3A1 1 0 0 1 11 12V7a1 1 0 0 1 1-1Z"/>'],
  cws:['0 0 24 24','<path fill="currentColor" d="M10.586 13.414a1 1 0 0 1 0-1.414l2.828-2.828a3 3 0 0 1 4.243 4.243l-1.415 1.414a1 1 0 0 1-1.414-1.415l1.414-1.414a1 1 0 0 0-1.414-1.414l-2.828 2.828a1 1 0 0 1-1.414 0Z"/><path fill="currentColor" d="M13.414 10.586a1 1 0 0 1 0 1.414l-2.828 2.828a3 3 0 1 1-4.243-4.243l1.415-1.414a1 1 0 1 1 1.414 1.415L7.757 12a1 1 0 1 0 1.415 1.414L12 10.586a1 1 0 0 1 1.414 0Z"/>'],
@@ -883,7 +888,7 @@ const I={
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
-const RAIL=[['dash','Dashboard',null,'agency'],['queue','Work queue',null,'agency'],
+const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
  ['seq','Sequences'],['task','Tasks'],
  ['inbox','Unified Inbox',()=>{
    /* in a client's own view this badge must count that client's replies only.
@@ -897,7 +902,7 @@ const RAIL=[['dash','Dashboard',null,'agency'],['queue','Work queue',null,'agenc
  /* 'client' scopes an item to a client's own view. Decided 12 Sep 2026: the
     rail is the client's only navigation, so the two screens the tab strip
     used to carry alone live here now. */
- ['usage','Usage',null,'client'],['cws','Workspace',null,'client'],['growth','Growth Hub']];
+ ['usage','Usage',null,'client'],['cws','Workspace',null,'client']];
 const inAgency=()=>ctx==="agency";
 /* one format for relative time everywhere it is printed: lowercase, "ago" on
    any count. One column carried five formats and two capitalisations. */
@@ -1222,13 +1227,13 @@ const TASKS=[
    analytics do not: those are the agency's own campaigns, and mixing client
    campaigns into them would make it impossible to tell whose work you are
    looking at. Alerts already have a cross-client home in the Work queue and
-   performance in the Dashboard, so neither is rebuilt here.               */
+   performance in Home, so neither is rebuilt here.                       */
 const AGY_ROLLUP={inbox:1,task:1};
 let agyScope="clients";
 /* 16 §5.2: C0 lives in the client's own Saleshandy account, which today has no
    agency features at all. That is a different shell, not a different tab: a
    workspace owner with no agency relationship must see the plain product and
-   never a Dashboard, a switcher or Client Management, whether or not a request
+   never a Home screen, a switcher or Client Management, whether or not a request
    is pending. Modelled as its own mode rather than a variant of the agency's
    view of a client, because conflating the two is how a client ends up seeing
    agency furniture.                                                        */
@@ -1471,11 +1476,11 @@ const av=(c,s)=>`<span class="avatar av-tint" style="--c:${c.colour};width:${s||
 function renderRail(){
  /* Order within "Outreach" matches nav-items.ts exactly: sequence, tasks,
     unifiedInbox, leads, prospects(CRM), dialer, email-verifier, email-accounts,
-    templates, inbox-radar, reports(Analytics). Growth Hub is real too, but it
-    is one of the real app's FixedNavItems (its own footer section after a
-    divider, alongside Settings), never a main-list item; moved there below,
-    not into "Account". "1:1 Email Insights", "Email Warm-up" and "Refer a
-    Friend" are the other three FixedNavItems and are deliberately not added:
+    templates, inbox-radar, reports(Analytics). Growth Hub is removed as of
+    15 Sep 2026: it is being dropped from the real product too, so it is not
+    carried into this prototype at all, footer or otherwise. "1:1 Email
+    Insights", "Email Warm-up" and "Refer a Friend" are the other three
+    FixedNavItems and are deliberately not added:
     they are unrelated modules this feature does not touch. */
  /* Decided 11 Sep 2026: the master workspace manages other accounts and does
     nothing else. What survives in it from Outreach is only what is inherently
@@ -1495,7 +1500,7 @@ function renderRail(){
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
     ["Outreach",OUTREACH],["Account",["people","billing"]],["Your workspace",["usage","cws"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
- /* 16 Flow A: Dashboard and the Work queue are new furniture that has nothing
+ /* 16 Flow A: Home and the Work queue are new furniture that has nothing
     to show before a first client exists, so they wait for one. Client Management
     is the existing Scale-tier feature and is unaffected: it is where the first
     client gets added. */
@@ -1550,7 +1555,6 @@ function renderRail(){
  el("navList").innerHTML=GROUPS.map(([g,keys])=>{const ks=keys.filter(allowed);
    return ks.length?`<div class="sb-group">${g}</div>`+ks.map(item).join(""):""}).join("")
   +`<div class="nav-gap"></div><div class="sb-foot">`
-  +(inAgency()?`<button class="nav-item" title="Not part of this prototype">${svg("growth")}<span class="lbl">Growth Hub</span></button>`:"")
   /* decided 12 Sep 2026, option B: the agency's own outreach is a workspace
      like a client's, so administration lives upstairs and this is the way up */
   +(isOwn()?`<button class="nav-item" data-nav="agency">${svg("back")}<span class="lbl">Back to agency</span></button>`:"")
@@ -1605,7 +1609,7 @@ function renderShell(){
         :({sequences:"Sequences",prospects:"Prospects",inbox:"Inbox",accounts:"Email accounts"})[inMod]
           ||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences"))
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
-   :view.name==="dash"?"Dashboard":view.name==="credits"?("Billing & Subscription"+(billTab==="alloc"?" / Workspace allocation":""))
+   :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription"+(billTab==="alloc"?" / Workspace allocation":""))
    :view.name==="people"?"People"
    :view.name==="person"?("People / "+(PEOPLE[view.id]?PEOPLE[view.id].name:""))
    :view.name==="record"?byId[view.id].name:"Clients";
@@ -1735,7 +1739,7 @@ function vClients(){
  <div class="wrap"><div class="panel"><div class="empty">
    <p class="empty-t">No clients yet</p>
    <p class="empty-s">${canI("billing")
-     ?"Add your first client to get a Dashboard, a work queue, and a way to switch between what you manage."
+     ?"Add your first client to get a Home screen, a work queue, and a way to switch between what you manage."
      :"An account owner adds the first client. Once one exists, you will see it here."}</p>
    ${canI("billing")?'<button class="shd-button shd-button--primary" id="addClient">Add Client</button>':""}
  </div></div></div>`;
@@ -2782,7 +2786,7 @@ function vCredits(){
 }
 
 /* ═══ inside a client ═══ */
-/* ═══ A0 Dashboard, v3 ════════════════════════════════════════════════════════
+/* ═══ A0 Home, v3 ════════════════════════════════════════════════════════════
    Built against 17 §2. Three jobs, weighted by how often each is needed:
      orient   health strip, KPI row, per-client bars, a compact plan card
      act      the decisions rail, with the controls back inline
@@ -2916,12 +2920,12 @@ function vDash(){
  const tiles=(owner?[
   kpi("Clients",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),"Compare "+LAST.clients+" (last month)",false,mine.length-LAST.clients),
   kpi("Emails sent",svg("mail"),f(mySent),pctDelta(mySent,LAST.sent),"Compare "+f(LAST.sent)+" (last month)"),
-  kpi("Positive replies",svg("inbox"),f(pos),pctDelta(pos,LAST.positives),"Compare "+f(LAST.positives)+" (last month)"),
+  kpi("Replies",svg("inbox"),f(pos),pctDelta(pos,LAST.positives),"Compare "+f(LAST.positives)+" (last month)"),
   kpi("Cost to serve",svg("billing"),money(cost),pctDelta(cost,LAST.cost),"Compare "+money(LAST.cost)+" (last month)",true)
  ]:[
   kpi("Your clients",svg("clients"),f(mine.length),null,"Assigned to you by the agency"),
   kpi("Emails sent",svg("mail"),f(mySent),null,"Across your clients this cycle"),
-  kpi("Positive replies",svg("inbox"),f(pos),null,"Across your clients this cycle"),
+  kpi("Replies",svg("inbox"),f(pos),null,"Across your clients this cycle"),
   kpi("Needing a decision",svg("radar"),f(items.length),null,"Ordered by what it costs to ignore")
  ]).join("");
 
@@ -2977,7 +2981,7 @@ function vDash(){
      +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
 
  return '<div class="toolbar dash-toolbar" style="position:relative">'
-  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Dashboard</span>'
+  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
    +'<span class="sub" style="display:block">'+(owner?mine.length+" clients":mine.length+" clients assigned to "+ME().name)+' · '+CYCLE.month+', day '+CYCLE.day+' of '+CYCLE.days+' · Totals and rates roll up here; records stay in each workspace</span></span></div>'
   +'<div class="tools" style="position:relative">'
    +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New for a client &#9662;</button>'+newMenuHTML()+'</div>'
@@ -2985,7 +2989,7 @@ function vDash(){
   +'</div></div>'
   +'<div class="dwrap">'
    +'<div class="dmain">'+graceBanner()+healthStrip()+'<div class="kpis">'+tiles+'</div>'+tableCard
-    +'<div class="card"><div class="c-h"><span class="c-t">Positive replies by client</span></div><div class="c-b">'+byClient()+'</div></div></div>'
+    +'<div class="card"><div class="c-h"><span class="c-t">Replies by client</span></div><div class="c-b">'+byClient()+'</div></div></div>'
    +'<div class="drail">'+rail+'</div>'
   +'</div>';
 }
@@ -3087,7 +3091,7 @@ function vSolo(){
    same way a client workspace is scoped. Never an aggregation across clients,
    because a roll-up here would quietly undo the isolation the rest of the
    model depends on. Modules the workspaces feature does not change are stated
-   as scoped rather than redrawn, the same way Growth Hub is.               */
+   as scoped rather than redrawn.                                          */
 /* the rail speaks in short keys, the client shell in module names. One map, so
    a rail click lands on the same thing in either workspace.               */
 /* Templates joins the modules that are really drawn inside a client workspace.
@@ -3280,7 +3284,7 @@ function vAgencyMod(){
    </div>
    <div class="panel" style="margin-top:20px"><div class="panel-b"><span class="sub">The agency's
     own numbers only. Overall performance across your clients already has a home: the
-    <button class="linkbtn" data-godash>Dashboard</button>, which ranks clients rather than
+    <button class="linkbtn" data-godash>Home</button>, which ranks clients rather than
     blending them into one rate.</span></div></div>`;
  } else {
   body=parked(`${label} for ${AGENCY.name}`);
@@ -3337,7 +3341,7 @@ function vInClient(){
   <div class="wrap" style="padding-top:20px">${body}</div>`;
 }
 
-/* ═══ Dashboard, the agency home ══════════════════════════════════════════════
+/* ═══ Home, the agency's landing screen ═══════════════════════════════════════
    Rail item 1, and where an agency account lands at login instead of Sequences.
    Zone order is deliberate: what needs a decision, then whether the agency is
    pacing right, then the clients ranked. Two rules hold it together.
@@ -3451,7 +3455,7 @@ function attention(c){
  return null;
 }
 
-/* ═══ A0 Dashboard, the agency home ══════════════════════════════════════════
+/* ═══ A0 Home, the agency's landing screen ═══════════════════════════════════
    Card grid, not stacked tables. Layout follows the references Hitesh supplied:
    a KPI row with the delta chip top-right and an explicit "Compare N (last
    month)" line, a chart card with a legend and a highlighted point, a table card
@@ -3692,9 +3696,9 @@ function vSettings(){
    answer to that: it is why the context stripe had to be an invented grey dash.
 
    The queue is the operator's home and it is deliberately wider than the
-   Dashboard's right rail. The rail carries what an owner must decide; this
+   Home's right rail. The rail carries what an owner must decide; this
    carries everything anyone must do, replies and setup steps included.
-   Performance and cost is gone, because the Dashboard's client table and its
+   Performance and cost is gone, because the Home screen's client table and its
    Cost to serve tile are the same data with a better frame.                    */
 function vQueue(){
  const n=queueItems().length;
@@ -3706,7 +3710,7 @@ function vQueue(){
       ordered by what it costs to ignore</span></span></div>
    <div class="tools">
      <button class="shd-button shd-button--tertiary" data-nav2="clients">Clients</button>
-     ${canI("dashboard")?`<button class="shd-button shd-button--tertiary" data-godash>Dashboard</button>`:""}
+     ${canI("dashboard")?`<button class="shd-button shd-button--tertiary" data-godash>Home</button>`:""}
    </div></div>
   <div class="wrap" style="padding-top:4px">${aQueue()}</div>`;
 }
@@ -3912,7 +3916,7 @@ function vM1(){
   </div>
 
   ${MIG.unassigned?"":`<div class="mig-f">
-   <button class="shd-button shd-button--primary" data-miglater>Go to Dashboard</button></div>`}
+   <button class="shd-button shd-button--primary" data-miglater>Go to Home</button></div>`}
   <p class="mig-note">This summary stays in Settings for 30 days, with a roll back if you want the
   account exactly as it was.</p>
  </div></div>`;
@@ -4774,7 +4778,7 @@ function modalHTML(){
   return card(`Roll back the migration?`,`
     <p style="font-size:14px;line-height:21px;margin-bottom:14px">This returns the account to
     exactly how it was before launch: ${MIG.clients.length} client records instead of
-    ${MIG.clients.length} workspaces, and no Dashboard, work queue or switcher.</p>
+    ${MIG.clients.length} workspaces, and no Home screen, work queue or switcher.</p>
     <div class="conseq">
       <div><span>Your sequences, prospects and mailboxes</span><span>Untouched, as they are now</span></div>
       <div><span>Client workspaces</span><span>Become client records again</span></div>
