@@ -107,7 +107,7 @@ svg{display:block}
    the header, the nav column and the footer each carry the product's own. */
 .sb{position:absolute;left:0;top:0;bottom:0;z-index:999;width:57px;flex:none;background:var(--gray-1);display:flex;flex-direction:column;padding:0 0 12px;
  gap:0;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--gray-13);
- transition:width .4s ease-in-out}
+ transition:width .3s ease-in-out}
 /* .app-sidebar__nav, deployed, exact: a column with an 8px gap, padded 12px, no
    bottom padding. The gap is the rhythm the collapsed rail is read by. */
 #navList{flex:1 1 auto;display:flex;flex-direction:column;gap:8px;padding:12px 12px 0;min-height:0}
@@ -116,19 +116,24 @@ svg{display:block}
 .sb.is-open{width:240px;box-shadow:2px 0 8px rgba(31,41,55,.08)}
 /* everything that is not an icon is clipped rather than removed, so the width
    transition carries it and nothing reflows. Matches the real nav item, which
-   sets overflow:hidden and animates all .2s. Labels fade in only after a delay
-   (opening) and fade out immediately (closing): fading in at the same speed as
-   collapsed created a ~250ms window where full-opacity multi-word group labels
-   ("Across your clients", "Owned by the agency") sat inside a rail still near
-   its 57px collapsed width, wrapping and clipping mid-word. Bug found 15 Sep
-   2026 from a screenshot caught mid-transition on an iPad. */
+   sets overflow:hidden and animates all .2s. Opacity now shares the exact same
+   duration and easing as the width transition, on both open and close, so the
+   two always stay proportionally in step: at 50% of the animation the rail is
+   half-open and the label is exactly half-opaque, never fully legible text in
+   a still-mostly-collapsed rail. A delay-based version of this fix (opacity
+   waiting, then fading in fast) was tried first and still left a timing window
+   where full-opacity multi-word group labels ("Across your clients", "Owned by
+   the agency") clipped mid-word inside a narrow rail; matching durations
+   removes the race instead of trying to outrun it. Bug found 15 Sep 2026 from
+   a screenshot caught mid-transition on an iPad, reported to persist after the
+   first fix. */
 .sb .lbl,.sb .nav-badge,.sb .nav-new,.sb-group,.sb .nm,.sb .ws-ctx,.sb-brand span,.sb .ws-btn svg{
- opacity:0;transition:opacity .15s ease-in-out}
+ opacity:0;transition:opacity .3s ease-in-out}
 .sb:hover .lbl,.sb:hover .nav-badge,.sb:hover .nav-new,.sb:hover .sb-group,.sb:hover .nm,
 .sb:hover .ws-ctx,.sb:hover .sb-brand span,.sb:hover .ws-btn svg,
 .sb.is-open .lbl,.sb.is-open .nav-badge,.sb.is-open .nav-new,.sb.is-open .sb-group,
 .sb.is-open .nm,.sb.is-open .ws-ctx,.sb.is-open .sb-brand span,.sb.is-open .ws-btn svg{
- opacity:1;transition:opacity .15s ease-in-out .25s}
+ opacity:1;transition:opacity .3s ease-in-out}
 /* a count still has to be visible on a collapsed icon, or the one thing the
    rail exists to signal is the thing it hides. The real sidebar solves it the
    same way: position:absolute on the icon, top:-2px left:15px. */
@@ -169,7 +174,13 @@ svg{display:block}
    keep once Home/Work queue/Client Management/Billing exist beside the base
    product's items, which the real rail never has to distinguish. */
 .sb-group{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);
- padding:12px 12px 4px}
+ padding:12px 12px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* .nav-item .lbl already had this exact safety net (line below); .sb-group did
+   not, which is precisely why a multi-word group name ("Across your clients")
+   could render as raw clipped characters mid-transition while a short nav
+   label never did. Matched here rather than invented, so any width this rail
+   is ever caught at, mid-animation or otherwise, degrades to a clean ellipsis
+   instead of a cut-off word. */
 /* .app-sidebar__nav-item, real, exact: 32px, 6px padding all sides, 8px gap,
    4px radius, hover #eff6ff, icon 20px $blue-15 (#1f2937) at rest, text 14px/500
    $blue-15. Active state is the brand's diagonal two-stop blue gradient with
@@ -865,26 +876,26 @@ input[disabled].invite-email{background:var(--gray-19);color:var(--gray-12);curs
 <script>
 /* ═══ rail icons, verbatim from the live app ═══ */
 const I={
- seq:['0 0 24 24','<path fill="currentColor" d="M20.563 3.34a1.002 1.002 0 0 0-.989-.08l-17 8a1 1 0 0 0 .026 1.821L8 15.446v4.779a1 1 0 0 0 1.581.813L13.836 18l4.764 2.084a1 1 0 0 0 1.399-.85l1-15a1.005 1.005 0 0 0-.436-.893Zm-2.466 14.34-5.269-2.306 1.678-3.283c.45-.88-.513-1.81-1.376-1.33L8.35 13.418 5.42 12.134l13.471-6.34-.793 11.886Z"/>'],
- task:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M20.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-3-3a1 1 0 1 1 1.414-1.414L12 12.586l7.293-7.293a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M6 5.007a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6a1 1 0 0 1 2 0v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-12a3 3 0 0 1 3-3h9a1 1 0 1 1 0 2H6Z" clip-rule="evenodd"/>'],
- inbox:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M6 5.008a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-12a1 1 0 0 0-1-1H6Zm-3 1a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-12Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 13.008a1 1 0 0 1 1-1h3a1 1 0 0 1 .707.292l2.707 2.707h3.172l2.707-2.707a1 1 0 0 1 .707-.293h3a1 1 0 1 1 0 2h-2.586l-2.707 2.708a1 1 0 0 1-.707.293h-4a1 1 0 0 1-.707-.293l-2.707-2.707H4a1 1 0 0 1-1-1Z" clip-rule="evenodd"/>'],
- people:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M9 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM4 7a5 5 0 1 1 10 0A5 5 0 0 1 4 7Zm12.5-2.5a1 1 0 0 1 1.22-.72 4 4 0 0 1 0 7.75 1 1 0 1 1-.5-1.94 2 2 0 0 0 0-3.87 1 1 0 0 1-.72-1.22ZM7 14a5 5 0 0 0-5 5v1a1 1 0 1 0 2 0v-1a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1a1 1 0 1 0 2 0v-1a5 5 0 0 0-5-5H7Zm11.03.28a1 1 0 0 1 1.21-.73A5 5 0 0 1 23 18.4V20a1 1 0 1 1-2 0v-1.6a3 3 0 0 0-2.24-2.9 1 1 0 0 1-.73-1.22Z" clip-rule="evenodd"/>'],
- clients:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M5 7.996a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5Zm-3 1a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-9Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M10 4a1 1 0 0 0-1 1v2a1 1 0 0 1-2 0V5a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v2a1 1 0 1 1-2 0V5a1 1 0 0 0-1-1h-4ZM12 11a1 1 0 0 1 1 1v.01a1 1 0 1 1-2 0V12a1 1 0 0 1 1-1Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M2.107 12.546a1 1 0 0 1 1.343-.443 19 19 0 0 0 17.1 0 1 1 0 1 1 .9 1.786 21 21 0 0 1-18.9 0 1 1 0 0 1-.443-1.343Z" clip-rule="evenodd"/>'],
- leads:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M14.293 14.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414Z" clip-rule="evenodd"/>'],
- crm:['0 0 18 18','<path fill="currentColor" fill-rule="evenodd" d="M6.375 3a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Zm-3.75 2.25a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM4.875 12a2.25 2.25 0 0 0-2.25 2.25v1.5a.75.75 0 0 1-1.5 0v-1.5a3.75 3.75 0 0 1 3.75-3.75h3a3.75 3.75 0 0 1 3.75 3.75v1.5a.75.75 0 0 1-1.5 0v-1.5A2.25 2.25 0 0 0 7.875 12h-3Z" clip-rule="evenodd"/><path fill="currentColor" d="M16.875 5.25a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 .75-.75ZM16.875 8.25a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 .75-.75ZM16.875 11.25a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 .75-.75Z"/>'],
- dialer:['0 0 20 20','<path d="M4.16667 3.33325H7.5L9.16667 7.49992L7.08333 8.74992C7.9758 10.5595 9.44039 12.0241 11.25 12.9166L12.5 10.8333L16.6667 12.4999V15.8333C16.6667 16.2753 16.4911 16.6992 16.1785 17.0118C15.866 17.3243 15.442 17.4999 15 17.4999C11.7494 17.3024 8.68346 15.922 6.38069 13.6192C4.07792 11.3165 2.69754 8.25053 2.5 4.99992C2.5 4.55789 2.67559 4.13397 2.98816 3.82141C3.30072 3.50885 3.72464 3.33325 4.16667 3.33325Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 5.83325C12.942 5.83325 13.366 6.00885 13.6785 6.32141C13.9911 6.63397 14.1667 7.05789 14.1667 7.49992" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 2.5C13.8261 2.5 15.0979 3.02678 16.0355 3.96447C16.9732 4.90215 17.5 6.17392 17.5 7.5" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>'],
- verify:['0 0 24 24','<path fill="currentColor" d="M11.41 2.192a1 1 0 0 1 1.252.059l.409.345A11.002 11.002 0 0 0 20.454 5l.17.007a1 1 0 0 1 .835.71l.129.47a13 13 0 0 1-.227 7.178 1 1 0 0 1-1.903-.612 11 11 0 0 0 .267-5.744A13 13 0 0 1 12 4.296a12.999 12.999 0 0 1-7.725 2.713 10.999 10.999 0 0 0 6.97 12.709l.512.173.095.035a1 1 0 0 1-.589 1.9l-.098-.025-.305-.098A13.001 13.001 0 0 1 2.54 5.718l.062-.158c.173-.353.542-.577.945-.559a11 11 0 0 0 7.79-2.75l.074-.059Z"/><path fill="currentColor" d="M20.293 16.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-2-2-.068-.076a1 1 0 0 1 1.406-1.407l.076.069L17 19.586l3.293-3.293Z"/>'],
- mail:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M5 5.993a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-10a1 1 0 0 0-1-1H5Zm-3 1a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-10Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M2.168 6.453a1 1 0 0 1 1.387-.278L12 11.805l8.445-5.63a1 1 0 0 1 1.11 1.665l-9 6a1 1 0 0 1-1.11 0l-9-6a1 1 0 0 1-.277-1.387Z" clip-rule="evenodd"/>'],
- tmpl:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M14 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4a2 2 0 0 1-2-2V3a1 1 0 0 1 1-1Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M7 4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8.414L13.586 4H7ZM4.879 2.879A3 3 0 0 1 7 2h7a1 1 0 0 1 .707.293l5 5A1 1 0 0 1 20 8v11a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V5a3 3 0 0 1 .879-2.121Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M8 9a1 1 0 0 1 1-1h1a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1ZM8 13.008a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1ZM8 16.992a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1Z" clip-rule="evenodd"/>'],
- radar:['0 0 24 24','<path fill="currentColor" d="M11.575 2.94a1 1 0 0 1 .98.073l9 6a1 1 0 0 1 0 1.664l-9 6a1 1 0 0 1-.98.073l-.13-.073-9-6a1 1 0 0 1 0-1.664l9-6 .13-.074ZM4.803 9.844 12 14.642l7.197-4.797L12 5.045l-7.197 4.8Z"/><path fill="currentColor" d="M2 19.845v-10a1 1 0 1 1 2 0v10a1 1 0 0 0 1 1h5.38l.101.005a1 1 0 0 1 0 1.99l-.101.005H5a3 3 0 0 1-3-3Zm18-4.407V9.845a1 1 0 1 1 2 0v5.592a1 1 0 0 1-2 0ZM14 21.845v-4a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0ZM20 21.845v-2a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0ZM17 21.845v-1a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0Z"/>'],
- analytics:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M2 13a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6Zm6 0H4v6h4v-6Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M8 8.993a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-10Zm6 0h-4v10h4v-10Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M14 5.007a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-14Zm6 0h-4v14h4v-14Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 19.993a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" clip-rule="evenodd"/>'],
- billing:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M3.879 3.886A3 3 0 0 1 6 3.008h10a2 2 0 0 1 2 2v2a2 2 0 0 1 2 2v3a1 1 0 1 1-2 0v-3H6a3 3 0 0 1-1-.172v9.171a1 1 0 0 0 1 1h12v-3a1 1 0 1 1 2 0v3a2 2 0 0 1-2 2H6a3 3 0 0 1-3-3v-12a3 3 0 0 1 .879-2.12ZM5 6.008a1 1 0 0 0 1 1h10v-2H6a1 1 0 0 0-1 1Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M16 13a1 1 0 0 0 0 2h3v-2h-3Zm-2.121-1.121A3 3 0 0 1 16 11h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a3 3 0 0 1-2.121-5.121Z" clip-rule="evenodd"/>'],
- queue:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M3 5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5Zm2 0v2h1V5H5Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2Zm2 0v2h1v-2H5Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 17a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2Zm2 0v2h1v-2H5Z" clip-rule="evenodd"/><path fill="currentColor" d="M10 5a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1ZM10 19a1 1 0 0 1 1-1h9a1 1 0 1 1 0 2h-9a1 1 0 0 1-1-1Z"/>'],
- dash:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.43Z" clip-rule="evenodd"/>'],
- back:['0 0 24 24','<path fill="currentColor" d="M10.707 5.293a1 1 0 0 1 0 1.414L6.414 11H20a1 1 0 1 1 0 2H6.414l4.293 4.293a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414l6-6a1 1 0 0 1 1.414 0Z"/>'],
- usage:['0 0 24 24','<path fill="currentColor" fill-rule="evenodd" d="M12 4a8 8 0 1 0 8 8 1 1 0 1 1 2 0c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2a1 1 0 1 1 0 2Z" clip-rule="evenodd"/><path fill="currentColor" d="M12 6a1 1 0 0 1 1 1v4.586l2.707 2.707a1 1 0 0 1-1.414 1.414l-3-3A1 1 0 0 1 11 12V7a1 1 0 0 1 1-1Z"/>'],
- cws:['0 0 24 24','<path fill="currentColor" d="M10.586 13.414a1 1 0 0 1 0-1.414l2.828-2.828a3 3 0 0 1 4.243 4.243l-1.415 1.414a1 1 0 0 1-1.414-1.415l1.414-1.414a1 1 0 0 0-1.414-1.414l-2.828 2.828a1 1 0 0 1-1.414 0Z"/><path fill="currentColor" d="M13.414 10.586a1 1 0 0 1 0 1.414l-2.828 2.828a3 3 0 1 1-4.243-4.243l1.415-1.414a1 1 0 1 1 1.414 1.415L7.757 12a1 1 0 1 0 1.415 1.414L12 10.586a1 1 0 0 1 1.414 0Z"/>'],
- settings:['0 0 24 24','<path fill="currentColor" d="M12 16c2.206 0 4-1.794 4-4s-1.794-4-4-4-4 1.794-4 4 1.794 4 4 4Zm0-6c1.084 0 2 .916 2 2s-.916 2-2 2-2-.916-2-2 .916-2 2-2Z"/><path fill="currentColor" d="m2.844 16.136 1 1.73c.531.917 1.81 1.261 2.73.73l.53-.306a8.1 8.1 0 0 0 1.895 1.112V20c0 1.103.897 2 2 2h2c1.103 0 2-.897 2-2v-.598a8.132 8.132 0 0 0 1.896-1.111l.53.306c.922.53 2.197.188 2.73-.731l1-1.729a2.001 2.001 0 0 0-.732-2.732l-.505-.292a7.718 7.718 0 0 0 0-2.224l.505-.292a2.002 2.002 0 0 0 .731-2.732l-.999-1.729c-.53-.92-1.808-1.265-2.73-.732l-.53.306A8.1 8.1 0 0 0 15 4.598V4c0-1.103-.897-2-2-2h-2c-1.103 0-2 .897-2 2v.598a8.132 8.132 0 0 0-1.896 1.111l-.529-.306c-.924-.531-2.2-.187-2.73.732l-1 1.729a2.001 2.001 0 0 0 .731 2.732l.505.292a7.683 7.683 0 0 0 0 2.223l-.505.292a2.003 2.003 0 0 0-.73 2.733Zm3.326-2.758A5.703 5.703 0 0 1 6 12c0-.462.057-.926.17-1.378a.999.999 0 0 0-.47-1.108l-1.124-.65.998-1.729 1.145.662a.997.997 0 0 0 1.188-.142 6.071 6.071 0 0 1 2.384-1.399A1 1 0 0 0 11 5.3V4h2v1.3a1 1 0 0 0 .708.956 6.083 6.083 0 0 1 2.384 1.399 1 1 0 0 0 1.188.142l1.144-.661 1 1.729-1.124.649a1 1 0 0 0-.47 1.108c.112.452.17.916.17 1.378 0 .461-.058.925-.17 1.378a1 1 0 0 0 .47 1.108l1.123.649-.998 1.729-1.145-.661a.996.996 0 0 0-1.188.142 6.071 6.071 0 0 1-2.384 1.399A1 1 0 0 0 13 18.7l.002 1.3H11v-1.3a1 1 0 0 0-.708-.956 6.083 6.083 0 0 1-2.384-1.399.992.992 0 0 0-1.188-.141l-1.144.662-1-1.729 1.124-.651a1 1 0 0 0 .471-1.108Z"/>'],
+ seq:['0 0 24 24','<path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/>'],
+ task:['0 0 24 24','<path d="M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9.344"/><path d="m9 11 3 3L22 4"/>'],
+ inbox:['0 0 24 24','<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'],
+ people:['0 0 24 24','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'],
+ clients:['0 0 24 24','<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>'],
+ leads:['0 0 24 24','<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'],
+ crm:['0 0 24 24','<path d="M16 2v2"/><path d="M17.915 22a6 6 0 0 0-12 0"/><path d="M8 2v2"/><circle cx="12" cy="12" r="4"/><rect x="3" y="4" width="18" height="18" rx="2"/>'],
+ dialer:['0 0 20 20','<path d="M4.16667 3.33325H7.5L9.16667 7.49992L7.08333 8.74992C7.9758 10.5595 9.44039 12.0241 11.25 12.9166L12.5 10.8333L16.6667 12.4999V15.8333C16.6667 16.2753 16.4911 16.6992 16.1785 17.0118C15.866 17.3243 15.442 17.4999 15 17.4999C11.7494 17.3024 8.68346 15.922 6.38069 13.6192C4.07792 11.3165 2.69754 8.25053 2.5 4.99992C2.5 4.55789 2.67559 4.13397 2.98816 3.82141C3.30072 3.50885 3.72464 3.33325 4.16667 3.33325Z"/><path d="M12.5 5.83325C12.942 5.83325 13.366 6.00885 13.6785 6.32141C13.9911 6.63397 14.1667 7.05789 14.1667 7.49992"/><path d="M12.5 2.5C13.8261 2.5 15.0979 3.02678 16.0355 3.96447C16.9732 4.90215 17.5 6.17392 17.5 7.5"/>'],
+ verify:['0 0 24 24','<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'],
+ mail:['0 0 24 24','<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M22 6l-10 7L2 6"/>'],
+ tmpl:['0 0 24 24','<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'],
+ radar:['0 0 24 24','<path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/>'],
+ analytics:['0 0 24 24','<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>'],
+ billing:['0 0 24 24','<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'],
+ queue:['0 0 24 24','<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>'],
+ dash:['0 0 24 24','<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'],
+ back:['0 0 24 24','<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'],
+ usage:['0 0 24 24','<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
+ cws:['0 0 24 24','<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/>'],
+ settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
@@ -917,7 +928,7 @@ const logoSVG=id=>`<svg viewBox="0 0 30 30" fill="none" aria-hidden="true">
  <path d="M8.618.938c-1.058 0-1.588 1.262-.84 2l19.696 19.437c.748.738 2.027.215 2.027-.829V2.11c0-.647-.532-1.172-1.188-1.172H8.618Z" fill="url(#${id})"/>
  <path d="M14.919 26.39c.56.554 1.52.162 1.52-.621V14.707a.876.876 0 0 0-.891-.879H4.339c-.793 0-1.19.947-.63 1.5L14.92 26.39Z" fill="url(#${id})"/>
  <path d="M7.113 28.062c.374.37 1.013.108 1.013-.414v-5.03a.585.585 0 0 0-.594-.586H2.435c-.529 0-.794.631-.42 1l5.098 5.03Z" fill="url(#${id})"/></svg>`;
-const svg=k=>`<svg viewBox="${I[k][0]}" fill="none" aria-hidden="true">${I[k][1]}</svg>`;
+const svg=k=>`<svg viewBox="${I[k][0]}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k][1]}</svg>`;
 
 /* ═══ data ═══ */
 /* whitelabel is Enterprise-only today (PRD OQ7); Meridian is modelled as an
