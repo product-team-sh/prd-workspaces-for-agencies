@@ -364,14 +364,48 @@ svg{display:block}
 .nest-f{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px 14px;flex-wrap:wrap}
 
 /* ── KPI tiles ───────────────────────────────────────────────────────────── */
-.kpi{padding:20px 22px 18px}
+/* grouped KPI card */
+.kgrp-h{display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--gray-13)}
+.kgrp-t{font-size:13.5px;font-weight:600;color:var(--gray-17)}
+.kgrp-b{padding:16px 18px}
+.ktiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.ktile{border:1px solid var(--gray-13);border-radius:6px;padding:13px 14px;background:var(--gray-19)}
+.ktile-h{display:flex;align-items:center;gap:8px}
+.ktico{width:24px;height:24px;border-radius:5px;background:#fff;border:1px solid var(--gray-13);
+ color:var(--blue-11);display:grid;place-items:center;flex:none}
+.ktico svg{width:13px;height:13px}
+.ktl{font-size:12.5px;font-weight:500;color:var(--gray-12)}
+.ktile-v{display:flex;align-items:center;gap:8px;margin-top:9px}
+.ktv{font-size:24px;line-height:32px;font-weight:600;color:var(--gray-17);letter-spacing:-.02em;
+ font-variant-numeric:tabular-nums}
+.ktile-v .dchip{margin-left:auto}
+.ktile-b{font-size:11.5px;line-height:17px;color:var(--gray-11);margin-top:2px;font-variant-numeric:tabular-nums}
+.kgrp-f{padding:12px 18px;border-top:1px solid var(--gray-13);background:var(--gray-19);
+ border-radius:0 0 6px 6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.kgrp-fl{font-size:11.5px;color:var(--gray-12);flex:none}
+.kgrp-f .sbar{flex:1;min-width:130px}
+.kgrp-f .lgd{margin-top:0;flex:none}
+.kpi{padding:18px 20px 0;display:flex;flex-direction:column}
 .kpi-t{display:flex;align-items:center;gap:8px}
+.kpi-t .dchip{margin-left:auto}
 .kpi-l{font-size:13.5px;font-weight:500;color:var(--gray-12)}
-.kpi-i{margin-left:auto;width:28px;height:28px;border-radius:var(--radius-input);background:var(--blue-17);color:var(--blue-11);display:grid;place-items:center}
-.kpi-i svg{width:15px;height:15px}
-.kpi-v{display:flex;align-items:center;gap:10px;font-size:26px;line-height:34px;font-weight:600;color:var(--gray-17);
- letter-spacing:-.02em;margin-top:10px;font-variant-numeric:tabular-nums}
-.kpi-c{font-size:12px;line-height:18px;color:var(--gray-11);margin-top:2px}
+.kpi-v{display:flex;align-items:center;gap:10px;font-size:28px;line-height:36px;font-weight:600;color:var(--gray-17);
+ letter-spacing:-.02em;margin:8px 0 14px;font-variant-numeric:tabular-nums}
+/* the footer band. auto top margin pins it to the card's base, and a fixed
+   height keeps the rule on one line across the row: a card carrying a channel
+   bar and a legend is taller inside than a card carrying one line of text, and
+   without this its rule floats ten pixels above its neighbours' and the card
+   reads as a different component. */
+.kpi-c{margin:auto -20px 0;padding:11px 20px;border-top:1px solid var(--gray-13);
+ background:var(--gray-19);font-size:12px;line-height:18px;color:var(--gray-11);
+ min-height:52px;display:flex;flex-direction:column;justify-content:center}
+/* one stacked bar per channel beats four chips: it never wraps, and it shows the
+   mix as a proportion rather than as four numbers to compare by eye */
+.sbar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}
+.sbar i{display:block;height:100%;border-radius:2px}
+.lgd{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:8px}
+.lgd span{display:inline-flex;align-items:center;gap:5px;font-size:11px;line-height:16px;color:var(--gray-12)}
+.lgd i{width:6px;height:6px;border-radius:50%;flex:none}
 .dchip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;line-height:16px;flex:none}
 .dchip svg{width:9px;height:9px}
 .big{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -379,11 +413,6 @@ svg{display:block}
 .big-s{font-size:13px;color:var(--gray-15);flex-basis:100%}
 .pace{font-size:13px;line-height:19px;color:var(--gray-15);margin:6px 0 0}
 .pace.bad{color:var(--orange-12)}
-.health{display:flex;align-items:center;gap:4px 22px;flex-wrap:wrap;padding:0 4px}
-.hdot{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font:inherit;font-size:13px;color:var(--gray-15);cursor:pointer;padding:0}
-.hdot b{font-weight:600;color:var(--gray-17);font-variant-numeric:tabular-nums}
-.hdot:hover{color:var(--gray-17)}
-.hdot .dot{width:7px;height:7px}
 
 /* ── tables ────────────────────────────────────────────────────────────────
    Matched against the real rendered table, not the token docs: the generic
@@ -499,6 +528,20 @@ tr:hover .hovercell .rowacts,tr:focus-within .hovercell .rowacts{visibility:visi
 .track{height:5px;border-radius:var(--radius-control);background:var(--gray-16);overflow:hidden}
 .track>span{display:block;height:100%;border-radius:var(--radius-control)}
 .meter-t{font-size:11px;line-height:16px;color:var(--gray-15)}
+/* two-line numeric cell: the count leads, the rate or the mix sits under it */
+.stackv{display:block;font-weight:600;color:var(--ink)}
+.stackb{display:block;font-size:11px;line-height:16px;color:var(--gray-12)}
+/* usage, Home: the binding pool, then the rest, both in words */
+.u-head{display:block;font-size:13px;font-weight:600;line-height:18px}
+.u-quiet{display:block;font-size:12px;line-height:18px;color:var(--gray-11)}
+.u-sub{display:block;font-size:11px;line-height:16px;color:var(--gray-12);margin-top:1px}
+/* usage, Clients: one row per pool in trouble */
+.u-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.u-row:last-child{margin-bottom:0}
+.u-rl{font-size:11px;line-height:16px;color:var(--gray-12);width:52px;flex:none}
+.u-rb{flex:1;min-width:34px;height:4px;border-radius:2px;background:var(--gray-16);overflow:hidden}
+.u-rb b{display:block;height:100%;border-radius:2px}
+.u-rp{font-size:11px;line-height:16px;font-weight:600;width:30px;text-align:right;flex:none;color:var(--gray-11)}
 .qa{display:none;margin:0 0 0 38px;gap:2px}
 .qa button{width:26px;height:24px;border:0;background:none;border-radius:var(--radius-input);color:var(--gray-11);cursor:pointer;display:grid;place-items:center;padding:0}
 .qa button svg{width:14px;height:14px}
@@ -822,6 +865,116 @@ input[disabled].invite-email{background:var(--gray-19);color:var(--gray-12);curs
 .ws-btn.ws-static{cursor:default}
 .ws-btn.ws-static:hover{background:none}
 .ws-btn.ws-static svg{visibility:hidden}
+
+/* ═══ A8 Add a member, one screen ═════════════════════════════════════════════
+   Ported 16 Sep 2026 from add-member-flow.html, which replaced the four-step
+   wizard at Hitesh's direction. Person, workspaces and access are three
+   sections of one form; there is no review step because nothing is hidden and
+   the footer carries the whole grant. Only the furniture this screen needs is
+   below: the presets, the card grid, the switches and the chips are the ones
+   A4 Access already ships, unchanged, which is the point of the merge.       */
+/* width:100% is load-bearing. .wrap is a column flexbox, and auto side margins
+   on a flex item switch off cross-axis stretch, so without it the panel sizes
+   to its own content and visibly changes width between Agency user and Client
+   user, whose sections are different lengths. Found in review 16 Sep. */
+.am-wrap{width:100%;max-width:1248px;margin:0 auto;
+ display:grid;grid-template-columns:220px minmax(0,1fr);gap:28px;align-items:start}
+/* the rail is not a wizard. Nothing here is gated behind it and every section
+   is on the page already; it says where you are, what each section currently
+   holds, and jumps to one. It lives in the gutter the centred panel was
+   leaving empty, which is the whole reason it exists. */
+.am-wrap.solo{grid-template-columns:minmax(0,1fr);max-width:1180px}
+.am-rail{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px}
+.am-rail-i{display:flex;gap:10px;padding:10px 12px;border-radius:var(--radius-control);
+ background:none;border:0;font:inherit;text-align:left;width:100%;cursor:pointer;color:var(--gray-15)}
+.am-rail-i:hover{background:var(--gray-16)}
+.am-rail-i.is-now{background:var(--blue-17)}
+.am-rail-n{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+ font-size:11px;font-weight:600;background:var(--gray-13);color:var(--gray-15)}
+.am-rail-i.is-now .am-rail-n{background:var(--blue-11);color:#fff}
+.am-rail-i.is-done .am-rail-n{background:var(--green-11);color:var(--green-12)}
+.am-rail-t{font-size:13px;font-weight:600;line-height:18px;color:var(--gray-12);display:block}
+.am-rail-i.is-now .am-rail-t{color:var(--blue-20)}
+.am-rail-s{font-size:12px;line-height:17px;color:var(--gray-15);display:block}
+.sec{border-top:1px solid var(--gray-13)}
+.sec:first-of-type{border-top:0}
+.sec-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.sec-n{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+ font-size:11px;font-weight:600;background:var(--gray-16);color:var(--gray-15)}
+.sec-n.is-done{background:var(--green-11);color:var(--green-12)}
+.sec-t{font-size:15px;line-height:22px;font-weight:600;color:var(--gray-17)}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.resting{border:1px dashed var(--gray-23);border-radius:var(--radius-control);
+ padding:22px;text-align:center;font-size:13px;color:var(--gray-15);background:var(--gray-19)}
+/* a consequential pick is a card with its consequence written on it, never a
+   select the reader has to already understand. Used for the user type and,
+   since 16 Sep, for the account role, which nobody could previously decode. */
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.choice{text-align:left;background:var(--gray-1);border:1px solid var(--gray-13);
+ border-radius:var(--radius-surface);padding:14px 16px;cursor:pointer;font:inherit;
+ display:flex;gap:12px;align-items:flex-start;transition:border-color .15s,box-shadow .15s}
+.choice:hover{border-color:var(--gray-23)}
+.choice[aria-checked="true"]{border-color:var(--blue-11);box-shadow:0 0 0 1px var(--blue-11)}
+.choice .rdo{flex:none;width:16px;height:16px;border-radius:50%;margin-top:3px;
+ border:1.5px solid var(--gray-23);background:var(--gray-1)}
+.choice[aria-checked="true"] .rdo{border:5px solid var(--blue-11)}
+.choice b{display:block;font-size:14px;font-weight:600;line-height:22px;color:var(--gray-17)}
+.choice i{display:block;font-style:normal;font-size:12px;line-height:18px;color:var(--gray-15);margin-top:2px}
+/* a role's powers, rendered from ACCOUNT_POWERS x CAN rather than written out,
+   so a new power reaches the cards and the comparison table in one edit. */
+.pwlist{display:block;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-13)}
+.pw{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:18px;margin-bottom:3px}
+.pw svg{flex:none;margin-top:2.5px}
+.pw.y{color:var(--gray-12)}.pw.y svg{color:var(--green-14)}
+.pw.n{color:var(--gray-15)}.pw.n svg{color:var(--gray-11)}
+.wsbox{border:1px solid var(--gray-13);border-radius:var(--radius-control);background:var(--gray-1);
+ max-height:340px;overflow-y:auto}
+.wsrow{display:flex;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--gray-16);cursor:pointer}
+.wsrow:last-child{border-bottom:0}
+.wsrow:hover{background:var(--gray-19)}
+.wsrow input{flex:none;width:16px;height:16px;accent-color:var(--blue-11);margin:0}
+.wsrow .wsn{font-size:14px;font-weight:500;color:var(--gray-17);display:block}
+.wsrow .wsc{font-size:12px;line-height:18px;color:var(--gray-15);display:block}
+/* one tab per picked workspace, each carrying its own preset, so which ones
+   differ is readable without opening any of them. This replaces the
+   per-workspace step the wizard used. */
+.wstabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px}
+.wstab{display:flex;align-items:center;gap:8px;flex:none;max-width:230px;cursor:pointer;
+ background:var(--gray-1);border:1px solid var(--gray-13);border-radius:var(--radius-control);
+ padding:7px 12px 7px 8px;font:inherit;text-align:left}
+.wstab:hover{border-color:var(--gray-23)}
+.wstab.is-on{border-color:var(--blue-11);box-shadow:0 0 0 1px var(--blue-11);background:var(--blue-17)}
+.wstab b{display:block;font-size:13px;font-weight:600;line-height:18px;color:var(--gray-17)}
+.wstab i{display:block;font-style:normal;font-size:11px;line-height:16px;color:var(--gray-15)}
+.wstab.is-empty i{color:var(--amber-700);font-weight:500}
+.accbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+/* the footer is the review step, always on screen, so the grant is legible at
+   the moment Send is pressed rather than one screen earlier. */
+.am-foot{position:sticky;bottom:0;z-index:5;margin-top:20px;background:var(--gray-1);
+ border:1px solid var(--gray-13);border-radius:var(--radius-control);padding:12px 16px;
+ display:flex;align-items:center;gap:12px;box-shadow:0 -2px 8px rgba(31,41,55,.06)}
+.fsum{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;color:var(--gray-12);flex-wrap:wrap}
+.fsum strong{color:var(--gray-17);font-weight:600}
+.modal.wide{width:min(720px,94vw)}
+.modal.wide .modal-b{max-height:min(66vh,560px);overflow-y:auto}
+table.cmp td,table.cmp th{vertical-align:middle}
+table.cmp tbody tr:last-child td{border-bottom:0}
+table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
+@media(max-width:1100px){
+ .am-wrap{grid-template-columns:minmax(0,1fr);gap:16px}
+ .am-rail{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+ .am-rail-i{flex:none;width:auto;padding:8px 10px}
+ .am-rail-s{display:none}
+}
+@media(max-width:880px){
+ .am-foot{flex-wrap:wrap;row-gap:10px}
+ .fsum{width:100%;order:-1}
+ .am-foot .sp{display:none}
+ .am-foot .shd-button{flex:1}
+ .wsrow{flex-wrap:wrap;row-gap:6px}
+ .wsrow .chip{margin-left:42px}
+ .wsbox{max-height:none}
+}
 </style>
 </head>
 <body>
@@ -946,8 +1099,8 @@ const PEOPLE={
     looking at it. 16 Flow M / D5a: one permission system.                     */
  owner:{name:"Alex Meridian",initials:"AM",role:"Owner",ws:null},
  priya:{name:"Priya Nair",  initials:"PN",role:"Admin",
-   ws:{nw:"Everything",vx:"Read everything",al:"Everything",bl:"Everything",hv:"Everything"}},
- sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:{al:"Reply and run",nw:"Reports only"}},
+   ws:{nw:"Everything",vx:"Reporting",al:"Everything",bl:"Everything",hv:"Everything"}},
+ sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:{al:"Everything",nw:"Reporting"}},
 };
 const CAN={
  /* `destructive` is delete and unlink, which end a relationship and are the
@@ -958,9 +1111,13 @@ const CAN={
     workspace. Where you may do it is `ws` above. Splitting the two is what lets
     one Admin be full on one client and read-only on the next without inventing
     a role for the combination.                                              */
- Owner:  {limits:true,billing:true,members:true,destructive:true,disable:true,settings:true,dashboard:true},
- Admin:  {limits:true,billing:false,members:true,destructive:false,disable:true,settings:true,dashboard:true},
- Member: {limits:false,billing:false,members:false,destructive:false,disable:false,settings:false,dashboard:false},
+ /* `implicit` is the owner's automatic membership of every workspace, which
+    `wsIdsOf` already implements by treating a null `ws` map as "all". It is
+    named here so the role cards and the comparison table can state it instead
+    of it being a behaviour only the code knows about. */
+ Owner:  {limits:true,billing:true,members:true,destructive:true,disable:true,settings:true,dashboard:true,implicit:true},
+ Admin:  {limits:true,billing:false,members:true,destructive:false,disable:true,settings:true,dashboard:true,implicit:false},
+ Member: {limits:false,billing:false,members:false,destructive:false,disable:false,settings:false,dashboard:false,implicit:false},
 };
 let me_="owner";
 const ME=()=>PEOPLE[me_];
@@ -969,32 +1126,32 @@ const canI=k=>CAN[ME().role][k];
 const CLIENTS=[
  {id:"nw",name:"Northwind Logistics",company:"Northwind Logistics Ltd",email:"ops@northwind.co",colour:"#B45309",
   seq:12,mbx:54,prospects:8900,sent:41300,reply:6.2,prev:6.0,pos:2.1,created:"12 Jun, 2026",limitsReviewed:true,permission:"Full Access",
-  staff:[["Priya Nair","Admin"],["Sam Doshi","Member"]],users:[["ops@northwind.co","Full Access"]],
+  users:[["ops@northwind.co","Full Access"]],
   mailboxes:[["outreach@northwind-go.com","Disconnected",0,"agency"],["hello@northwind-go.com","Healthy",100,"agency"],["team@nw-reach.com","Warning",60,"agency"]]},
  {id:"vx",name:"Vertex Health",company:"Vertex Health Inc",email:"growth@vertexhealth.io",colour:"#0F766E",
   seq:9,mbx:69,prospects:7350,sent:52800,reply:4.8,prev:6.9,pos:1.4,created:"03 Jul, 2026",limitsReviewed:true,permission:"Limited Access",
-  staff:[["Priya Nair","Admin"]],users:[["growth@vertexhealth.io","Limited Access"]],
+  users:[["growth@vertexhealth.io","Limited Access"]],
   mailboxes:[["hi@vertex-reach.com","Healthy",100,"agency"],["care@vertex-reach.com","Healthy",100,"client"]]},
  {id:"al",name:"Alloy & Co.",company:"Alloy & Co.",email:"marcus@alloyco.com",colour:"#C2410C",
   seq:5,mbx:31,prospects:5980,sent:24100,reply:8.1,prev:7.8,pos:3.4,created:"21 Jul, 2026",limitsReviewed:true,permission:"Full Access",
-  staff:[["Sam Doshi","Member"]],users:[["marcus@alloyco.com","Full Access"]],
+  users:[["marcus@alloyco.com","Full Access"]],
   mailboxes:[["m@alloy-outbound.com","Healthy",100,"agency"],["sales@alloy-outbound.com","Healthy",100,"agency"]]},
  {id:"bl",name:"Brightline SaaS",company:"Brightline",email:"ceo@brightline.app",colour:"#6D28D9",
   seq:3,mbx:9,prospects:900,sent:6400,reply:3.1,prev:5.9,pos:0.7,created:"14 Aug, 2026",limitsReviewed:true,permission:"Full Access",
-  staff:[["Priya Nair","Admin"]],users:[["ceo@brightline.app","Full Access"]],
+  users:[["ceo@brightline.app","Full Access"]],
   mailboxes:[["jo@brightline-go.com","Healthy",80,"agency"]]},
  {id:"hv",name:"Harbourview Legal",company:"Harbourview Legal LLP",email:"ops@harbourview.legal",colour:"#0E7490",
   mode:"linked",link:{state:"active",viewAs:false,wsid:"WS-7K42-QN",since:"02 Sep, 2026",owner:"ops@harbourview.legal"},
   seq:7,mbx:22,prospects:4200,sent:16800,reply:5.4,prev:5.1,pos:1.9,created:"02 Sep, 2026",permission:"Full Access",
-  staff:[["Priya Nair","Admin"]],users:[["ops@harbourview.legal","Full Access"],["kate@harbourview.legal","Limited Access"]],
+  users:[["ops@harbourview.legal","Full Access"],["kate@harbourview.legal","Limited Access"]],
   mailboxes:[["hello@harbourview-outreach.com","Healthy",100,"client"],["team@harbourview-outreach.com","Healthy",100,"client"]]},
  {id:"rm",name:"Redmere Studio",company:"Redmere Studio Ltd",email:"jo@redmere.studio",colour:"#9333EA",
   mode:"linked",link:{state:"pending",requestedBy:"Alex Meridian",wsid:"WS-3B19-XT",requested:"Yesterday",owner:"jo@redmere.studio"},
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"08 Sep, 2026",permission:"No Access",
-  staff:[],users:[],mailboxes:[]},
+  users:[],mailboxes:[]},
  {id:"cp",name:"Cascade Partners",company:"Cascade Partners LLP",email:"desk@cascade.partners",colour:"#4B5563",
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"08 Sep, 2026",permission:"No Access",
-  staff:[],users:[],mailboxes:[]},
+  users:[],mailboxes:[]},
 ];
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 
@@ -1097,7 +1254,7 @@ function growSequences(c){
      draft sitting on 900 prospects is worth a conversation. */
   const contacted=state==="Draft"?0:Math.round(Math.max(0,pros)*(.72+r()*.26));
   c.sequences.push({name,state,prospects:Math.max(0,pros),contacted,sent:Math.max(0,sent),reply,
-   owner:(c.staff[i%Math.max(1,c.staff.length)]||["the agency"])[0]});
+   owner:(staffOf(c)[i%Math.max(1,staffOf(c).length)]||{name:"the agency"}).name});
  }
  /* rounding has to land somewhere. Put it on the largest active sequence so no
     row ends up negative and the column still totals the headline.          */
@@ -1212,6 +1369,20 @@ const RES={
   rows:{nw:{res:0,cap:10000,used:8900},vx:{res:0,cap:12000,used:7350},al:{res:0,cap:6000,used:5980},bl:{res:0,cap:5000,used:900},cp:{res:0,cap:3000,used:0},own:{res:0,cap:3000,used:2800}}},
 };
 const RK=Object.keys(RES);
+/* non-email channel volume per client. Email is not here: it is c.sent, because
+   only email draws on a plan allowance and so already lives on the client. These
+   three draw on nothing, which is exactly why they were invisible on a tile and
+   a column that counted emails. */
+const CHAN={
+ nw:{li:7200,call:1100,wa:0},
+ vx:{li:9400,call:1850,wa:0},
+ al:{li:4100,call:620,wa:340},
+ bl:{li:980,call:0,wa:0},
+ hv:{li:2400,call:0,wa:0},
+ rm:{li:0,call:0,wa:0},
+ cp:{li:0,call:0,wa:0},
+ own:{li:1350,call:210,wa:0},
+};
 const REPLIES=[
  {id:"m1",client:"nw",from:"Dana Whitfield, Fairline Freight",snippet:"Send the summary over. If the numbers hold up I will get our ops director on a call",positive:true,age:"4 hours"},
  {id:"m2",client:"vx",from:"Dr Alan Reece, Parkview Health",snippet:"We are mid-procurement. Send details and I will pass them on",positive:true,age:"yesterday"},
@@ -1446,8 +1617,16 @@ const allAlerts=()=>{const a=[...INFRA(),...limitAlerts()];
 
 let ctx="agency",view={name:"dash"},tab="overview",activeRes="lead_finder",drawer=null,popOpen=false;
 let asClient=false, cView="sequences", openProspect=null, modal=null, openThread=null;
-let nc={name:"",company:"",email:"",wsid:"",path:"create",role:"Reply and run",staff:null,caps:null,bif:false,reachedStep3:false};
-const NC_STAFF_PICK=[["Priya Nair","Admin"],["Sam Doshi","Member"],["Ana Costa","Member"]];
+/* one shape, one function: linkRequest() used to reset nc with a shorter,
+   five-field literal that dropped role/team/caps/bif/reachedStep3, so the
+   next time the wizard opened it rendered a leading ". Everyone from this
+   client gets the same set" (role was undefined) with a shown-vs-stored
+   preset mismatch. Found in review; this is the same class of drift as the
+   PEOPLE/c.staff split this whole redesign exists to remove, just in a
+   smaller object. One function, called everywhere nc is reset, so there is
+   only one shape to keep correct. */
+const NC_INIT=()=>({name:"",company:"",email:"",wsid:"",path:"create",role:"Reply and run",team:null,caps:null,bif:false,reachedStep3:false});
+let nc=NC_INIT();
 const REVROLEMAP={"Client, full":"Full Access","Client, reader":"Limited Access"};
 const f=n=>n.toLocaleString("en-US"),el=i=>document.getElementById(i);
 const barCol=t=>t==="bad"?"#DC2626":t==="warn"?"#D97706":"#059669";
@@ -1467,11 +1646,62 @@ function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
 const isBif=i=>funded(byId[i]||{})&&RK.filter(k=>RES[k].floors).every(k=>{const r=RES[k].rows[i];return r&&r.cap>0&&r.res>=r.cap});
 const setBif=(i,on)=>RK.filter(k=>RES[k].floors).forEach(k=>{const r=RES[k].rows[i];if(r)r.res=on?r.cap:0});
 const steps=c=>isLinked(c)?[["Link requested",true],["Client approved the link",linkState(c)==="active"],
-  ["Agency staff added",c.staff.length>0],["Their setup carried over",linkState(c)==="active"&&c.seq>0]]
+  ["Agency staff added",staffOf(c).length>0],["Their setup carried over",linkState(c)==="active"&&c.seq>0]]
  :[["Client created",true],["Client user invited",c.users.length>0],
  ["Email accounts assigned",c.mailboxes.length>0],["Limits set",!!c.limitsReviewed]];
 const doneN=c=>steps(c).filter(x=>x[1]).length;
 const lf=i=>{const m=compute("lead_finder");return{r:RES.lead_finder.rows[i]||{res:0,cap:0,used:0},s:rowState("lead_finder",i,m)}};
+
+/* ── usage across every pool, not one of them ──────────────────────────────
+   There is no single usage number. Five pools, three natures and two warning
+   thresholds, and the one that stops a client is rarely the one that happens
+   to be largest: Alloy is out of Lead Finder credits while its sends sit at
+   96%, so a sends meter labelled "Usage" reports the wrong emergency.
+   usageOf returns every pool the agency funds for this client, worst first,
+   carrying the three ways a pool can block: the client's own cap is spent
+   (room 0), the shared pool is drained by other clients (draw 0), or it is
+   simply near. Linked and pending clients have no rows at all, which is not
+   zero usage, and the callers say so in words instead of drawing an empty bar. */
+const USAGE_SHORT={lead_finder:"Leads",verification:"Verify",ai:"AI",sends:"Sends",prospects:"Prospects"};
+const USAGE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--gray-23)",info:"var(--gray-23)"};
+const USAGE_RANK={bad:0,warn:1,ok:2,info:3};
+const usageOf=c=>RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return null;
+  const s=rowState(k,c.id,compute(k));
+  return {k,short:USAGE_SHORT[k],pct:r.cap>0?r.used/r.cap:0,used:r.used,cap:r.cap,
+    room:s.room,draw:s.draw,tone:s.tone,state:s.state,storage:RES[k].nature==="Storage"}})
+ .filter(Boolean).sort((a,b)=>USAGE_RANK[a.tone]-USAGE_RANK[b.tone]||b.pct-a.pct);
+/* a spent pool never renders as a percentage: 100% and 99.7% round to the same
+   thing and only one of them has stopped the client */
+const usageNum=x=>x.room===0?(x.storage?"full":"out"):x.draw===0?"pool":Math.round(x.pct*100)+"%";
+const usageHead=x=>x.room===0?(x.storage?"Full: ":"Out: ")+x.short
+  :x.draw===0?"Pool: "+x.short:Math.round(x.pct*100)+"% "+x.short;
+const usageNone=c=>'<span class="sub">'+(isPending(c)?"Not linked yet":"Client's own plan")+'</span>';
+
+/* Home: compact. The binding pool in words, then how many others are close, in
+   words too. An earlier pass put five state dots here and they said nothing: a
+   dot cannot tell you which pool it is, so the only thing a reader could take
+   from the row was that some of them were coloured. */
+function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
+ if(u.every(x=>x.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
+ const bad=u.filter(x=>x.tone!=="ok"&&x.tone!=="info");
+ if(!bad.length) return '<span class="u-quiet">All '+u.length+' healthy</span>';
+ const rest=bad.length-1;
+ return '<span class="u-head" style="color:'+USAGE_COL[u[0].tone]+'">'+usageHead(u[0])+'</span>'
+  +'<span class="u-sub">'+(rest?rest+' other'+(rest>1?'s':'')+' near a limit'
+    :'the other '+(u.length-1)+' are fine')+'</span>'}
+
+/* Clients: the detail, and all five pools every time. Showing only the ones in
+   trouble hid the fact that a pool existed at all, and it made every cell a
+   different height and a different set of labels. Fixed order instead, always
+   RK order, so Sends sits on the same line in every row and the column can be
+   read down as well as across. Colour carries the trouble; the rows carry the
+   inventory. */
+function usageRows(c){const u=usageOf(c); if(!u.length) return usageNone(c);
+ return RK.map(k=>u.find(x=>x.k===k)).filter(Boolean).map(x=>
+   '<span class="u-row"><span class="u-rl">'+x.short+'</span>'
+   +'<span class="u-rb"><b style="width:'+Math.min(100,Math.round(x.pct*100))+'%;background:'+USAGE_COL[x.tone]+'"></b></span>'
+   +'<span class="u-rp"'+(x.tone==="ok"?"":' style="color:'+USAGE_COL[x.tone]+'"')+'>'
+   +usageNum(x)+'</span></span>').join("")}
 const sortI=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5 8 4l2.5 2.5M5.5 9.5 8 12l2.5-2.5"/></svg>`;
 const warnI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>`;
 const infoI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>`;
@@ -1533,7 +1763,7 @@ function renderRail(){
  const cur=k=>ctx==="agency"
    ?((k==="dash"&&view.name==="dash")||(k==="queue"&&view.name==="queue")
      ||(k==="clients"&&(view.name==="clients"||view.name==="record"))||(k==="billing"&&view.name==="credits")
-     ||(k==="people"&&(view.name==="people"||view.name==="person"))
+     ||(k==="people"&&(view.name==="people"||view.name==="person"||view.name==="addmember"))
      ||(AGY_MOD[k]&&view.name===k))
    :(asClient?RAIL2CVIEW[k]===cView:(RAIL2MOD[k]||k)===inMod);
  const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,cws:1},
@@ -1621,6 +1851,7 @@ function renderShell(){
           ||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences"))
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
    :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription"+(billTab==="alloc"?" / Workspace allocation":""))
+   :view.name==="addmember"?"People / Add a member"
    :view.name==="people"?"People"
    :view.name==="person"?("People / "+(PEOPLE[view.id]?PEOPLE[view.id].name:""))
    :view.name==="record"?byId[view.id].name:"Clients";
@@ -1720,12 +1951,10 @@ function vClients(){
    cell:c=>`<td class="ar tnum">${c.reply?c.reply.toFixed(1)+"%":"–"}</td>`},
   {id:"pos",label:"Positive Reply",ar:true,sort:true,
    cell:c=>`<td class="ar tnum">${c.pos?c.pos.toFixed(1)+"%":"–"}</td>`},
-  {id:"lf",label:"Lead Finder",
-   cell:c=>{const{r,s}=lf(c.id),p=Math.min(100,Math.round(s.pct*100));
-    return `<td>${funded(c)
-     ?`<div class="meter"><div class="track"><span style="width:${p}%;background:${barCol(s.tone)}"></span></div>
-       <span class="meter-t tnum">${f(r.used)} of ${f(r.cap)}</span></div>`
-     :`<span class="sub">${isPending(c)?"Not linked yet":"Client's own plan"}</span>`}</td>`}},
+  {id:"usage",label:"Usage",
+   /* was a Lead Finder meter, which reported one pool of five and so named the
+      wrong emergency whenever a different pool was the binding one */
+   cell:c=>`<td>${usageRows(c)}</td>`},
   {id:"status",label:"Status",
    /* disabled outranks the credit state: a client that is not sending has no
       meaningful limit state, and showing "Active" beside it is the screen
@@ -1774,7 +2003,7 @@ function vClients(){
  </div>
  <div class="wrap">
   ${graceBanner()}
-  ${(()=>{const mine=REQUESTS.filter(r=>myClientsFor("usage").some(c=>c.id===r.client));return mine.length?
+  ${(()=>{const mine=REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} client${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn" id="toCredits2">Review</button></span></div>`:""})()}
   <div class="panel"><div class="tscroll"><table class="organism">
@@ -1789,8 +2018,8 @@ function vRecord(id){
  const c=byId[id];
  const T=isLinked(c)
   ?(isPending(c)?[["limits","Link status"]]
-    :[["overview","Overview"],["access","Access"],["members","Members"],["limits","Funding"],["mailboxes","Email Accounts"],["update","Client update"]])
-  :[["overview","Overview"],["access","Access"],["members","Members"],["limits","Limits"],["mailboxes","Email Accounts"],["settings","Settings"],["update","Client update"]];
+    :[["overview","Overview"],["access","Access"],["limits","Funding"],["mailboxes","Email Accounts"],["update","Client update"]])
+  :[["overview","Overview"],["access","Access"],["limits","Limits"],["mailboxes","Email Accounts"],["settings","Settings"],["update","Client update"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  return `
  <div class="toolbar">
@@ -1810,7 +2039,7 @@ function vRecord(id){
  </div>
  <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
  <div class="wrap" style="padding-top:20px">${
-  tab==="overview"?rOverview(c):tab==="access"?(canI("members")?rAccess(c):readOnly(rAccess(c),"change access")):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change membership")):tab==="limits"?(isLinked(c)?rLinked(c):canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):tab==="update"?cUpdate(c,true):rMail(c)}</div>`;
+  tab==="overview"?rOverview(c):tab==="access"?(canI("members")?rAccess(c):readOnly(rAccess(c),"change access")):tab==="limits"?(isLinked(c)?rLinked(c):canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):tab==="update"?cUpdate(c,true):rMail(c)}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -1862,7 +2091,7 @@ function rOverview(c){
    <div class="panel-b"><dl class="dl">
     <dt>Company</dt><dd>${c.company}</dd><dt>Client email</dt><dd>${c.email}</dd>
     <dt>Client access</dt><dd>${isLinked(c)?"They set their own":presetOf(c.access||{mods:[],verbs:[]})}</dd><dt>Created on</dt><dd>${c.created}</dd>
-    <dt>Agency staff</dt><dd>${c.staff.length?c.staff.map(s=>{const p=Object.values(PEOPLE).find(x=>x.name===s[0]);const lv=p?presetIn(p,c.id):null;return s[0]+(lv?" &middot; "+lv:"")}).join("<br>"):"None"}</dd>
+    <dt>Agency staff</dt><dd>${staffOf(c).length?staffOf(c).map(s=>s.name+" &middot; "+s.access).join("<br>"):"None"}</dd>
     <dt>Email accounts</dt><dd>${c.mailboxes.length}</dd></dl></div></div>
  </div>`;
 }
@@ -1880,7 +2109,7 @@ const ROLEMAP={"Admin":"Admin","Member":"Member","Owner":"Owner","Manager":"Admi
 const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"just now",
  "ops@northwind.co":"yesterday","growth@vertexhealth.io":"6 days ago",
  "marcus@alloyco.com":"3 days ago","ceo@brightline.app":"never"};
-let mb={email:"",kind:"client",role:"Client, full"};
+let mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};
 
 /* ══ what a client workspace can reach ═══════════════════════════════════════
    Hitesh's third pain point, verbatim: *"Give them flexibility required and at
@@ -1906,15 +2135,27 @@ let mb={email:"",kind:"client",role:"Client, full"};
    different questions, and agencies ask them separately.               */
 /* [key, label, what it is, group]. The group is the only thing that decides
    where a capability appears, so adding one is a line here and nothing else. */
+/* 5th element: audience. "both" reaches a client login and a staff member
+   alike; "client" is client-only (Usage: nothing to spend, so nothing for
+   staff to gate); "staff" is staff-only, the 5 modules a client never sees
+   because they are not the client's own work (Tasks, Dialer, Verify,
+   Templates, Radar). One table, one grid, one editor for both subjects,
+   per Hitesh 15 Sep: "access screen and people screen should be the same." */
 const CLIENT_MODULES=[
- ["sequences","Sequences","Their campaigns, and how each one is performing","Outreach"],
- ["inbox","Replies","The replies their campaigns produced","Outreach"],
- ["prospects","Prospects","The people being contacted on their behalf","Audience"],
- ["leads","Lead Finder","Sourcing new prospects, spending your credits","Audience"],
- ["accounts","Email accounts","Which mailboxes send for them, and their health","Sending"],
- ["analytics","Reports","Results only: sent, replies, meetings booked","Results"],
- ["usage","Usage","What you allocated, and what is left of it","Results"],
+ ["sequences","Sequences","Their campaigns, and how each one is performing","Outreach","both"],
+ ["inbox","Replies","The replies their campaigns produced","Outreach","both"],
+ ["task","Tasks","Follow-ups the campaigns raise","Outreach","staff"],
+ ["prospects","Prospects","The people being contacted on their behalf","Audience","both"],
+ ["leads","Lead Finder","Sourcing new prospects, spending your credits","Audience","both"],
+ ["dialer","Dialer","Calls made on this client's outreach","Audience","staff"],
+ ["accounts","Email accounts","Which mailboxes send for them, and their health","Sending","both"],
+ ["verify","Email Verifier","Checking the prospect list before it sends","Sending","staff"],
+ ["tmpl","Templates","The messages this client's sequences send","Sending","staff"],
+ ["radar","Inbox Radar","Deliverability tests for this client's mailboxes","Sending","staff"],
+ ["analytics","Reports","Results only: sent, replies, meetings booked","Results","both"],
+ ["usage","Usage","What you allocated, and what is left of it","Results","client"],
 ];
+const modsFor=subject=>CLIENT_MODULES.filter(m=>m[4]==="both"||m[4]===subject);
 /* [key, label, what it does, the screen it acts on]. An action without its
    screen is meaningless, so the fourth element is a real dependency and not a
    label: it decides where the action renders and when it is available. It was
@@ -1926,11 +2167,12 @@ const CLIENT_VERBS=[
  ["export","Export prospects","Takes the list off the platform","prospects"],
  ["reveal","Reveal leads","Spends your Lead Finder credits, against this client's cap","leads"],
 ];
-const ACCESS_GROUPS=()=>{const g=[];CLIENT_MODULES.forEach(m=>{
+const ACCESS_GROUPS=(audience)=>{const g=[];modsFor(audience).forEach(m=>{
   let e=g.filter(x=>x.name===m[3])[0]; if(!e){e={name:m[3],mods:[]};g.push(e)}
-  e.mods.push({k:m[0],label:m[1],why:m[2],acts:CLIENT_VERBS.filter(v=>v[3]===m[0])})});
+  e.mods.push({k:m[0],label:m[1],why:m[2],acts:audience==="staff"?[]:CLIENT_VERBS.filter(v=>v[3]===m[0])})});
  return g};
-const ALL_MODS=CLIENT_MODULES.map(m=>m[0]), ALL_VERBS=CLIENT_VERBS.map(v=>v[0]);
+const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=CLIENT_VERBS.map(v=>v[0]);
+const ALL_STAFF_MODS=modsFor("staff").map(m=>m[0]);
 /* the first two are the hardcoded cases generalised. The rest are the two roles
    that exist today, plus the one an agency asks for once a client is trusted. */
 const ACCESS_PRESETS={
@@ -1945,10 +2187,36 @@ const ACCESS_PRESETS={
  "Everything":        {mods:ALL_MODS, verbs:ALL_VERBS,
    why:"A client running its own outreach on your plan, with you administering it"},
 };
-const presetOf=a=>{
- const k=Object.keys(ACCESS_PRESETS).find(n=>{const p=ACCESS_PRESETS[n];
+/* A staff member is not access-restricted the way a client is: once granted a
+   screen inside a workspace they can act on it, the same as they can anywhere
+   else in the product. So staff presets are which screens only, no verbs.
+   Named apart from the client five deliberately: reusing "Reports only" for
+   both a client's login and a colleague's assignment is exactly the
+   ambiguity 40-people-access-flow-diagnosis.md §2(b) found. A middle
+   "day-to-day" tier between Reporting and Everything is real product work,
+   left open rather than invented; see that file's verified-vs-judgment table.
+
+   16 Sep: these three stopped being the only staff answers. A8 shipped real
+   per-card switches for a staff subject, so the editor opened from a member
+   row had to gain them too or the same object would have had two editors that
+   disagreed, which is the defect this whole merge exists to remove. A staff
+   grant that matches none of the three now stores as a set and reads as
+   Custom, exactly as a client's does. No agency has asked for per-module staff
+   access; it follows from graded staff access (D5c) rather than from a
+   request, and it is the largest piece of scope in this screen nobody has
+   validated. */
+const STAFF_PRESETS={
+ "Reporting":     {mods:["analytics"], verbs:[],
+   why:"Sees this client's results and nothing else"},
+ "Lead sourcing": {mods:["leads"], verbs:[],
+   why:"Sources leads for this client only"},
+ "Everything":    {mods:ALL_STAFF_MODS, verbs:[],
+   why:"Full access to this client's workspace"},
+};
+const presetOf=(a,table)=>{table=table||ACCESS_PRESETS;
+ const k=Object.keys(table).find(n=>{const p=table[n];
   return p.mods.slice().sort().join()===a.mods.slice().sort().join()
-      && p.verbs.slice().sort().join()===a.verbs.slice().sort().join()});
+      && (p.verbs||[]).slice().sort().join()===(a.verbs||[]).slice().sort().join()});
  return k||"Custom"};
 
 /* ═══ people: account role vs workspace access ═══
@@ -1965,17 +2233,85 @@ const ROLE_WHAT={
  Member:"Does the work. Reaches only the workspaces they are added to, and changes nothing about the account.",
 };
 const ROLE_ORDER={Owner:0,Admin:1,Member:2};
-const ACCOUNT_POWERS=[["billing","See and spend on billing"],["destructive","Delete or unlink a client"],
- ["members","Add people and set their access"],["limits","Set credit and sending limits"],
- ["disable","Pause a client's sending"],["settings","Change workspace settings"]];
+/* one short line per role, for the card headline. ROLE_WHAT above is the full
+   sentence and stays for anywhere that has room for it. */
+const ROLE_LINE={Owner:"Everything, everywhere",Admin:"Runs the business day to day",Member:"Does the work"};
+/* Ordered by what it costs to get wrong, so the two powers only an owner holds
+   read first. Reordered and extended 16 Sep: `dashboard` was in CAN but not
+   here, so the cross-client view was a power the product enforced and never
+   named, and `implicit` was the owner's automatic membership, which the person
+   page described in prose and the comparison table had to hardcode.
+
+   Everything that shows a role generates from this list crossed with CAN: the
+   role cards on A8 and on the person page, and the comparison table. Adding a
+   power is a line here and nothing else, and the surfaces cannot disagree
+   because there is only one place to read. Users had no idea what Admin meant,
+   which is exactly why the role stopped being a dropdown. */
+const ACCOUNT_POWERS=[
+ ["billing",    "See and spend on billing"],
+ ["destructive","Delete or unlink a client"],
+ ["limits",     "Add clients and set their limits"],
+ ["members",    "Add people and set their access"],
+ ["disable",    "Pause a client's sending"],
+ ["settings",   "Change workspace settings"],
+ ["dashboard",  "See the cross-client dashboard"],
+ ["implicit",   "Reach every workspace without being added to it"],
+];
+const tickI='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const dashI='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg>';
+const powersOf=r=>ACCOUNT_POWERS.filter(x=>CAN[r][x[0]]);
+const lacksOf =r=>ACCOUNT_POWERS.filter(x=>!CAN[r][x[0]]);
+/* the role picker, shared by A8 and the person page so the two can never show
+   a different explanation of the same role. `roles` is which to offer: A8
+   offers Admin and Member, because ownership is transferred and not granted;
+   the person page offers all three, because it is where a transfer happens.
+   `attr` is the data attribute each card carries, since the two screens bind
+   to different handlers over the same markup. */
+function roleCards(roles,sel,attr,disabled){
+ return `<div class="choices" role="radiogroup" aria-label="Account role">${roles.map(r=>{
+  const has=powersOf(r), lacks=lacksOf(r), on=sel===r;
+  /* a role that holds nothing at the account level says so once, rather than
+     rendering eight crosses that all mean the same thing. */
+  const body=has.length
+   ? has.map(x=>`<span class="pw y">${tickI}${x[1]}</span>`).join("")
+     +lacks.map(x=>`<span class="pw n">${dashI}${x[1]}</span>`).join("")
+   : `<span class="pw y">${tickI}Works in the workspaces they are added to</span>
+      <span class="pw n">${dashI}None of the ${ACCOUNT_POWERS.length} account controls</span>`;
+  return `<button class="choice" role="radio" aria-checked="${on}" ${attr}="${r}" ${disabled?"disabled style=\"cursor:not-allowed;opacity:.65\"":""}>
+   <span class="rdo"></span><span style="min-width:0"><b>${r}</b><i>${ROLE_LINE[r]}</i>
+    <span class="pwlist">${body}</span></span></button>`}).join("")}</div>`;
+}
 /* the owner is deliberately not enumerated. Ownership is not an assignment, so
    storing it as rows someone could delete would be a lie the UI then has to
    defend. `null` reads as "every workspace" everywhere it is consumed.        */
 const wsIdsOf=p=>p.ws?Object.keys(p.ws).filter(id=>byId[id]):CLIENTS.map(c=>c.id);
 const presetIn=(p,cid)=>p.ws?(p.ws[cid]||null):"Everything";
-const accessIn=(p,cid)=>{const n=presetIn(p,cid);return n?ACCESS_PRESETS[n]:null};
-const accessSummary=name=>{const a=ACCESS_PRESETS[name]; if(!a) return "";
+/* every caller passes a PEOPLE entry, i.e. a staff member, never a client, so
+   this always resolves against STAFF_PRESETS.
+
+   Since A8 (16 Sep) a `ws` value may be either a STAFF_PRESETS name, which is
+   what the fixture and every earlier write path produce, or a {mods,verbs}
+   object, which is what A8 writes when the reader deviates from a preset.
+   Normalising here rather than at the eleven call sites is deliberate: iSee,
+   myClientsFor, the replies and tasks roll-ups, the rail badge, capacity
+   requests, at-limit items and infrastructure alerts all gate through this one
+   function, and a shape check in each of them is eleven chances to miss one. */
+const asSet=v=>!v?null:(typeof v==="string"?(STAFF_PRESETS[v]||null):v);
+const accessIn=(p,cid)=>asSet(presetIn(p,cid));
+/* the display name for a staff grant, which is the preset it matches or
+   "Custom" when it matches none. Kept apart from accessIn because gating wants
+   the set and a label wants the name, and conflating them is what made the
+   old code read a preset name where it needed a module list. */
+const presetNameIn=(p,cid)=>{const v=presetIn(p,cid); if(!v) return null;
+ return typeof v==="string"?v:presetOf(v,STAFF_PRESETS)};
+/* D5d, 16 Sep: a client user's grant is their own, seeded from the workspace's
+   default. The third element of a `users` entry holds it; absent means the
+   person predates D5d and still reads the workspace default, which is what
+   keeps the shipped fixture valid without a migration. */
+const userAccessOf=(c,u)=>(u&&u[2])||c.access||{mods:[],verbs:[]};
+const accessSummary=(name,table)=>{table=table||ACCESS_PRESETS;const a=table[name]; if(!a) return "";
  const M=a.mods.map(m=>(CLIENT_MODULES.filter(x=>x[0]===m)[0]||[0,m])[1]);
+ if(table===STAFF_PRESETS) return M.length?M.join(", "):"Nothing";
  const V=a.verbs.map(v=>((CLIENT_VERBS.filter(x=>x[0]===v)[0]||[0,v])[1]||"").toLowerCase());
  return (M.length?M.join(", "):"Nothing")+" &middot; "+(V.length?"can "+V.join(", "):"read only")};
 const isOwnerP=p=>p.role==="Owner";
@@ -1985,6 +2321,26 @@ const ownerCount=()=>Object.keys(PEOPLE).filter(k=>isOwnerP(PEOPLE[k])).length;
    something counts it.                                                        */
 const uncovered=()=>CLIENTS.filter(c=>!Object.keys(PEOPLE)
   .some(k=>!isOwnerP(PEOPLE[k])&&PEOPLE[k].ws&&PEOPLE[k].ws[c.id]));
+/* the one store. A staff member is on a workspace if and only if their own ws
+   map says so; nothing else may claim it. This is what
+   40-people-access-flow-diagnosis.md §1.3 calls "the actual seam": before this,
+   PEOPLE[].ws and c.staff were two stores, written by three different UIs, and
+   only one of them was ever real. There is now nowhere else to write it, so
+   there is nothing left to fall out of sync. The owner is never in this list;
+   every screen that shows staff shows the owner separately, unconditionally. */
+function staffOf(c){
+ /* inlines the owner check rather than calling isOwnerP: this runs during
+    fixture generation, before that const's own declaration line has executed,
+    and calling it there throws a temporal-dead-zone error every fixture load
+    would hit. Function declarations hoist their body; const bindings do not. */
+ return Object.keys(PEOPLE).filter(k=>PEOPLE[k].role!=="Owner"&&PEOPLE[k].ws&&PEOPLE[k].ws[c.id])
+   .map(k=>{const v=PEOPLE[k].ws[c.id];
+    /* inlined for the same temporal-dead-zone reason as the owner check above:
+       this runs during fixture generation, before presetNameIn's const has
+       been initialised, so it resolves the name here instead of calling it. */
+    return {key:k,name:PEOPLE[k].name,role:PEOPLE[k].role,
+     access:typeof v==="string"?v:presetOf(v,STAFF_PRESETS)}});
+}
 /* membership says which workspaces exist for you. Access says what you may see
    inside one, and every roll-up is made of things from inside. Filtering a
    roll-up on membership alone puts a workspace's replies in the queue of
@@ -1992,6 +2348,13 @@ const uncovered=()=>CLIENTS.filter(c=>!Object.keys(PEOPLE)
    that arrives the moment access stops being all-or-nothing.                */
 const iSee=(cid,mod)=>{const a=accessIn(ME(),cid);return !!a&&a.mods.indexOf(mod)>-1};
 const myClientsFor=mod=>myClients().filter(c=>iSee(c.id,mod));
+/* capacity requests and limits were gated on iSee(cid,"usage"), reusing a
+   client-facing module as a stand-in for "can this person manage this
+   workspace's limits". That broke the moment "usage" became genuinely
+   client-only (15 Sep, staff never had a Usage screen inside a workspace
+   either, per OUTREACH). The real gate was always the account-level limits
+   power, not a workspace module, so it is named as what it actually is. */
+const myClientsForLimits=()=>canI("limits")?myClients():[];
 const canC=(c,k)=>(c.access?c.access.verbs:[]).indexOf(k)>-1;
 const seesC=(c,k)=>(c.access?c.access.mods:[]).indexOf(k)>-1;
 /* a client with nothing switched on has a login that goes nowhere, which is
@@ -2027,7 +2390,7 @@ byId.al.access={mods:["sequences","inbox","prospects","leads","analytics","usage
    cannot do, and the invite sentence, all derived from the same access set. The
    eleven-row list with a switch 1,200px from its label is gone, and the members
    table moved to a tab of its own. */
-const MOD_ICON={sequences:"seq",inbox:"inbox",prospects:"crm",leads:"leads",accounts:"mail",analytics:"analytics",usage:"usage"};
+const MOD_ICON={sequences:"seq",inbox:"inbox",prospects:"crm",leads:"leads",accounts:"mail",analytics:"analytics",usage:"usage",task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar"};
 /* the invite sentence is derived from the access set, never quoted from a role,
    and the same derivation feeds the preview so the two cannot disagree */
 function inviteCopy(c){
@@ -2061,145 +2424,477 @@ function accessPreview(c){
     ${c.users&&c.users[0]?`<button class="linkbtn" data-previewinvite="${c.id}|${c.users[0][0]}|">Preview the invite</button>`:""}</div>
   </div></div></aside>`;
 }
-function accessPanel(c){
- if(isLinked(c)) return `<div class="panel">
+/* toggling one screen for one staff member in one workspace. Written as a
+   function rather than inline because the page and the drawer bind separately
+   (see renderDrawer), and two copies of a write is how the two stores this
+   whole merge removed came about in the first place.
+
+   Stored as the preset name when it matches one and as the set when it does
+   not, which is the shape accessIn and presetNameIn both accept. */
+function toggleStaffMod(subj,cid,k){
+ if(!canI("members")) return;
+ const P=PEOPLE[subj]; if(!P) return;
+ const cur=asSet(presetIn(P,cid))||{mods:[],verbs:[]};
+ const mods=cur.mods.slice(), at=mods.indexOf(k);
+ if(at>-1) mods.splice(at,1); else mods.push(k);
+ /* the same rule the client side has always had: a member who reaches nothing
+    is worse than no member, so the last screen cannot be switched off. Remove
+    them from the workspace instead, which is what the Remove control is for. */
+ if(!mods.length) return;
+ const set={mods:mods,verbs:[]}, n=presetOf(set,STAFF_PRESETS);
+ P.ws=P.ws||{}; P.ws[cid]=(n==="Custom")?set:n;
+}
+/* One editor for one object: a subject's permission in one workspace. subject
+   undefined means the client itself (ACCESS_PRESETS, D5a: one set, everyone
+   from that client gets it). subject as a PEOPLE key means that staff member,
+   in this workspace only (STAFF_PRESETS). This merge, and the reasoning behind
+   it, is 40-people-access-flow-diagnosis.md §3.1, at Hitesh's direction 15 Sep:
+   "access screen and people screen should be the same." Staff access is
+   preset-only, not per-card custom: no agency asked for graded staff access at
+   all until now, so per-module staff customisation stays unscoped rather than
+   invented; see that file §3.6. */
+function accessPanel(c,subject,embed){
+ if(!subject&&isLinked(c)) return `<div class="panel">
    <div class="panel-h"><span class="panel-t">What ${c.name} can reach</span>
     <span class="chip c-vio">Their workspace, their rules</span></div>
    <div class="panel-b"><span class="sub">${c.name} is on its own plan, so it decides its own
     access and you cannot set it. What you can reach in their workspace is on their Workspace
     screen, and they can revoke it without asking you.</span></div></div>`;
- const a=c.access||{mods:[],verbs:[]}, cur=presetOf(a);
- const presets=`<div class="preset-row" role="radiogroup" aria-label="Access preset">${Object.keys(ACCESS_PRESETS).map(n=>{const p=ACCESS_PRESETS[n];
-   return `<button data-apreset="${c.id}|${n}" class="preset-card" role="radio" aria-checked="${cur===n}" aria-pressed="${cur===n}" title="${p.why}">
-     <b>${n}</b><i>${p.mods.length} screen${p.mods.length===1?"":"s"} &middot; ${p.verbs.length?p.verbs.length+" action"+(p.verbs.length===1?"":"s"):"no actions"}</i></button>`}).join("")}
+ const p=subject&&PEOPLE[subject];
+ const presetTable=subject?STAFF_PRESETS:ACCESS_PRESETS;
+ const cur=subject?(presetNameIn(p,c.id)||"Custom"):presetOf(c.access||{mods:[],verbs:[]});
+ const a=subject?(asSet(presetIn(p,c.id))||{mods:[],verbs:[]}):(c.access||{mods:[],verbs:[]});
+ const presets=`<div class="preset-row" role="radiogroup" aria-label="Access preset">${Object.keys(presetTable).map(n=>{const pr=presetTable[n];
+   return `<button data-apreset="${c.id}|${n}${subject?"|"+subject:""}" class="preset-card" role="radio" aria-checked="${cur===n}" aria-pressed="${cur===n}" title="${pr.why}">
+     <b>${n}</b><i>${pr.mods.length} screen${pr.mods.length===1?"":"s"}${subject?"":" &middot; "+(pr.verbs.length?pr.verbs.length+" action"+(pr.verbs.length===1?"":"s"):"no actions")}</i></button>`}).join("")}
    ${cur==="Custom"?`<div class="preset-card is-custom" aria-current="true"><b>Custom</b><i>Not one of the presets. Stays Custom until the cards match one</i></div>`:""}</div>
-   <p class="sub" style="margin:10px 0 0">${cur==="Custom"?"Pick a preset to reset every card, or keep adjusting below.":ACCESS_PRESETS[cur].why+"."}</p>`;
- const card=(m,g)=>{const on=a.mods.indexOf(m.k)>-1,last=accessLast(c,m.k);
+   <p class="sub" style="margin:10px 0 0">${cur==="Custom"?"Pick a preset to reset every card, or keep adjusting below.":presetTable[cur].why+"."}</p>`;
+ const card=(m,g)=>{const on=a.mods.indexOf(m.k)>-1,last=!subject&&accessLast(c,m.k);
    return `<div class="acccard${on?"":" is-off"}">
     <div class="acccard-h"><span style="min-width:0"><em class="acccard-g">${g}</em><b>${m.label}</b><i>${last?"Their only screen. To stop their access entirely, disable the client instead":m.why}</i></span>
-     <button class="sw" role="switch" aria-checked="${on}" ${last?"disabled":""} data-amod="${c.id}|${m.k}" aria-label="${m.label} for ${c.name}"></button></div>
-    ${m.acts.length?`<div class="accchks">${m.acts.map(v=>{const von=on&&a.verbs.indexOf(v[0])>-1;
+     <button class="sw" role="switch" aria-checked="${on}" ${last?"disabled":""} data-amod="${c.id}|${m.k}${subject?"|"+subject:""}" aria-label="${m.label} for ${subject?p.name+" in "+c.name:c.name}"></button></div>
+    ${(!subject&&m.acts.length)?`<div class="accchks">${m.acts.map(v=>{const von=on&&a.verbs.indexOf(v[0])>-1;
       return `<label class="accchk${on?"":" is-off"}"><input type="checkbox" ${von?"checked":""} ${on?"":"disabled"} data-averb="${c.id}|${v[0]}" aria-label="${v[1]} for ${c.name}">
         <span style="min-width:0"><b>${v[1]}</b><i>${on?v[2]:"Needs the "+m.label+" screen switched on first"}</i></span></label>`}).join("")}</div>`:""}
    </div>`};
- /* one grid, in group order, the group named on each card: seven cards in three
-    columns fit one viewport, where a row per group left two rows nearly empty */
- const groups=`<div class="accgrid">${ACCESS_GROUPS().map(g=>g.mods.map(m=>card(m,g.name)).join("")).join("")}</div>`;
- return `<div class="acc2">
-  <div class="acc-main"><div class="panel">
-   <div class="panel-h"><span class="panel-t">What ${c.name} can reach</span>
-    <span class="sub">${a.mods.length} of ${CLIENT_MODULES.length} screens &middot; ${a.verbs.length} of ${CLIENT_VERBS.length} actions</span>
+ /* one grid, in group order, the group named on each card: audience-filtered,
+    so a client sees 7 and a staff member sees 11, from the one table. */
+ const groups=`<div class="accgrid">${ACCESS_GROUPS(subject?"staff":"client").map(g=>g.mods.map(m=>card(m,g.name)).join("")).join("")}</div>`;
+ const totalMods=subject?ALL_STAFF_MODS.length:CLIENT_MODULES.filter(m=>m[4]!=="staff").length;
+ const empty=subject?!a.mods.length:accessEmpty(c);
+ const emptyMsg=empty?`<div class="msg m-bad" style="margin:14px 0 0">${warnI}<span><strong>Nothing is switched on.</strong>
+      ${subject?p.name+" would be a member of "+c.name+" with no screen to open. Remove them from the workspace instead.":"A new "+c.name+" user would sign in and reach no screen at all, which is worse than having no login. Switch on at least one."}</span></div>`:"";
+ /* embed drops the panel chrome so A4's section 1 can hold this editor inside
+    the one panel that screen is. The controls, the presets and the preview are
+    the same ones; only the frame differs, because two frames around one editor
+    is how a screen ends up looking like two features. */
+ if(embed) return `<div class="acc2"><div class="acc-main">
+   <div class="accbar"><span class="sub">${a.mods.length} of ${totalMods} screens${subject?"":" &middot; "+a.verbs.length+" of "+CLIENT_VERBS.length+" actions"}</span>
+    <span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span></div>
+   ${presets}
+   <div style="margin-top:16px">${groups}</div>
+   ${emptyMsg}</div>${accessPreview(c)}</div>`;
+ const body=`<div class="panel">
+   <div class="panel-h"><span class="panel-t">${subject?"What "+p.name+" can reach in "+c.name:"Default access for new "+c.name+" users"}</span>
+    <span class="sub">${a.mods.length} of ${totalMods} screens${subject?"":" &middot; "+a.verbs.length+" of "+CLIENT_VERBS.length+" actions"}</span>
     <span class="c-a"><span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span></span></div>
    <div class="panel-b">${presets}</div>
    <div class="panel-b" style="border-top:1px solid var(--gray-13)">${groups}</div>
-   ${accessEmpty(c)?`<div class="panel-b" style="border-top:1px solid var(--gray-13)"><div class="msg m-bad" style="margin:0">${warnI}<span><strong>Nothing is switched on.</strong>
-      ${c.name} can sign in and reach no screen at all, which is worse than having no login. Switch on at least one.</span></div></div>`:""}
-  </div></div>
-  ${accessPreview(c)}
+   ${empty?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">${emptyMsg.replace('margin:14px 0 0','margin:0')}</div>`:""}
+  </div>`;
+ /* the two-column grid exists to hold the preview beside the cards; with no
+    subject there is no preview, and .acc2's own grid-template-columns still
+    reserves that second column's width even with nothing in it, which is
+    what crushed this into a sliver of a drawer the first time it rendered. */
+ if(subject) return body;
+ return `<div class="acc2"><div class="acc-main">${body}</div>${accessPreview(c)}</div>`;
+}
+
+/* ═══ A4 Access: access management for one client ═════════════════════════════
+   Rebuilt 16 Sep 2026 to the shape A8 uses, at Hitesh's direction. It was two
+   stacked panels, a card grid and a members table, which read as two features
+   on one tab. It is one thing: everything about who can do what in this
+   workspace. So it is one panel of numbered sections with the same rail, and
+   the sections are the three questions an agency actually has here.
+
+   Section 1 is the default a new client user starts from (D5d), not a grant to
+   anyone. Sections 2 and 3 are the people who hold real grants, split by
+   internal and external because that is the split that decides what you may
+   do to them: you set a colleague's access, and you set a client user's, but
+   only a colleague has an account role behind it.                            */
+/* the agency domain, taken from the one address the fixture actually states
+   rather than guessed from the agency's name, which would break the day
+   someone renames the agency. */
+const AGY_DOMAIN=(OWN_WS.email||"@meridiangrowth.com").split("@")[1];
+/* fixture staff predate PEOPLE carrying an address; anyone A8 invites has a
+   real one. Derived rather than left blank, because an access table whose
+   email column is a row of dashes is a column that should not be there. */
+const staffEmail=P=>P.email||(P.name.toLowerCase().replace(/[^a-z ]/g,"").split(" ").join(".")+"@"+AGY_DOMAIN);
+
+function memberParts(c){
+ const seen=k=>AGE(LASTSEEN[k]||"unknown");
+ /* whether they have actually arrived. LASTSEEN "never" means the invite went
+    out and nobody accepted it, which is the difference between a row that is
+    a person and a row that is an intention. Worth its own column because an
+    agency chasing "why can't they log in" is looking for exactly this. */
+ const pw=k=>seen(k)==="never"
+  ? `<span class="pw n">${dashI}Not set</span>`
+  : `<span class="pw y">${tickI}Set</span>`;
+ const act=(edit,rm)=>`<td class="ar colact"><span class="tools" style="justify-content:flex-end">
+   ${edit}${rm||""}</span></td>`;
+
+ const row=o=>`<tr>
+   <td><div class="cell-main"><span class="avatar av-tint" style="--c:${o.colour};width:28px;height:28px;border-radius:6px;font-size:11px">${o.initials}</span>
+     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${o.name}${o.you?' <span class="cs">(you)</span>':""}</span>
+     <span class="cs trunc">${o.where}</span></span></div></td>
+   <td><span class="trunc" style="font-size:13px">${o.email}</span></td>
+   <td><span style="font-size:14px">${o.role}</span></td>
+   <td>${o.accessCell}</td>
+   <td>${pw(o.seenKey)}</td>
+   <td><span class="sub">${seen(o.seenKey)}</span></td>
+   ${act(o.edit,o.remove)}</tr>`;
+
+ const staffRow=s2=>row({colour:"#4B5563",initials:initials(s2.name),name:s2.name,
+   where:"Agency staff",email:staffEmail(PEOPLE[s2.key]||{name:s2.name}),role:s2.role,
+   seenKey:s2.name,
+   /* the preset and how big it is. The full module list was here and it ran to
+      eleven names, which pushed Password, Last active and the actions off the
+      side of the table; the names are one click away in the editor. */
+   accessCell:`<button class="linkbtn" data-openstaff="${s2.key}|${c.id}" style="font-weight:500">${s2.access}</button>
+     <span class="cs">${((asSet(presetIn(PEOPLE[s2.key],c.id))||{mods:[]}).mods.length)} of ${ALL_STAFF_MODS.length} screens</span>`,
+   edit:`<button class="linkbtn" data-openstaff="${s2.key}|${c.id}">Edit access</button>`,
+   remove:`<button class="linkbtn" data-staffremove="${s2.key}|${c.id}" style="color:var(--red-600)">Remove</button>`});
+
+ /* D5d: a client user's grant is their own. Someone invited before D5d has
+    none of their own and still reads the workspace default, so the row says
+    which it is rather than implying everyone at this client is the same. */
+ const userRow=u=>{const key=u[0], label=key.split("@")[0], role=ROLEMAP[u[1]]||u[1];
+  const a=userAccessOf(c,u), own=!!u[2];
+  return row({colour:c.colour,initials:initials(label),name:label,where:c.company,email:key,
+   role:"Client user",seenKey:key,
+   accessCell:`<button class="linkbtn" data-openuser="${c.id}|${key}" style="font-weight:500">${presetOf(a)}</button>
+     <span class="cs">${a.mods.length} of ${modsFor("client").length} screens &middot; ${own?"set for them":"on the default"}</span>`,
+   edit:`<button class="linkbtn" data-openuser="${c.id}|${key}">Edit access</button>`,
+   remove:seen(key)==="never"
+    ?`<button class="linkbtn" data-previewinvite="${c.id}|${key}|${role}">Invite &rarr;</button>`:""})};
+
+ /* one row per actual owner, not a hardcoded key: promoting anyone to Owner
+    made them vanish from every members list (staffOf excludes every owner by
+    role), and demoting the original while a second existed duplicated him.
+    An owner on a linked workspace is a member of it, not its owner, so only
+    the label differs there. An owner's access is not editable and not
+    removable: ws:null reaches every workspace, including ones created later,
+    which no row could express or take away. */
+ const ownerRow=k=>{const P=PEOPLE[k];
+  return row({colour:"#4B5563",initials:P.initials,name:P.name,you:k===me_,
+   where:"Agency staff",email:staffEmail(P),role:isLinked(c)?"Admin":"Owner",seenKey:P.name,
+   accessCell:`<span style="font-size:14px">Everything</span>
+     <span class="cs">${isLinked(c)?"A member, not its owner":"Every workspace, always"}</span>`,
+   edit:`<span class="sub">&ndash;</span>`})};
+
+ const owners=Object.keys(PEOPLE).filter(k=>isOwnerP(PEOPLE[k]));
+ return {internal:owners.length+staffOf(c).length, external:(c.users||[]).length,
+   staff:owners.map(ownerRow).join("")+staffOf(c).map(staffRow).join(""),
+   users:(c.users||[]).map(userRow).join("")};
+}
+
+/* ═══ A4 Access: the people who can reach this client ═════════════════════════
+   Rebuilt twice on 16 Sep. It was a card grid stacked on a members table, then
+   three numbered sections, and it is now what it should always have been: the
+   list of everyone who can get into this workspace and what each of them can
+   do, one row per person.
+
+   The card grid left because it was the loudest thing on a screen about
+   people, and it grants nobody anything: it is the default the next invitee
+   starts from (D5d). It is a line in the header and a drawer when it is
+   actually being changed, which is rarely, because most agencies set it once.
+
+   One table and not two, internal above external, because the question here is
+   "who can get in" and splitting it by employer answers a different one. Which
+   employer someone is from is a property of the row, so it sits in the row. */
+function rAccess(c){
+ const M=memberParts(c), linked=isLinked(c), cur=presetOf(c.access||{mods:[],verbs:[]});
+ const head=`<thead><tr><th>Person</th><th>Email address</th><th>Role</th><th>Access here</th>
+   <th>Password</th><th>Last active</th><th class="colact"></th></tr></thead>`;
+ const grp=t=>`<tr class="grouprow"><td colspan="7">${t}</td></tr>`;
+
+ /* CN3 (P0): a linked workspace is the client's own. The agency cannot set its
+    default and cannot add or remove its users, so neither the header line nor
+    the client-user rows belong; the agency's own people working it do. */
+ if(linked) return `<div class="am-wrap solo"><div class="panel">
+   <div class="panel-h"><span class="panel-t">Access for ${c.name}</span>
+    <span class="sub">${M.internal} from ${AGENCY.name} can reach this workspace</span>
+    <span class="c-a"><span class="chip c-vio">Their workspace, their rules</span></span></div>
+   <div class="tscroll"><table class="organism" style="min-width:920px">${head}
+    <tbody>${M.staff}</tbody></table></div>
+   <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
+    ${c.name} is on its own plan, so its own users and its own access are theirs to manage, not yours,
+    and they can revoke your access without asking. Removing someone here ends their access to
+    ${c.name} and touches nothing of the client's.</span></div></div></div>`;
+
+ return `<div class="am-wrap solo"><div class="panel">
+   <div class="panel-h"><span class="panel-t">Access for ${c.name}</span>
+    <span class="sub">${M.internal} internal &middot; ${M.external} from ${c.name}</span>
+    <span class="c-a">
+     <span class="sub">New ${c.name} users start at <strong style="color:var(--gray-17)">${cur}</strong></span>
+     <button class="linkbtn" data-clientdefault="${c.id}">Change</button>
+     <button class="shd-button shd-button--primary shd-button--sm" data-addmember="${c.id}">Add member</button></span></div>
+   <div class="tscroll"><table class="organism" style="min-width:920px">${head}
+    <tbody>
+     ${grp("Agency staff")}${M.staff}
+     ${grp(c.name)}${M.users||`<tr><td colspan="7"><span class="sub">Nobody from ${c.name} can sign in yet. Add member invites their first login.</span></td></tr>`}
+    </tbody></table></div>
+   <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
+    One list, because a workspace has members and internal versus external is a property of the person,
+    not a second permission system. Each person's access here is their own: a colleague's is set over the
+    ${ALL_STAFF_MODS.length} internal screens and a ${c.name} user's over the ${modsFor("client").length} a client sees.
+    An account role is the person's own, account-wide, and this screen never changes it.</span></div>
+  </div></div>`;
+}
+
+/* ═══ A8 Add a member ═════════════════════════════════════════════════════════
+   One screen replacing the three entry points that used to ask this question:
+     People -> "Invite someone"     (name, email, role; no workspace, no access)
+     Person -> "Add to workspaces"  (existing people only; no email)
+     Client -> "Add member"         (agency branch could not invite; client
+                                     branch had no access step)
+   Each asked part of it, two wrote stores nothing enforced, and none could do
+   the whole job. 40-people-access-flow-diagnosis.md §3.2 called for
+   who -> where -> what; Hitesh's direction on 16 Sep made it one screen rather
+   than four steps, so the whole grant is readable before it is sent and there
+   is no review step for anything to hide behind. The entry point only decides
+   what is pre-filled.                                                        */
+const AM_BLANK={email:"",name:"",kind:"agency",role:"Member",ws:[],wsIdx:0,access:{},uniform:true,mode:"invite",from:null};
+let AM=Object.assign({},AM_BLANK);
+
+const amWs=()=>CLIENTS.concat([OWN_WS]);
+const amById=id=>amWs().filter(w=>w.id===id)[0];
+const amMany=()=>AM.ws.length>1;
+const amUni=()=>AM.uniform&&amMany();
+const amCurWs=()=>amById(AM.ws[amUni()?0:AM.wsIdx]);
+const amCur=()=>AM.access[AM.ws[amUni()?0:AM.wsIdx]]||{mods:[],verbs:[]};
+/* in uniform mode every write lands on every picked workspace, so the store
+   still holds one record per membership and nothing downstream has to know the
+   difference. "Same in all" is a way of filling them in, not a third model. */
+const amWrite=a=>{(amUni()?AM.ws:[AM.ws[AM.wsIdx]]).forEach(id=>{
+  AM.access[id]={mods:a.mods.slice(),verbs:(a.verbs||[]).slice()}})};
+const amSpread=()=>{const a=amCur();AM.ws.forEach(id=>{AM.access[id]={mods:a.mods.slice(),verbs:a.verbs.slice()}})};
+const amAllSame=()=>AM.ws.every(id=>{const a=AM.access[id]||{mods:[],verbs:[]},b=AM.access[AM.ws[0]]||{mods:[],verbs:[]};
+  return a.mods.slice().sort().join()===b.mods.slice().sort().join()&&a.verbs.slice().sort().join()===b.verbs.slice().sort().join()});
+/* carry-forward is what stops several workspaces being several configurations:
+   the previous one seeds the next. A client user has no previous workspace, so
+   it seeds from that client's own default, which is the whole of D5d. */
+function amSeed(idx){
+ const id=AM.ws[idx]; if(AM.access[id]) return;
+ if(idx>0&&AM.access[AM.ws[idx-1]]){const prev=AM.access[AM.ws[idx-1]];
+  AM.access[id]={mods:prev.mods.slice(),verbs:prev.verbs.slice()}; return}
+ if(AM.kind==="client"){const c=amById(id), pre=(c&&c.access)?c.access:ACCESS_PRESETS["Reply and run"];
+  AM.access[id]={mods:pre.mods.slice(),verbs:(pre.verbs||[]).slice()}; return}
+ AM.access[id]={mods:STAFF_PRESETS["Everything"].mods.slice(),verbs:[]};
+}
+const amValidEmail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((e||"").trim());
+const amPersonOk=()=>amValidEmail(AM.email)&&AM.name.trim().length>1;
+const amFilled=()=>AM.ws.length>0&&AM.ws.every(id=>(AM.access[id]||{mods:[]}).mods.length>0);
+const amCanSend=()=>amPersonOk()&&amFilled();
+/* a caller may hand over the access it wants shown, as the edit entry does;
+   amSeed only fills what is missing, so passing it in is enough. */
+const amOpen=o=>{AM=Object.assign({},AM_BLANK,{ws:[],access:{}},o||{});
+ AM.ws.forEach((x,k)=>amSeed(k)); if(amUni())amSpread(); view={name:"addmember"}; render()};
+
+function amSecPerson(){
+ const agency=AM.kind==="agency";
+ return `<div class="panel-b sec" id="amSec1">
+  <div class="sec-h"><span class="sec-n${amPersonOk()?" is-done":""}">1</span><span class="sec-t">Person</span>
+   <span class="sub">Email, name and what kind of user they are</span></div>
+  <div class="frow">
+   <div class="fld" style="margin:0"><label class="cs" for="amEmail">Work email</label>
+    <input type="email" id="amEmail" style="width:100%" value="${AM.email}" placeholder="ana@meridiangrowth.com" autocomplete="off" spellcheck="false">
+    <span class="cs" style="margin-top:6px">${AM.mode==="edit"?"Changing this address invites a different person; it does not rename this one."
+      :"The invite goes here. They set their own password; "+AGENCY.name+" never holds it."}</span></div>
+   <div class="fld" style="margin:0"><label class="cs" for="amName">Full name</label>
+    <input type="text" id="amName" style="width:100%" value="${AM.name}" placeholder="Ana Costa" autocomplete="off"></div></div>
+  <div style="margin-top:16px"><span class="cs" style="margin-bottom:6px">What kind of user is this?</span>
+   <div class="choices" role="radiogroup" aria-label="User type">
+    <button class="choice" role="radio" aria-checked="${agency}" data-amkind="agency">
+     <span class="rdo"></span><span style="min-width:0"><b>Agency user</b>
+     <i>Works at ${AGENCY.name}. Holds an account role and sees the ${modsFor("staff").length} internal screens in each workspace you pick.</i></span></button>
+    <button class="choice" role="radio" aria-checked="${!agency}" data-amkind="client">
+     <span class="rdo"></span><span style="min-width:0"><b>Client user</b>
+     <i>Works at one of your clients. No account role, and sees the ${modsFor("client").length} screens a client is given.</i></span></button>
+   </div></div>
+  ${agency?`<div style="margin-top:16px"><span class="cs">Account role</span>
+   <span class="cs" style="margin:0 0 8px">What they may do to ${AGENCY.name} itself. Separate from what they can reach inside a client, which is section 3.</span>
+   ${roleCards(AGENCY_ROLES.filter(r=>r!=="Owner"),AM.role,"data-amrole",false)}
+   <button class="linkbtn" data-amcompare style="margin-top:8px">Compare all roles</button></div>`
+  :`<div class="msg m-info" style="margin:16px 0 0">${infoI}<span><strong>A client user has no account role.</strong>
+    What they can do is entirely what you grant them below. They never see ${AGENCY.name}, your other clients, or what anything costs.</span></div>`}
  </div>`;
 }
 
-function rAccess(c){ return accessPanel(c) }
-/* the people in the workspace. A tab of its own since 14 Sep 2026, so Access
-   holds only what the client can reach and this holds only who is in it. */
-function rMembers(c){
- const seen=k=>AGE(LASTSEEN[k]||"unknown");
- const row=(key,label,kind,role,locked)=>{
-  const roles=kind==="agency"?AGENCY_ROLES:CLIENT_ROLES;
-  const billing=kind==="agency"&&(role==="Owner"||role==="Admin");
-  return `<tr>
-   <td><div class="cell-main"><span class="avatar av-tint" style="--c:${kind==="agency"?"#4B5563":c.colour};width:28px;height:28px;border-radius:6px;font-size:11px">${initials(label)}</span>
-     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${label}</span>
-     <span class="cs">${key.indexOf("@")>-1?key:kind==="agency"?"Agency staff":"Client user"}</span></span></div></td>
-   <td><span class="chip ${kind==="agency"?"c-info":"c-mute"}">${kind==="agency"?"Internal":"External"}</span></td>
-   <td>${locked
-     ?`<span style="font-size:14px">${role}</span><span class="cs" style="display:block">Owners are members of every workspace</span>`
-     :kind==="agency"
-     ?`<select style="max-width:172px" aria-label="Role for ${label}">${AGENCY_ROLES.map(r=>`<option ${r===role?"selected":""}>${r}</option>`).join("")}</select>`
-     /* a client user has no role of their own. What they can reach is the
-        workspace's access set, one control above, and naming it here points at
-        that control instead of competing with it. */
-     :`<span style="font-size:14px">${presetOf(c.access||{mods:[],verbs:[]})}</span>
-       <span class="cs" style="display:block">Everyone from ${c.name} gets this.
-       <button class="linkbtn" data-toaccess>Change it above</button></span>`}</td>
-   <td>${kind==="agency"
-     ?`<button class="sw" role="switch" aria-checked="${billing}" ${locked?"disabled":""} aria-label="Billing visibility for ${label}"></button>`
-     :'<span class="sub">Not applicable</span>'}</td>
-   <td><span class="sub">${seen(key)}</span>${seen(key)==="never"?'<span class="cs" style="display:block;color:var(--amber-700)">Invited, never signed in <button class="linkbtn" data-previewinvite="'+c.id+'|'+key+'|'+role+'" style="margin-left:4px">Preview invite &rarr;</button></span>':""}</td>
-   <td class="ar colact">${locked?'<span class="sub">–</span>':'<button class="linkbtn">Remove</button>'}</td></tr>`};
-
- const grp=t=>`<tr class="grouprow"><td colspan="6">${t}</td></tr>`;
- const staff=c.staff.map(s=>row(s[0],s[0],"agency",ROLEMAP[s[1]]||s[1],false)).join("");
- const users=c.users.map(u=>row(u[0],u[0].split("@")[0],"client",ROLEMAP[u[1]]||u[1],false)).join("");
- const owner=row("Alex Meridian","Alex Meridian","agency","Owner",true);
-
- return `<div class="panel">
-  <div class="panel-h"><span class="panel-t">Members</span>
-   <span class="sub">${1+c.staff.length} internal &middot; ${c.users.length} external</span>
-   <button class="shd-button shd-button--primary shd-button--sm" data-addmember="${c.id}">Add member</button></div>
-  <div class="tscroll"><table class="organism" style="min-width:900px">
-   <thead><tr><th>Person</th><th>Type</th><th>Role or access</th><th>Billing visibility</th><th>Last active</th><th class="colact"></th></tr></thead>
-   <tbody>
-    ${grp("Agency staff")}${owner}${staff}
-    ${grp("Client users")}${users||'<tr><td colspan="6"><span class="sub">Nobody from '+c.name+' can sign in yet.</span></td></tr>'}
-   </tbody></table></div>
-  <div class="panel-b" style="border-top:1px solid var(--gray-200)"><span class="sub">
-   One list, because a workspace has members and internal versus external is an attribute, not a
-   second permission system. <strong>Agency staff carry a role; client users do not.</strong> What
-   a client can reach is the workspace's, set once above, so adding a second person from
-   ${c.name} never means deciding their permissions again.
-   <strong>Billing visibility is a toggle, not a role</strong>: an admin who should not see what
-   capacity costs can still raise a limit.</span></div></div>`;
+function amSecWhere(){
+ const agency=AM.kind==="agency", list=agency?amWs():CLIENTS.filter(c=>!isLinked(c));
+ const multi=!agency&&AM.ws.length>1;
+ return `<div class="panel-b sec" id="amSec2">
+  <div class="sec-h"><span class="sec-n${AM.ws.length?" is-done":""}">2</span><span class="sec-t">Workspaces</span>
+   <span class="sub">${AM.ws.length?AM.ws.length+" picked":(agency?"Which workspaces should they reach":"Which of your clients should they reach")}</span></div>
+  <span class="cs" style="margin:0 0 10px">${agency
+   ?`Membership is per workspace. ${AM.name?AM.name+" sees":"They see"} nothing outside the ones picked here, in any roll-up, search or report.`
+   :`Usually one, sometimes more: a parent company over two brands, or someone who signs off on two of your clients.`}</span>
+  <div class="wsbox">${list.map(w=>{const on=AM.ws.indexOf(w.id)>-1, pre=w.access?presetOf(w.access):null;
+   return `<label class="wsrow">
+    <input type="checkbox" name="amws" value="${w.id}" ${on?"checked":""}>
+    <span class="avatar av-tint" style="--c:${w.colour};width:26px;height:26px;border-radius:6px;font-size:10px">${initials(w.name)}</span>
+    <span style="min-width:0;flex:1"><span class="wsn trunc">${w.name}</span>
+     <span class="wsc trunc">${w.own?"Your own outreach, not a client":w.company+" &middot; "+((w.users||[]).length)+" client user"+(((w.users||[]).length===1)?"":"s")}</span></span>
+    ${(!agency&&pre)?`<span class="chip c-mute" style="flex:none">Default: ${pre}</span>`:""}</label>`}).join("")}</div>
+  ${agency?`<span class="cs" style="margin-top:10px">${AGENCY.name}'s own outreach workspace is in this list because your staff work in it too. No client user can ever be invited to it.</span>`
+   :`<span class="cs" style="margin-top:10px">Linked workspaces are the client's own, so their users are theirs to invite and not yours (CN3). They are not listed here.</span>`}
+  ${multi?`<div class="msg m-warn" style="margin:12px 0 0">${warnI}<span><strong>${AM.name||"This person"} will see ${AM.ws.length} of your clients by name.</strong>
+   A client user who reaches two workspaces knows both exist and can switch between them. Only do this when the same real person is entitled to both; otherwise invite them twice, once per address.</span></div>`:""}
+ </div>`;
 }
 
-function memberDrawerHTML(){
- const c=byId[drawer.client], agency=mb.kind==="agency";
- const roles=AGENCY_ROLES;
- if(agency&&roles.indexOf(mb.role)<0) mb.role=roles[2];
- const can=agency
-  ?{"Owner":"Everything, including billing and deleting clients.",
-    "Admin":"Everything operational, plus limits. Billing visibility is the separate toggle.",
-    "Member":"Work the queue: replies, tasks, sequences. Cannot change limits or mailboxes."}[mb.role]
-  :"";
- return `<div class="scrim" id="scrim"></div>
- <aside class="drawer" role="dialog" aria-label="Add member to ${c.name}">
-  <div class="dr-h"><span class="semibold-3">Add member</span>
-   <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <div class="dr-b">
-   <p class="sub" style="margin:0 0 16px">Adding to <strong>${c.name}</strong>. Membership is per
-    workspace, so this gives access to this client and to nothing else.</p>
-   <div class="field"><label class="flabel">Who</label>
-    <div class="tools">
-     <button class="shd-button shd-button--${mb.kind==="agency"?"primary":"ghost"} shd-button--sm" data-mbkind="agency">Agency staff</button>
-     <button class="shd-button shd-button--${mb.kind==="client"?"primary":"ghost"} shd-button--sm" data-mbkind="client">Someone at ${c.name}</button>
-    </div></div>
-   <div class="field"><label class="flabel" for="mbe">Email</label>
-    <input type="email" id="mbe" value="${mb.email}" placeholder="${agency?"priya@meridiangrowth.com":"marcus@"+c.company.toLowerCase().replace(/[^a-z]/g,"")+".com"}">
-    <p class="sub" style="margin-top:6px">${agency
-      ?"An existing agency user is added to this workspace. A new one is invited to the account first."
-      :"They receive an invitation and set their own password. The agency never holds it."}</p></div>
-   ${agency?`<div class="field"><label class="flabel" for="mbr">Account role</label>
-    <select id="mbr" aria-label="Account role">${roles.map(r=>`<option ${r===mb.role?"selected":""}>${r}</option>`).join("")}</select>
-    <p class="sub" style="margin-top:6px">${can}</p></div>`
-   /* one permission system: a client user has no role of their own, and what
-      they reach is the workspace's access set. Offering a second control here
-      would recreate the disagreement D5a removed, where the invite quoted a
-      role and the client landed on the access set. */
-   :`<div class="field"><label class="flabel">What they will be able to do</label>
-    <div style="border:1px solid var(--gray-13);border-radius:4px;padding:10px 12px;background:var(--gray-19)">
-     <span style="font-size:14px;font-weight:500;display:block">${presetOf(c.access||{mods:[],verbs:[]})}</span>
-     <span class="cs" style="display:block;margin-top:2px">${accessSummary(presetOf(c.access||{mods:[],verbs:[]}))}</span></div>
-    <p class="sub" style="margin-top:6px">Everyone from ${c.name} gets the workspace's access set,
-     so there is nothing to choose per person. <button class="linkbtn" data-toaccess>Change it on the Access tab</button></p></div>`}
-   ${agency?`<div class="swline" style="margin-top:4px">
-     <button class="sw" role="switch" aria-checked="false" aria-label="Billing visibility"></button>
-     <div><div style="font-size:14px;font-weight:500">Billing visibility</div>
-     <p class="sub" style="margin-top:2px">Let them see what capacity costs. Separate from the role,
-      so a manager can run delivery without seeing margin.</p></div></div>`:""}
-  </div>
-  <div class="dr-f"><div></div><div class="tools">
-    <button class="shd-button shd-button--primary" id="mbDone">Add member</button></div></div>
- </aside>`;
+function amSecAccess(){
+ const agency=AM.kind==="agency", t=agency?STAFF_PRESETS:ACCESS_PRESETS;
+ if(!AM.ws.length) return `<div class="panel-b sec" id="amSec3">
+  <div class="sec-h"><span class="sec-n">3</span><span class="sec-t">Access</span>
+   <span class="sub">What they can reach in each workspace</span></div>
+  <div class="resting">Pick a workspace above and its ${agency?ALL_STAFF_MODS.length:modsFor("client").length} screens appear here.</div></div>`;
+
+ const U=amUni(), w=amCurWs(), a=amCur(), cur=presetOf(a,t), who=AM.name||AM.email||"They";
+ const total=agency?ALL_STAFF_MODS.length:modsFor("client").length;
+ const names=AM.ws.map(id=>amById(id).name);
+ const defs=[...new Set(AM.ws.map(id=>{const c=amById(id);return c.access?presetOf(c.access):null}).filter(Boolean))];
+ const mixed=!agency&&U&&defs.length>1;
+
+ const mode=amMany()?`<div class="tools" role="radiogroup" aria-label="How access is set across workspaces" style="margin-left:auto">
+   <button class="shd-button shd-button--${U?"primary":"tertiary"} shd-button--sm" role="radio" aria-checked="${U}" data-ammode="uniform">Same in all ${AM.ws.length}</button>
+   <button class="shd-button shd-button--${U?"tertiary":"primary"} shd-button--sm" role="radio" aria-checked="${!U}" data-ammode="each">Set each separately</button></div>`:"";
+
+ /* one tab per picked workspace, each carrying its own preset, so which ones
+    differ is readable without opening any of them. This replaces the
+    per-workspace step the wizard used. */
+ const tabs=(amMany()&&!U)?`<div class="wstabs" role="tablist" aria-label="Workspace">${AM.ws.map((id,i)=>{
+   const x=amById(id), xa=AM.access[id]||{mods:[],verbs:[]}, on=i===AM.wsIdx;
+   return `<button class="wstab${on?" is-on":""}${xa.mods.length?"":" is-empty"}" role="tab" aria-selected="${on}" data-amtab="${i}">
+    <span class="avatar av-tint" style="--c:${x.colour};width:22px;height:22px;border-radius:5px;font-size:9px">${initials(x.name)}</span>
+    <span style="min-width:0"><b class="trunc">${x.name}</b><i class="trunc">${xa.mods.length?presetOf(xa,t):"Nothing set"}</i></span></button>`}).join("")}</div>`:"";
+
+ const presets=`<div class="preset-row" role="radiogroup" aria-label="Access preset">${Object.keys(t).map(n=>{const p=t[n];
+   return `<button data-ampreset="${n}" class="preset-card" role="radio" aria-checked="${cur===n}" aria-pressed="${cur===n}" title="${p.why}">
+    <b>${n}</b><i>${p.mods.length} screen${p.mods.length===1?"":"s"}${agency?"":" &middot; "+(p.verbs.length?p.verbs.length+" action"+(p.verbs.length===1?"":"s"):"no actions")}</i></button>`}).join("")}
+  ${cur==="Custom"?`<div class="preset-card is-custom" aria-current="true"><b>Custom</b><i>Not one of the presets. Stays Custom until the cards match one</i></div>`:""}</div>
+  <span class="cs" style="margin-top:10px">${cur==="Custom"?"Pick a preset to reset every card, or keep adjusting below.":t[cur].why+"."}</span>`;
+
+ const card=(m,g)=>{const on=a.mods.indexOf(m.k)>-1;
+  return `<div class="acccard${on?"":" is-off"}">
+   <div class="acccard-h"><span style="min-width:0"><em class="acccard-g">${g}</em><b>${m.label}</b><i>${m.why}</i></span>
+    <button class="sw" role="switch" aria-checked="${on}" data-ammod="${m.k}" aria-label="${m.label}"></button></div>
+   ${m.acts.length?`<div class="accchks">${m.acts.map(v=>{const von=on&&a.verbs.indexOf(v[0])>-1;
+     return `<label class="accchk${on?"":" is-off"}"><input type="checkbox" ${von?"checked":""} ${on?"":"disabled"} data-amverb="${v[0]}" aria-label="${v[1]}">
+      <span style="min-width:0"><b>${v[1]}</b><i>${on?v[2]:"Needs the "+m.label+" screen switched on first"}</i></span></label>`}).join("")}</div>`:""}
+  </div>`};
+ const grid=`<div class="accgrid">${ACCESS_GROUPS(agency?"staff":"client").map(g=>g.mods.map(m=>card(m,g.name)).join("")).join("")}</div>`;
+
+ return `<div class="panel-b sec" id="amSec3">
+  <div class="sec-h"><span class="sec-n${amFilled()?" is-done":""}">3</span><span class="sec-t">Access</span>
+   <span class="sub">What ${who} can reach in ${U?"all "+AM.ws.length+" workspaces":w.name}</span>${mode}</div>
+  ${tabs}
+  ${mixed?`<div class="msg m-warn" style="margin:0 0 14px">${warnI}<span><strong>These clients do not share a default.</strong>
+   ${names.join(", ").replace(/\.$/,"")} are set to ${defs.join(", ")} for new client users. One set here overrides all of them for ${who}, and leaves each client's own default alone.</span></div>`:""}
+  ${(!agency&&U&&defs.length===1)?`<div class="msg m-info" style="margin:0 0 14px">${infoI}<span><strong>Started from the ${defs[0]} default.</strong>
+   Anything changed here applies to ${who} alone; each client's own default is untouched and still seeds the next person you invite.</span></div>`:""}
+  <div class="accbar"><span class="sub">${a.mods.length} of ${total} screens${agency?"":" &middot; "+a.verbs.length+" of "+CLIENT_VERBS.length+" actions"}</span>
+   <span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span></div>
+  ${presets}
+  <div style="margin-top:16px">${grid}</div>
+  ${!a.mods.length?`<div class="msg m-bad" style="margin:14px 0 0">${warnI}<span><strong>Nothing is switched on in ${w.name}.</strong>
+   ${who} would be a member with no screen to open, which is worse than having no login at all. Switch on at least one, or untick this workspace above.</span></div>`:""}
+ </div>`;
+}
+
+/* one row per section, saying what that section currently holds rather than
+   what it is called, so the rail is a summary and not a table of contents. */
+function amRail(){
+ const rows=[
+  {n:1,t:"Person",   done:amPersonOk(),
+   s:amPersonOk()?AM.name:(AM.email||AM.name?"Needs an email and a name":"Email, name and type")},
+  {n:2,t:"Workspaces",done:AM.ws.length>0,
+   s:AM.ws.length?AM.ws.length+" picked":(AM.kind==="agency"?"None picked yet":"Which client")},
+  {n:3,t:"Access",   done:amFilled(),
+   s:!AM.ws.length?"Pick a workspace first":amUni()?"Same in all "+AM.ws.length
+     :amMany()?"Set per workspace":amCurWs().name},
+ ];
+ return `<nav class="am-rail" aria-label="Sections">${rows.map(r=>
+  `<button class="am-rail-i${r.done?" is-done":""}" data-amjump="${r.n}">
+   <span class="am-rail-n">${r.done?"&check;":r.n}</span>
+   <span style="min-width:0"><span class="am-rail-t">${r.t}</span>
+    <span class="am-rail-s trunc">${r.s}</span></span></button>`).join("")}</nav>`;
+}
+
+function vAddMember(){
+ if(!canI("members")) return denied("add people or set their access");
+ const agency=AM.kind==="agency", t=agency?STAFF_PRESETS:ACCESS_PRESETS;
+ /* the footer is the review step. It is always on screen, so the grant is
+    legible at the moment Send is pressed rather than one screen earlier. */
+ let line;
+ if(!amPersonOk()) line=`<span class="sub">Enter a work email and a name to begin.</span>`;
+ else if(!AM.ws.length) line=`<span class="sub">Pick at least one workspace.</span>`;
+ else {
+  const same=amAllSame()&&AM.ws.length>1;
+  const parts=same?[`<strong>${presetOf(AM.access[AM.ws[0]]||{mods:[],verbs:[]},t)}</strong> in all ${AM.ws.length}`]
+   :AM.ws.map(id=>`${amById(id).name}: <strong>${presetOf(AM.access[id]||{mods:[],verbs:[]},t)}</strong>`);
+  line=`<span class="fsum"><span class="trunc"><strong>${AM.name}</strong> ${AM.email}</span>
+   <span class="sep">&middot;</span><span>${agency?AM.role+", agency user":"Client user"}</span>
+   <span class="sep">&middot;</span><span class="trunc">${parts.join(" &middot; ")}</span></span>`;
+ }
+ return `<div class="toolbar">
+   <div class="cell-main"><button class="linkbtn" data-amback style="margin-right:10px">&larr; Back</button>
+    <span class="semibold-3">${AM.mode==="edit"?AM.email:"Add a member"}</span>
+    <span class="sub" style="margin-left:10px">${AM.mode==="edit"
+      ?"What they can reach, and where. Changing it here changes nothing for anyone else at this client."
+      :"One person, the workspaces they reach, and what they can do in each"}</span></div></div>
+  <div class="wrap"><div class="am-wrap">
+   ${amRail()}
+   <div><div class="panel">${amSecPerson()}${amSecWhere()}${amSecAccess()}</div>
+   <div class="am-foot">${line}<span class="sp"></span>
+    <button class="shd-button shd-button--tertiary" data-amback>Cancel</button>
+    <button class="shd-button shd-button--primary" data-amsend ${amCanSend()?"":"disabled"}>${AM.mode==="edit"?"Save access":"Send invite"}</button></div>
+   </div></div></div>`;
+}
+
+/* the one write. A membership is one record of person, workspace and permission
+   set, which is what 40-people-access-flow-diagnosis.md §3.4 asks for: before
+   this, two of the three ways of staffing a client wrote a store nothing
+   enforced, so the work silently did not happen. There is one place now. */
+function amSend(){
+ if(!amCanSend()) return;
+ if(AM.kind==="agency"){
+  let key=Object.keys(PEOPLE).filter(k=>PEOPLE[k].email===AM.email.trim())[0];
+  if(!key){ key=(AM.email.trim().split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5));
+   while(PEOPLE[key]) key+="x";
+   PEOPLE[key]={name:AM.name.trim(),initials:initials(AM.name.trim()),role:AM.role,email:AM.email.trim(),ws:{}};
+   LASTSEEN[AM.name.trim()]="never";
+  } else { PEOPLE[key].role=AM.role }
+  PEOPLE[key].ws=PEOPLE[key].ws||{};
+  /* stored as the preset name when it matches one and as the set when it does
+     not. accessIn and presetNameIn accept both, and writing the name where it
+     fits keeps the fixture and every existing screen reading as before. */
+  AM.ws.forEach(id=>{const a=AM.access[id], n=presetOf(a,STAFF_PRESETS);
+   PEOPLE[key].ws[id]=(n==="Custom")?{mods:a.mods.slice(),verbs:[]}:n});
+  /* the destination is the confirmation: this file has no toast layer, and
+     landing on the person's own page shows the membership that was written
+     rather than asserting it happened. */
+  AM=Object.assign({},AM_BLANK); view={name:"person",id:key}; render(); return;
+ }
+ const addr=AM.email.trim();
+ AM.ws.forEach(id=>{const c=byId[id]; if(!c) return;
+  c.users=c.users||[];
+  const a=AM.access[id], row=c.users.filter(u=>u[0]===addr)[0];
+  if(row){ row[2]={mods:a.mods.slice(),verbs:a.verbs.slice()} }
+  else { c.users.push([addr,"Client",{mods:a.mods.slice(),verbs:a.verbs.slice()}]); LASTSEEN[addr]="never" }});
+ const first=AM.ws[0];
+ AM=Object.assign({},AM_BLANK); view={name:"record",id:first}; tab="access"; render();
 }
 
 /* ═══ C3 Usage and limits, the client's own view ══════════════════════════════
@@ -2431,19 +3126,20 @@ function vPeople(){
  const admins=keys.filter(k=>PEOPLE[k].role!=="Member").length;
  const gaps=uncovered();
  const tiles=[
-  kpi("People",svg("clients"),String(keys.length),null,"Everyone who can sign in to "+AGENCY.name),
-  kpi("Can administer",svg("billing"),String(admins),null,"Owners and admins, who can change the account itself"),
-  kpi("Workspaces uncovered",svg("mail"),String(gaps.length),null,
+  kpi("People",String(keys.length),null,"Everyone who can sign in to "+AGENCY.name),
+  kpi("Can administer",String(admins),null,"Owners and admins, who can change the account itself"),
+  kpi("Workspaces uncovered",String(gaps.length),null,
     gaps.length?"Only the owner can reach "+gaps.slice(0,3).map(c=>c.name).join(", ")+(gaps.length>3?" and "+(gaps.length-3)+" more":""):"Every workspace has someone besides the owner"),
  ].join("");
 
- const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown");
-  /* the count is the answer; the names are the check on it. An admin scanning
-     this column is looking for the person who has more than they expected.  */
+ /* no "access in them" column: a per-workspace preset does not compress into
+   one cell once it can differ by workspace (40-people-access-flow-diagnosis
+   §3.1; also settles 30-cpo-review.md §5.7, which flagged this exact column
+   as unreadable at forty clients). The person page is where it lives now. */
+const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown");
   const names=ids.map(i=>byId[i].name);
   const where=isOwnerP(P)?"Every workspace, including ones added later"
     :ids.length?names.slice(0,5).join(", ")+(names.length>5?", and "+(names.length-5)+" more":""):"Not added to any workspace yet";
-  const levels=isOwnerP(P)?[]:ids.map(i=>presetIn(P,i)).filter((v,i,a)=>a.indexOf(v)===i);
   return `<tr data-person="${k}" style="cursor:pointer">
    <td><div class="cell-main"><span class="avatar av-tint" style="--c:#4B5563;width:28px;height:28px;border-radius:6px;font-size:11px">${P.initials}</span>
     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${P.name}${k===me_?' <span class="cs">(you)</span>':""}</span>
@@ -2451,17 +3147,13 @@ function vPeople(){
    <td><span class="chip ${P.role==="Member"?"c-mute":"c-info"}">${P.role}</span></td>
    <td><span style="font-size:14px">${isOwnerP(P)?"All "+CLIENTS.length:ids.length}</span>
     <span class="cs" style="display:block">${where}</span></td>
-   <td>${isOwnerP(P)?'<span class="sub">Full everywhere</span>'
-     :!levels.length?'<span class="sub">&ndash;</span>'
-     :levels.length===1?`<span class="sub">${levels[0]}</span>`
-     :`<span class="chip c-warn">Mixed</span><span class="cs" style="display:block">${levels.join(", ")}</span>`}</td>
    <td><span class="sub">${seen}</span>${seen==="never"?'<span class="cs" style="display:block;color:var(--amber-700)">Invited, never signed in</span>':""}</td>
    <td class="ar colact"><button class="linkbtn">Manage</button></td></tr>`};
 
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0"><span class="semibold-3">People</span>
     <span class="sub" style="display:block">Everyone at ${AGENCY.name}, what they may do to the account, and which workspaces they reach</span></span></div>
-   <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Invite someone</button></div></div>
+   <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Add a member</button></div></div>
   <div class="wrap">
    <div class="kpis" style="margin-bottom:20px">${tiles}</div>
    <div class="msg m-info">${infoI}<span>A person's role says what they may do to
@@ -2471,7 +3163,7 @@ function vPeople(){
     including that it exists.</span></div>
    <div class="card" style="margin-top:20px">
     <div class="tscroll"><table class="organism" style="min-width:900px">
-     <thead><tr><th>Person</th><th>Account role</th><th>Workspaces</th><th>Access in them</th><th>Last active</th><th class="colact"></th></tr></thead>
+     <thead><tr><th>Person</th><th>Account role</th><th>Workspaces</th><th>Last active</th><th class="colact"></th></tr></thead>
      <tbody>${keys.map(row).join("")}</tbody></table></div>
    </div>
    ${gaps.length?`<div class="msg m-warn" style="margin-top:16px">${warnI}<span>
@@ -2487,28 +3179,23 @@ function vPerson(k){
  const owner=isOwnerP(P), ids=wsIdsOf(P), out=CLIENTS.filter(c=>ids.indexOf(c.id)<0);
  const isMe=k===me_, lastOwner=owner&&ownerCount()===1;
 
- /* what the role actually buys, read off CAN rather than described next to it,
-    so the screen cannot drift from the behaviour. */
- const powers=ACCOUNT_POWERS.map(([key,label])=>`<div class="c-row" style="display:flex;gap:8px;align-items:center;padding:4px 0">
-   <span style="width:16px;display:inline-block;color:${CAN[P.role][key]?"var(--green-600)":"var(--gray-400)"}">${CAN[P.role][key]?"&check;":"&times;"}</span>
-   <span class="sub" style="color:${CAN[P.role][key]?"var(--gray-800)":"var(--gray-400)"}">${label}</span></div>`).join("");
+ /* 16 Sep: the role radio list became the same cards A8 uses. It used to show
+    what the CURRENTLY SELECTED role buys, in a list underneath, which meant
+    the one thing a reader needed here, what changes if I pick the other one,
+    was the one thing the screen did not show. Each card now carries its own
+    powers, generated from ACCOUNT_POWERS x CAN, and the comparison including
+    Owner is one click away. Hitesh, 16 Sep: users have no idea what these
+    roles mean today. */
 
- const roleRow=r=>`<label style="display:block;border:1px solid ${P.role===r?"var(--blue-11)":"var(--gray-200)"};border-radius:8px;padding:12px;margin-bottom:8px;cursor:${(isMe||lastOwner)?"not-allowed":"pointer"};background:${P.role===r?"var(--blue-50)":"#fff"}">
-   <div style="display:flex;gap:10px;align-items:flex-start">
-    <input type="radio" name="prole" data-prole="${k}|${r}" ${P.role===r?"checked":""} ${(isMe||lastOwner)?"disabled":""} style="margin-top:3px">
-    <span><span style="font-size:14px;font-weight:500;display:block">${r}</span>
-    <span class="cs">${ROLE_WHAT[r]}</span></span></div></label>`;
-
- const inRow=id=>{const c=byId[id], pre=presetIn(P,id);
+ const inRow=id=>{const c=byId[id], pre=presetNameIn(P,id);
   return `<tr>
    <td><div class="cell-main"><span class="avatar av-tint" style="--c:${c.colour};width:28px;height:28px;border-radius:6px;font-size:11px">${initials(c.name)}</span>
     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${c.name}</span>
     <span class="cs">${c.company}</span></span></div></td>
    <td>${owner
      ?'<span style="font-size:14px">Everything</span>'
-     :`<select data-wsaccess="${k}|${id}" style="max-width:190px" aria-label="Access for ${P.name} in ${c.name}">${
-        Object.keys(ACCESS_PRESETS).map(n=>`<option ${n===pre?"selected":""}>${n}</option>`).join("")}</select>
-       <span class="cs" style="display:block">${accessSummary(pre)}</span>`}</td>
+     :`<button class="linkbtn" data-openstaff="${k}|${id}" style="font-weight:500">${pre}</button>
+       <span class="cs" style="display:block">${accessSummary(pre,STAFF_PRESETS)}</span>`}</td>
    <td class="ar colact">${owner?'<span class="sub">&ndash;</span>'
      :`<button class="linkbtn" data-wsremove="${k}|${id}">Remove</button>`}</td></tr>`};
 
@@ -2522,21 +3209,20 @@ function vPerson(k){
     <div class="card">
      <div class="panel-h"><span class="panel-t">Account role</span></div>
      <div style="padding:16px">
-      ${AGENCY_ROLES.map(roleRow).join("")}
-      ${isMe?`<div class="msg m-info" style="margin-top:4px">${infoI}<span>You cannot change your own role.
+      ${roleCards(AGENCY_ROLES,P.role,"data-prole2",isMe||lastOwner)}
+      <button class="linkbtn" data-amcompare style="margin-top:10px">Compare all roles</button>
+      ${isMe?`<div class="msg m-info" style="margin-top:10px">${infoI}<span>You cannot change your own role.
         Someone has to be able to undo a mistake, and it cannot be the person who made it.</span></div>`
-       :lastOwner?`<div class="msg m-info" style="margin-top:4px">${infoI}<span>This is the only owner.
+       :lastOwner?`<div class="msg m-info" style="margin-top:10px">${infoI}<span>This is the only owner.
         Make someone else an owner first, or the account would have nobody who can bill or delete.</span></div>`:""}
-      <div style="margin-top:14px;border-top:1px solid var(--gray-200);padding-top:12px">
-       <span class="cs" style="display:block;margin-bottom:6px">As ${P.role}, ${P.name.split(" ")[0]} can:</span>${powers}
-       <span class="cs" style="display:block;margin-top:8px">Everywhere they are a member. The role never
-       adds a workspace, and being in a workspace never adds an account power.</span></div>
+      <span class="cs" style="display:block;margin-top:12px;border-top:1px solid var(--gray-200);padding-top:12px">Everywhere they are a member.
+       The role never adds a workspace, and being in a workspace never adds an account power.</span>
      </div></div>
 
     <div class="card">
      <div class="panel-h"><span class="panel-t">Workspace access</span>
       <span class="sub">${owner?"All "+CLIENTS.length:ids.length+" of "+CLIENTS.length}</span>
-      ${owner||!out.length?"":`<button class="shd-button shd-button--primary shd-button--sm" data-wsaddopen="${k}">Add to workspace</button>`}</div>
+      ${owner||!out.length?"":`<button class="shd-button shd-button--primary shd-button--sm" data-wsaddopen="${k}">Add to workspaces</button>`}</div>
      <div class="tscroll"><table class="organism" style="min-width:520px">
       <thead><tr><th>Workspace</th><th>Access</th><th class="colact"></th></tr></thead>
       <tbody>${ids.length?ids.map(inRow).join("")
@@ -2571,10 +3257,10 @@ function vEstate(){
  const pg=pageOf("estate",shown.length,50);
 
  const tiles=[
-  kpi("Mailboxes",svg("mail"),f(rows.length),null,"Across every workspace on this account"),
-  kpi("Sends a day",svg("seq"),f(cap),null,"At full capacity, if every one were healthy"),
-  kpi("Yours to reassign",svg("clients"),f(agencyOwned.length),null,"Purchased by you, so they return when a client leaves"),
-  kpi("Unassigned",svg("billing"),f(pool.length),null,"Paid for and not earning"),
+  kpi("Mailboxes",f(rows.length),null,"Across every workspace on this account"),
+  kpi("Sends a day",f(cap),null,"At full capacity, if every one were healthy"),
+  kpi("Yours to reassign",f(agencyOwned.length),null,"Purchased by you, so they return when a client leaves"),
+  kpi("Unassigned",f(pool.length),null,"Paid for and not earning"),
  ].join("");
 
  const row=r=>{const [addr,health,dcap]=r.m, src=mbSrc(r.m);
@@ -2665,7 +3351,7 @@ let billTab="plan", cliTab="all";
 /* the default column set is the one that fits 1152px of content area at a
    1440px viewport, measured rather than guessed. Budget, Active Sequences and
    Total Prospects are the three the selector adds back.                    */
-let cliCols=["mbx","sent","reply","pos","lf","status"];
+let cliCols=["mbx","sent","reply","pos","usage","status"];
 let colOpen=false, colDraft=null, colQ="";
 
 function vPlan(){
@@ -2857,27 +3543,6 @@ function newMenuHTML(){
   +'<button class="menu-i menu-back" data-newback>&larr; Back</button></div>';
 }
 
-/* ── orient: the health strip, one line, answered before anything is read ── */
-function healthStrip(){
- const inf=INFRA(); const n=k=>inf.filter(a=>a.kind===k).length;
- const atLim=fundedClients().filter(c=>RK.some(k=>rowState(k,c.id,compute(k)).room===0)).length;
- const pend=myClients().filter(isPending).length;
- const ro=runsOut(), soon=ro&&ro.d<PACE_DAYS;
- const dots=[["Payment",grace()?1:0,"payment failed, "+GRACE.daysLeft+" days left","","#DC2626"],
-  ["Plan",soon?1:0,soon?"plan runs out "+onDay(ro.d):"plan on pace","plan on pace","#DC2626"],
-  ["Email account disconnected",n("Email account disconnected"),"mailbox down","mailboxes down","#DC2626"],
-  ["Bounce rate rising",n("Bounce rate rising"),"bounce rising","bounces rising","#D97706"],
-  ["Sequence stalled",n("Sequence stalled"),"sequence stalled","sequences stalled","#D97706"],
-  ["At limit",atLim,"client at a limit","clients at a limit","#DC2626"],
-  ["Link",pend,"link pending","links pending","#1D4ED8"]];
- const any=dots.some(d=>d[1]>0);
- return '<div class="health'+(any?"":" ok")+'">'
-  +dots.map(([k,c,s,p,col])=>'<button class="hdot" data-goall><span class="dot" style="background:'+(c?col:"var(--gray-23)")+'"></span>'
-    +'<b>'+c+'</b> '+(c===1?s:p)+'</button>').join("")
-  +'<span class="sp"></span>'
-  +(any?'<button class="linkbtn" data-goall>View queue &rarr;</button>':'<span class="sub">Nothing is broken right now.</span>')
-  +'</div>';
-}
 
 /* ── act: the rail, with the controls back in the row ─────────────────────── */
 function decisionRow(q){
@@ -2925,19 +3590,24 @@ function vDash(){
  if(!canI("dashboard")) return denied("see the agency dashboard");
  const mine=myClients(), owner=canI("billing");
  const items=dashItems(), shown=items.slice(0,5), rest=items.length-shown.length;
- const pos=mine.reduce((t,c)=>t+positives(c),0), cost=mine.reduce((t,c)=>t+clientCost(c),0);
- const med=medianCPP(), mySent=myUsed("sends");
+ const rep=mine.reduce((t,c)=>t+repOf(c),0);
+ const tch=touches();
 
+ /* three tiles, not four: one scope number, one input, one outcome. Volume is
+    channel-neutral because the product is. Replies counts every reply, the same
+    sent x rate maths the client view uses, so the two screens agree; it used to
+    be labelled Replies while holding positives only. */
  const tiles=(owner?[
-  kpi("Clients",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),"Compare "+LAST.clients+" (last month)",false,mine.length-LAST.clients),
-  kpi("Emails sent",svg("mail"),f(mySent),pctDelta(mySent,LAST.sent),"Compare "+f(LAST.sent)+" (last month)"),
-  kpi("Replies",svg("inbox"),f(pos),pctDelta(pos,LAST.positives),"Compare "+f(LAST.positives)+" (last month)"),
-  kpi("Cost to serve",svg("billing"),money(cost),pctDelta(cost,LAST.cost),"Compare "+money(LAST.cost)+" (last month)",true)
+  kpiTile("Clients",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),
+    "was "+f(LAST.clients)+" last month",false,mine.length-LAST.clients),
+  kpiTile("Outreach",svg("analytics"),f(tch.total),pctDelta(tch.total,LAST.touches),
+    "was "+f(LAST.touches)+" last month"),
+  kpiTile("Replies",svg("inbox"),f(rep),pctDelta(rep,LAST.replies),"was "+f(LAST.replies)+" last month")
  ]:[
-  kpi("Your clients",svg("clients"),f(mine.length),null,"Assigned to you by the agency"),
-  kpi("Emails sent",svg("mail"),f(mySent),null,"Across your clients this cycle"),
-  kpi("Replies",svg("inbox"),f(pos),null,"Across your clients this cycle"),
-  kpi("Needing a decision",svg("radar"),f(items.length),null,"Ordered by what it costs to ignore")
+  kpiTile("Your clients",svg("clients"),f(mine.length),null,"Assigned to you by the agency"),
+  kpiTile("Outreach",svg("analytics"),f(tch.total),null,"Across your clients this cycle"),
+  kpiTile("Replies",svg("inbox"),f(rep),null,"Across your clients this cycle"),
+  kpiTile("Needing a decision",svg("radar"),f(items.length),null,"Ordered by what it costs to ignore")
  ]).join("");
 
  /* clients: the launchpad */
@@ -2952,7 +3622,7 @@ function vDash(){
   ["inbox","Inbox","M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"],
   ["accounts","Email accounts","M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"],
   ["update","Update","M7 17 17 7M7 7h10v10"]];
- const crow=({c,a})=>{const cp=costPer(c),p=positives(c),sr=cRow("sends",c.id);
+ const crow=({c,a})=>{
   const pend=isPending(c); if(pend) a=null;
   return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
    +'<button class="cn" data-goto="'+c.id+'|sequences">'+c.name+'</button>'
@@ -2962,22 +3632,20 @@ function vDash(){
    +'</td>'
    +'<td>'+(pend?'<span class="chip c-warn">Link pending</span>':a?'<span class="chip '+a.tone+'">'+a.chip+'</span>':isLinked(c)?'<span class="stat"><i style="background:var(--purple-13)"></i>Linked</span>':'<span class="stat"><i style="background:var(--green-16)"></i>Running</span>')
    +(a?'<span class="reason">'+a.why+'</span>':pend?'<span class="reason">Requested '+AGE(c.link.requested)+'. Waiting for '+c.link.owner+'.</span>':"")+'</td>'
-   +'<td class="ar tnum">'+(c.reply?c.reply.toFixed(1)+"%":"–")+'</td>'
-   +'<td>'+(funded(c)
-     ?'<div class="meter"><div class="track"><span style="width:'+Math.min(100,Math.floor(sr.used/Math.max(1,sr.cap)*100))+'%;background:'+barCol(rowState("sends",c.id,compute("sends")).tone)+'"></span></div>'
-      +'<span class="meter-t tnum">'+abbr(sr.used)+' / '+abbr(sr.cap)+'</span></div>'
-     :'<span class="sub">'+(pend?"Not linked yet":"Client's own plan")+'</span>')+'</td>'
-   +(owner?'<td class="ar tnum" style="font-weight:600;color:'+(cp==null?"var(--gray-400)":(med&&cp>med*2)?"var(--amber-700)":"var(--ink)")+'">'
-     +(cp==null?(funded(c)||pend?"–":'<span class="sub" style="font-weight:400">Own plan</span>'):money(cp))+'</td>':"")
+   +'<td class="ar"><span class="tnum stackv" title="'+chanTitle(c)+'">'+(outreachOf(c)?abbr(outreachOf(c)):"–")+'</span>'
+     +(outreachOf(c)?'<span class="cs stackb">'+chanRow(c).length+(chanRow(c).length===1?" channel":" channels")+'</span>':"")+'</td>'
+   +'<td class="ar"><span class="tnum stackv">'+(repOf(c)?f(repOf(c)):"–")+'</span>'
+     +(c.reply?'<span class="cs stackb">'+c.reply.toFixed(1)+'%</span>':"")+'</td>'
+   +'<td>'+usageBrief(c)+'</td>'
    +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'};
 
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Clients</span>'
    +'<div class="pills" style="padding:0;margin-left:6px">'+PT.map(([k,l,n])=>'<button data-clitab="'+k+'" aria-pressed="'+(cliTab===k)+'">'+l+'<span class="pn">'+n+'</span></button>').join("")+'</div>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Clients &rarr;</button></span></div>'
-  +'<div class="tscroll"><table class="organism" style="min-width:'+(owner?760:670)+'px">'
-   +'<thead><tr><th>Client</th><th>Status</th><th class="ar">Reply</th><th>Sends used</th>'
-   +(owner?'<th class="ar">Per positive</th>':"")+'<th class="colact"></th></tr></thead>'
+  +'<div class="tscroll"><table class="organism" style="min-width:760px">'
+   +'<thead><tr><th>Client</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
+   +'<th class="colact"></th></tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>')+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Clients &rarr;</button></div>':'')
@@ -2992,14 +3660,13 @@ function vDash(){
      +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
 
  return '<div class="toolbar dash-toolbar" style="position:relative">'
-  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
-   +'<span class="sub" style="display:block">'+(owner?mine.length+" clients":mine.length+" clients assigned to "+ME().name)+' · '+CYCLE.month+', day '+CYCLE.day+' of '+CYCLE.days+' · Totals and rates roll up here; records stay in each workspace</span></span></div>'
+  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span></span></div>'
   +'<div class="tools" style="position:relative">'
    +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New for a client &#9662;</button>'+newMenuHTML()+'</div>'
    +(owner?'<button class="shd-button shd-button--primary" id="dashAdd">Add Client</button>':"")
   +'</div></div>'
   +'<div class="dwrap">'
-   +'<div class="dmain">'+graceBanner()+healthStrip()+'<div class="kpis">'+tiles+'</div>'+tableCard
+   +'<div class="dmain">'+graceBanner()+kpiGroup("This cycle",tiles,"Outreach by channel",touchBar(tch))+tableCard
     +'<div class="card"><div class="c-h"><span class="c-t">Replies by client</span></div><div class="c-b">'+byClient()+'</div></div></div>'
    +'<div class="drail">'+rail+'</div>'
   +'</div>';
@@ -3410,7 +4077,7 @@ function dashItems(){
     out.push({score:90,sev:"critical",client:c.id,raise:k+"|"+c.id,act:"Raise limit",age:"today",
       what:c.name+" is at its "+RES[k].label.toLowerCase()+" limit and has stopped",
       why:f(m.free)+" "+RES[k].unit+" sit unallocated in the pool. Only you can raise this."})})});
- REQUESTS.filter(r=>myClientsFor("usage").some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
+ REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
   out.push({score:80,sev:"decision",client:r.client,req:r.id,act:"Approve",age:r.when,
     what:byId[r.client].name+" asked for "+f(r.amount)+" more "+RES[r.res].label.replace(/^Monthly |^Active /,"").toLowerCase(),
     why:r.note+" Approving leaves "+f(Math.max(0,m.free-r.amount))+" in the pool."})});
@@ -3482,13 +4149,40 @@ function attention(c){
    reply rate on this screen.                                                    */
 
 /* last cycle, for the comparison line on each tile */
-const LAST={clients:4, sent:98400, positives:1870, cost:820.90};
+const LAST={clients:4, sent:98400, touches:133400, replies:6900};
 const DASH_ROWS=8;   /* the dashboard ranks; the full list lives in Clients */
 /* cumulative daily sends, days 1..9 of the cycle, summing to the 124,600 in RES */
 const DAILY=[4200,6800,9500,12800,15600,17200,18400,19100,21000];
 
 const myUsed=kk=>myClients().reduce((t,c)=>t+((RES[kk].rows[c.id]||{used:0}).used),0);
 const abbr=n=>n>=1000?(n/1000).toFixed(n%1000&&n<10000?1:0).replace(/\.0$/,"")+"k":String(n);
+/* ── outreach: volume across every channel, not just email ─────────────────
+   A step in the product can be Email, LinkedIn (manual or automation), Call,
+   WhatsApp or Task, so a column or a tile named after one channel undercounts a
+   LinkedIn-led or call-led client and reads as if the agency did nothing.
+   Email is c.sent rather than the sends pool, so the per-client column and the
+   tile add up to the same number. A linked client on its own plan consumes no
+   pool but its outreach is still real, and the pool is the plan chart's job. */
+const chanOf=c=>CHAN[c.id]||{li:0,call:0,wa:0};
+const outreachOf=c=>{const x=chanOf(c);return c.sent+x.li+x.call+x.wa};
+const chanRow=c=>{const x=chanOf(c);
+ return [[c.sent,"email"],[x.li,"LinkedIn"],[x.call,"call"],[x.wa,"WhatsApp"]].filter(y=>y[0]>0)};
+const chanTitle=c=>chanRow(c).map(y=>f(y[0])+" "+y[1]).join(", ")||"Nothing sent yet";
+const repOf=c=>Math.round(c.sent*c.reply/100);
+const touches=()=>{
+ const t=myClients().reduce((a,c)=>{const x=chanOf(c);
+   return {email:a.email+c.sent,li:a.li+x.li,call:a.call+x.call,wa:a.wa+x.wa}},
+   {email:0,li:0,call:0,wa:0});
+ t.total=t.email+t.li+t.call+t.wa; return t};
+const touchSplit=t=>[[t.email,"email"],[t.li,"LinkedIn"],[t.call,"call"],[t.wa,"WhatsApp"]]
+  .filter(x=>x[0]>0).map(x=>abbr(x[0])+" "+x[1]).join(" · ") || "Nothing sent yet";
+const CHAN_COL={email:"var(--blue-11)",LinkedIn:"#0F766E",call:"var(--orange-14)",WhatsApp:"var(--green-16)"};
+const touchBar=t=>{const p=[[t.email,"email"],[t.li,"LinkedIn"],[t.call,"call"],[t.wa,"WhatsApp"]].filter(x=>x[0]>0);
+ if(!p.length) return "Nothing sent yet";
+ const tot=p.reduce((a,b)=>a+b[0],0)||1;
+ return '<span class="sbar">'+p.map(x=>'<i style="width:'+(x[0]/tot*100).toFixed(1)
+    +'%;background:'+CHAN_COL[x[1]]+'" title="'+x[1]+' '+f(x[0])+'"></i>').join("")+'</span>'
+  +'<span class="lgd">'+p.map(x=>'<span><i style="background:'+CHAN_COL[x[1]]+'"></i>'+x[1]+'</span>').join("")+'</span>'};
 const pctDelta=(now,then)=>then?((now-then)/then*100):null;
 function deltaChip(d,invert,abs){
  if(d===null||!isFinite(d)) return "";
@@ -3501,10 +4195,32 @@ function deltaChip(d,invert,abs){
   +'<svg viewBox="0 0 12 12" aria-hidden="true"><path fill="currentColor" d="'+arrow+'"/></svg>'
   +txt+'</span>'}
 
-function kpi(label,icon,value,delta,compare,invert,abs){
+/* No icon. An icon here was decoration competing with the delta chip for the
+   same corner, and it left the card ragged. The subheading instead gets its own
+   band: a rule, a tint, the full card width. It is the half of the card that
+   carries the comparison and the channel mix, so it stops being a third grey
+   line under the number. The band is pushed to the bottom so that cards of
+   different content height still line their footers up across the row. */
+/* the grouped Home card: one container, three identical tiles, and the channel
+   mix as a strip across the base rather than inside the Outreach tile. Putting
+   the breakdown in a tile made that tile heavier than its neighbours, which is
+   the whole reason the row read as three unrelated components. The tiles keep a
+   "was N" line so the baseline survives the loss of the per-card bar. */
+function kpiTile(label,icon,value,delta,base,invert,abs){
+ return '<div class="ktile">'
+  +'<div class="ktile-h"><span class="ktico">'+icon+'</span><span class="ktl">'+label+'</span></div>'
+  +'<div class="ktile-v"><span class="ktv">'+value+'</span>'+(delta===null?"":deltaChip(delta,invert,abs))+'</div>'
+  +'<div class="ktile-b">'+base+'</div></div>'}
+function kpiGroup(title,tiles,footLabel,foot){
+ return '<div class="card kgrp">'
+  +'<div class="kgrp-h"><span class="kgrp-t">'+title+'</span></div>'
+  +'<div class="kgrp-b"><div class="ktiles">'+tiles+'</div></div>'
+  +(foot?'<div class="kgrp-f"><span class="kgrp-fl">'+footLabel+'</span>'+foot+'</div>':"")
+  +'</div>'}
+
+function kpi(label,value,delta,compare,invert,abs){
  return '<div class="card kpi">'
-  +'<div class="kpi-t"><span class="kpi-l">'+label+'</span>'
-   +(delta===null?'<span class="kpi-i">'+icon+'</span>':deltaChip(delta,invert,abs))+'</div>'
+  +'<div class="kpi-t"><span class="kpi-l">'+label+'</span>'+(delta===null?"":deltaChip(delta,invert,abs))+'</div>'
   +'<div class="kpi-v">'+value+'</div>'
   +'<div class="kpi-c">'+compare+'</div></div>'}
 
@@ -3709,8 +4425,8 @@ function vSettings(){
    The queue is the operator's home and it is deliberately wider than the
    Home's right rail. The rail carries what an owner must decide; this
    carries everything anyone must do, replies and setup steps included.
-   Performance and cost is gone, because the Home screen's client table and its
-   Cost to serve tile are the same data with a better frame.                    */
+   Performance and cost is gone, because the Home screen's client table carries
+   the same data with a better frame.                                           */
 function vQueue(){
  const n=queueItems().length;
  return `<div class="toolbar">
@@ -3782,12 +4498,12 @@ function queueItems(){
  const ro=canI("limits")?runsOut():null;
  if(ro&&ro.d<PACE_DAYS) add({score:95,sev:"critical",kind:"Plan runs out",client:null,plan:true,
    why:`${RES[ro.k].label} at this burn is gone ${onDay(ro.d)}. Every client stops with it`,age:"today",act:"Add capacity"});
- REQUESTS.filter(r=>myClientsFor("usage").some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
+ REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
    add({score:80,sev:"decision",kind:"Capacity request",client:r.client,
      why:`${byId[r.client].name} is blocked and asked for ${f(r.amount)} more ${RES[r.res].unit}. ${f(m.free)} unallocated`,
      age:r.when,act:"Approve",req:r.id})});
  RK.forEach(k=>{const m=compute(k);
-  myClientsFor("usage").forEach(c=>{const st=rowState(k,c.id,m);
+  myClientsForLimits().forEach(c=>{const st=rowState(k,c.id,m);
     if(st.room===0&&!REQUESTS.some(r=>r.client===c.id&&r.res===k))
       add({score:90,sev:"critical",kind:"At limit",client:c.id,
         why:`${RES[k].label} stopped. ${byId[c.id].name} cannot continue until you raise it`,age:"today",act:"Raise limit",raise:k+"|"+c.id})})});
@@ -4073,9 +4789,9 @@ function linkRequest(){
   colour:pal[CLIENTS.length%pal.length],mode:"linked",
   link:{state:"pending",requestedBy:"Alex Meridian",wsid,requested:"just now",owner:nc.email||"the workspace owner"},
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"09 Sep, 2026",permission:"No Access",
-  staff:[],users:[],mailboxes:[]};
+  users:[],mailboxes:[]};
  CLIENTS.push(c); byId[id]=c;
- nc={name:"",company:"",email:"",wsid:"",path:"create"};
+ nc=NC_INIT();
  drawer=null; renderDrawer(); view={name:"clients"}; ctx="agency"; render();
 }
 
@@ -4110,8 +4826,58 @@ function rLinked(c){
  </div>`;
 }
 
+/* the same editor accessPanel draws inline on Access, opened over whatever
+   screen you were on: the person page, the client's Members list, or the Add
+   Client wizard. One editor, three doors, per 40-people-access-flow-diagnosis
+   §3.1-3.2. Workspace is already fixed by the time this opens (steps 1 and the
+   "where" half of 2 are done by whichever entry point opened it); this is
+   step 3, "what, in each", one workspace at a time. */
+/* the default a new client user starts from (D5d). It left the Access screen
+   on 16 Sep, because that screen is the people who hold access and a default
+   held by nobody was the loudest thing on it. It is one line in the header now
+   and this drawer when it is actually being changed, which is rarely. */
+function clientDefaultDrawerHTML(){
+ /* accessPanel is embedded, not panelled: the drawer already carries the
+    title, and the panel version renders its own header, so the two stacked
+    and the screen counts overlapped the heading. Found in review. */
+ const c=byId[drawer.client];
+ return `<div class="scrim" id="scrim"></div>
+ <aside class="drawer" role="dialog" aria-label="Default access for new ${c.name} users" style="width:min(860px,calc(100vw - 32px))">
+  <div class="dr-h"><span class="semibold-3">Default access for new ${c.name} users</span>
+   <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="dr-b">
+   <div class="msg m-info" style="margin:0 0 16px">${infoI}<span><strong>This grants nobody anything.</strong>
+    It is where the next person you invite from ${c.name} starts. Everyone who already has a login keeps
+    what they hold, and changing this never reaches them.</span></div>
+   ${accessPanel(c,null,true)}</div>
+  <div class="dr-f"><div></div><div class="tools">
+    <button class="shd-button shd-button--primary" id="drDoneStaff">Done</button></div></div>
+ </aside>`;
+}
+function staffAccessDrawerHTML(){
+ const c=byId[drawer.client], p=PEOPLE[drawer.person];
+ /* the standard .drawer width (450px) fits a short form; it does not fit a
+    card grid built to lay out at full page width. Widened here rather than
+    for every drawer, since this is the one that embeds accessPanel. */
+ return `<div class="scrim" id="scrim"></div>
+ <aside class="drawer" role="dialog" aria-label="${p.name}'s access to ${c.name}" style="width:min(760px,calc(100vw - 32px))">
+  <div class="dr-h"><span class="semibold-3">${p.name} in ${c.name}</span>
+   <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="dr-b">${accessPanel(c,drawer.person)}</div>
+  <div class="dr-f"><div></div><div class="tools">
+    <button class="shd-button shd-button--primary" id="drDoneStaff">Done</button></div></div>
+ </aside>`;
+}
 function drawerHTML(){
- if(drawer.kind==="member") return memberDrawerHTML();
+ if(drawer.kind==="staffaccess") return staffAccessDrawerHTML();
+ if(drawer.kind==="clientdefault") return clientDefaultDrawerHTML();
+ /* everything below is the Add Client wizard, which is the only drawer with no
+    kind of its own: it is identified by carrying a `step`. Without this guard
+    any unrecognised kind fell through to it, so a caller naming a drawer that
+    no longer exists opened the wizard mid-flow rather than failing. That is
+    how "New for a client -> Member" ended up showing the Limits step. */
+ if(drawer.kind&&drawer.step===undefined){
+  console.warn("drawerHTML: no drawer named "+drawer.kind); drawer=null; return ""}
  const s=drawer.step, connect=nc.path==="connect";
  const chooser=`<div class="field"><label class="flabel">How are you adding this client?</label>
    <div class="lpath">
@@ -4128,15 +4894,25 @@ function drawerHTML(){
    <p class="sub" style="margin-top:6px">The client receives an invitation to set their own password.</p></div>`;
  /* the same five roles A4 uses. Two vocabularies for one permission model is
     how you end up with a system nobody can reason about. */
+ /* the team step is the same idea Access and the person page both use: who,
+   then what access in this one workspace. 40-people-access-flow-diagnosis.md
+   §3.3 called the old version of this step the worst of the three variants
+   that all asked this question: a hardcoded three-name list nobody invited
+   through People could ever appear on, on/off only, and it wrote to a store
+   nothing else read. Real people, a real preset, the real store, this time. */
+ const team=nc.team||{};
  const b2=`<div class="field"><label class="flabel" for="ncr">The client's own access</label>
    <select id="ncr">${Object.keys(ACCESS_PRESETS).map(r=>`<option ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
    <p class="sub" style="margin-top:6px">${accessSummary(nc.role)}. Everyone from this client gets the
     same set, and it can be changed any time on Access.</p></div>
-  <div class="field"><label class="flabel">Agency staff who are members</label>
+  <div class="field"><label class="flabel">Agency staff on this workspace</label>
    <div id="ncStaffBox" style="border:1px solid var(--gray-200);border-radius:4px;padding:0 12px">
-   ${NC_STAFF_PICK.map(([n,r],i)=>`<div class="list-row">
-    <span class="cell-main"><button class="sw" role="switch" aria-checked="${(nc.staff?nc.staff[i]:i===0)}" aria-label="${n}"></button><span>${n}</span></span>
-    <span class="sub">${r}</span></div>`).join("")}</div>
+   ${Object.keys(PEOPLE).filter(k=>!isOwnerP(PEOPLE[k])).map(k=>{const on=team[k]!=null;
+     return `<div class="list-row" style="flex-wrap:wrap;gap:8px">
+      <span class="cell-main"><button class="sw" role="switch" aria-checked="${on}" data-ncstaff="${k}" aria-label="${PEOPLE[k].name}"></button>
+      <span>${PEOPLE[k].name}<span class="cs" style="display:block">${PEOPLE[k].role}</span></span></span>
+      ${on?`<select data-ncpreset="${k}" aria-label="Access for ${PEOPLE[k].name}" style="max-width:170px">${Object.keys(STAFF_PRESETS).map(n=>`<option ${n===team[k]?"selected":""}>${n}</option>`).join("")}</select>`:""}</div>`}).join("")
+    ||'<p class="sub" style="margin:8px 0">Nobody else at the agency yet. Invite someone from People first.</p>'}</div>
    <p class="sub" style="margin-top:6px">Alex Meridian is an account owner and is a member of every
     workspace automatically. Membership is what makes the cross-client queue safe.</p></div>`;
  const b3=`<div id="ncCapsBox">${RK.map(k=>{const m=compute(k),sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:Math.max(500,Math.round(m.free/Math.max(1,CLIENTS.length)/500)*500);
@@ -4170,27 +4946,49 @@ function renderDrawer(){
    if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;
    if(w)nc.wsid=w.value;if(wn)nc.name=wn.value;
    if(r)nc.role=r.value;
-   const staffBox=el("ncStaffBox");
-   if(staffBox) nc.staff=[...staffBox.querySelectorAll(".sw")].map(sw=>sw.getAttribute("aria-checked")==="true");
    const capsBox=el("ncCapsBox");
    if(capsBox){nc.caps=nc.caps||{};capsBox.querySelectorAll("[data-cap]").forEach(i=>{nc.caps[i.dataset.cap]=num(i.value)})}
    const bifRow=el("ncBifRow");
    if(bifRow) nc.bif=bifRow.querySelector(".sw").getAttribute("aria-checked")==="true"};
  L.querySelectorAll("[data-path]").forEach(b=>b.onclick=()=>{cap();nc.path=b.dataset.path;drawer.step=1;renderDrawer()});
+ /* on: default them in at Everything so the row shows a preset to narrow
+    right away, matching the "accepting a default costs one click" idea the
+    Access editor itself relies on. off: drop them, nothing to enforce. */
+ L.querySelectorAll("[data-ncstaff]").forEach(b=>b.onclick=()=>{const k=b.dataset.ncstaff;
+   nc.team=nc.team||{};
+   if(nc.team[k]!=null) delete nc.team[k]; else nc.team[k]="Everything";
+   renderDrawer()});
+ L.querySelectorAll("[data-ncpreset]").forEach(s=>s.onchange=()=>{const k=s.dataset.ncpreset;
+   nc.team=nc.team||{}; nc.team[k]=s.value});
  {const b=el("drLink");if(b)b.onclick=()=>{cap();linkRequest()}}
- el("scrim").onclick=()=>{drawer=null;renderDrawer()};
- el("drX").onclick=()=>{drawer=null;renderDrawer()};
+ el("scrim").onclick=()=>{drawer=null;nc=NC_INIT();mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};renderDrawer()};
+ el("drX").onclick=()=>{drawer=null;nc=NC_INIT();mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};renderDrawer()};
+ /* the embedded editor (accessPanel) renders inside the drawer's own layer,
+    which renderDrawer binds separately from the main page's q(), so its
+    preset buttons need their own binding here or nothing responds to a click. */
+ L.querySelectorAll("[data-apreset]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   const [id,n,subj]=b.dataset.apreset.split("|");
+   if(subj){PEOPLE[subj].ws=PEOPLE[subj].ws||{};PEOPLE[subj].ws[id]=n;renderDrawer();return}
+   const p=ACCESS_PRESETS[n]; byId[id].access={mods:p.mods.slice(),verbs:p.verbs.slice()}; renderDrawer()});
+ /* the drawer's module switches need their own binding for exactly the reason
+    its preset buttons do: renderDrawer paints after wire() has already run. */
+ L.querySelectorAll("[data-amod]").forEach(b=>b.onclick=()=>{
+   const [id,k,subj]=b.dataset.amod.split("|");
+   if(subj){toggleStaffMod(subj,id,k);renderDrawer();render();return}
+   const c=byId[id]; if(!c||!canI("members"))return;
+   const a=c.access||{mods:[],verbs:[]}, at=a.mods.indexOf(k);
+   if(at>-1){a.mods.splice(at,1);
+    CLIENT_VERBS.filter(v=>v[3]===k).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)});
+   } else a.mods.push(k);
+   c.access=a; renderDrawer(); render()});
+ {const b=el("drDoneStaff");if(b)b.onclick=()=>{drawer=null;renderDrawer();render()}}
  L.querySelectorAll("[data-mbkind]").forEach(b=>b.onclick=()=>{
-   const e=el("mbe");if(e)mb.email=e.value; mb.kind=b.dataset.mbkind;
-   mb.role=mb.kind==="agency"?"Member":"Client, full"; renderDrawer()});
- {const r=el("mbr");if(r)r.onchange=()=>{const e=el("mbe");if(e)mb.email=e.value;
-   mb.role=r.value; renderDrawer()}}
- {const d=el("mbDone");if(d)d.onclick=()=>{
-   const e=el("mbe"), addr=(e&&e.value.trim())||"";
-   const c=byId[drawer.client];
-   if(addr){ if(mb.kind==="agency") c.staff.push([addr.split("@")[0],mb.role]);
-             else c.users.push([addr,mb.role]); LASTSEEN[mb.kind==="agency"?addr.split("@")[0]:addr]="never"; }
-   mb={email:"",kind:"client",role:"Client, full"}; drawer=null; renderDrawer(); render()}}
+   const e=el("mbe");if(e)mb.email=e.value; mb.kind=b.dataset.mbkind; renderDrawer()});
+ {const p=el("mbp");if(p)p.onchange=()=>{mb.personKey=p.value; renderDrawer()}}
+ {const r=el("mbr");if(r)r.onchange=()=>{mb.preset=r.value; renderDrawer()}}
+ /* the fix for 40-people-access-flow-diagnosis.md finding 2: this used to push
+    into c.staff and stop, granting no real access at all. Now it writes the
+    one store that is actually enforced. */
  const n=el("drNext");if(n)n.onclick=()=>{cap();drawer.step++;if(drawer.step===3)nc.reachedStep3=true;renderDrawer()};
  const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step--;renderDrawer()};
  /* Skip always finishes now, on any step. 16 §4: "Create is live from step 1."
@@ -4207,18 +5005,22 @@ function create(){
  /* whatever step 2 and 3 actually held, whether the user visited them or not.
     A skipped step still gets the same default the drawer itself showed, not a
     flat placeholder, because "16 §4: a half-configured workspace is a visible
-    state, not a trap" only holds if the numbers it shows are real. */
- const picked=nc.staff||NC_STAFF_PICK.map((_,i)=>i===0);
- const staff=NC_STAFF_PICK.filter((_,i)=>picked[i]).map(([n,r])=>[n,r]);
+    state, not a trap" only holds if the numbers it shows are real.
+    40-people-access-flow-diagnosis.md finding: this used to pick from a
+    hardcoded three-name list and write only to c.staff, which nothing else
+    read, so a client created with a "member" on it actually had none. Now it
+    picks from the real PEOPLE and writes the one store that is enforced. */
  const c={id,name,company:nc.company||name,email:nc.email||"–",colour:pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",permission,
-  staff,users:nc.email?[[nc.email,permission]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,
+  users:nc.email?[[nc.email,permission]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,
   access:{mods:ACCESS_PRESETS[preset].mods.slice(),verbs:ACCESS_PRESETS[preset].verbs.slice()}};
  CLIENTS.push(c);byId[id]=c;
+ Object.keys(nc.team||{}).forEach(k=>{PEOPLE[k].ws=PEOPLE[k].ws||{};PEOPLE[k].ws[id]=nc.team[k];
+   LASTSEEN[PEOPLE[k].name]=LASTSEEN[PEOPLE[k].name]||"never"});
  RK.forEach(k=>{const m=compute(k);
   const cap=(nc.caps&&nc.caps[k]!=null)?nc.caps[k]:Math.max(500,Math.round(m.free/Math.max(1,CLIENTS.length)/500)*500);
   RES[k].rows[id]={res:nc.bif?cap:0,cap,used:0}});
- nc={name:"",company:"",email:"",wsid:"",path:"create",role:"Reply and run",staff:null,caps:null,bif:false,reachedStep3:false};
+ nc=NC_INIT();
  drawer=null;renderDrawer();
  view={name:"record",id};tab="overview";render();
 }
@@ -4235,6 +5037,13 @@ function readOnly(html,what){
   .replace(/<button class="sw"(?![^>]*\bdisabled\b)/g,'<button class="sw" disabled')
   .replace(/<(input|select) (?![^>]*\bdisabled\b)/g,'<$1 disabled ')
   .replace(/<button data-apreset=/g,'<button disabled data-apreset=')
+  /* the two controls the merged Access/Members surface adds are .linkbtn, not
+     .sw or .shd-button, so neither rule above ever touched them: a Member
+     could still open or remove someone's access from a screen labelled read
+     only. The click handlers now check canI("members") too, but a control
+     that looks live and silently does nothing is its own kind of bug, so it
+     is disabled here as well rather than left to fail invisibly on click. */
+  .replace(/<button class="linkbtn"(?![^>]*\bdisabled\b)([^>]*\bdata-(?:openstaff|staffremove)\b)/g,'<button class="linkbtn" disabled$1')
   .replace(/<button class="shd-button([^"]*)"(?![^>]*\bdisabled\b)/g,'<button class="shd-button$1" disabled');
 }
 function denied(what){
@@ -4383,10 +5192,10 @@ function cReports(c){
  const rep=Math.round(c.sent*c.reply/100), pos=positives(c), mt=meetings(c);
  const d=c.reply-c.prev;
  return `<div class="kpis" style="margin-bottom:20px">
-   ${kpi("Emails sent",svg("seq"),f(c.sent),null,CYCLE.month+", so far")}
-   ${kpi("Replies",svg("inbox"),f(rep),c.prev?d:null,"Reply rate "+c.reply.toFixed(1)+"%"+(c.prev?", was "+c.prev.toFixed(1)+"% last cycle":""),false,(d>=0?"":"")+d.toFixed(1)+" pts")}
-   ${kpi("Positive replies",svg("analytics"),f(pos),null,c.sent?(c.pos.toFixed(1)+"% of sent"):"No sending yet")}
-   ${kpi("Meetings booked",svg("task"),f(mt),null,pos?("From "+f(pos)+" positive replies"):"None yet")}
+   ${kpi("Emails sent",f(c.sent),null,CYCLE.month+", so far")}
+   ${kpi("Replies",f(rep),c.prev?d:null,"Reply rate "+c.reply.toFixed(1)+"%"+(c.prev?", was "+c.prev.toFixed(1)+"% last cycle":""),false,(d>=0?"":"")+d.toFixed(1)+" pts")}
+   ${kpi("Positive replies",f(pos),null,c.sent?(c.pos.toFixed(1)+"% of sent"):"No sending yet")}
+   ${kpi("Meetings booked",f(mt),null,pos?("From "+f(pos)+" positive replies"):"None yet")}
   </div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Last 14 days</span>
     <span class="sub">Sent and replies, per day</span>
@@ -4662,37 +5471,33 @@ const CONSEQ={
 };
 function modalHTML(){
  const c=modal.client?byId[modal.client]:null;
- if(modal.kind==="staffinvite"){
-  return card("Invite someone to "+AGENCY.name,`
-    <p style="font-size:14px;line-height:21px;margin-bottom:14px">They join the account with a role and
-    <strong>no workspaces</strong>. Nothing is visible to them until you add them to one, which is the
-    next screen.</p>
-    <label class="cs" style="display:block;margin-bottom:4px">Name</label>
-    <input id="siName" style="width:100%;margin-bottom:12px" placeholder="Ana Costa">
-    <label class="cs" style="display:block;margin-bottom:4px">Work email</label>
-    <input id="siEmail" style="width:100%;margin-bottom:12px" placeholder="ana@${AGENCY.name.toLowerCase().replace(/[^a-z]/g,"")}.com">
-    <label class="cs" style="display:block;margin-bottom:4px">Account role</label>
-    <select id="siRole" style="width:100%">${AGENCY_ROLES.filter(r=>r!=="Owner").map(n=>`<option ${n==="Member"?"selected":""}>${n}</option>`).join("")}</select>
-    <span class="cs" style="display:block;margin-top:8px">Owner is not offered here. It is transferred,
-    not granted, because an account with two people who can delete it has no safe state.</span>`,
-   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
-    <button class="shd-button shd-button--primary" data-siok>Send invite</button>`);
+ /* the whole picture, one click from the decision. Owner is here and not in
+    the picker, because "why can I not choose Owner" is answered by seeing what
+    Owner holds, not by omitting it. Generated from ACCOUNT_POWERS x CAN, the
+    same pair the role cards read, so the two can never drift apart. */
+ if(modal.kind==="rolecompare"){
+  const roles=AGENCY_ROLES;
+  return card("What each account role can do",`
+    <p style="font-size:14px;line-height:21px;margin:0 0 14px">These are powers over ${AGENCY.name} itself.
+    What someone can reach inside a client is a separate setting, which is why an Admin can be Everything on
+    one client and Reporting on the next.</p>
+    <div class="tscroll"><table class="organism cmp" style="min-width:460px">
+     <thead><tr><th>Can they</th>${roles.map(r=>`<th class="ar">${r}</th>`).join("")}</tr></thead>
+     <tbody>${ACCOUNT_POWERS.map(x=>`<tr><td>${x[1]}</td>${roles.map(r=>
+      `<td class="ar"><span class="pw ${CAN[r][x[0]]?"y":"n"}" style="justify-content:flex-end">${CAN[r][x[0]]?tickI:dashI}</span></td>`).join("")}</tr>`).join("")}
+     </tbody></table></div>
+    <div class="msg m-info" style="margin:14px 0 0">${infoI}<span><strong>Owner is transferred, not granted.</strong>
+     An account with two people who can delete it has no safe state, so it is not offered when inviting someone.
+     Transfer it from the current owner's own page.</span></div>`,
+   `<button class="shd-button shd-button--primary" data-mclose>Close</button>`,"wide");
  }
- if(modal.kind==="wsadd"){
-  const P=PEOPLE[modal.person], out=CLIENTS.filter(x=>!P.ws[x.id]);
-  return card(`Add ${P.name} to a workspace`,`
-    <p style="font-size:14px;line-height:21px;margin-bottom:14px">They will see this workspace in the
-    switcher and in every roll-up they are entitled to. <strong>Access starts at whatever you pick
-    here</strong> and can be narrowed afterwards without removing them.</p>
-    <label class="cs" style="display:block;margin-bottom:4px">Workspace</label>
-    <select id="wsaddC" style="width:100%;margin-bottom:12px">${out.map(x=>`<option value="${x.id}">${x.name}</option>`).join("")}</select>
-    <label class="cs" style="display:block;margin-bottom:4px">Access in it</label>
-    <select id="wsaddA" style="width:100%">${Object.keys(ACCESS_PRESETS).map(n=>`<option ${n==="Everything"?"selected":""}>${n}</option>`).join("")}</select>
-    <span class="cs" style="display:block;margin-top:8px">The same five sets a client user gets.
-    One permission system, so there is nothing to learn twice.</span>`,
-   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
-    <button class="shd-button shd-button--primary" data-wsaddok>Add to workspace</button>`);
- }
+ /* the "Invite someone" and "Add to workspaces" modals were removed on 16 Sep.
+    Each asked part of the question A8 now asks whole: the first took a name,
+    an email and a role but no workspace and no access, so it created a person
+    who could see nothing; the second took workspaces and one access level but
+    could only pick someone who already existed. Their handlers now open A8
+    with the same pre-fill, so the entry points survive and the half-screens
+    do not. See 40-people-access-flow-diagnosis.md §3.2. */
  if(modal.kind==="unlink"){
   return card(`Unlink ${c.name}?`,`
     <p style="font-size:14px;line-height:21px;margin-bottom:14px">This ends your access to a workspace
@@ -4878,8 +5683,8 @@ function modalHTML(){
    `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
     <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete client":"Disable client"}</button>`);
 }
-function card(title,body,foot){
- return `<div class="mscrim" id="mscrim"><div class="modal" role="dialog" aria-label="${title}">
+function card(title,body,foot,cls){
+ return `<div class="mscrim" id="mscrim"><div class="modal${cls?" "+cls:""}" role="dialog" aria-label="${title}">
    <div class="modal-h"><span class="semibold-3">${title}</span>
      <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
    <div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`;
@@ -4888,17 +5693,10 @@ function renderModal(){
  const L=el("modalLayer"); if(!modal){L.innerHTML="";return}
  L.innerHTML=modalHTML();
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;renderModal()});
- {const si=L.querySelector("[data-siok]");
-  if(si) si.onclick=()=>{const nm=(L.querySelector("#siName").value||"").trim();
-    if(!nm)return;
-    const key="p"+Date.now().toString(36).slice(-5);
-    PEOPLE[key]={name:nm,initials:initials(nm),role:L.querySelector("#siRole").value,ws:{}};
-    LASTSEEN[nm]="never";
-    modal=null;renderModal();view={name:"person",id:key};render()}}
- {const wa=L.querySelector("[data-wsaddok]");
-  if(wa) wa.onclick=()=>{const cS=L.querySelector("#wsaddC"),aS=L.querySelector("#wsaddA");
-    if(cS&&cS.value) PEOPLE[modal.person].ws[cS.value]=aS.value;
-    modal=null;renderModal();render()}}
+ /* the [data-siok] and [data-wsaddok] handlers went with their modals on
+    16 Sep. Both wrote PEOPLE directly, and one of them wrote a person with an
+    empty `ws` map, which is a login that reaches nothing. A8's amSend is the
+    single write path now. */
  {const mv=L.querySelector("[data-mbmoveok]");
   if(mv) mv.onclick=()=>{const sel=L.querySelector("#mbTarget");
     doMbMove(modal.addr,sel?sel.value:"");modal=null;renderModal();render()}}
@@ -4961,6 +5759,7 @@ function render(){
   :view.name==="m1"?vM1():view.name==="m2"?vM2()
   :view.name==="settings"?vSettings()
   :inClient?(asClient?vClientSide():vInClient())
+  :view.name==="addmember"?vAddMember()
   :view.name==="people"?vPeople()
   :view.name==="person"?vPerson(view.id)
   :view.name==="queue"?vQueue()
@@ -4999,9 +5798,19 @@ function wire(){
  q("[data-page]").forEach(b=>b.onclick=()=>{const [id,p]=b.dataset.page.split("|");PAGE[id]=+p;render()});
  bindSearch("estSearch",v=>{estQ=v;PAGE.estate=1});
  bindSearch("cliSearch",v=>{cliQ=v;PAGE.clients=1});
- q("[data-apreset]").forEach(b=>b.onclick=()=>{const [id,n]=b.dataset.apreset.split("|");
+ q("[data-apreset]").forEach(b=>b.onclick=()=>{const [id,n,subj]=b.dataset.apreset.split("|");
+   if(subj){PEOPLE[subj].ws=PEOPLE[subj].ws||{};PEOPLE[subj].ws[id]=n;render();return}
    const p=ACCESS_PRESETS[n]; byId[id].access={mods:p.mods.slice(),verbs:p.verbs.slice()}; render()});
- q("[data-amod]").forEach(b=>b.onclick=()=>{const [id,k]=b.dataset.amod.split("|");
+ /* opens the one editor, scoped to a specific staff member in this workspace,
+    reusing the drawer the wizard and the person page also use. */
+ q("[data-openstaff]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   const [personKey,cid]=b.dataset.openstaff.split("|");
+   drawer={kind:"staffaccess",client:cid,person:personKey};renderDrawer()});
+ q("[data-staffremove]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   const [personKey,cid]=b.dataset.staffremove.split("|");
+   if(PEOPLE[personKey].ws) delete PEOPLE[personKey].ws[cid]; render()});
+ q("[data-amod]").forEach(b=>b.onclick=()=>{const [id,k,subj]=b.dataset.amod.split("|");
+   if(subj){toggleStaffMod(subj,id,k);render();return}
    const a=byId[id].access, i=a.mods.indexOf(k);
    if(i>-1&&a.mods.length===1) return;   /* never leave a login with nowhere to go */
    if(i>-1){a.mods.splice(i,1);
@@ -5039,7 +5848,11 @@ function wire(){
    newPick=b.textContent.trim().split("\n")[0].toLowerCase()==="client update"?"client update":k==="account"?"email account":k; render()});
  q("[data-newback]").forEach(b=>b.onclick=e=>{e.stopPropagation();newPick=null;render()});
  q("[data-newfor]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.newfor,k=newPick;newOpen=false;newPick=null;
-   if(k==="member"){ctx="agency";view={name:"record",id};tab="access";render();drawer={kind:"member",client:id};renderDrawer();return}
+   /* straight into A8 with this client already ticked. It used to open
+      drawer{kind:"member"}, which A8 replaced and deleted on 16 Sep, so the
+      dispatcher fell through to the Add Client wizard and the reader landed
+      on its Limits step: they asked to add a person and got a credits screen. */
+   if(k==="member"){ctx="agency";amOpen({ws:[id],from:{name:"record",id,tab:"access"}});return}
    if(k==="client update"){ctx="agency";view={name:"record",id};tab="update";render();return}
    ctx=id;asClient=false;inMod=k==="email account"?"accounts":"sequences";openProspect=null;render()});
  q("[data-manage]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
@@ -5098,7 +5911,6 @@ function wire(){
    if(act==="approve"){
      c.link.state="active"; c.link.since="just now"; delete c.link.requested;
      const va=document.getElementById("c0viewas"); c.link.viewAs=!!(va&&va.getAttribute("aria-checked")==="true");
-     if(!c.staff.some(x=>x[0]===PEOPLE.owner.name)) c.staff.push([PEOPLE.owner.name,"Admin"]);
      modal={kind:"c0done",client:c.id,approved:true};renderModal();render();return}
    const i=CLIENTS.findIndex(x=>x.id===c.id);
    modal={kind:"c0done",client:c.id,approved:false,name:c.name};
@@ -5154,7 +5966,16 @@ function wire(){
  q("[data-nav2]").forEach(b=>b.onclick=()=>{ctx="agency";
    view={name:b.dataset.nav2==="queue"?"queue":b.dataset.nav2==="dash"?"dash":"clients"};render()});
  q("[data-set]").forEach(b=>b.onclick=()=>{setSel=b.dataset.set;render()});
- q("[data-addmember]").forEach(b=>b.onclick=()=>{drawer={kind:"member",client:b.dataset.addmember};renderDrawer()});
+ /* A8, three entry points into one component. From a client's Access screen
+    the workspace is already known, so section 2 opens with it ticked; from a
+    person's page the person is known, so section 1 opens filled; from People
+    nothing is known. Nothing else differs. */
+ q("[data-addmember]").forEach(b=>b.onclick=()=>{const id=b.dataset.addmember;
+   /* the workspace is pre-selected and the type is not: "Add member" on a
+      workspace means add anyone to this workspace, and a colleague is at
+      least as likely as a client login. The type question stays the reader's,
+      exactly as it is when they arrive from People. */
+   amOpen({ws:[id],from:{name:"record",id,tab:"access"}})});
  q("[data-previewinvite]").forEach(b=>b.onclick=()=>{const [id,email,role]=b.dataset.previewinvite.split("|");
    view={name:"invite",client:id,email,role,back:{name:"record",id,fromtab:"access"}};render()});
  {const b=el("invDone");if(b)b.onclick=()=>{const c=byId[view.client]||myClients()[0]||CLIENTS[0];if(view.email)LASTSEEN[view.email]="just now";
@@ -5189,9 +6010,100 @@ function wire(){
  /* ── people ── */
  q("[data-person]").forEach(b=>b.onclick=()=>{view={name:"person",id:b.dataset.person};render()});
  q("[data-topeople]").forEach(b=>b.onclick=()=>{view={name:"people"};render()});
- q("[data-invitestaff]").forEach(b=>b.onclick=()=>{modal={kind:"staffinvite"};renderModal()});
- q("[data-wsaddopen]").forEach(b=>b.onclick=()=>{modal={kind:"wsadd",person:b.dataset.wsaddopen};renderModal()});
- q("[data-prole]").forEach(b=>b.onchange=()=>{const [k,r]=b.dataset.prole.split("|");
+ q("[data-invitestaff]").forEach(b=>b.onclick=()=>amOpen({from:{name:"people"}}));
+ q("[data-wsaddopen]").forEach(b=>b.onclick=()=>{const k=b.dataset.wsaddopen, P=PEOPLE[k];
+   amOpen({kind:"agency",email:P.email||"",name:P.name,role:P.role,from:{name:"person",id:k}})});
+ /* ── A8 wiring ── */
+ q("[data-amback]").forEach(b=>b.onclick=()=>{const f=AM.from||{name:"people"};
+   AM=Object.assign({},AM_BLANK); view={name:f.name,id:f.id}; if(f.tab)tab=f.tab; render()});
+ q("[data-amsend]").forEach(b=>b.onclick=amSend);
+ /* the rail jumps rather than navigates: every section is already on the page,
+    so this is a scroll, not a step change. */
+ q("[data-amjump]").forEach(b=>b.onclick=()=>{const t=el("amSec"+b.dataset.amjump);
+   if(t) t.scrollIntoView({behavior:"smooth",block:"start"})});
+ q("[data-clientdefault]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   drawer={kind:"clientdefault",client:b.dataset.clientdefault};renderDrawer()});
+ /* and it follows the reader rather than the state: whichever section is
+    nearest the top of the scroller is the one lit. Re-attached on every render
+    because render() rebuilds this DOM, and torn down first so repeated
+    renders do not stack observers on a page that is about to be discarded. */
+ if(window.__amObs){window.__amObs.disconnect();window.__amObs=null}
+ const spyOn=el("amSec1")?"am":null;
+ if(spyOn&&window.IntersectionObserver){
+  const root=el("page"), rails=[...document.querySelectorAll("[data-"+spyOn+"jump]")];
+  const lit=n=>rails.forEach(r=>r.classList.toggle("is-now",r.dataset[spyOn+"jump"]===String(n)));
+  const seen={};
+  window.__amObs=new IntersectionObserver(es=>{
+    es.forEach(e=>{seen[e.target.id.slice(-1)]=e.intersectionRatio});
+    const best=Object.keys(seen).sort((a,b)=>(seen[b]-seen[a])||(a-b))[0];
+    if(best) lit(best);
+  },{root:root,threshold:[0,.1,.25,.5,.75,1],rootMargin:"-60px 0px -55% 0px"});
+  [1,2,3].forEach(n=>{const t=el(spyOn+"Sec"+n); if(t) window.__amObs.observe(t)});
+  lit(1);
+ }
+ /* one editor, opened for an existing client user instead of a new one. The
+    row on the members list is the entry point; nothing about the screen
+    changes except the verb, because nothing about the object changes. */
+ q("[data-openuser]").forEach(b=>b.onclick=()=>{const [id,addr]=b.dataset.openuser.split("|");
+   const c=byId[id], u=(c.users||[]).filter(x=>x[0]===addr)[0], a=userAccessOf(c,u);
+   amOpen({kind:"client",mode:"edit",email:addr,name:addr.split("@")[0],ws:[id],
+     access:{[id]:{mods:a.mods.slice(),verbs:(a.verbs||[]).slice()}},
+     from:{name:"record",id,tab:"access"}})});
+ q("[data-amcompare]").forEach(b=>b.onclick=()=>{modal={kind:"rolecompare"};renderModal()});
+ {const e=el("amEmail"), n=el("amName");
+  /* typed values repaint nothing, because re-rendering on a keystroke steals
+     the caret out of the field being typed in. The footer catches up on the
+     next real interaction, and on blur. */
+  if(e){e.oninput=()=>{AM.email=e.value}; e.onblur=render}
+  if(n){n.oninput=()=>{AM.name=n.value}; n.onblur=render}}
+ q("[data-amkind]").forEach(b=>b.onclick=()=>{if(AM.kind===b.dataset.amkind)return;
+   AM.kind=b.dataset.amkind;
+   /* keep every workspace the new type can still hold, and drop only the ones
+      it cannot: a client user reaches no agency outreach workspace (D2a) and
+      no linked client, whose users are that client's to invite (CN3).
+      Throwing the whole selection away instead meant arriving from a client's
+      Access screen with that client ticked, switching type, and losing it.
+      Found in review 16 Sep. */
+   AM.ws=AM.ws.filter(id=>{if(AM.kind==="agency")return true;
+     /* byId carries the agency's own outreach workspace as well as the
+        clients (`byId.own=OWN_WS`), so presence in it is not the test: the
+        `own` flag is. Checking membership alone let a client user keep the
+        agency's own workspace, which is the one thing D2a forbids outright. */
+     const c=byId[id]; return !!c&&!c.own&&!isLinked(c)});
+   /* the sets themselves cannot survive the switch. A staff grant is over 11
+      internal screens and a client's is over 7 different ones, so carrying
+      the modules across would produce a grant naming screens the subject
+      cannot reach. Re-seeded from the right table instead. */
+   AM.access={}; AM.wsIdx=0;
+   AM.ws.forEach((x,k)=>amSeed(k)); if(amUni())amSpread();
+   render()});
+ q("[data-amrole]").forEach(b=>b.onclick=()=>{AM.role=b.dataset.amrole;render()});
+ q("[name=amws]").forEach(i=>i.onchange=()=>{const id=i.value, at=AM.ws.indexOf(id);
+   if(i.checked&&at<0)AM.ws.push(id); if(!i.checked&&at>-1){AM.ws.splice(at,1);delete AM.access[id]}
+   AM.ws.sort((a,b)=>amWs().findIndex(w=>w.id===a)-amWs().findIndex(w=>w.id===b));
+   if(AM.wsIdx>=AM.ws.length)AM.wsIdx=Math.max(0,AM.ws.length-1);
+   AM.ws.forEach((x,k)=>amSeed(k)); if(amUni())amSpread(); render()});
+ q("[data-amtab]").forEach(b=>b.onclick=()=>{AM.wsIdx=+b.dataset.amtab;render()});
+ q("[data-ammode]").forEach(b=>b.onclick=()=>{const want=b.dataset.ammode==="uniform";
+   if(AM.uniform===want)return;
+   /* switching to same-in-all applies what is on screen to every workspace, so
+      the toggle never silently discards the set the reader is looking at. */
+   if(want){AM.uniform=true;AM.wsIdx=0;amSpread()} else {AM.uniform=false;AM.wsIdx=0}
+   render()});
+ q("[data-ampreset]").forEach(b=>b.onclick=()=>{const t=AM.kind==="agency"?STAFF_PRESETS:ACCESS_PRESETS;
+   const p=t[b.dataset.ampreset]; amWrite({mods:p.mods.slice(),verbs:p.verbs.slice()}); render()});
+ q("[data-ammod]").forEach(b=>b.onclick=()=>{const a=amCur(), k=b.dataset.ammod, at=a.mods.indexOf(k);
+   if(at>-1){a.mods.splice(at,1);
+    /* an action without its screen is meaningless, so dropping the screen
+       drops the actions that act on it rather than leaving them orphaned. */
+    CLIENT_VERBS.filter(v=>v[3]===k).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)});
+   } else a.mods.push(k);
+   amWrite(a); render()});
+ q("[data-amverb]").forEach(c=>c.onchange=()=>{const a=amCur(), k=c.dataset.amverb, at=a.verbs.indexOf(k);
+   if(c.checked&&at<0)a.verbs.push(k); if(!c.checked&&at>-1)a.verbs.splice(at,1);
+   amWrite(a); render()});
+ q("[data-prole2]").forEach(b=>b.onclick=()=>{const k=view.id, r=b.dataset.prole2;
+   if(!PEOPLE[k]||PEOPLE[k].role===r) return;
    if(k===me_||(isOwnerP(PEOPLE[k])&&ownerCount()===1)) return;
    /* promoting to owner drops the enumeration because an owner is in every
       workspace including ones created later, which a stored list cannot say.
@@ -5201,8 +6113,6 @@ function wire(){
    if(r==="Owner") PEOPLE[k].ws=null;
    else if(!PEOPLE[k].ws) PEOPLE[k].ws=Object.fromEntries(CLIENTS.map(c=>[c.id,"Everything"]));
    PEOPLE[k].role=r; render()});
- q("[data-wsaccess]").forEach(sel=>sel.onchange=()=>{const [k,id]=sel.dataset.wsaccess.split("|");
-   PEOPLE[k].ws[id]=sel.value; render()});
  q("[data-wsremove]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.wsremove.split("|");
    delete PEOPLE[k].ws[id];
    /* removing yourself from the workspace you are standing in has to move you */
@@ -5328,7 +6238,7 @@ function scaleTo(n){
    seq,mbx:Math.max(2,Math.round(sent/CYCLE.day/85)),prospects:Math.round(sent*0.2/10)*10,sent,
    reply:0,prev:0,pos:+(0.5+r()*3).toFixed(1),
    created:(1+Math.floor(r()*28))+" Aug, 2026",limitsReviewed:r()<.8,
-   permission:r()<.3?"Limited Access":"Full Access",staff:[],users:[["hello@"+slug+".com","Full Access"]],mailboxes:[],synthetic:true};
+   permission:r()<.3?"Limited Access":"Full Access",users:[["hello@"+slug+".com","Full Access"]],mailboxes:[],synthetic:true};
   /* last cycle's rate moves with this cycle's, as it does in life; independent
      draws made half the book "Falling" and the flag meaningless */
   c.reply=+(2+r()*7).toFixed(1); c.prev=+(c.reply*(0.7+0.8*r())).toFixed(1);
@@ -5340,8 +6250,8 @@ function scaleTo(n){
   const pre=ACCESS_PRESETS[c.permission==="Limited Access"?"Read everything":"Reply and run"];
   c.access={mods:pre.mods.slice(),verbs:pre.verbs.slice()};
   CLIENTS.push(c); byId[id]=c;
-  if(r()<.5){PEOPLE.priya.ws[id]="Everything";c.staff.push(["Priya Nair","Admin"])}
-  if(r()<.25){PEOPLE.sam.ws[id]="Reply and run";c.staff.push(["Sam Doshi","Member"])}
+  if(r()<.5){PEOPLE.priya.ws[id]="Everything"}
+  if(r()<.25){PEOPLE.sam.ws[id]="Reporting"}
  }
  LAST.clients=Math.max(LAST.clients,CLIENTS.length-2);
  SCALE.n=CLIENTS.length;
