@@ -357,6 +357,20 @@ svg{display:block}
 .dwrap{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(320px,.9fr);gap:20px;padding:4px 24px 36px;align-items:start}
 @media(min-width:1700px){.dwrap{grid-template-columns:minmax(0,3fr) minmax(380px,.85fr)}}
 .dmain,.drail{display:flex;flex-direction:column;gap:20px;min-width:0}
+/* the top row: This cycle and the rail's first card share a row, so they share
+   a height. The KPI card's body grows to fill; the tiles keep their size. */
+.dwrap-top{grid-template-rows:auto 1fr}
+.dtop-l{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:20px;min-width:0;align-self:stretch}
+.dtop-r{grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;align-self:stretch}
+.dtop-l>.kgrp{flex:1;display:flex;flex-direction:column}
+.dtop-l>.kgrp .kgrp-b{flex:1;display:flex;flex-direction:column;justify-content:center}
+.dtop-r>.card{flex:1;display:flex;flex-direction:column}
+.dtop-r>.card>.c-b{flex:1}
+.dwrap-top>.dmain{grid-column:1;grid-row:2}
+.dwrap-top>.drail{grid-column:2;grid-row:2}
+.pace-ws{margin:10px 0 2px}
+.pace-ws .lgd b{font-weight:600;color:var(--gray-17)}
+@media(max-width:1180px){.dwrap-top{grid-template-rows:none}.dtop-l,.dtop-r,.dwrap-top>.dmain,.dwrap-top>.drail{grid-column:1;grid-row:auto}}
 /* four across at 1440px, where the right rail leaves the main column ~810px.
    At 190px min they wrapped 3+1, which reads as a layout fault rather than a
    choice. Narrower viewports still wrap, which is correct.                */
@@ -4103,11 +4117,21 @@ function planCard(norm){
  const creds=RK.filter(k=>RES[k].nature==="Consumable").map((k,i)=>{const m=compute(k),d=burnDays(k);
   return {l:RES[k].label.replace(" Credits",""),c:["#1D4ED8","#059669","#D97706"][i],
    v:(d===Infinity?"no burn":d<1?"under a day":Math.round(d)+" days left"),p:m.used/RES[k].pool*100}});
+ /* 18 Sep, Hitesh: "represent clients as in that card". The cycle's emails,
+    split by the workspace that sent them, largest first, in each one's colour. */
+ const byWs=fundedWorkspaces().map(c=>({c,u:cRow("sends",c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
+ const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,4), rest=byWs.slice(4);
+ const wsBar=byWs.length?'<div class="pace-ws"><span class="sbar" style="height:8px">'
+    +byWs.map(x=>'<i style="width:'+(x.u/wsTot*100).toFixed(1)+'%;background:'+x.c.colour+'" title="'+x.c.name+' '+f(x.u)+'"></i>').join("")+'</span>'
+    +'<span class="lgd">'+top.map(x=>'<span><i style="background:'+x.c.colour+'"></i>'+x.c.name+' <b class="tnum">'+abbr(x.u)+'</b></span>').join("")
+    +(rest.length?'<span><i style="background:var(--gray-23)"></i>+'+rest.length+' other'+(rest.length===1?"":"s")+' <b class="tnum">'+abbr(rest.reduce((a,x)=>a+x.u,0))+'</b></span>':"")
+    +'</span></div>':"";
  return '<div class="card"><div class="c-h"><span class="c-t">Plan pacing</span>'
   +'<span class="c-a"><span class="sub">'+CYCLE.month+'</span></span></div>'
   +'<div class="c-b">'
   +'<div class="big"><span class="big-v" style="font-size:24px;line-height:32px">'+f(used)+'</span>'+deltaChip(pctDelta(used,LAST.sent))
   +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone</span></div>'
+  +wsBar
   +(sd<CYCLE.days-CYCLE.day
     ?'<p class="pace bad">At this burn the plan is exhausted around <b>'+onDay(sd)+'</b>, '+early+' days early.</p>'
     :'<p class="pace">On pace to finish the cycle inside the plan.</p>')
@@ -4296,13 +4320,19 @@ function vDash(){
    +'<button class="shd-button shd-button--tertiary shd-button--sm" data-addcardoff>Not now</button></div>'
    +'</div></div>':'';
 
- const rail=fresh?'<div class="card"><div class="c-h"><span class="c-t">Your plan</span>'
+ const railTop=fresh?'<div class="card"><div class="c-h"><span class="c-t">Your plan</span>'
    +'<span class="c-a"><span class="sub">'+CYCLE.month+'</span></span></div><div class="c-b">'
    +'<div class="big"><span class="big-v" style="font-size:24px;line-height:32px">0</span>'
    +'<span class="big-s">of '+f(NORMAL_PLAN.sends)+' emails this cycle</span></div>'
    +'<p class="sub" style="margin:8px 0 0">Nothing has sent yet. Finish the steps on the left and this fills in.</p>'
    +'</div></div>'
-  :'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
+  /* 18 Sep, Hitesh: plan pacing above Needs a decision, level with This cycle */
+  :(norm?planCard(true)
+    :owner?planCard()
+    :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your clients</span></div><div class="c-b">'
+     +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
+     +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
+ const railRest=fresh?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
    +'<span class="c-a">'+(rest>0?'<button class="linkbtn" data-goall>See all '+items.length+'</button>':'')+'</span></div>'
    +(norm
      ?(shown.length?shown.map(d=>'<div class="c-b" style="border-top:1px solid var(--gray-13)">'
@@ -4310,12 +4340,7 @@ function vDash(){
         +'<p class="sub" style="margin:0 0 8px">'+d.w+'</p>'
         +'<button class="linkbtn" data-nav2n="'+d.g+'">'+d.a+'</button></div>').join("")
        :'<div class="c-b"><span class="sub">Nothing needs you right now.</span></div>')
-     :(shown.length?shown.map(decisionRow).join(""):'<div class="c-b"><span class="sub">Nothing is waiting on you.</span></div>'))+'</div>'
-  +(norm?planCard(true)
-    :owner?planCard()
-    :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your clients</span></div><div class="c-b">'
-     +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
-     +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
+     :(shown.length?shown.map(decisionRow).join(""):'<div class="c-b"><span class="sub">Nothing is waiting on you.</span></div>'))+'</div>';
 
  /* one assembly for both densities. The header keeps Add Client out of a normal
     user's way, because a bare button for a feature they have never heard of is
@@ -4328,9 +4353,13 @@ function vDash(){
      +(norm?'New &#9662;':'New for a client &#9662;')+'</button>'+newMenuHTML()+'</div>'
    +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd">Add Client</button>':"")
   +'</div></div>'
-  +'<div class="dwrap">'
-   +'<div class="dmain">'+graceBanner()
-    +(norm&&!setupDone?'':kpiGroup("This cycle",tiles,norm?"":"Outreach by channel",norm?"":touchBar(tch)))
+  /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
+     top, same top and bottom edge. The two are grid cells of the dwrap itself;
+     everything under them flows in its own column as before. */
+  +'<div class="dwrap dwrap-top">'
+   +'<div class="dtop-l">'+graceBanner()+(norm&&!setupDone?'':kpiGroup("This cycle",tiles,norm?"":"Outreach by channel",norm?"":touchBar(tch)))+'</div>'
+   +'<div class="dtop-r">'+railTop+'</div>'
+   +'<div class="dmain">'
     +(norm?(setupDone?seqCard:setupCard)+addCard:tableCard)
     +(fresh?''
       :norm
@@ -4339,7 +4368,7 @@ function vDash(){
           v:f(Math.round(s[3]*s[4]/100)),p:s[4]/Math.max(1,Math.max.apply(null,AGENCY_OWN.sequences.map(x=>x[4])))*100})))+'</div></div>'
       :'<div class="card"><div class="c-h"><span class="c-t">Replies by client</span></div><div class="c-b">'+byClient()+'</div></div>')
    +'</div>'
-   +'<div class="drail">'+rail+'</div>'
+   +'<div class="drail">'+railRest+'</div>'
   +'</div>';
 }
 
@@ -7533,7 +7562,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="21fb99d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="35b2f61";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
