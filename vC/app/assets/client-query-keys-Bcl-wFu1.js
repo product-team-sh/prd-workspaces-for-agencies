@@ -1,0 +1,1 @@
+var e={all:[`clients`],list:t=>[...e.all,`list`,t],sequences:t=>[...e.all,`sequences`,t]};export{e as t};

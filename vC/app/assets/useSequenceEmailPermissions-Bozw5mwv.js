@@ -1,0 +1,1 @@
+import{or as e}from"./index-DnATKSi5.js";import{t}from"./has-permission-C55kPZKl.js";function n(){let{data:n}=e(),r=n?.permissions;return{canRead:r?t(r,`SEQUENCE_EMAIL.READ`):!0,canSend:!0,canMarkReplied:!0,canMarkBounced:!0,canResend:!0,canExport:!0,isDemo:n?.isDemoAccount??!1}}export{n as t};

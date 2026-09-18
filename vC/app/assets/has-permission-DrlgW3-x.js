@@ -1,0 +1,1 @@
+function e(e,t){let n=t.replace(/\./g,`\\.`),r=RegExp(`^((ACCOUNT|TEAM|AGENCY)\\.)?${n}`);return e.some(e=>r.test(e))}export{e as t};

@@ -1,0 +1,1 @@
+import{_i as e,zr as t}from"./index-DnATKSi5.js";var n=e();function r({schedule:e}){let{t:r}=t(`sequences`);return e.name?(0,n.jsx)(n.Fragment,{children:e.name}):(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)(`span`,{className:`italic text-muted-foreground`,children:r(`schedule.noName`)}),` `,e.timezone]})}export{r as t};

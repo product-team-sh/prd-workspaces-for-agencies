@@ -1,0 +1,1 @@
+import{_i as e}from"./index-DnATKSi5.js";import{t}from"./SettingsComingSoon-BWZ_iCnI.js";var n=e(),r=()=>(0,n.jsx)(t,{itemId:`profile`});export{r as component};

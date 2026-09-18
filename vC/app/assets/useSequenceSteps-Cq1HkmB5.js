@@ -1,0 +1,1 @@
+import{oi as e}from"./index-DnATKSi5.js";import{s as t}from"./sequence-steps.api-t2HChnKX.js";function n(n,r={}){return e({queryKey:[`sequences`,`steps`,n],queryFn:()=>t(n),enabled:r.enabled??!0})}export{n as t};

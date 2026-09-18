@@ -1,0 +1,1 @@
+import{Kn as e}from"./index-DnATKSi5.js";var t=1002;function n(n){let r=e(n);return Number(r.code)===t}function r(){typeof window<`u`&&typeof window.Intercom==`function`&&window.Intercom(`showMessages`)}var i=20;function a(e){return e?e.length>i?`${e.slice(0,i)}…`:e:`Saleshandy`}export{n,r,a as t};

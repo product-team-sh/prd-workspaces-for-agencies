@@ -1,0 +1,1 @@
+import{_i as e}from"./index-DnATKSi5.js";import{t}from"./ComingSoon-CdCq6aoc.js";var n=e(),r=()=>(0,n.jsx)(t,{areaKey:`nav.inboxRadar`});export{r as component};

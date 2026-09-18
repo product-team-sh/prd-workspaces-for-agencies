@@ -1,0 +1,1 @@
+function e(t,n){if(!t)return``;let r=new Date(t);if(Number.isNaN(r.getTime()))return``;try{let e=new Intl.DateTimeFormat(`en-GB`,{day:`2-digit`,month:`short`,year:`numeric`,...n?{timeZone:n}:{}}).formatToParts(r),t=t=>e.find(e=>e.type===t)?.value??``;return`${t(`day`)} ${t(`month`)}, ${t(`year`)}`}catch{return e(t)}}export{e as t};

@@ -1,0 +1,1 @@
+import{Ir as e}from"./index-DnATKSi5.js";var t=e(`chevron-right`,[[`path`,{d:`m9 18 6-6-6-6`,key:`mthhwq`}]]);export{t};

@@ -1,0 +1,1 @@
+import{oi as e,w as t}from"./index-DnATKSi5.js";function n(n){return e(t(n))}export{n as t};

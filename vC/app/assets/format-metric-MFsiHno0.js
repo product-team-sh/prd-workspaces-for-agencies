@@ -1,0 +1,1 @@
+function e(e){let t=e=>e.toFixed(1).replace(/\.0$/,``);return e>=1e9?`${t(e/1e9)}B`:e>=1e6?`${t(e/1e6)}M`:e>=1e3?`${t(e/1e3)}K`:String(e)}function t(t){return t>0?e(t):`-`}function n(e){return e>0?`(${e}%)`:``}function r(e){if(e>0)return`${Number.isInteger(e)?e:e.toFixed(2)}%`}export{n as i,e as n,t as r,r as t};

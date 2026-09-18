@@ -1,0 +1,1 @@
+import{r as e,t}from"./handlers-Dg4xTd53.js";var n=e(...t);export{n as worker};

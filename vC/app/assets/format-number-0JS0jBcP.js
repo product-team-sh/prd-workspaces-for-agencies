@@ -1,0 +1,1 @@
+import{t as e}from"./index-DnATKSi5.js";function t(t,n=e.language||`en`){return new Intl.NumberFormat(n,{maximumFractionDigits:0}).format(t)}export{t};

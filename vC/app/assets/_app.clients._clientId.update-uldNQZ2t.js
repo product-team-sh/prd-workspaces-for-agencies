@@ -1,0 +1,1 @@
+import{_i as e,f as t}from"./index-DnATKSi5.js";import{t as n}from"./useClient-nzVJCGEA.js";import{t as r}from"./ClientUpdateView-BdkeM6w1.js";var i=e();function a({clientId:e}){let{data:t}=n(e);return(0,i.jsx)(r,{workspaceId:t?.workspaceId,agencyView:!0})}function o(){let{clientId:e}=t.useParams();return(0,i.jsx)(a,{clientId:e})}export{o as component};
