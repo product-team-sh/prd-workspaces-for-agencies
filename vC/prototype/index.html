@@ -360,12 +360,24 @@ svg{display:block}
 /* the top row: This cycle and the rail's first card share a row, so they share
    a height. The KPI card's body grows to fill; the tiles keep their size. */
 .dwrap-top{grid-template-rows:auto 1fr}
+/* 18 Sep, Hitesh: "you made it bigger". This cycle keeps its natural height;
+   Plan pacing is compacted to sit beside it, not the other way round. */
 .dtop-l{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:20px;min-width:0;align-self:stretch}
 .dtop-r{grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;align-self:stretch}
-.dtop-l>.kgrp{flex:1;display:flex;flex-direction:column}
+.dtop-l>.kgrp,.dtop-r>.card{flex:1}
+.dtop-l>.kgrp{display:flex;flex-direction:column}
 .dtop-l>.kgrp .kgrp-b{flex:1;display:flex;flex-direction:column;justify-content:center}
-.dtop-r>.card{flex:1;display:flex;flex-direction:column}
-.dtop-r>.card>.c-b{flex:1}
+.dtop-r .c-b{padding-top:12px;padding-bottom:14px}
+.dtop-r .big-v{font-size:22px!important;line-height:28px!important}
+.dtop-r .big-s{font-size:12px;line-height:16px}
+.dtop-r .pace-ws{margin:8px 0 0}
+.dtop-r .pace-ws .lgd{margin-top:5px;gap:2px 10px}
+.dtop-r .pace-ws .lgd span{flex:none}
+.dtop-r .chart{margin-top:4px}
+.pace-creds{display:flex;gap:4px 14px;flex-wrap:wrap;margin-top:8px}
+.pace-creds span{display:inline-flex;align-items:center;gap:5px;font-size:11px;line-height:16px;color:var(--gray-12)}
+.pace-creds i{width:6px;height:6px;border-radius:50%;flex:none}
+.pace-creds b{font-weight:600;color:var(--gray-17)}
 .dwrap-top>.dmain{grid-column:1;grid-row:2}
 .dwrap-top>.drail{grid-column:2;grid-row:2}
 .pace-ws{margin:10px 0 2px}
@@ -537,6 +549,11 @@ table.organism tr.att>td{background:transparent}
 tr:hover .hovercell .rowacts,tr:focus-within .hovercell .rowacts{visibility:visible}
 .sortable{display:inline-flex;align-items:center;gap:8px}
 .sortable svg{width:12px;height:12px;color:var(--gray-11)}
+/* 18 Sep, Hitesh: headers meet their values on every table. In a right-aligned
+   column the sort icon sat after the label, so the label ended 20px left of
+   the numbers under it. The icon leads in those columns; the label's right
+   edge is the column's. */
+table.organism th.ar .sortable{flex-direction:row-reverse}
 .reason{display:block;font-size:12px;line-height:18px;color:var(--gray-15);white-space:normal;margin-top:2px;max-width:420px;font-weight:400}
 .stat{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--gray-12);font-weight:400}
 .stat i{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -703,9 +720,12 @@ input:disabled,select:disabled{background:var(--gray-19);color:var(--gray-15);bo
 .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--gray-13)}
 .pager .tools{display:flex;align-items:center;gap:10px}
 .estbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px 24px 11px;border-bottom:1px solid var(--gray-13)} /* 17 Sep: bottoms aligned and 11+1 so the pills sit exactly 12px above the table head, like every other filter row */
-.numin{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
-.numin input{width:104px;text-align:right;font-variant-numeric:tabular-nums}
-.numin .unit{font-size:12px;color:var(--gray-11);white-space:nowrap;min-width:64px} /* 17 Sep: "credits", "emails" and "prospects" differ in width, which let the input boxes drift up to 20px in one column */
+/* 18 Sep, Hitesh: headers meet their values on every table. The unit used to
+   trail the box, so a right-aligned header met "credits", not the number. The
+   unit now sits inside the box as a suffix; the box edge is the column edge. */
+.numin{display:inline-flex;align-items:center;justify-content:flex-end;position:relative}
+.numin input{width:172px;text-align:right;font-variant-numeric:tabular-nums;padding-right:82px}
+.numin .unit{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--gray-11);white-space:nowrap;pointer-events:none}
 .draftbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--gray-13);background:var(--blue-17);font-size:13px;line-height:19px;color:var(--gray-17)}
 .draftbar .tools{display:flex;gap:8px;flex:none}
 .cnav .ubtn{width:28px;height:28px;font-size:18px;line-height:1}
@@ -914,7 +934,7 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .nc-cols{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
 .nc-limhead{margin-bottom:14px}
 .nc-lim{border:1px solid var(--gray-13);border-radius:var(--radius-control);background:var(--gray-1)}
-.nc-limrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) 168px;gap:16px;align-items:center;padding:11px 14px;border-top:1px solid var(--gray-16)}
+.nc-limrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) 176px;gap:16px;align-items:center;padding:11px 14px;border-top:1px solid var(--gray-16)}
 .nc-limrow:first-child{border-top:0}
 .nc-limhd{padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);background:var(--gray-19);border-radius:var(--radius-control) var(--radius-control) 0 0}
 .nc-limlab b{display:block;font-size:14px;font-weight:500;color:var(--gray-17);line-height:20px}
@@ -3457,7 +3477,7 @@ const dkey=(k,id,fld)=>k+"|"+id+"|"+fld;
 const dval=(k,id,fld)=>{const d=DRAFT[dkey(k,id,fld)];return d==null?RES[k].rows[id][fld]:d};
 const num=v=>Math.max(0,parseInt(String(v==null?"":v).replace(/[^\d]/g,"")||"0",10));
 /* 17 Sep: a dash for "no reservation" sits where the number would, under the inputs above it, not under their unit labels */
-const noIn=`<span class="numin"><span class="sub" style="display:inline-block;width:104px;text-align:right">–</span><span class="unit"></span></span>`;
+const noIn=`<span class="numin"><span class="sub" style="display:inline-block;width:172px;text-align:right;padding-right:11px">–</span></span>`;
 const numIn=(v,unit,attrs)=>`<span class="numin"><input type="text" inputmode="numeric" value="${f(v)}" ${attrs}><span class="unit">${unit}</span></span>`;
 function draftBar(scope){
  const ch=Object.keys(DRAFT).map(x=>{const [k,id,fld]=x.split("|");return {x,k,id,fld,from:RES[k].rows[id][fld],to:DRAFT[x]}})
@@ -4169,27 +4189,24 @@ function planCard(norm){
  /* 18 Sep, Hitesh: "represent clients as in that card". The cycle's emails,
     split by the workspace that sent them, largest first, in each one's colour. */
  const byWs=fundedWorkspaces().map(c=>({c,u:cRow("sends",c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
- const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,4), rest=byWs.slice(4);
+ const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,3), rest=byWs.slice(3);
  const wsBar=byWs.length?'<div class="pace-ws"><span class="sbar" style="height:8px">'
     +byWs.map(x=>'<i style="width:'+(x.u/wsTot*100).toFixed(1)+'%;background:'+x.c.colour+'" title="'+x.c.name+' '+f(x.u)+'"></i>').join("")+'</span>'
     +'<span class="lgd">'+top.map(x=>'<span><i style="background:'+x.c.colour+'"></i>'+x.c.name+' <b class="tnum">'+abbr(x.u)+'</b></span>').join("")
     +(rest.length?'<span><i style="background:var(--gray-23)"></i>+'+rest.length+' other'+(rest.length===1?"":"s")+' <b class="tnum">'+abbr(rest.reduce((a,x)=>a+x.u,0))+'</b></span>':"")
     +'</span></div>':"";
+ const tight=sd<CYCLE.days-CYCLE.day;
  return '<div class="card"><div class="c-h"><span class="c-t">Plan pacing</span>'
-  +'<span class="c-a"><span class="sub">'+CYCLE.month+'</span></span></div>'
+  +'<span class="c-a tools" style="gap:10px;white-space:nowrap"><span class="sub">'+CYCLE.month+'</span>'
+   +(norm?'':'<button class="linkbtn" data-goalloc="sends">Client limits &rarr;</button>')+'</span></div>'
   +'<div class="c-b">'
-  +'<div class="big"><span class="big-v" style="font-size:24px;line-height:32px">'+f(used)+'</span>'+deltaChip(pctDelta(used,LAST.sent))
-  +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone</span></div>'
+  +'<div class="big"><span class="big-v">'+f(used)+'</span>'
+  +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone &middot; '
+   +(tight?'<b style="color:var(--orange-12)">exhausted around '+onDay(sd)+', '+early+' days early</b> <button class="linkbtn" data-gobill style="font-size:12px">Add capacity</button>':'on pace to finish inside the plan')+'</span></div>'
   +wsBar
-  +(sd<CYCLE.days-CYCLE.day
-    ?'<p class="pace bad">At this burn the plan is exhausted around <b>'+onDay(sd)+'</b>, '+early+' days early.</p>'
-    :'<p class="pace">On pace to finish the cycle inside the plan.</p>')
-  +planChart(true)
-  +segbars(creds)
-  +'<div class="tools" style="margin-top:12px">'
-   +(norm?'':'<button class="shd-button shd-button--tertiary shd-button--sm" data-goalloc="sends">Allocate</button>')
-   +(sd<CYCLE.days-CYCLE.day?'<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>':'')
-  +'</div></div></div>';
+  +planChart(true,88)
+  /* the three credit lines moved to Billing; the top row is about this cycle's emails */
+  +'</div></div>';
 }
 
 
@@ -5121,8 +5138,8 @@ function kpi(label,value,delta,compare,invert,abs){
   +'<div class="kpi-c">'+compare+'</div></div>'}
 
 /* ── cumulative sends against the straight-line plan budget ─────────────────── */
-function planChart(compact){
- const R=RES.sends, pool=R.pool, W=640, H=compact?150:196, L=46, T=22, B=34, Rr=14;
+function planChart(compact,H0){
+ const R=RES.sends, pool=R.pool, W=640, H=H0||(compact?150:196), L=46, T=22, B=34, Rr=14;
  const px=d=>L+(d-1)/(CYCLE.days-1)*(W-L-Rr);
  const py=v=>H-B-(v/pool)*(H-T-B);
  let run=0; const pts=DAILY.map((v,i)=>{run+=v;return[px(i+1),py(run),run,i+1]});
@@ -7720,7 +7737,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="d2abc0d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="de389ae";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
