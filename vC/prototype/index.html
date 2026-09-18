@@ -214,6 +214,11 @@ svg{display:block}
 .nav-badge.hot{background:#ef4444}
 .nav-new{font-size:10px;font-weight:500;color:#fff;background:#f59e0b;border-radius:3px;padding:1px 5px;letter-spacing:0}
 .nav-gap{flex:1}
+/* 18 Sep QA: Status stole width from the name and usage columns on Home, so
+   "Northwind Logistics" and "89% Prospects" wrapped. */
+.crow td:first-child{min-width:230px}
+.crow td:nth-child(5){min-width:160px}
+.crow td:nth-child(2){width:36%}
 /* .app-sidebar__footer, deployed: a 1px #e5e7eb divider, then items at the same 8px gap */
 .sb-foot{border-top:1px solid var(--gray-13);padding-top:8px;display:flex;flex-direction:column;gap:8px}
 
@@ -373,7 +378,7 @@ svg{display:block}
 .dtop-r .pace-ws{margin:8px 0 0}
 .dtop-r .pace-ws .lgd{margin-top:5px;gap:2px 10px}
 .dtop-r .pace-ws .lgd span{flex:none}
-.dtop-r .chart{margin-top:4px}
+.dtop-r .chart{margin-top:4px;width:100%;max-height:96px}
 .pace-creds{display:flex;gap:4px 14px;flex-wrap:wrap;margin-top:8px}
 .pace-creds span{display:inline-flex;align-items:center;gap:5px;font-size:11px;line-height:16px;color:var(--gray-12)}
 .pace-creds i{width:6px;height:6px;border-radius:50%;flex:none}
@@ -499,7 +504,8 @@ table.organism td:last-child{padding-right:24px;border-right:1px solid var(--gra
 table.organism tbody tr{background:#fff;transition:box-shadow .2s ease}
 table.organism tbody tr:hover{position:relative;z-index:1;box-shadow:0 0 4px rgba(31,41,55,.16)}
 table.organism tbody tr:last-child td{border-bottom:1px solid var(--gray-13)}
-table.organism tr.grouprow>td{padding:10px 16px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);border-bottom:0;background:transparent}
+/* 18 Sep QA: the group label starts where the first column's text starts */
+table.organism tr.grouprow>td{padding:10px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);border-bottom:0;background:transparent}
 table.organism tr.att>td{background:transparent}
 .colact{white-space:nowrap;width:1%}
 /* column selector: trigger + popover, matching the real columns-selector */
@@ -533,6 +539,30 @@ table.organism tr.att>td{background:transparent}
 .empty-t{font-size:16px;font-weight:700;line-height:24px;color:var(--blue-15);margin:0}
 .empty-s{font-size:14px;font-weight:500;line-height:20px;color:var(--gray-15);margin:16px auto 0;max-width:420px}
 .empty .shd-button{margin-top:32px}
+/* 18 Sep: the Clients empty state as a centred hero, not a sliver */
+.cempty-wrap{min-height:calc(100vh - 44px - 68px - 32px);justify-content:center;align-items:center}
+.cempty{width:100%;max-width:880px;padding:36px 40px 32px}
+.cempty-hero{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:center}
+.cempty-h{margin:6px 0 0;font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em;color:var(--gray-17)}
+.cempty-p{margin:10px 0 0;font-size:14px;line-height:22px;color:var(--gray-12)}
+.cempty-cta{display:flex;align-items:center;gap:16px;margin-top:22px;flex-wrap:nowrap;white-space:nowrap}
+.cempty-vis{padding:12px;width:360px;flex:none}
+/* the name keeps its line; the three chips sit on one line beneath it */
+.cempty-vis .fc-rail{width:100%;padding-left:34px;flex-wrap:nowrap;justify-content:flex-start;overflow:hidden}
+.cempty-vis .fc-rail i{font-style:normal}
+.cempty-vis .fc-rail .s{display:none}
+.cempty-vis .fc-rail span{white-space:nowrap;flex:none}
+.cempty-vis .fc-top b{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cempty-vis .fc-tile i{min-height:30px}
+.cempty-vis .fc-tile b{overflow:visible;white-space:normal}
+.cempty-gets{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px;padding-top:24px;border-top:1px solid var(--gray-16)}
+.cempty-get{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.cempty-ico{flex:none;width:34px;height:34px;border-radius:9px;background:var(--blue-13);color:var(--blue-11);display:flex;align-items:center;justify-content:center}
+.cempty-ico svg{width:17px;height:17px;display:block}
+.cempty-get b{display:block;font-size:14px;font-weight:600;line-height:20px;color:var(--gray-17);padding-top:7px}
+.cempty-get i{display:block;font-style:normal;font-size:12.5px;line-height:18px;color:var(--gray-15);margin-top:2px}
+@media(max-width:1180px){.cempty{padding:28px 32px}}
+@media(max-width:900px){.cempty-hero{grid-template-columns:1fr}.cempty-gets{grid-template-columns:1fr}}
 /* Row actions, revealed on row hover. Geometry is the real app's standard
    action button, which both the generic table organism (.action-icon-generic)
    and the agency-client override (.hoverable-cell--actions div) agree on:
@@ -952,7 +982,13 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .nc-bif .sw{flex:none;margin-top:3px}
 .nc-bif.is-on{border-color:var(--blue-11);background:var(--blue-17)}
 /* the arrow that enters a workspace from a table row */
-.rowacts{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+/* 18 Sep QA: flex children shrink by default (global min-width:0), which made
+   "Edit access" and "Remove" overlap and "Manage" clip at 1180. */
+/* 18 Sep QA: this was named .rowacts, which already exists above as the
+   icon-button row with 34px buttons; the collision squeezed "Edit access" and
+   "Manage" to 34px and made them overlap. Own name now. */
+.tblacts{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
+.tblacts>*{flex:none}
 /* agency Unified Inbox, the live inbox's list-and-pane with the client as the organising line */
 /* point 13: the inbox fills the page like the live one. The page becomes a
    column when it holds the inbox, and the card takes what the toolbar leaves. */
@@ -1038,6 +1074,7 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .ub-f{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .ub-ag{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 10px;border-radius:6px;background:var(--gray-19)}
 .ub-ag .sub b{color:var(--gray-17);font-weight:600}
+.ub-ag .linkbtn{white-space:nowrap;flex:none}
 @media(max-width:1100px){.nc-cols{grid-template-columns:1fr}}
 .dr-b{flex:1;overflow-y:auto;padding:24px}
 /* real footer: 72px tall, inset 24px each side, its rule stopping short of the
@@ -2505,7 +2542,7 @@ function vClients(){
    /* one vocabulary with Home, from attention(); round 3, 17 Sep 2026 */
    cell:c=>`<td>${statusCell(c)}</td>`},
   {id:"act",label:"",req:true,
-   cell:c=>`<td class="ar colact"><span class="rowacts"><button class="linkbtn" data-manage="${c.id}">Manage</button>${isPending(c)?"":`<button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>`}</span></td>`},
+   cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn" data-manage="${c.id}">Manage</button>${isPending(c)?"":`<button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>`}</span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
  const all=myClients().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
@@ -2515,15 +2552,49 @@ function vClients(){
  const th=(l,r)=>`<th class="${r?'ar':''}"><span class="sortable">${l}${sortI}</span></th>`;
  /* 16 Flow A: a brand new agency-plan account, or an existing sender adding
     their first client, land here with nothing to filter or allocate yet. */
- if(CLIENTS.length===0) return `
+ /* 18 Sep, Hitesh: "throughout product look for UI betterment opportunities ...
+    they should feel good and enjoy while using our product". The old state was
+    a sliver at the top of a blank page. Now it is the confirmation card's own
+    picture, the invitation, and the three things that appear, centred. */
+ if(CLIENTS.length===0){
+  const O=AGENCY_OWN, can=canI("billing");
+  const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
+  const railI={home:fi('<path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/>'),
+    queue:fi('<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>'),
+    clients:fi('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')};
+  const tile=(nm,ini,col,sub,kv,dim)=>'<div class="fc-tile'+(dim?' is-new':'')+'"><div class="fc-nm">'
+    +'<span class="avatar av-tint" style="--c:'+col+'">'+ini+'</span><b>'+nm+'</b></div>'
+    +'<i>'+sub+'</i><div class="fc-kv">'+kv.map(x=>'<span>'+x+'</span>').join('')+'</div></div>';
+  const pic=`<div class="fc-vis cempty-vis">
+     <div class="fc-top"><span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span><b>${AGENCY.name}</b>
+      <span class="fc-rail"><span>${railI.home}Home</span><span>${railI.queue}<i class="l">Work queue</i><i class="s">Queue</i></span><span>${railI.clients}Clients</span></span></div>
+     <svg class="fc-branch" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M50 0v5M50 5C50 15 25 11 25 22M50 5C50 15 75 11 75 22" fill="none" stroke="var(--gray-23)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+     <div class="fc-ws">
+      ${tile(AGENCY.name,AGENCY.initials,AGENCY.colour,"What you have today",[O.sequences.length+" sequences",f(O.prospects)+" prospects",O.mailboxes.length+" mailboxes"],false)}
+      ${tile("Your first client","+","var(--gray-11)","Empty, and its own",["0 sequences","0 prospects","0 mailboxes"],true)}
+     </div></div>`;
+  const gets=[[svg("dash"),"Home","Every client's health on one screen, ranked by what needs you."],
+    [svg("queue"),"Work queue","Every decision across clients in one list, ordered by what it costs to ignore."],
+    ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',"Switcher","Move between clients and your own outreach without signing out."]];
+  return `
  <div class="toolbar"><div class="cell-main"><span class="semibold-3">Clients</span></div></div>
- <div class="wrap"><div class="panel"><div class="empty">
-   <p class="empty-t">No clients yet</p>
-   <p class="empty-s">${canI("billing")
-     ?"Add your first client to get a Home screen, a work queue, and a way to switch between what you manage."
-     :"An account owner adds the first client. Once one exists, you will see it here."}</p>
-   ${canI("billing")?'<button class="shd-button shd-button--primary" id="addClient">Add Client</button>':""}
- </div></div></div>`;
+ <div class="wrap cempty-wrap"><div class="panel cempty">
+   <div class="cempty-hero">
+    <div class="cempty-copy">
+     <span class="nc-eyebrow">No clients yet</span>
+     <h2 class="cempty-h">Bring your first client in</h2>
+     <p class="cempty-p">${can
+       ?"Their sequences, prospects, mailboxes and replies live in a workspace of their own, never mixed with yours or anyone else's."
+       :"An account owner adds the first client. Once one exists, this is where every client you work on will be."}</p>
+     ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">Add Client</button>
+      <button class="linkbtn" data-cempty-connect>Connect an existing Saleshandy client &rarr;</button></div>`:""}
+    </div>
+    ${pic}
+   </div>
+   <div class="cempty-gets">${gets.map(([ic,t,d])=>`<div class="cempty-get"><span class="cempty-ico">${ic}</span><span><b>${t}</b><i>${d}</i></span></div>`).join("")}</div>
+ </div></div>`;
+ }
  if(myClients().length===0) return `
  <div class="toolbar"><div class="cell-main"><span class="semibold-3">Clients</span></div></div>
  <div class="wrap"><div class="panel"><div class="empty">
@@ -3091,7 +3162,7 @@ function memberParts(c){
  const pw=k=>seen(k)==="never"
   ? `<span class="pw n">${dashI}Not set</span>`
   : `<span class="pw y">${tickI}Set</span>`;
- const act=(edit,rm)=>`<td class="ar colact"><span class="rowacts">
+ const act=(edit,rm)=>`<td class="ar colact"><span class="tblacts">
    ${edit}${rm||""}</span></td>`;
 
  const row=o=>`<tr>
@@ -4356,7 +4427,7 @@ function vDash(){
    /* 18 Sep, founder feedback via Hitesh: the name goes to Manage, so entering
       the workspace needs its own door. The same arrow the Update quick action
       uses, top right of the row. */
-   +'<td class="ar colact"><span class="rowacts"><button class="linkbtn" data-manage="'+c.id+'">Manage</button>'
+   +'<td class="ar colact"><span class="tblacts"><button class="linkbtn" data-manage="'+c.id+'">Manage</button>'
    +(pend?'':'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')
    +'</span></td></tr>'};
@@ -5204,7 +5275,7 @@ function planChart(compact,H0){
  const xlab=[1,8,15,22,30].map(d=>'<text x="'+px(d).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" class="ax">'+d+' Sep</text>').join("");
  /* callout on the last real day, the reference puts the value in a chip on the line */
  const cw=64, cx=Math.min(W-Rr-cw, last[0]-cw/2), cy=last[1]-30;
- return '<svg viewBox="0 0 '+W+' '+H+'" class="chart" role="img" aria-label="Cumulative emails sent against plan pace">'
+ return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMinYMid meet" class="chart" role="img" aria-label="Cumulative emails sent against plan pace">'
   +'<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">'
    +'<stop offset="0" stop-color="#1D4ED8" stop-opacity=".18"/>'
    +'<stop offset="1" stop-color="#1D4ED8" stop-opacity="0"/></linearGradient></defs>'
@@ -7102,6 +7173,10 @@ function wire(){
  q("[data-gobill]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
+ /* the second door on the empty state: a normal account still meets the
+    confirmation first; an agency lands in the wizard on the connect path */
+ q("[data-cempty-connect]").forEach(b=>b.onclick=()=>{if(isNormal()){openAddClient();return}
+   nc=NC_INIT();nc.path="connect";drawer={step:1};renderDrawer()});
  q("input[data-cid]").forEach(i=>i.onchange=()=>{DRAFT[dkey(activeRes,i.dataset.cid,i.dataset.fld)]=num(i.value);render()});
  q("input[data-lim]").forEach(i=>i.onchange=()=>{DRAFT[dkey(i.dataset.lim,view.id,i.dataset.fld)]=num(i.value);render()});
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
@@ -7788,7 +7863,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="a26e264";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="06a223d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
