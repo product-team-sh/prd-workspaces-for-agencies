@@ -954,7 +954,25 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 /* the arrow that enters a workspace from a table row */
 .rowacts{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 /* agency Unified Inbox, the live inbox's list-and-pane with the client as the organising line */
-.ubx{display:flex;flex-direction:column;min-height:640px;overflow:hidden}
+/* point 13: the inbox fills the page like the live one. The page becomes a
+   column when it holds the inbox, and the card takes what the toolbar leaves. */
+.page:has(.ubx){display:flex;flex-direction:column;overflow:hidden}
+.page:has(.ubx) .toolbar{flex:none}
+.page:has(.ubx) .wrap{flex:1;min-height:0;padding-bottom:24px}
+.ubx{display:flex;flex-direction:column;flex:1;min-height:480px;overflow:hidden}
+.ubx-clients{border-right:1px solid var(--gray-13);display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--gray-19)}
+.ubx-clh{padding:12px 14px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);display:flex;gap:6px;align-items:baseline}
+.ubx-csearch{padding:6px 12px 8px;border-bottom:1px solid var(--gray-16)}
+.ubx-csearch input{font-size:13px}
+.ubx-clrows{overflow-y:auto;min-height:0;padding:4px 8px 8px;display:flex;flex-direction:column;gap:2px}
+.ubx-cl{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-radius:6px;background:none;font:inherit;text-align:left;cursor:pointer;color:var(--gray-17)}
+.ubx-cl:hover{background:var(--gray-16)}
+.ubx-cl[aria-pressed=true]{background:var(--gray-1);box-shadow:var(--shadow-xs);font-weight:600}
+.ubx-cl .nm{flex:1;font-size:13px;min-width:0}
+.ubx-cl .cnt{font-size:11px;color:var(--gray-11)}
+.ubx-cl[aria-pressed=true] .cnt{color:var(--gray-15)}
+.ubx-allico{width:24px;height:24px;border-radius:6px;background:var(--blue-13);color:var(--blue-11);display:grid;place-items:center;flex:none}
+.ubx-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue-11);color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .ubx-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--gray-13);flex:none}
 .ubx-tabs{display:flex;gap:22px}
 .ubx-tabs button{border:0;background:none;font:inherit;font-size:13.5px;font-weight:500;color:var(--gray-15);padding:15px 0 13px;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
@@ -965,14 +983,14 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .ubx-tools .ubtn{width:28px;height:28px;color:var(--gray-12)}
 .ubx-tools .ubtn[disabled]{opacity:.4;cursor:default}
 .ubx-sep{width:1px;height:18px;background:var(--gray-13)}
-.ubx-body{display:grid;grid-template-columns:340px minmax(0,1fr);flex:1;min-height:0}
+.ubx-body{display:grid;grid-template-columns:200px 340px minmax(0,1fr);flex:1;min-height:0}
 .ubx-list{border-right:1px solid var(--gray-13);display:flex;flex-direction:column;min-height:0;min-width:0}
 .ubx-search{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--gray-16);color:var(--gray-11)}
 .ubx-search input{border:0;outline:0;font:inherit;font-size:13.5px;flex:1;background:none;color:var(--gray-17);min-width:0}
 .ubx-search input::placeholder{color:var(--gray-11)}
 .ubx-filter{padding:10px 12px;border-bottom:1px solid var(--gray-16)}
 .ubx-filter .pills button{height:24px;padding:2px 9px;font-size:11.5px}
-.ubx-scroll{overflow-y:auto;max-height:640px}
+.ubx-scroll{overflow-y:auto;flex:1;min-height:0}
 .ubx-grp{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--gray-19);border-bottom:1px solid var(--gray-16);font-size:12px;font-weight:600;color:var(--gray-17)}
 .ubx-grp+.ubx-th{border-top:0}
 .ubx-grp .sub{margin-left:auto;font-weight:500;white-space:nowrap}
@@ -997,7 +1015,12 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .ubx-pf{border-top:1px solid var(--gray-13);padding:14px 20px;flex:none}
 .ubx-pf textarea{width:100%;min-height:84px;border:1px solid var(--gray-13);border-radius:6px;padding:10px 12px;font:inherit;font-size:13.5px;resize:vertical;margin-bottom:10px;box-sizing:border-box}
 .ubx-pf textarea:focus{outline:0;border-color:var(--blue-11);box-shadow:var(--focus-ring)}
-@media(max-width:1100px){.ubx-body{grid-template-columns:1fr}.ubx-pane{border-top:1px solid var(--gray-13)}}
+/* short of room the client column keeps only its avatars; the name is the tooltip */
+@media(max-width:1280px){.ubx-body{grid-template-columns:56px 320px minmax(0,1fr)}
+ .ubx-clients .nm,.ubx-clients .cnt,.ubx-csearch,.ubx-clh{display:none}
+ .ubx-clrows{padding-top:10px;align-items:center}.ubx-cl{width:40px;justify-content:center;padding:6px;position:relative}
+ .ubx-cl .ubx-badge{position:absolute;top:-2px;right:-4px;min-width:16px;height:16px;font-size:10px;padding:0 4px}}
+@media(max-width:1100px){.ubx-body{grid-template-columns:56px 1fr}.ubx-pane{grid-column:1 / -1;border-top:1px solid var(--gray-13)}}
 .wsgo{width:26px;height:26px;border-radius:6px;color:var(--gray-12)}
 .wsgo:hover{background:var(--blue-13);color:var(--blue-11)}
 .wsgo svg{width:14px;height:14px}
@@ -2049,7 +2072,7 @@ const allAlerts=()=>{const a=[...INFRA(),...limitAlerts()];
 let ctx="agency",view={name:"dash"},tab="overview",activeRes="lead_finder",drawer=null,popOpen=false;
 let asClient=false, cView="sequences", openProspect=null, modal=null, openThread=null;
 /* the agency Unified Inbox: which tab, which client filter, the search, the open thread */
-let UBX={tab:"all",client:"all",q:"",open:null};
+let UBX={tab:"all",client:"all",q:"",cq:"",open:null};
 /* one shape, one function: linkRequest() used to reset nc with a shorter,
    five-field literal that dropped role/team/caps/bif/reachedStep3, so the
    next time the wizard opened it rendered a leading ". Everyone from this
@@ -4599,6 +4622,7 @@ const ubxI={search:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" 
  prev:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>',
  next:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  go:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>',
+ inboxes:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
  seq:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
  ext:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
  up:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 7A2 2 0 0 1 17.5 21H7V10l4.5-7a2.5 2.5 0 0 1 3.5 2.9z"/></svg>',
@@ -4621,10 +4645,36 @@ function ubxListHTML(){
  /* one group per client, busiest first, the agency's own last. Not by unread:
     reading a thread must not reorder the list under the cursor. */
  const ids=[...new Set(th.map(r=>r.client))].sort((a,b)=>(a==="own")-(b==="own")||th.filter(r=>r.client===b).length-th.filter(r=>r.client===a).length||ubxClient({client:a}).name.localeCompare(ubxClient({client:b}).name));
+ /* one client picked: its column row already names it, so no group header */
+ if(UBX.client!=="all") return th.map(ubxCard).join("");
  return ids.map(id=>{const c=ubxClient({client:id}), rows=th.filter(r=>r.client===id), un=rows.filter(ubxUnread).length;
   return `<div class="ubx-grp">${av(c,20)}<span class="trunc">${c.own?AGENCY.name+"'s own outreach":c.name}</span>
     <span class="sub">${rows.length} thread${rows.length===1?"":"s"}${un?` &middot; <b style="color:var(--blue-11)">${un} unread</b>`:""}</span></div>`
    +rows.map(ubxCard).join("")}).join("");
+}
+/* 18 Sep, Hitesh (point 13): "if some agency have 10 clients then how the
+   filter will look". A pill row does not scale past a handful, so the client
+   filter is its own column: one row per client, unread on the right, the
+   agency's own last, and a search inside the column once there are more than
+   six. It narrows the thread list exactly as the pills did. */
+/* every client you can see, not only those with a thread: a quiet client is a
+   fact worth a row, and the column is what scales to ten or forty of them */
+const ubxClientIds=()=>[...new Set(myClientsFor("inbox").filter(c=>!isPending(c)).map(c=>c.id).concat(UBX_ALL.map(r=>r.client)))]
+ .sort((a,b)=>(a==="own")-(b==="own")||ubxClient({client:a}).name.localeCompare(ubxClient({client:b}).name));
+function ubxClientRowsHTML(){
+ const all=UBX_ALL, q=UBX.cq.trim().toLowerCase();
+ const row=(k,name,ico,n,un)=>`<button class="ubx-cl" data-ubxclient="${k}" aria-pressed="${UBX.client===k}" title="${name}${un?", "+un+" unread":""}">${ico}<span class="nm trunc">${name}</span><span class="cnt tnum">${n}</span>${un?`<span class="ubx-badge">${un}</span>`:""}</button>`;
+ const ids=ubxClientIds().filter(id=>!q||ubxClient({client:id}).name.toLowerCase().indexOf(q)>-1);
+ return (q?"":row("all","All clients",`<span class="ubx-allico">${ubxI.inboxes}</span>`,all.length,all.filter(ubxUnread).length))
+  +ids.map(id=>{const c=ubxClient({client:id}),rows=all.filter(r=>r.client===id);
+    return row(id,c.own?AGENCY.name:c.name,av(c,24),rows.length,rows.filter(ubxUnread).length)}).join("")
+  +(ids.length?"":`<p class="sub" style="padding:10px 12px;margin:0">No client matches.</p>`);
+}
+function ubxClientsHTML(){
+ const n=ubxClientIds().length;
+ return `<div class="ubx-clients"><div class="ubx-clh">Clients <span class="sub">${n}</span></div>
+  ${n>6?`<label class="ubx-search ubx-csearch">${ubxI.search}<input id="ubxCQ" type="search" value="${UBX.cq}" placeholder="Find a client" aria-label="Find a client"></label>`:""}
+  <div class="ubx-clrows" id="ubxClients">${ubxClientRowsHTML()}</div></div>`;
 }
 function ubxPaneHTML(){
  const r=UBX_ALL.find(x=>x.id===UBX.open);
@@ -4653,8 +4703,6 @@ function ubxPaneHTML(){
 }
 function ubxHTML(){
  const all=UBX_ALL, th=ubxThreads(), unread=all.filter(ubxUnread).length;
- const ids=[...new Set(all.map(r=>r.client))].sort((a,b)=>(a==="own")-(b==="own"));
- const pill=(k,l,n)=>`<button data-ubxclient="${k}" aria-pressed="${UBX.client===k}">${l}<span class="pn">${n}</span></button>`;
  return `<div class="panel ubx">
   <div class="ubx-top">
    <div class="ubx-tabs" role="tablist">${[["all","All"],["unread","Unread"],["scheduled","Scheduled"],["draft","Draft"]].map(([k,l])=>
@@ -4665,14 +4713,16 @@ function ubxHTML(){
     <button class="ubtn" disabled aria-label="Previous page">${ubxI.prev}</button><button class="ubtn" disabled aria-label="Next page">${ubxI.next}</button></div>
   </div>
   <div class="ubx-body">
+   ${ubxClientsHTML()}
    <div class="ubx-list">
     <label class="ubx-search">${ubxI.search}<input id="ubxQ" type="search" value="${UBX.q}" placeholder="Search conversation" aria-label="Search conversation"></label>
-    <div class="ubx-filter"><div class="pills">${pill("all","All clients",all.length)}${ids.map(id=>{const c=ubxClient({client:id});
-      return pill(id,c.own?AGENCY.name:c.name,all.filter(r=>r.client===id).length)}).join("")}</div></div>
     <div class="ubx-scroll" id="ubxList">${ubxListHTML()}</div>
    </div>
    <div class="ubx-pane" id="ubxPane">${ubxPaneHTML()}</div>
   </div></div>`;
+}
+function bindUbxClients(){
+ document.querySelectorAll("[data-ubxclient]").forEach(b=>b.onclick=()=>{UBX.client=b.dataset.ubxclient;render()});
 }
 function bindUbxList(){
  document.querySelectorAll("[data-ubxopen]").forEach(b=>b.onclick=()=>{const r=UBX_ALL.find(x=>x.id===b.dataset.ubxopen); if(r) r.read=true;
@@ -4680,7 +4730,8 @@ function bindUbxList(){
 }
 function bindUbx(){
  document.querySelectorAll("[data-ubxtab]").forEach(b=>b.onclick=()=>{UBX.tab=b.dataset.ubxtab;render()});
- document.querySelectorAll("[data-ubxclient]").forEach(b=>b.onclick=()=>{UBX.client=b.dataset.ubxclient;render()});
+ bindUbxClients();
+ {const i=el("ubxCQ"); if(i) i.oninput=()=>{UBX.cq=i.value; const L=el("ubxClients"); if(L){L.innerHTML=ubxClientRowsHTML(); bindUbxClients()}}}
  document.querySelectorAll("[data-ubxsend]").forEach(b=>b.onclick=()=>{const r=UBX_ALL.find(x=>x.id===b.dataset.ubxsend); if(!r) return;
    const t=el("ubxTxt"); r.replied=(t&&t.value.trim())||"Thanks, will follow up."; r.repliedIn=r.client; r.read=true; render()});
  /* the search repaints only the list, so the field keeps focus and the caret */
@@ -7737,7 +7788,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="de389ae";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="a26e264";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
