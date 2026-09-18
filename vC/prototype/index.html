@@ -120,6 +120,12 @@ svg{display:block}
    (overflow:hidden gives them a zero minimum), so each collapsed to a blank 16px band on
    hover. Children keep their size and the rail scrolls, which it was already set up to do. */
 #navList>*{flex:none}
+/* 18 Sep, Hitesh: "items which should be stick bottom screen are not properly
+   handled". The rule above also froze the spacer, so Settings and the two
+   footer items sat under More with the rest of the rail empty. The spacer is
+   the one child that grows; when the list is taller than the rail it collapses
+   and the rail scrolls, as before. */
+#navList>.nav-gap{flex:1 1 0;min-height:8px}
 /* hover on a pointer device, and a pinned class for touch and for capture */
 @media(hover:hover){.sb:hover{width:240px;box-shadow:2px 0 8px rgba(31,41,55,.08)}}
 .sb.is-open{width:240px;box-shadow:2px 0 8px rgba(31,41,55,.08)}
@@ -890,6 +896,45 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .fc-fact b{font-weight:600;color:var(--gray-17)}
 .fc-undo{display:flex;gap:9px;align-items:flex-start;margin-top:12px;padding:10px 12px;background:var(--gray-19);border-radius:8px;font-size:12.5px;line-height:18px;color:var(--gray-15)}
 .fc-undo svg{flex:none;width:15px;height:15px;margin-top:1px}
+/* the 720px wizard: Access in two columns, Limits as a small table */
+.nc-cols{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
+.nc-limhead{margin-bottom:14px}
+.nc-lim{border:1px solid var(--gray-13);border-radius:var(--radius-control);background:var(--gray-1)}
+.nc-limrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) 168px;gap:16px;align-items:center;padding:11px 14px;border-top:1px solid var(--gray-16)}
+.nc-limrow:first-child{border-top:0}
+.nc-limhd{padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);background:var(--gray-19);border-radius:var(--radius-control) var(--radius-control) 0 0}
+.nc-limlab b{display:block;font-size:14px;font-weight:500;color:var(--gray-17);line-height:20px}
+.nc-limlab i{display:block;font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15)}
+.nc-pool{display:block;min-width:0}
+.nc-poolbar{display:flex;height:6px;border-radius:3px;background:var(--gray-16);overflow:hidden}
+.nc-poolbar span:first-child{background:var(--green-16)}
+.nc-poolbar span:last-child{background:var(--blue-24)}
+.nc-pool i{display:block;font-style:normal;font-size:11.5px;line-height:16px;color:var(--gray-15);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nc-pool i b{font-weight:600;color:var(--gray-17)}
+.nc-limin{display:flex;justify-content:flex-end}
+.nc-bif{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:12px 14px;border:1px solid var(--gray-13);border-radius:var(--radius-control);background:var(--gray-1)}
+.nc-bif .sw{flex:none;margin-top:3px}
+.nc-bif.is-on{border-color:var(--blue-11);background:var(--blue-17)}
+/* the arrow that enters a workspace from a table row */
+.rowacts{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.wsgo{width:26px;height:26px;border-radius:6px;color:var(--gray-12)}
+.wsgo:hover{background:var(--blue-13);color:var(--blue-11)}
+.wsgo svg{width:14px;height:14px}
+/* Billing & Subscription, the live page's shape */
+.billpage{display:flex;flex-direction:column;gap:20px;min-width:0}
+.plan-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;border-top:1px solid var(--gray-16)}
+.plan-kv b{display:block;font-size:15px;font-weight:600;color:var(--gray-17);line-height:22px}
+.ub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:28px}
+.ub{min-width:0}
+.ub-h{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:8px}
+.ub-t{font-size:14px;font-weight:600;color:var(--gray-17)}
+.ub-r{font-size:13px;font-weight:600;color:var(--gray-17)}
+.ub-track{display:flex;height:8px;border-radius:4px;background:var(--gray-16);overflow:hidden}
+.ub-track span{display:block;height:100%}
+.ub-f{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.ub-ag{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 10px;border-radius:6px;background:var(--gray-19)}
+.ub-ag .sub b{color:var(--gray-17);font-weight:600}
+@media(max-width:1100px){.nc-cols{grid-template-columns:1fr}}
 .dr-b{flex:1;overflow-y:auto;padding:24px}
 /* real footer: 72px tall, inset 24px each side, its rule stopping short of the
    modal edge exactly as `.modal-footer { margin: 0 1.5rem }` does           */
@@ -2229,7 +2274,7 @@ function renderShell(){
    :inC?(asClient?({sequences:"Sequences",prospects:"Prospects",usage:"Usage",update:"Your update",workspace:"Workspace"})[cView]
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
-   :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription"+(billTab==="alloc"?" / Workspace allocation":""))
+   :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription / "+billLabel(billTab))
    :view.name==="addmember"?"People / Add a member"
    :view.name==="people"?"People"
    :view.name==="person"?("People / "+(PEOPLE[view.id]?PEOPLE[view.id].name:""))
@@ -2328,7 +2373,7 @@ function vClients(){
  const COLS=[
   {id:"name",label:"Client Name",req:true,sort:true,
    cell:c=>`<td><div class="cell-main">
-     ${av(c)}<span style="min-width:0"><button class="cn" data-enter="${c.id}">${c.name}</button>
+     ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>
      <span class="cs">${c.email}</span></span></div></td>`},
   {id:"budget",label:"Budget",def:false,
    cell:c=>`<td>${isPending(c)?'<span class="chip c-warn">Link pending</span>'
@@ -2354,7 +2399,7 @@ function vClients(){
    /* one vocabulary with Home, from attention(); round 3, 17 Sep 2026 */
    cell:c=>`<td>${statusCell(c)}</td>`},
   {id:"act",label:"",req:true,
-   cell:c=>`<td class="ar colact"><button class="linkbtn" data-manage="${c.id}">Manage</button></td>`},
+   cell:c=>`<td class="ar colact"><span class="rowacts"><button class="linkbtn" data-manage="${c.id}">Manage</button>${isPending(c)?"":`<button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>`}</span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
  const all=myClients().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
@@ -2940,7 +2985,7 @@ function memberParts(c){
  const pw=k=>seen(k)==="never"
   ? `<span class="pw n">${dashI}Not set</span>`
   : `<span class="pw y">${tickI}Set</span>`;
- const act=(edit,rm)=>`<td class="ar colact"><span class="tools" style="justify-content:flex-end">
+ const act=(edit,rm)=>`<td class="ar colact"><span class="rowacts">
    ${edit}${rm||""}</span></td>`;
 
  const row=o=>`<tr>
@@ -3717,30 +3762,60 @@ let billTab="plan", cliTab="all";
 let cliCols=["mbx","sent","reply","pos","usage","status"];
 let colOpen=false, colDraft=null, colQ="";
 
-function vPlan(){
- const rows=RK.map(k=>{const R=RES[k],m=compute(k);
-  const p=Math.min(100,Math.floor(m.used/R.pool*100));
-  const over=m.caps>R.pool;
-  return `<tr>
-   <td><span style="font-weight:500">${R.label}</span>
-     <span class="cs" style="display:block">${R.nature}${R.floors?" · reservations allowed":""}</span></td>
-   <td class="ar tnum">${f(R.pool)}</td>
-   <td class="ar tnum">${f(m.used)}</td>
-   <td class="ar tnum">${f(m.free)}
-     ${m.held?`<span class="cs" style="display:block">after ${f(m.held)} held by reservations</span>`:""}</td>
-   <td>${meter(p,p>=90?"bad":p>=75?"warn":"ok","",' of the pool used')}</td>
-   <td class="ar tnum" style="color:${over?"var(--amber-700)":"var(--ink)"}">${f(m.caps)}
-     <span class="cs" style="display:block">${over?Math.round(m.oversub*100)+"% of pool":"within pool"}</span></td>
-   <td class="ar colact">${isNormal()?"":`<button class="linkbtn" data-goalloc="${k}">Allocate</button>`}</td></tr>`}).join("");
- return `<div class="wrap">
+/* 18 Sep, Hitesh: "this screen will be upgraded version of what we have
+   currently in our live product ... add our functionality on top". So the
+   shape is the live Billing & Subscription page as walked on my.saleshandy.com:
+   a left column of Plan / Add-ons / Credits / Deliverability, the Platform page
+   with Plan Details, Account Plan Usage and Lead Finder credits. The agency adds
+   one line under each pooled bar (how much of it the workspace limits add up
+   to, and what is still free), one group of its own with Client limits & usage,
+   and an Email Accounts page with the billing and history that the live page
+   lacks. Prices and dates are illustrative. */
+const BILL_TABS=[["plan","Platform","Plan"],["email","Email Accounts","Plan"],["crm","CRM","Add-ons"],["dialer","Dialer","Add-ons"],
+ ["ai","AI Credits","Credits"],["verify","Email Verification Credits","Credits"],["radar","Inbox Radar","Deliverability"],
+ ["alloc","Client limits & usage","Clients"]];
+const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
+const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",resets:"1 Oct, 2026"};
+const MBX_PRICE=3.5; /* per bought email account per month, illustrative */
+const usd=n=>"$"+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
+/* one pooled quota with its agency line underneath. `alloc` is the sum of the
+   workspace limits: what could be drawn if every client hit its cap. */
+function poolBar(k,opts){
+ const R=RES[k],m=compute(k),p=Math.min(100,Math.round(m.used/R.pool*100)),over=m.caps>R.pool;
+ const agency=!isNormal();
+ return `<div class="ub"><div class="ub-h"><span class="ub-t">${(opts&&opts.title)||R.label}</span>
+   <span class="ub-r tnum">${f(m.used)} of ${f(R.pool)} <span class="sub">(${p}% used)</span></span></div>
+  <div class="ub-track"><span style="width:${p}%;background:${p>=90?"var(--red-12)":p>=75?"var(--orange-14)":"var(--blue-11)"}"></span>
+   ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for clients"></span>`:""}</div>
+  <div class="ub-f"><span class="sub">${f(R.pool-m.used)} (${100-p}%) remaining${m.held?", "+f(m.held)+" of it reserved for clients":""}</span>
+   ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> free to draw</span>
+     <button class="linkbtn" data-goalloc="${k}">Client limits &rarr;</button></span>`:""}</div></div>`;
+}
+function vPlatform(){
+ const own=CLIENTS.reduce((t,c)=>t+c.users.length,0);
+ return `<div class="panel plancard">
+   <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
+    <span><span class="cs">Plan Details</span><span class="semibold-4" style="display:block">${PLAN.name}</span></span>
+    <span class="tools"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button>
+     <button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Manage Billing</button></span></div>
+   <div class="panel-b plan-kv"><span><span class="cs">Start Date</span><b>${PLAN.start}</b></span>
+    <span><span class="cs">Next Billing Date</span><b>${PLAN.next}</b></span>
+    <span><span class="cs">Next Billing Amount</span><b>${PLAN.amount}</b></span>
+    ${isNormal()?"":`<span><span class="cs">Covers</span><b>${AGENCY.name} and ${CLIENTS.filter(c=>!isLinked(c)).length} client workspaces</b></span>`}</div>
+  </div>
   <div class="panel">
-   <div class="panel-h"><span class="panel-t">Account plan usage</span>
-    <span class="sub">Scale plan · resets 1 October 2026</span></div>
-   <div class="tscroll"><table class="organism" style="min-width:1000px">
-    <thead><tr><th>Resource</th><th class="ar">In your plan</th><th class="ar">Used</th>
-     <th class="ar">Free to draw</th><th>Pool</th>${isNormal()?"":'<th class="ar">Allocated to workspaces</th>'}
-     <th class="colact"></th></tr></thead>
-    <tbody>${rows}</tbody></table></div></div>
+   <div class="panel-h"><span class="panel-t">Account Plan Usage</span><span class="sub">Email quota resets on ${PLAN.resets}</span>
+    <span class="c-a"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button></span></div>
+   <div class="panel-b ub-grid">${poolBar("sends",{title:"Monthly Emails sent"})}${poolBar("prospects")}</div>
+  </div>
+  <div class="panel">
+   <div class="panel-h"><span class="panel-t">Total Lead Finder Credits</span>
+    <span class="c-a tools"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button>
+     <button class="linkbtn" data-flash="Not in this prototype">Download Usage Report</button>
+     <button class="linkbtn" data-flash="Not in this prototype">+ Add More Credits</button></span></div>
+   <div class="panel-b">${poolBar("lead_finder",{title:"Plan credits"})}
+    <p class="sub" style="margin:10px 0 0">On ${PLAN.next}, your current Plan Credits will reset and you'll receive ${f(RES.lead_finder.pool)} Plan Credits.</p></div>
+  </div>
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
    <div class="panel-b">
@@ -3749,33 +3824,99 @@ function vPlan(){
       <span class="tnum">3 of 10</span></div>
     <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Client users</span>
       <span class="cs" style="display:block">External people in client workspaces. Not charged as seats</span></span>
-      <span class="tnum">${CLIENTS.reduce((t,c)=>t+c.users.length,0)}</span></div>
+      <span class="tnum">${own}</span></div>
     <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Clients</span>
       <span class="cs" style="display:block">Unlimited on this plan</span></span>
       <span class="tnum">${CLIENTS.length}</span></div>
     <div class="list-row"><span><span style="font-weight:500">Whitelabel</span>
       <span class="cs" style="display:block">Not included in the Scale plan</span></span>
       <span class="chip c-warn">Not on this plan</span></div>
-   </div></div>
- </div>`;
+   </div></div>`;
 }
+/* an email account bought through Saleshandy sits on a secondary sending
+   domain; the client's own domain carries the accounts they connected. */
+const mbxBought=c=>{const d=(SEND_DOMAINS[c.id]||[])[0];return (c.mailboxes||[]).filter(m=>d&&String(m[0]).split("@")[1]!==d).length};
+function vEmailBilling(){
+ const rows=isNormal()?[OWN_WS]:fundedWorkspaces().filter(c=>!isLinked(c));
+ const total=rows.reduce((t,c)=>t+(c.mailboxes||[]).length,0), bought=rows.reduce((t,c)=>t+mbxBought(c),0);
+ const monthly=bought*MBX_PRICE;
+ const hist=[["01 Sep, 2026","Email accounts, September",bought,usd(monthly),"Paid"],
+   ["01 Aug, 2026","Email accounts, August",Math.max(0,bought-3),usd(Math.max(0,bought-3)*MBX_PRICE),"Paid"],
+   ["14 Jul, 2026","3 accounts added mid-cycle, prorated",3,usd(3*MBX_PRICE*0.55),"Paid"],
+   ["01 Jul, 2026","Email accounts, July",Math.max(0,bought-3),usd(Math.max(0,bought-3)*MBX_PRICE),"Paid"]];
+ return `<div class="panel">
+   <div class="panel-h"><span class="panel-t">Email accounts</span><span class="sub">Connected accounts are free; accounts bought through Saleshandy bill monthly</span>
+    <span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Buy email accounts</button></span></div>
+   <div class="stats">
+    <div class="stat"><span class="stat-l">Connected</span><span class="stat-v">${total}</span></div>
+    <div class="stat"><span class="stat-l">Bought through Saleshandy</span><span class="stat-v">${bought}</span></div>
+    <div class="stat"><span class="stat-l">Per account</span><span class="stat-v">${usd(MBX_PRICE)}<span class="sub"> / month</span></span></div>
+    <div class="stat"><span class="stat-l">Next charge, ${PLAN.next}</span><span class="stat-v">${usd(monthly)}</span></div>
+   </div>
+   ${isNormal()?"":`<div class="tscroll"><table class="organism" style="min-width:720px">
+    <thead><tr><th>Workspace</th><th class="ar">Connected</th><th class="ar">Bought through Saleshandy</th><th class="ar">Monthly</th><th>Billed to</th><th class="colact"></th></tr></thead>
+    <tbody>${rows.map(c=>{const n=(c.mailboxes||[]).length,b=mbxBought(c);
+     return `<tr><td><div class="cell-main">${av(c)}<span style="min-width:0">${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
+       <span class="cs">${c.own?"The agency's own outreach workspace":isBif(c.id)?"Independent budget":"Shared pool"}</span></span></div></td>
+      <td class="ar tnum">${n}</td><td class="ar tnum">${b}</td><td class="ar tnum">${usd(b*MBX_PRICE)}</td>
+      <td><span class="chip c-mute">${AGENCY.name}'s plan</span></td>
+      <td class="ar colact">${c.own?"":`<button class="linkbtn" data-manage="${c.id}">Email accounts &rarr;</button>`}</td></tr>`}).join("")}</tbody>
+    <tfoot><tr><td style="font-weight:600">Total</td><td class="ar tnum" style="font-weight:600">${total}</td><td class="ar tnum" style="font-weight:600">${bought}</td>
+     <td class="ar tnum" style="font-weight:600">${usd(monthly)}</td><td colspan="2"><span class="sub">Linked clients buy their own and are not listed</span></td></tr></tfoot></table></div>`}
+  </div>
+  <div class="panel">
+   <div class="panel-h"><span class="panel-t">Billing history</span><span class="sub">Email account charges, most recent first</span>
+    <span class="c-a"><button class="linkbtn" data-flash="Not in this prototype">All invoices &rarr;</button></span></div>
+   <div class="tscroll"><table class="organism" style="min-width:640px">
+    <thead><tr><th>Date</th><th>Description</th><th class="ar">Accounts</th><th class="ar">Amount</th><th>Status</th><th class="colact"></th></tr></thead>
+    <tbody>${hist.map(h=>`<tr><td class="tnum">${h[0]}</td><td>${h[1]}</td><td class="ar tnum">${h[2]}</td><td class="ar tnum">${h[3]}</td>
+      <td><span class="chip c-ok">${h[4]}</span></td><td class="ar colact"><button class="linkbtn" data-flash="Not in this prototype">Invoice</button></td></tr>`).join("")}</tbody></table></div>
+  </div>`;
+}
+function vCreditPage(k,blurb){
+ const R=RES[k];
+ return `<div class="panel">
+   <div class="panel-h"><span class="panel-t">${R.label}</span><span class="sub">${blurb}</span>
+    <span class="c-a tools"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button>
+     <button class="linkbtn" data-flash="Not in this prototype">+ Add More Credits</button></span></div>
+   <div class="panel-b">${poolBar(k,{title:"Plan credits"})}
+    <p class="sub" style="margin:10px 0 0">Resets on ${PLAN.next} to ${f(R.pool)} credits.</p></div></div>`;
+}
+function vAddon(name,blurb,price){
+ return `<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span><span class="chip c-warn">Not on this plan</span></div>
+   <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
+    <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
+    <span class="tools"><span class="tnum" style="font-weight:600">${price}</span><button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add to plan</button></span></div></div>`;
+}
+const refreshI='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:4px"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>';
 
 function vBilling(){
  if(!canI("billing")) return denied("see billing or allocate capacity");
- /* there is nothing to allocate across until a second workspace exists, so the
-    tab is absent rather than present and empty. */
- if(isNormal()) billTab="plan";
- const T=isNormal()?[["plan","Account plan usage"]]:[["plan","Account plan usage"],["alloc","Workspace allocation"]];
+ /* there is nothing to cap across until a second workspace exists, so the
+    group is absent rather than present and empty. */
+ if(isNormal()&&billTab==="alloc") billTab="plan";
+ const tabs=BILL_TABS.filter(t=>!(isNormal()&&t[0]==="alloc"));
+ if(!tabs.some(t=>t[0]===billTab)) billTab="plan";
+ const groups=[...new Set(tabs.map(t=>t[2]))];
+ const nav=`<div class="setnav">${groups.map(g=>'<h4>'+g+'</h4>'+tabs.filter(t=>t[2]===g).map(t=>
+   `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${t[1]}${t[0]==="alloc"&&REQUESTS.length?`<span class="sc">${REQUESTS.length}</span>`:""}</button>`).join("")).join("")}</div>`;
+ const page=billTab==="plan"?vPlatform()
+  :billTab==="email"?vEmailBilling()
+  :billTab==="crm"?vAddon("CRM","Pipelines, deals and activity on top of the prospects you already have.","$29 / user / month")
+  :billTab==="dialer"?vAddon("Dialer","Call prospects from a sequence step, with recordings and call logs.","$39 / user / month")
+  :billTab==="ai"?vCreditPage("ai","Writing, personalisation and reply classification")
+  :billTab==="verify"?vCreditPage("verification","Checking prospect lists before a sequence sends to them")
+  :billTab==="radar"?vAddon("Inbox Radar","Deliverability tests for every mailbox, with alerts when placement drops.","$49 / month")
+  :vCredits().replace('<div class="wrap">','<div class="billpage">');
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0">
      <span class="semibold-3" style="display:block">Billing &amp; Subscription</span>
-     <span class="cs">${isNormal()?"Scale plan":"Scale plan · one plan for "+AGENCY.name+" and every client under it"}</span></span></div>
+     <span class="cs">${isNormal()?PLAN.name:PLAN.name+" · one plan for "+AGENCY.name+" and every client under it"}</span></span></div>
    <div class="tools">
     <button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Invoices</button>
     <button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Add Capacity</button></div>
   </div>
-  <div class="tabbar">${T.map(([k,l])=>`<button data-billtab="${k}" aria-selected="${billTab===k}">${l}${k==="alloc"&&REQUESTS.length?` (${REQUESTS.length})`:""}</button>`).join("")}</div>
-  ${billTab==="plan"?vPlan():vCredits()}`;
+  <div class="wrap"><div class="setwrap">${nav}<div class="billpage">${page}</div></div></div>`;
 }
 
 function vCredits(){
@@ -4087,7 +4228,7 @@ function vDash(){
  const crow=({c,a})=>{
   const pend=isPending(c); if(pend) a=null;
   return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
-   +'<button class="cn" data-goto="'+c.id+'|sequences">'+c.name+'</button>'
+   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
    +'<span class="cs">'+c.email+'</span></span></div>'
    +(pend?'':'<div class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</div>')
@@ -4099,7 +4240,13 @@ function vDash(){
    +'<td class="ar"><span class="tnum stackv">'+(repOf(c)?f(repOf(c)):"–")+'</span>'
      +(c.reply?'<span class="cs stackb">'+c.reply.toFixed(1)+'%</span>':"")+'</td>'
    +'<td>'+usageBrief(c)+'</td>'
-   +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'};
+   /* 18 Sep, founder feedback via Hitesh: the name goes to Manage, so entering
+      the workspace needs its own door. The same arrow the Update quick action
+      uses, top right of the row. */
+   +'<td class="ar colact"><span class="rowacts"><button class="linkbtn" data-manage="'+c.id+'">Manage</button>'
+   +(pend?'':'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')
+   +'</span></td></tr>'};
 
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Clients</span>'
@@ -5471,7 +5618,7 @@ function drawerHTML(){
  const verbs=`<div class="nc-verbs">${CLIENT_VERBS.map(v=>{const scr=acc.mods.indexOf(v[3])>-1, on=scr&&acc.verbs.indexOf(v[0])>-1, lbl=modsC.find(m=>m[0]===v[3])[1];
    return `<label class="accchk${scr?"":" is-off"}"><input type="checkbox" ${on?"checked":""} ${scr?"":"disabled"} data-ncverb="${v[0]}" aria-label="${v[1]}">
     <span style="min-width:0"><b>${v[1]}</b><i>${scr?v[2]:"Needs the "+lbl+" screen switched on first"}</i></span></label>`}).join("")}</div>`;
- const b2=`<div class="field">
+ const b2=`<div class="nc-cols"><div class="field" style="margin:0">
    <div class="nc-sech"><label class="flabel">The client's own access</label><span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span></div>
    <p class="sub" style="margin:0 0 10px">What anyone from ${who} reaches when they sign in. The same editor as the Access tab; change it there any time.</p>
    ${presets}
@@ -5481,7 +5628,7 @@ function drawerHTML(){
    </div>
    ${onMods?"":`<div class="msg m-bad" style="margin:10px 0 0">${warnI}<span><strong>Nothing is switched on.</strong> A ${who} user would sign in and reach no screen at all. Switch on at least one.</span></div>`}
   </div>
-  <div class="field" style="margin-bottom:0">
+  <div class="field" style="margin:0">
    <label class="flabel">Agency staff on this workspace</label>
    <p class="sub" style="margin:0 0 10px">${PEOPLE.owner.name} is the account owner and is in every workspace automatically.</p>
    <div class="nc-staff" id="ncStaffBox">
@@ -5493,17 +5640,34 @@ function drawerHTML(){
       ${on?`<div class="preset-row" role="radiogroup" aria-label="Access for ${P.name}">${Object.keys(STAFF_PRESETS).map(n=>
         `<button type="button" class="preset-card" role="radio" aria-checked="${team[k]===n}" data-ncstaffpre="${k}|${n}" title="${STAFF_PRESETS[n].why}"><b>${n}</b><i>${STAFF_PRESETS[n].mods.length} screen${STAFF_PRESETS[n].mods.length===1?"":"s"}</i></button>`).join("")}</div>`:""}
      </div>`}).join("")
-    ||'<p class="sub" style="margin:8px 12px">Nobody else at the agency yet. Invite someone from People first.</p>'}</div></div>`;
- const b3=`<div id="ncCapsBox">${RK.map(k=>{const m=compute(k),sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:Math.max(500,Math.round(m.free/Math.max(1,CLIENTS.length)/500)*500);
-   return `<div class="field" data-capfor="${k}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
-    <span><span style="display:block;font-size:14px;font-weight:500">${RES[k].label}</span>
-    <span class="sub">${f(m.free)} unallocated</span></span>
-    ${numIn(sug,RES[k].unit,`data-cap="${k}" aria-label="${RES[k].label} limit"`)}</div>`}).join("")}</div>
-  <div class="swline" id="ncBifRow" style="margin-top:4px"><button class="sw" role="switch" aria-checked="${nc.bif}" aria-label="Independent budget"></button>
-   <div><div style="font-size:14px;font-weight:500">Manage budget independently</div>
-   <p class="sub" style="margin-top:2px">Reserves this allocation instead of sharing the pool.</p></div></div>`;
+    ||'<p class="sub" style="margin:8px 12px">Nobody else at the agency yet. Invite someone from People first.</p>'}</div></div></div>`;
+ /* 18 Sep, Hitesh: "clarity is missing about is this reserved or limit ... we
+    are not allocating credits, we are capping use from single client from pool
+    credits." So the step is named for what it does, each number is labelled a
+    limit, the pool is drawn beside it so the cap reads against something, and
+    reserving is the one explicit switch that turns a cap into a hold. */
+ const whoL=(nc.company||nc.name||"this client").trim();
+ const limRow=k=>{const R=RES[k],m=compute(k),
+   sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:Math.max(500,Math.round(m.free/Math.max(1,CLIENTS.length)/500)*500),
+   pu=Math.min(100,Math.round(m.used/R.pool*100)), ph=Math.min(100-pu,Math.round(m.held/R.pool*100));
+   return `<div class="nc-limrow" data-capfor="${k}">
+    <span class="nc-limlab"><b>${R.label}</b><i>${R.nature}${nc.bif&&!R.floors?" &middot; cap only, cannot be reserved":""}</i></span>
+    <span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
+     <i>${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)} &middot; <b>${f(m.free)} free</b></i></span>
+    <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
+ const b3=`<div class="nc-limhead"><span class="nc-eyebrow">Usage limits for ${whoL}</span>
+   <p class="sub" style="margin:0">Each number is the most ${whoL} can draw from your shared pool this cycle. Nothing is set aside
+   for them: the pool stays one pool, and a limit only stops this client going past it. Change any of it later on Limits.</p></div>
+  <div class="nc-lim" id="ncCapsBox">
+   <div class="nc-limrow nc-limhd"><span>Resource</span><span>Your pool today</span><span class="ar">${nc.bif?"Reserved &amp; limit":"Limit"}</span></div>
+   ${RK.map(limRow).join("")}</div>
+  <div class="nc-bif${nc.bif?" is-on":""}" id="ncBifRow"><button class="sw" role="switch" aria-checked="${nc.bif}" aria-label="Reserve these amounts"></button>
+   <div style="min-width:0"><div style="font-size:14px;font-weight:500;color:var(--gray-17)">Reserve these amounts for ${whoL}</div>
+   <p class="sub" style="margin-top:2px">${nc.bif
+     ?"On: each amount is held for "+whoL+" and no other workspace can draw on it, so the reservations must fit inside your pool. Emails and prospects stay caps."
+     :"Off: these are caps only. "+whoL+" draws from the shared pool until the pool runs out or a cap is hit. Turn on to hold the amounts for them instead."}</p></div></div>`;
  return `<div class="scrim" id="scrim"></div>
- <aside class="drawer" role="dialog" aria-label="Add Client">
+ <aside class="drawer" role="dialog" aria-label="Add Client" style="width:min(720px,calc(100vw - 32px))">
   <div class="dr-h"><span class="semibold-3">${connect?"Connect a client workspace":"Add Client"}</span>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   ${connect?"":`<ol class="dr-steps" aria-label="Steps">${[["Details",1],["Access",2],["Limits",3]].map(([l,n],k)=>
@@ -5562,6 +5726,8 @@ function renderDrawer(){
     repainted, so the field keeps focus and the caret */
  {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;const old=el("ncPrev");
    if(old){const t=document.createElement("div");t.innerHTML=ncPreviewHTML();old.replaceWith(t.firstElementChild)}}}
+ /* the reserve switch changes what the column means, so the step repaints */
+ {const r=el("ncBifRow");if(r)r.querySelector(".sw").onclick=()=>{cap();nc.bif=!nc.bif;renderDrawer()}}
  {const b=el("drLink");if(b)b.onclick=()=>{cap();linkRequest()}}
  el("scrim").onclick=()=>{drawer=null;nc=NC_INIT();mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};renderDrawer()};
  el("drX").onclick=()=>{drawer=null;nc=NC_INIT();mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};renderDrawer()};
@@ -7367,7 +7533,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="1ef6552";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="21fb99d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
