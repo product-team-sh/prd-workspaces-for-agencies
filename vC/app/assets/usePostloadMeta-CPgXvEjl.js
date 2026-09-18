@@ -1,0 +1,1 @@
+import{cr as e,oi as t}from"./index-D5NqMHd0.js";function n(){return t({queryKey:[`account`,`postload-meta`],queryFn:e,staleTime:5*6e4})}export{n as t};

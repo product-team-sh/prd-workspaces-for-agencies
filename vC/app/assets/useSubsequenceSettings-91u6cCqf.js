@@ -1,1 +1,0 @@
-import{oi as e}from"./index-DnATKSi5.js";import{r as t}from"./subsequence.api-B8oS-twp.js";import{t as n}from"./subsequence-query-keys-aKgmcR42.js";function r(r){return e({queryKey:n.settings(r),queryFn:()=>t(r)})}export{r as t};

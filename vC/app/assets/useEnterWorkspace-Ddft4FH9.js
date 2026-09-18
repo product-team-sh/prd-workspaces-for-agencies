@@ -1,1 +1,0 @@
-import{$r as e}from"./index-DnATKSi5.js";import{t}from"./useSwitchWorkspace-PkPVBuPp.js";var n={sequences:`/sequences`,"email-accounts":`/email-accounts`,"unified-inbox":`/unified-inbox`,crm:`/crm`,tasks:`/tasks`};function r(){let r=e(),i=t();return{enter:(e,t=`sequences`)=>{i.mutate(e,{onSuccess:()=>void r({to:n[t]})})},isPending:i.isPending}}export{r as t};

@@ -1,0 +1,1 @@
+import{oi as e}from"./index-D5NqMHd0.js";import{a as t,o as n}from"./sequence-steps.api-DjAm3n-W.js";function r(r,i){let a=i!==void 0,o=e({queryKey:[`sequences`,`config`,r],queryFn:()=>n(r),enabled:!a}),s=e({queryKey:[`schedules`],queryFn:t}),c=a?i:o.data?.scheduleId??null;return{schedule:s.data?.find(e=>e.id===c)??null,isPending:!a&&o.isPending||s.isPending}}export{r as t};

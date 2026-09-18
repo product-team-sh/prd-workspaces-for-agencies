@@ -1,1 +1,0 @@
-import{Xr as e,_i as t}from"./index-DnATKSi5.js";var n=t();function r(){return(0,n.jsx)(e,{})}export{r as component};

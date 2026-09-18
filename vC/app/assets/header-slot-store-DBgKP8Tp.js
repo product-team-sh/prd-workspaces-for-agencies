@@ -1,1 +1,0 @@
-import{Rr as e}from"./index-DnATKSi5.js";var t=e(e=>({headerSlot:null,setHeaderSlot:t=>e({headerSlot:t})}));export{t};

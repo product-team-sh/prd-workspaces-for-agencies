@@ -1,1 +1,0 @@
-import{t as e}from"./SequenceProspectsTab-DhXKZiVI.js";import{D as t,_i as n}from"./index-DnATKSi5.js";var r=n();function i(){let{sequenceId:n}=t.useParams();return(0,r.jsx)(e,{sequenceId:Number(n)})}export{i as component};

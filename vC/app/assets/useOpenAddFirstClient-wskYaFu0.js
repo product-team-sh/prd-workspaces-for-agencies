@@ -1,0 +1,1 @@
+import{$i as e,Oi as t}from"./index-D5NqMHd0.js";import{n,r}from"./transformation-store-wtnuj-Bc.js";var i=e(t());function a(e){let{isNormal:t,isLoading:a}=r(),o=n(e=>e.openConfirm);return(0,i.useCallback)(()=>{if(!a){if(t){o();return}e()}},[a,t,o,e])}export{a as t};

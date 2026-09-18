@@ -1,0 +1,1 @@
+import{t as e}from"./SequenceEmailsTab-V_XZ8142.js";import{_i as t,p as n}from"./index-D5NqMHd0.js";var r=t();function i(){let{sequenceId:t}=n.useParams();return(0,r.jsx)(e,{sequenceId:Number(t)})}export{i as component};

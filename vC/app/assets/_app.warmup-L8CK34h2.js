@@ -1,1 +1,0 @@
-import{_i as e}from"./index-DnATKSi5.js";import{t}from"./ComingSoon-CdCq6aoc.js";var n=e(),r=()=>(0,n.jsx)(t,{areaKey:`footer.warmup`});export{r as component};

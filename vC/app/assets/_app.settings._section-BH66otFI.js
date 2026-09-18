@@ -1,0 +1,1 @@
+import{Z as e,_i as t}from"./index-D5NqMHd0.js";import{t as n}from"./SettingsComingSoon-D901M2_7.js";import{t as r}from"./settings-registry-BaRwwAUF.js";var i=t();function a(){let{section:t}=e.useParams();return(0,i.jsx)(n,{itemId:r(t)?t:`profile`})}export{a as component};

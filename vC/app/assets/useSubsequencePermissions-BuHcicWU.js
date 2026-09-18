@@ -1,0 +1,1 @@
+import{or as e}from"./index-D5NqMHd0.js";import{t}from"./has-permission-DrlgW3-x.js";function n(){let{data:n}=e(),r=n?.permissions;return r?{canShow:t(r,`SUBSEQUENCE.SHOW`),canCreate:t(r,`SUBSEQUENCE.CREATE`),canResume:t(r,`SUBSEQUENCE.RESUME`)}:{canShow:!0,canCreate:!0,canResume:!0}}export{n as t};

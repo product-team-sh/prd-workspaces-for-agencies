@@ -1,0 +1,1 @@
+import{E as e,oi as t}from"./index-D5NqMHd0.js";import{c as n}from"./sequence-prospects.api-DJtg-0QJ.js";function r(r){let i=t({queryKey:[`sequences`,r,`prospects`,`outcomes`],queryFn:()=>n(r),staleTime:e.config});return{outcomes:i.data??[],isPending:i.isPending,refetch:i.refetch}}export{r as t};

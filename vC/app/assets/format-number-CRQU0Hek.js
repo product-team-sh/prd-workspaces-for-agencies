@@ -1,0 +1,1 @@
+import{t as e}from"./index-D5NqMHd0.js";function t(t,n=e.language||`en`){return new Intl.NumberFormat(n,{maximumFractionDigits:0}).format(t)}export{t};

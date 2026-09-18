@@ -1,0 +1,1 @@
+import{$n as e}from"./index-D5NqMHd0.js";function t(){let{data:t}=e();return t?.workspaces.find(e=>e.type===`house`)}export{t};

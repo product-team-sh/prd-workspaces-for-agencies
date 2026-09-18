@@ -1,0 +1,1 @@
+import{t as e}from"./SequenceProspectsTab-KBsBjfDM.js";import{D as t,_i as n}from"./index-D5NqMHd0.js";var r=n();function i(){let{sequenceId:n}=t.useParams();return(0,r.jsx)(e,{sequenceId:Number(n)})}export{i as component};

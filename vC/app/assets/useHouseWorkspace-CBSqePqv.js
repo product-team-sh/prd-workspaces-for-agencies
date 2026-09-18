@@ -1,1 +1,0 @@
-import{$n as e}from"./index-DnATKSi5.js";function t(){let{data:t}=e();return t?.workspaces.find(e=>e.type===`house`)}export{t};

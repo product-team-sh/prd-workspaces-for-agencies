@@ -1,1 +1,0 @@
-import{oi as e}from"./index-DnATKSi5.js";import{o as t}from"./sequence-steps.api-t2HChnKX.js";function n(n){let r=e({queryKey:[`sequences`,`config`,n],queryFn:()=>t(n)});return{config:r.data,isPending:r.isPending,isError:r.isError,refetch:r.refetch}}export{n as t};

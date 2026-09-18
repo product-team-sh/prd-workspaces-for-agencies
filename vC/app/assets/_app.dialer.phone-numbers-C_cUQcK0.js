@@ -1,0 +1,1 @@
+import{_i as e}from"./index-D5NqMHd0.js";import{t}from"./ComingSoon-B7cDWmIA.js";var n=e(),r=()=>(0,n.jsx)(t,{areaKey:`nav.dialerPhoneNumbers`});export{r as component};

@@ -1,0 +1,1 @@
+import{or as e}from"./index-D5NqMHd0.js";function t(){let{data:t}=e();return t?.isAgency??!1}export{t};

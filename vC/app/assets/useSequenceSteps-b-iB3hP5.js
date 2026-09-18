@@ -1,0 +1,1 @@
+import{oi as e}from"./index-D5NqMHd0.js";import{s as t}from"./sequence-steps.api-DjAm3n-W.js";function n(n,r={}){return e({queryKey:[`sequences`,`steps`,n],queryFn:()=>t(n),enabled:r.enabled??!0})}export{n as t};

@@ -1,0 +1,1 @@
+import{lr as e,oi as t}from"./index-D5NqMHd0.js";import{n}from"./connected-account.schema-MvkeW3de.js";var r=10;async function i(t){let{data:i}=await e.get(`/sequences/${t}/connected-email-accounts`,{params:{pageNum:1,pageSize:r}});return n.parse(i.payload)}function a(e){return t({queryKey:[`sequences`,`connected-accounts`,e],queryFn:()=>i(e),enabled:e>0})}export{a as t};

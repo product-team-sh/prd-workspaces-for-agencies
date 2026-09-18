@@ -1,1 +1,0 @@
-import{_i as e,sn as t}from"./index-DnATKSi5.js";var n=e();function r({initials:e,colour:r,size:i=`sm`,className:a}){return(0,n.jsx)(`span`,{"aria-hidden":`true`,className:t(`inline-flex shrink-0 items-center justify-center rounded-md font-semibold text-white`,i===`sm`?`size-6 text-[10px]`:`size-8 text-xs`,a),style:{backgroundColor:r},children:e})}export{r as t};

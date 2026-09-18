@@ -1,0 +1,1 @@
+import{Rr as e}from"./index-D5NqMHd0.js";var t=e(e=>({headerSlot:null,setHeaderSlot:t=>e({headerSlot:t})}));export{t};

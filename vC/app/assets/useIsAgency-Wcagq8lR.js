@@ -1,1 +1,0 @@
-import{or as e}from"./index-DnATKSi5.js";function t(){let{data:t}=e();return t?.isAgency??!1}export{t};
