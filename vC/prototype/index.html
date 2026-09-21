@@ -849,6 +849,11 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .conseq span:first-child{flex:0 0 42%;min-width:0}
 .conseq div:last-child{border-bottom:none}
 .conseq span:last-child{color:var(--gray-15);text-align:right;flex:1 1 auto;min-width:0}
+/* the small inline confirm a round-2 consequential act shows under its own
+   row, never a modal: .conseq's weight, laid out as one line with actions. */
+.inlineconfirm{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+ background:var(--gray-19);border-radius:var(--radius-input);padding:10px 14px;font-size:13px;color:var(--gray-15)}
+.inlineconfirm .tools{display:flex;gap:8px;flex:none}
 .req{border-radius:var(--radius-input);background:var(--gray-19);padding:14px 16px;margin-bottom:10px}
 .req:last-child{margin-bottom:0}
 .req-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
@@ -1532,7 +1537,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
  ['inbox','Unified Inbox',()=>{
    /* in a client's own view this badge must count that client's replies only.
       The agency-wide number told the client how much other work exists. */
-   if(asClient&&!inAgency()){const n=REPLIES.filter(r=>r.client===ctx).length;return n?String(n):null}
+   if(asClient&&!inAgency()){const n=REPLIES.filter(r=>r.client===ctx&&!r.replied).length;return n?String(n):null}
    return String(REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).length+AGENCY_OWN.replies.length)}],['clients','Clients',null,'agency'],
  ['leads','Lead Finder'],['crm','CRM'],['dialer','Dialer','NEW'],['verify','Email Verifier'],
  ['mail','Email Accounts'],['tmpl','Templates'],['radar','Inbox Radar'],['analytics','Analytics'],
@@ -1686,7 +1691,7 @@ const PEOPLE={
     because a workspace holds one kind of thing and it should not matter who is
     looking at it. 16 Flow M / D5a: one permission system.                     */
  owner:{name:"Alex Meridian",initials:"AM",role:"Owner",ws:null},
- priya:{name:"Priya Nair",  initials:"PN",role:"Admin",
+ priya:{name:"Priya Nair",  initials:"PN",role:"Admin",email:"priya@meridiangrowth.com",
    ws:{nw:"Everything",vx:"Reporting",al:"Everything",bl:"Everything",hv:"Everything"}},
  sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:{al:"Everything",nw:"Reporting"}},
 };
@@ -1711,6 +1716,11 @@ let me_="owner";
 const ME=()=>PEOPLE[me_];
 const myClients=()=>{const w=ME().ws;return w?CLIENTS.filter(x=>w[x.id]):CLIENTS};
 const canI=k=>CAN[ME().role][k];
+/* who a client should write back to: the owner if they carry an address, else
+   the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
+   company, not a person, and gave the client nobody to actually reply to. */
+const clientContact=()=>Object.values(PEOPLE).find(p=>p.role==="Owner"&&p.email)
+  ||Object.values(PEOPLE).find(p=>p.role==="Admin"&&p.email);
 const CLIENTS=[
  {id:"nw",name:"Northwind Logistics",company:"Northwind Logistics Ltd",email:"ops@northwind.co",colour:"#B45309",
   seq:12,mbx:54,prospects:8900,sent:41300,reply:6.2,prev:6.0,pos:2.1,created:"12 Jun, 2026",limitsReviewed:true,permission:"Full Access",
@@ -2007,7 +2017,7 @@ let agyScope="clients";
    is pending. Modelled as its own mode rather than a variant of the agency's
    view of a client, because conflating the two is how a client ends up seeing
    agency furniture.                                                        */
-let solo=false, soloMod="seq", soloSet="workspace";
+let solo=false, soloMod="seq", soloSet="workspace", c0Confirm=null;
 /* prospects belong to a client. The same person can exist in two clients as two
    separate records, which is what makes the trail safe to show. */
 const PROSPECTS={
@@ -2205,6 +2215,9 @@ const allAlerts=()=>{const a=[...INFRA(),...limitAlerts()];
 
 let ctx="agency",view={name:"dash"},tab="overview",activeRes="lead_finder",drawer=null,popOpen=false;
 let asClient=false, cView="sequences", openProspect=null, modal=null, openThread=null;
+/* round 2 client-side UI state: which sequence has an inline pause/resume
+   confirm open, and which Usage row has its inline Request-more form open. */
+let seqConfirm=null, reqForm=null;
 /* the agency Unified Inbox: which tab, which client filter, the search, the open thread */
 let UBX={tab:"all",client:"all",q:"",cq:"",open:null};
 /* one shape, one function: linkRequest() used to reset nc with a shorter,
@@ -2504,6 +2517,11 @@ function agencyUsage(c){
 }
 function renderShell(){
  const inC=ctx!=="agency", c=inC?byId[ctx]:null;
+ /* correct cView before the crumb reads it: #asclient deep links always land
+    with cView="workspace", and this runs before vClientSide gets a chance to
+    fix it, which is why the crumb used to flash "Workspace" over a client's
+    only screen. */
+ if(asClient&&inC) fixClientCView(c);
  if(solo){const o=byId[ctx].link.owner,loc=o.split("@")[0];
    el("meAv").textContent=loc.slice(0,2).toUpperCase(); el("meNm").textContent=o;}
  else if(asClient&&inC){const u=(c.users&&c.users[0]?c.users[0][0]:c.email); el("meAv").textContent=u.slice(0,2).toUpperCase(); el("meNm").textContent=u;}
@@ -2545,7 +2563,7 @@ function renderShell(){
  el("crumbTail").textContent=solo?(soloMod==="settings"?"Settings / Workspace":AGY_MOD[soloMod][0])
    :view.name==="settings"?"Settings"
    :view.name==="queue"?"Work queue"
-   :inC?(asClient?({sequences:"Sequences",prospects:"Prospects",usage:"Usage",update:"Your update",workspace:"Workspace"})[cView]
+   :inC?(asClient?(CLIENT_LBL[cView]||{update:"Your update",workspace:"Workspace",settings:"Settings"}[cView])
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
    :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription / "+billLabel(billTab))
@@ -3725,12 +3743,17 @@ function cUsage(c){
     <p class="sub" style="margin:0">If you are running short, upgrade your own plan.
     ${AGENCY.name} cannot raise it for you, and asking them will not help.</p>
    </div></div>`;
+ const daysLeft=CYCLE.days-CYCLE.day;
+ let worstK=null,worstP=-1;
  const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id],st=rowState(k,c.id,m);
   /* floor, so only a genuinely exhausted allowance ever shows 100% */
   const p=Math.min(100,Math.floor(st.pct*100));
+  if(st.room>0&&p>worstP){worstP=p;worstK=k}
   const pending=REQUESTS.find(x=>x.client===c.id&&x.res===k);
   const state=st.room===0?"At your limit":st.pct>=R.warn?"Close to your limit":"Within limit";
   const tone=st.room===0?"bad":st.pct>=R.warn?"warn":"ok";
+  const asking=reqForm&&reqForm.client===c.id&&reqForm.res===k;
+  const suggested=Math.max(500,Math.round(r.cap*0.5/500)*500);
   return `<tr>
    <td><span style="font-weight:500">${R.label}</span>
      <span class="cs" style="display:block">${st.room===0
@@ -3741,11 +3764,27 @@ function cUsage(c){
    <td class="ar tnum">${f(r.cap)}</td>
    <td>${meter(p,tone,state)}</td>
    <td class="ar colact">${pending
-     ?`<span class="sub">Asked ${AGE(pending.when)}</span>`
+     ?`<span class="sub">Asked ${AGE(pending.when)} &middot; <button class="linkbtn quiet" data-reqwithdraw="${pending.id}">Withdraw</button></span>`
+     :asking?`<button class="linkbtn quiet" data-reqclose>Cancel</button>`
      :st.pct>=R.warn||st.room===0
-       ?`<button class="linkbtn" data-request="${k}">Request more</button>`
-       :'<span class="sub">–</span>'}</td></tr>`}).join("");
- return `<div class="panel">
+       ?`<button class="linkbtn" data-reqopen="${k}">Request more</button>`
+       :'<span class="sub">–</span>'}</td></tr>
+  ${asking?`<tr class="confirmrow"><td colspan="5"><div class="inlineconfirm" style="flex-direction:column;align-items:stretch">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+     <div><label class="fld" for="reqFormAmt">How much more?</label>
+      ${numIn(suggested,R.unit,`id="reqFormAmt" style="width:160px"`)}</div>
+     <div style="flex:1;min-width:220px"><label class="fld" for="reqFormWhy">Why?</label>
+      <input type="text" id="reqFormWhy" placeholder="A sentence is enough" style="width:100%;height:32px;padding:0 10px;border-radius:var(--radius-input);border:1px solid var(--gray-16);font:inherit"></div>
+    </div>
+    <p class="sub" id="reqFormSay" style="margin:6px 0 0">${AGENCY.name} will see: "${reqQueueLine(c,k,suggested)}"</p>
+    <div class="tools" style="margin-top:6px">
+     <button class="shd-button shd-button--primary shd-button--sm" data-reqsend="${k}">Send request</button>
+     <button class="shd-button shd-button--tertiary shd-button--sm" data-reqclose>Cancel</button>
+    </div></div></td></tr>`:""}`}).join("");
+ const summary=worstK&&worstP>=90
+   ?`${RES[worstK].label} is at ${worstP}% with ${daysLeft} day${daysLeft===1?"":"s"} left.`
+   :`You have used ${Math.round(elapsed()*100)}% of this month with ${daysLeft} day${daysLeft===1?"":"s"} left, on pace.`;
+ return `<p class="sub" style="margin:0;font-size:13px">${summary}</p><div class="panel">
   <div class="panel-h"><span class="panel-t">What ${AGENCY.name} has allocated to you</span></div>
   <div class="tscroll"><table class="organism" style="min-width:760px">
    <thead><tr><th>Allowance</th><th class="ar">Used</th><th class="ar">Your limit</th>
@@ -4847,7 +4886,7 @@ function vSolo(){
      <span class="cs">${c.company}</span></span></div>
    <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="seq">Back to Sequences</button></div>
   </div>
-  <div class="wrap"><div class="setwrap">
+  <div class="wrap">${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar())}<div class="setwrap">
    <div class="setnav">
      <h4>Workspace settings</h4>
      <button ${soloSet==="workspace"?'aria-current="page"':''} data-soloset="workspace">Workspace
@@ -4869,7 +4908,7 @@ function vSolo(){
       <strong>request</strong> a link, never take one. Every request lands here and waits for you.</p>
      </div></div>
 
-    <div class="card"><div class="c-h"><span class="c-t">Link requests</span>
+    ${isLinked(c)&&c.link&&c.link.state==="active"?cWorkspace(c):`<div class="card"><div class="c-h"><span class="c-t">Link requests</span>
       ${pend?'<span class="c-a"><span class="chip c-warn">1 waiting</span></span>':''}</div>
      <div class="c-b">${pend?`
       <p style="font-size:14px;line-height:21px;margin:0 0 4px"><strong>${AGENCY.name}</strong>
@@ -4889,16 +4928,20 @@ function vSolo(){
        <div><div style="font-size:14px;font-weight:500;color:var(--gray-800)">Let ${AGENCY.name} see this workspace as you do</div>
         <p class="sub" style="margin-top:3px">Off unless you switch it on. They can run sequences and read results here either way;
         this only lets them open it as you would see it. You can change it later from this screen.</p></div></div>
-      <div class="tools" style="margin-top:20px">
+      ${c0Confirm?`<div class="inlineconfirm" style="margin-top:16px">
+        <span>${AGENCY.name} joins as members; they ${c0Confirm.viewAs?"can":"cannot"} view this workspace as you.</span>
+        <span class="tools"><button class="shd-button shd-button--primary shd-button--sm" data-c0confirm>Confirm</button>
+        <button class="shd-button shd-button--tertiary shd-button--sm" data-c0cancel>Cancel</button></span></div>`
+      :`<div class="tools" style="margin-top:20px">
         <button class="shd-button shd-button--primary" data-c0="approve">Approve</button>
         <button class="shd-button shd-button--tertiary" data-c0="decline">Decline</button>
         <button class="linkbtn quiet" data-c0="report">Report if unexpected</button>
       </div>
       <p class="sub" style="margin:16px 0 0">Declining does not block them. Your ID stays
-      shareable, and they can ask again.</p>`
+      shareable, and they can ask again.</p>`}`
      :`<p style="font-size:14px;line-height:21px;margin:0">No agency has asked to link to this
       workspace. If one does, the request appears here and waits for you.</p>`}
-     </div></div>
+     </div></div>`}
    </div>`}
   </div></div>`;
 }
@@ -4940,6 +4983,10 @@ const RAIL2CVIEW={seq:"sequences",inbox:"inbox",crm:"prospects",leads:"leads",
    orientation line and the landing rule alike. */
 const CLIENT_LBL={sequences:"Sequences",inbox:"Replies",prospects:"Prospects",leads:"Lead Finder",
  accounts:"Email accounts",analytics:"Reports",usage:"Usage"};
+/* the one line a restricted client's single screen carries, above its content.
+   Names what they see, never what they lack. 21 Sep round 2. */
+const RESTRICT_NOUN={sequences:"sequences",inbox:"replies",prospects:"prospects",leads:"lead sourcing",
+ accounts:"email accounts",analytics:"results",usage:"usage"};
 const AGY_MOD={
  seq:["Sequences","The agency's own campaigns, for winning clients"],
  task:["Tasks","Tasks on the agency's own outreach","Tasks across the clients you work on"],
@@ -5806,6 +5853,10 @@ function queueEmpty(){const d=DECIDED[0];
 const dqTip=(html,tip)=>'<span class="dq-tip">'+html+'<span class="dq-fore" role="tooltip">'+tip+'</span></span>';
 function reqConsequence(r){const m=compute(r.res);
  return 'Leaves '+f(Math.max(0,m.free-r.amount))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+r.amount)/m.R.pool*100)+'%'}
+/* the exact sentence the agency will read in the Work queue for this ask,
+   shown to the client before they send it so nothing surprises them. */
+function reqQueueLine(c,k,amt){const m=compute(k);
+ return c.name+' is blocked and asked for '+f(amt)+' more '+RES[k].unit+'. '+f(m.free)+' unallocated'}
 function denyConsequence(r){return byId[r.client].name+' stays at its limit; they are told, not why'}
 function raiseConsequence(k,id){const m=compute(k),step=Math.max(500,Math.round(m.free*0.4/500)*500);
  return 'Leaves '+f(Math.max(0,m.free-step))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+step)/m.R.pool*100)+'%'}
@@ -6566,7 +6617,7 @@ function rSettings(c){
    permanent banner listing what they could not do, which is the wrong first
    sentence for someone who has just been given a workspace. What they cannot
    do is said on the control itself, where they would look for it. */
-const ORIENT_SEEN={}, ORIENT_FIRST={};
+const ORIENT_SEEN={}, ORIENT_FIRST={}, UPDATE_SEEN={};
 function accessNote(c){
  if(isLinked(c)||ORIENT_SEEN[c.id]) return "";
  /* shown once, on whichever screen the client happens to land on first this
@@ -6719,24 +6770,38 @@ function cSettings(c){
    <p class="sub" style="margin-top:10px">Only what the sequences you run need. Everything else about this workspace is ${AGENCY.name}'s to administer.</p></div></div>`:""}
  </div>`;
 }
+/* the nav a client actually has, and the correction that keeps cView inside
+   it. Shared by vClientSide (the content) and renderShell (the crumb), so a
+   stale cView from a deep link (#asclient always arrives on "workspace")
+   cannot paint one screen's title over another's content. 21 Sep round 3. */
+function fixClientCView(c){
+ const granted=CLIENT_MODULES.filter(m=>seesC(c,m[0])).map(m=>[m[0],CLIENT_LBL[m[0]]]);
+ const nav=granted.concat([["update","Your update"],["settings","Settings"]])
+   .concat((isLinked(c)||c.revoked)?[["workspace","Workspace"]]:[]);
+ /* land them on the first screen they actually have. Without this a
+    reports-only client opens on a Sequences tab that is not in their nav. */
+ if(!nav.some(n=>n[0]===cView)) cView=nav.length?nav[0][0]:"update";
+ return granted;
+}
 function vClientSide(){
  const c=byId[ctx];
  /* built from what the agency switched on, in rail order, plus the two screens
     that are never the agency's to withhold: the client's own update, and the
-    Workspace screen where a linked client revokes. */
- const granted=CLIENT_MODULES.filter(m=>seesC(c,m[0])).map(m=>[m[0],CLIENT_LBL[m[0]]]);
- const nav=granted.concat([["update","Your update"],["settings","Settings"]])
-   .concat(isLinked(c)?[["workspace","Workspace"]]:[]);
- /* land them on the first screen they actually have. Without this a
-    reports-only client opens on a Sequences tab that is not in their nav. */
- if(!nav.some(n=>n[0]===cView)) cView=nav.length?nav[0][0]:"update";
+    Workspace screen where a linked client revokes. Revoked keeps the tab too,
+    so the client lands back on the same screen instead of it vanishing under
+    them the moment access ends. */
+ const granted=fixClientCView(c);
+ if(cView==="update") UPDATE_SEEN[c.id]=true;
+ const rb=receiptBar();
  return `<div class="toolbar">
    <div class="cell-main">${av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">${c.name}</span>
      <span class="cs">Your workspace</span></span></div>
-   <div class="tools"><button class="shd-button shd-button--${cView==="update"?"primary":"tertiary"}" data-cview="update" ${cView==="update"?'aria-current="page"':''}>Your update</button></div>
+   <div class="tools"><button class="shd-button shd-button--${cView==="update"?"primary":"tertiary"}" data-cview="update" ${cView==="update"?'aria-current="page"':''}>Your update${UPDATE_SEEN[c.id]?"":'<span class="dot" style="background:var(--blue-11)"></span>'}</button></div>
  </div>
- <div class="wrap">${(u=>u+(u?"":accessNote(c)))(graceNote(c)+atLimitBanner(c))}${
+ <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${(u=>u+(u?"":accessNote(c)))(graceNote(c)+atLimitBanner(c))}${
+   granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
+     ?`<p class="sub" style="margin:0">${AGENCY.name} shares ${RESTRICT_NOUN[cView]||"this"} here. Ask them if you need more.</p>`:""}${
    cView==="sequences"?cSeq(c)
    :cView==="prospects"?(openProspect?cProspect(c):cPros(c))
    :cView==="usage"?cUsage(c)
@@ -6753,6 +6818,11 @@ function vClientSide(){
    a created one belongs to the agency, so there is nothing for the client to
    revoke, and pretending otherwise would be the blur the flow warns about. */
 function cWorkspace(c){
+ if(c.revoked) return `<div class="panel">
+   <div class="panel-h"><span class="panel-t">Linked agency</span></div>
+   <div class="panel-b"><p style="font-size:14px;line-height:21px;margin:0">${AGENCY.name} no longer has
+   access. Nothing else changed: your sequences, prospects, mailboxes, plan and invoice are exactly as
+   they were.</p></div></div>`;
  if(isLinked(c)) return `<div class="panel">
    <div class="panel-h"><span class="panel-t">Linked agency</span>
      <span class="chip c-vio">Linked workspace</span></div>
@@ -6781,13 +6851,18 @@ function cWorkspace(c){
    </div></div>`;
 }
 const SEQ_TONE=st=>st==="Active"?"ok":st==="Paused"?"warn":"mute";
+/* the consequence named before the click: a pause or resume tells the client
+   what it does, and that the agency is told, before it happens rather than
+   after. 21 Sep round 2. */
+const seqPauseLine=q=>"Stops "+f(q.prospects)+" people mid-sequence; "+AGENCY.name+" is told.";
+const seqResumeLine=q=>"Resumes sending to "+f(q.prospects)+" people; "+AGENCY.name+" is told.";
 /* `owner` is the one deliberate difference between the two callers: the agency
    sees which of its people built each sequence, and the client does not need
    the agency's staffing to read its own campaign list.                     */
 function seqTable(c,owner){
  return `<div class="panel"><div class="tscroll"><table class="organism" style="min-width:${owner?760:700}px">
    <thead><tr><th>Sequence Name</th><th class="ar">Prospects</th><th class="ar">Contacted</th><th class="ar">Replied</th><th>Status</th>${owner?"":'<th class="colact"></th>'}</tr></thead>
-   <tbody>${c.seq?(c.sequences||[]).map(q=>`<tr>
+   <tbody>${c.seq?(c.sequences||[]).map(q=>{const key=c.id+"|"+q.name,asking=seqConfirm===key;return `<tr>
      <td><span style="font-weight:600;color:var(--gray-800)">${q.name}</span>
        ${owner?`<span class="cs" style="display:block">Created by ${q.owner}</span>`:""}</td>
      <td class="ar tnum">${f(q.prospects)}</td>
@@ -6797,8 +6872,12 @@ function seqTable(c,owner){
      ${owner?"":`<td class="ar colact">${grace()&&!isLinked(c)
        ?`<span class="sub" title="Paused by ${AGENCY.name}; it resumes when they restart sending">Paused by ${AGENCY.name}</span>`
        :canC(c,"editseq")
-       ?`<button class="linkbtn" data-seqtoggle="${c.id}|${q.name}">${q.state==="Paused"?"Resume":"Pause"}</button>`
-       :`<span class="sub" title="${AGENCY.name} pauses and edits sequences for you">${AGENCY.name} runs it</span>`}</td>`}</tr>`).join("")
+       ?(asking?'<span class="sub">–</span>':`<button class="linkbtn" data-seqask="${key}">${q.state==="Paused"?"Resume":"Pause"}</button>`)
+       :`<span class="sub" title="${AGENCY.name} pauses and edits sequences for you">${AGENCY.name} runs it</span>`}</td>`}</tr>
+     ${asking?`<tr class="confirmrow"><td colspan="${owner?5:6}"><div class="inlineconfirm">
+       <span>${q.state==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
+       <span class="tools"><button class="shd-button shd-button--sm shd-button--${q.state==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${q.state==="Paused"?"Resume":"Pause"} sequence</button>
+       <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></td></tr>`:""}`}).join("")
      :'<tr><td colspan="6"><span class="sub">No sequences yet.</span></td></tr>'}
    </tbody></table></div></div>`;
 }
@@ -6904,13 +6983,22 @@ function cProspect(c){
 
 
 /* Usage is not a screen for the client. It is silence until it matters. */
+/* the second sentence a paused allowance carries: what still runs while this
+   one is stopped, so "paused" never reads as "everything stopped". */
+const STILL_WORKS={
+ lead_finder:"Sending and replies continue; only new lead sourcing is paused.",
+ verification:"Sending and replies continue; only new list checks are paused.",
+ ai:"Sending and replies continue; only AI-assisted writing is paused.",
+ sends:"Replies continue; sending is paused.",
+ prospects:"Sending and replies continue; you cannot add new prospects until this clears.",
+};
 function atLimitBanner(c){
  const blocked=RK.filter(k=>{const m=compute(k);return rowState(k,c.id,m).room===0});
  if(!blocked.length) return "";
  const k=blocked[0], pend=REQUESTS.find(r=>r.client===c.id&&r.res===k);
  return `<div class="msg m-bad" style="margin-bottom:16px">${warnI}<span>
    Your <strong>${RES[k].label}</strong> allowance is paused. You have used the ${f(RES[k].rows[c.id].cap)}
-   ${AGENCY.name} allocated for September. ${pend
+   ${AGENCY.name} allocated for September. ${STILL_WORKS[k]||""} ${pend
      ?`You asked ${AGENCY.name} for ${f(pend.amount)} more ${AGE(pend.when)}. Waiting on them.`
      :`${AGENCY.name} can raise this. <button class="linkbtn" data-request="${k}">Request more from ${AGENCY.name}</button>`}</span></div>`;
 }
@@ -6942,7 +7030,7 @@ function cUpdate(c,agencyView){
       <strong>One thing to note.</strong> We have used the ${RES[blocked[0]].label.toLowerCase()} allocated for this
       month, so sourcing is paused until we top it up. No action needed from you.</p>`:""}
     <div style="border-top:1px solid var(--gray-200);margin-top:16px;padding-top:14px">
-      <span class="sub">Sent by ${AGENCY.name}.</span>
+      <span class="sub">${(p=>p?`Questions? Reply to ${p.name.split(" ")[0]} at ${p.email}`:`Sent by ${AGENCY.name}.`)(clientContact())}</span>
     </div>
    </div>
    ${agencyView?`<div class="panel-b" style="border-top:1px solid var(--gray-200)" class="tools">
@@ -7261,8 +7349,9 @@ function renderModal(){
      ctx="agency"; solo=false; view={name:"clients"};
      modal=null;renderModal();render();return}
    if(modal.kind==="revoke"){const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
-     delete byId[id]; REQUESTS=REQUESTS.filter(r=>r.client!==id);
-     ctx="agency"; asClient=false; view={name:"clients"};
+     REQUESTS=REQUESTS.filter(r=>r.client!==id);
+     delete byId[id].mode; byId[id].revoked=true;
+     receipt(`${AGENCY.name} no longer has access. Nothing else changed.`,null);
      modal=null;renderModal();render();return;
    }
    if(modal.kind==="delete"){const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
@@ -7435,7 +7524,14 @@ function wire(){
  q("[data-cview]").forEach(b=>b.onclick=()=>{cView=b.dataset.cview;openProspect=null;render()});
  q("[data-orientok]").forEach(b=>b.onclick=()=>{ORIENT_SEEN[b.dataset.orientok]=true;render()});
  q("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
- q("[data-seqtoggle]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqtoggle.split("|");const s=(byId[id].sequences||[]).find(x=>x.name===name);if(s){s.state=s.state==="Paused"?"Active":"Paused";render()}});
+ q("[data-seqask]").forEach(b=>b.onclick=()=>{seqConfirm=b.dataset.seqask;render()});
+ q("[data-seqcancel]").forEach(b=>b.onclick=()=>{seqConfirm=null;render()});
+ q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
+   const s=(byId[id].sequences||[]).find(x=>x.name===name); if(!s) return;
+   const was=s.state; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
+   receipt(was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.`,
+     ()=>{s.state=was;render()});
+   render()});
  q("[data-prospect]").forEach(b=>b.onclick=()=>{openProspect=b.dataset.prospect||null;render()});
  q("[data-asclient]").forEach(b=>b.onclick=()=>{ctx=b.dataset.asclient;asClient=true;cView="sequences";openProspect=null;render()});
  q("[data-disable]").forEach(b=>b.onclick=()=>{modal={kind:"disable",client:b.dataset.disable};renderModal()});
@@ -7464,6 +7560,25 @@ function wire(){
  q("[data-request]").forEach(b=>b.onclick=()=>{const k=b.dataset.request;
    if(REQUESTS.some(r=>r.client===ctx&&r.res===k))return;
    modal={kind:"request",client:ctx,res:k};renderModal()});
+ /* Usage's own Request more: inline under the row, not a modal, so the
+    sentence the agency will read sits right beside the ask. */
+ q("[data-reqopen]").forEach(b=>b.onclick=()=>{reqForm={client:ctx,res:b.dataset.reqopen};render()});
+ q("[data-reqclose]").forEach(b=>b.onclick=()=>{reqForm=null;render()});
+ q("[data-reqsend]").forEach(b=>b.onclick=()=>{const k=b.dataset.reqsend,id=ctx;
+   const amtEl=el("reqFormAmt"),whyEl=el("reqFormWhy");
+   const amt=num(amtEl?amtEl.value:0);
+   if(!amt){if(amtEl)amtEl.focus();return}
+   if(!REQUESTS.some(r=>r.client===id&&r.res===k))
+     REQUESTS.push({id:"r"+Date.now().toString(36).slice(-4),client:id,res:k,amount:amt,
+       note:(whyEl&&whyEl.value||"").trim(),when:"just now"});
+   reqForm=null;
+   receipt(`Sent to ${AGENCY.name}. They see it in their queue.`,null);
+   render()});
+ q("[data-reqwithdraw]").forEach(b=>b.onclick=()=>{const rid=b.dataset.reqwithdraw,r=REQUESTS.find(x=>x.id===rid);
+   if(!r)return;
+   REQUESTS=REQUESTS.filter(x=>x.id!==rid);
+   receipt(`Withdrawn. ${AGENCY.name} no longer sees this request.`,()=>{REQUESTS.push(r);render()});
+   render()});
  const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
@@ -7496,14 +7611,29 @@ function wire(){
  q("[data-c0]").forEach(b=>b.onclick=()=>{const act=b.dataset.c0,c=byId[ctx];
    if(act==="report"){modal={kind:"c0report",client:c.id};renderModal();return}
    if(act==="approve"){
-     c.link.state="active"; c.link.since="just now"; delete c.link.requested;
-     const va=document.getElementById("c0viewas"); c.link.viewAs=!!(va&&va.getAttribute("aria-checked")==="true");
-     modal={kind:"c0done",client:c.id,approved:true};renderModal();render();return}
+     const va=document.getElementById("c0viewas");
+     c0Confirm={viewAs:!!(va&&va.getAttribute("aria-checked")==="true")};
+     render();return}
+   /* declining a request that was never granted changes nothing of the
+      client's, so this stays on their own Settings instead of bouncing them
+      into agency furniture a client would never see. */
    const i=CLIENTS.findIndex(x=>x.id===c.id);
-   modal={kind:"c0done",client:c.id,approved:false,name:c.name};
-   if(i>-1)CLIENTS.splice(i,1); delete byId[c.id];
-   ctx="agency"; solo=false; view={name:"clients"};
-   renderModal();render()});
+   if(i>-1)CLIENTS.splice(i,1);
+   /* keep c.link.owner: renderShell's solo persona reads it every render.
+      Clearing the state (not the object) is enough to drop the request. */
+   c.link.state="none"; delete c.link.requested; delete c.link.requestedBy;
+   c.permission="No Access";
+   receipt(`${AGENCY.name} no longer has access. Nothing else changed.`,null);
+   render()});
+ q("[data-c0confirm]").forEach(b=>b.onclick=()=>{const c=byId[ctx];
+   if(!c0Confirm){render();return}
+   c.link.state="active"; c.link.since="just now"; delete c.link.requested; c.link.viewAs=c0Confirm.viewAs;
+   c0Confirm=null;
+   const names=Object.values(PEOPLE).filter(p=>p.role!=="Owner").map(p=>p.name);
+   const namesText=names.length<=1?(names[0]||"Their staff"):names.slice(0,-1).join(", ")+" and "+names[names.length-1];
+   receipt(`Linked. ${namesText} from ${AGENCY.name} can now open this workspace.`,null);
+   render()});
+ q("[data-c0cancel]").forEach(b=>b.onclick=()=>{c0Confirm=null;render()});
  q("[data-migreview]").forEach(b=>b.onclick=()=>{view={name:"m2"};render()});
  q("[data-miglater]").forEach(b=>b.onclick=()=>{
    if(MIG.unassigned>0) MIG.deferred=true;
@@ -8304,7 +8434,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="21bb4f6";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="f2e2dfa";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
