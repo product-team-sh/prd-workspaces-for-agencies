@@ -22,7 +22,22 @@ Written 21 Sep 2026 after stakeholder feedback that the full scope is too large 
 
 **Where the competitors landed.** Instantly ships five roles, Owner, Admin, Editor, View/VA and a dedicated Client role "specifically for Agency whitelabel clients", and inside a workspace an Editor or Viewer sees every campaign, list and metric; there is no per-screen granularity ([`15 §4`](15-instantly-teardown.md), [`03`](03-competitor-benchmark.md)). HeyReach invites clients "with view-only access" and nothing finer. Smartlead's client "only sees the email accounts and campaigns associated to them", again one shape. Nobody verifiable ships a per-screen grant editor for clients; everybody ships named roles. Our master went further than the field with fourteen screens by four actions; phase 1 comes back to where the field is.
 
-**What the users asked for.** The interviewed agency wanted to restrict which staff see which client, and wanted the daily view to differ by role: operators in one queue, owners on a dashboard ([`19`](19-agency-interview.md)). Two paying accounts are hardcoded today to a single client screen, Reports only and Lead Finder only ([`22 §7.1`](22-prototype-refinement.md)). The Basecamp record shows agencies asking to cap a client's spend, and to stop clients seeing each other, never asking for graded actions per client ([`29`](29-basecamp-history.md)). So the roles must give: staff restriction by membership, a results-only client, a client who can act, and a line between acting and spending the agency's money.
+**What the users asked for.** Every recorded ask, from the sources we have (Intercom conversations could not be searched today, the read-only guard blocks the search tool; the help centre could):
+
+| Need, in their words or ours | Who | Source | What answers it |
+|---|---|---|---|
+| "We can't figure out how to do it where a client isn't able to see all of the campaigns we have in our system" | Scale agency, 11 users | [`02 §2`](02-user-needs-vs-what-we-have.md) | The workspace itself; no role needed |
+| Client sees its own prospect's full email trail without seeing other clients' activity | Agency | [`02` row 1](02-user-needs-vs-what-we-have.md) | The workspace; any client role |
+| Cap a client's Lead Finder, verification and AI credits and prospect storage | Rajveersingh, 10 Aug 2026 | [`02` row 2](02-user-needs-vs-what-we-have.md) | Caps and reservations, Owner and Admin set them |
+| Restrict which staff see which client | Interviewed agency | [`19`](19-agency-interview.md) | Membership; Member role |
+| Operators want one queue, owners a dashboard | Interviewed agency | [`19`](19-agency-interview.md) | Member lands on the Work queue, Owner and Admin on Home |
+| A client that only wants the numbers, and one that only sources leads | Two paying accounts, hardcoded by account id | [`22 §7.1`](22-prototype-refinement.md) | Client Viewer; Lead Finder-only waits for phase 2 |
+| A client that replies and connects mailboxes but must not edit sequences, add prospects or export | Every agency on Limited access today | Help centre, [Client Permissions](https://docs.saleshandy.com/en/articles/9335104-client-permissions-for-agencies-in-saleshandy) | Client Collaborator |
+| A client that edits sequences, adds prospects, adds templates and exports | Every agency on Full access today | Same article | Client Admin |
+| Scope prospect visibility to the staff working that client | Agency | [`02` row 11](02-user-needs-vs-what-we-have.md) | Membership |
+| Agency admin above client workspaces, one user in several workspaces | Hemanshu, Basecamp | [`29`](29-basecamp-history.md) | Owner and Admin; membership |
+
+Nobody asked for graded actions per client; the two hardcoded accounts asked for one screen each. The help-centre article is the strongest evidence for the client side because it is what agencies have been living with since May 2024: two levels, split on editing and export, both able to reply. The three client roles below keep that split and add the results-only shape the hardcoded accounts prove.
 
 ### Agency roles
 
@@ -38,13 +53,13 @@ Admin exists because the interview's owner does not run the day; someone else ad
 
 | Role | Sees | Can do | Cannot | Maps from today |
 |---|---|---|---|---|
-| **Client Admin** | Every screen in their workspace | Reply, pause and edit sequences, export prospects, reveal leads against their cap, manage their own mailboxes, request more | See the agency, other clients, the plan or costs; add users (phase 2) | New; the role a client running its own outreach on the agency's plan needs |
-| **Client Collaborator** | Every screen in their workspace | Reply to prospects, pause and edit sequences, request more | Export prospects, reveal leads, touch mailboxes: the actions that spend the agency's money or take data off the platform | Full access |
-| **Client Viewer** | Reports and Usage | Read results, request more | Everything else | Limited access and No access; the two hardcoded Reports-only and Lead Finder-only accounts land here (Lead Finder only becomes Viewer plus a note, until phase 2 brings back graded screens) |
+| **Client Admin** | Every screen in their workspace | Everything today's Full access can: edit sequences, add steps and prospects, add templates, export prospects, reply and forward, connect mailboxes; plus reveal leads against their cap and request more | See the agency, other clients, the plan or costs; add users (phase 2) | **Full access**, unchanged in what it can do |
+| **Client Collaborator** | Every screen in their workspace | Everything today's Limited access can: read every sequence and its emails, reply and forward in the inbox, send test emails, connect and edit their mailboxes, export reports; plus request more | Edit sequences, add prospects, add templates, export prospects, reveal leads: the same four lines Limited access draws today, plus the one that spends credits | **Limited access**, unchanged in what it can do |
+| **Client Viewer** | Reports and Usage | Read results, request more | Everything else | New. The two hardcoded Reports-only and Lead Finder-only accounts land here (Lead Finder-only becomes Viewer plus a note, until phase 2 brings back graded screens); also today's No access, which was a login that could see nothing |
 
-The line between Collaborator and Admin is the line between working and spending: export and reveal are the two actions that cost the agency money or move its data, which is exactly the split the master's four actions drew. Viewer is one shape, Reports and Usage, because that is the results-only client every competitor ships and the one the hardcoded accounts prove exists.
+The line between Collaborator and Admin is the line the product already draws between Limited and Full: editing what goes out and taking data off the platform. Reveal leads joins the Admin side because it spends the agency's credits. Viewer is one shape, Reports and Usage, because that is the results-only client every competitor ships and the one the hardcoded accounts prove exists.
 
-**Migration of today's levels.** Full access becomes Collaborator. Limited access becomes Viewer, which loses them the sequence and prospect screens they can read today; the alternative, Collaborator, would grant them actions they never had. Losing screens is the safer default and is stated on launch day (M1). If Hitesh prefers no loss, Limited becomes Collaborator and the M1 line says so instead.
+**Migration of today's levels.** Full access becomes Client Admin and Limited access becomes Client Collaborator, each keeping exactly what it can do today, so no existing client user loses or gains a capability on launch day. No access becomes Viewer, which gains Reports and Usage; that is the one deliberate change and M1 says so. The two hardcoded accounts become Viewer by hand.
 
 **What phase 2 adds, without breaking this.** The graded editor returns as a way to customise a role for one workspace ("Collaborator, but without pause"), so the six roles stay the vocabulary and the editor becomes the exception, the way Instantly's modular matrix sits under its Client role.
 
@@ -82,6 +97,6 @@ If the two together are under a sprint, phase 1. If not, phase 1 ships Home's pe
 
 ## Next steps, in order
 
-1. Hitesh confirms the six roles, the Limited-to-Viewer migration default, and the phase-1 column above.
+1. Hitesh confirms the six roles and the phase-1 column above.
 2. Rajat's estimate on the two roll-ups.
 3. I cut the working PRD to phase 1 (decisions D4, D5 to D5e and D11 amended with dated notes pointing at the master; user stories tagged by phase) and the working prototype to the screens above, each cut reviewed before publish, the master untouched.
