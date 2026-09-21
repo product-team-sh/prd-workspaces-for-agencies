@@ -636,7 +636,7 @@ table.organism th.ar .sortable{flex-direction:row-reverse}
 .dq-receipt .dq-x{flex:none;width:24px;height:24px;color:var(--gray-12)}
 .dq-receipt .dq-x svg{width:14px;height:14px}
 @keyframes dq-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.dq-receipt{animation:none}.dq-out,.pri2.dq-out{transition:none}table.organism tbody tr.crow-flash{animation:none}}
+@media (prefers-reduced-motion:reduce){.dq-receipt{animation:none}.dq-out,.pri2.dq-out{transition:none}table.organism tbody tr.crow-flash{animation:none}.mig-tick{animation:none;opacity:1}}
 .dq-empty{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:20px 24px 22px}
 .dq-check{width:36px;height:36px;border-radius:50%;background:var(--green-11);color:var(--green-12);display:grid;place-items:center;margin-bottom:2px}
 .dq-check svg{width:18px;height:18px}
@@ -1215,6 +1215,10 @@ tr.bl-focus>td{background:var(--blue-17);transition:background .6s ease}
 .mig-brand .brand-t{font-weight:700;font-size:16px;color:var(--gray-17)}
 .mig-h1{font-size:24px;line-height:32px;font-weight:600;color:var(--gray-17);margin:0 0 6px;letter-spacing:-.01em}
 .mig-sub{font-size:14px;line-height:20px;color:var(--gray-15);margin:0 0 24px}
+.mig-tick-h{width:30px}
+.mig-tick-cell{width:30px;text-align:center}
+.mig-tick{display:inline-flex;color:var(--green-16);opacity:0;animation:mig-tick-in .22s ease forwards}
+@keyframes mig-tick-in{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
 .mig-block{background:var(--gray-1);border:1px solid var(--gray-13);border-radius:var(--radius-table);
  padding:20px 24px;margin-bottom:16px}
 .mig-block h2{font-size:15px;line-height:22px;font-weight:600;color:var(--gray-17);margin:0 0 4px}
@@ -2245,6 +2249,8 @@ const MIG={
     would describe work the migration never did.                            */
  clients:["nw","vx","al","bl"],
  unassigned:1340,
+ doneMinutes:4,
+ doneAt:"06:12",
  reviewed:false,
  deferred:false,
  flagged:MIG_FLAGGED.slice(),
@@ -6300,7 +6306,8 @@ function vM1(){
  const assigned=mc.reduce((n,c)=>n+c.prospects,0);
  const sendCap=c=>{const r=RES.sends.rows[c.id];
    return r?f(r.cap):f(Math.round(c.sent*1.25/500)*500)};
- const rows=mc.map(c=>`<tr>
+ const rows=mc.map((c,i)=>`<tr>
+   <td class="mig-tick-cell"><span class="mig-tick" style="animation-delay:${i*80}ms">${tickI}</span></td>
    <td><div class="cell-main">${av(c,24)}<span class="trunc">${c.name}</span></div></td>
    <td class="ar tnum">${c.seq}</td><td class="ar tnum">${c.mbx}</td>
    <td class="ar tnum">${f(c.prospects)}</td><td class="ar tnum">${sendCap(c)}</td></tr>`).join("");
@@ -6308,11 +6315,12 @@ function vM1(){
  return `<div class="mig-wrap"><div class="mig-doc">
   <div class="mig-brand">${logoSVG("logoGradM")}<span class="brand-t">Saleshandy</span></div>
   <h1 class="mig-h1">Your ${mc.length} clients are now workspaces</h1>
-  <p class="mig-sub">Nothing was exported or re-imported. We moved nothing you cannot see in this table.</p>
+  <p class="mig-sub" style="margin-bottom:4px">Nothing was exported or re-imported. We moved nothing you cannot see in this table.</p>
+  <p class="mig-sub">Done in ${MIG.doneMinutes} minutes at ${MIG.doneAt}. Nothing stopped sending.</p>
 
   <div class="mig-block" style="padding:0;overflow:hidden">
    <div class="tscroll"><table class="organism migtbl">
-    <thead><tr><th>Client</th><th class="ar">Sequences moved</th><th class="ar">Mailboxes moved</th>
+    <thead><tr><th class="mig-tick-h" aria-hidden="true"></th><th>Client</th><th class="ar">Sequences moved</th><th class="ar">Mailboxes moved</th>
      <th class="ar">Prospects assigned</th><th class="ar">Monthly send cap</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
    <div class="panel-b" style="border-top:1px solid var(--gray-13)">
@@ -6364,10 +6372,9 @@ function vM1(){
    in the agency workspace: a wrong guess puts one client's lead in another
    client's workspace, which is the one failure this launch cannot have.     */
 function vM2(){
- const rows=MIG.companies.map((co,i)=>{
-  const picked=m2pick[co.name]!==undefined?m2pick[co.name]:"";
+ const rows=MIG.companies.map(co=>{
   const opts=[`<option value="">Keep in agency</option>`]
-   .concat(CLIENTS.map(c=>`<option value="${c.id}" ${picked===c.id?"selected":""}>${c.name}</option>`)).join("");
+   .concat(CLIENTS.map(c=>`<option value="${c.id}">${c.name}</option>`)).join("");
   return `<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${co.name}</span>
      <span class="cs">${co.domain}</span></td>
@@ -6375,28 +6382,23 @@ function vM2(){
    <td>${co.suggest?`<span class="sub">Matches ${byId[co.suggest]?byId[co.suggest].name:co.suggest}'s domain</span>`
      :`<span class="sub">No match</span>`}</td>
    <td><select data-m2pick="${co.name}" aria-label="Workspace for ${co.name}">${opts}</select></td></tr>`}).join("");
- const moving=MIG.companies.filter(co=>!!m2pick[co.name]);
- const n=moving.reduce((t,co)=>t+co.count,0);
+ const done=MIG.unassigned<=0;
  return `<div class="mig-wrap"><div class="mig-doc">
   <div class="mig-brand">${logoSVG("logoGradM2")}<span class="brand-t">Saleshandy</span></div>
-  <h1 class="mig-h1">${f(MIG.unassigned)} prospects to place</h1>
-  <p class="mig-sub">Grouped by company. A suggestion appears only where the company's domain
+  <h1 class="mig-h1">${done?"All placed. Nothing left in the agency workspace.":`${f(MIG.unassigned)} prospects to place`}</h1>
+  <p class="mig-sub">${done?"Every prospect now sits in the client workspace it belongs to. The agency workspace holds none.":`Grouped by company. A suggestion appears only where the company's domain
   matches one a client already has prospects on. Anything you leave alone stays in your agency
-  workspace, visible to nobody else.</p>
-  <div class="mig-block" style="padding:0;overflow:hidden">
+  workspace, visible to nobody else.`}</p>
+  ${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar("m2"))}
+  ${done?"":`<div class="mig-block" style="padding:0;overflow:hidden">
    <div class="tscroll"><table class="organism m2tbl">
     <thead><tr><th>Company</th><th class="ar">Prospects</th><th>Why suggested</th><th>Move to</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-   <div class="panel-b" style="border-top:1px solid var(--gray-13)">
-    <p class="migsum" style="margin:0">${n?`${f(n)} prospects across ${moving.length}
-     ${moving.length===1?"company":"companies"} will move. `:"Nothing selected to move yet. "}
-     ${f(MIG.unassigned-n)} will stay in your agency workspace.</p></div>
-  </div>
+  </div>`}
   <div class="mig-f">
-   <button class="shd-button shd-button--tertiary" data-m2done>Leave the rest for later</button>
-   <button class="shd-button shd-button--primary" data-m2apply ${n?"":"disabled"}>Move ${n?f(n)+" prospects":"selected"}</button></div>
-  <p class="mig-note">Whatever is left keeps its place in your work queue, so this does not get
-  forgotten.</p>
+   <button class="shd-button ${done?"shd-button--primary":"shd-button--tertiary"}" data-m2done>${done?"Done":"Leave the rest for later"}</button></div>
+  ${done?"":`<p class="mig-note">Whatever is left keeps its place in your work queue, so this does not get
+  forgotten.</p>`}
  </div></div>`;
 }
 
@@ -8062,16 +8064,17 @@ function wire(){
    ctx="agency";view={name:"record",id:CLIENTS[0].id};tab="access";render()});
  q("[data-migopen]").forEach(b=>b.onclick=()=>{view={name:"m1"};render()});
  q("[data-rollback]").forEach(b=>b.onclick=()=>{modal={kind:"rollback"};renderModal()});
- q("[data-m2pick]").forEach(sel=>sel.onchange=()=>{m2pick[sel.dataset.m2pick]=sel.value;render()});
- q("[data-m2apply]").forEach(b=>b.onclick=()=>{
-   MIG.companies.slice().forEach(co=>{
-     const to=m2pick[co.name];
-     if(!to||!byId[to])return;
-     byId[to].prospects+=co.count;
-     MIG.unassigned-=co.count;
-     MIG.companies=MIG.companies.filter(x=>x.name!==co.name);
-     delete m2pick[co.name]});
+ q("[data-m2pick]").forEach(sel=>sel.onchange=()=>{
+   const to=sel.value,co=MIG.companies.find(x=>x.name===sel.dataset.m2pick);
+   if(!to||!byId[to]||!co)return;
+   const dest=byId[to],wasReviewed=MIG.reviewed,wasDeferred=MIG.deferred;
+   MIG.companies=MIG.companies.filter(x=>x.name!==co.name);
+   MIG.unassigned-=co.count; dest.prospects+=co.count;
    if(MIG.unassigned<=0){MIG.unassigned=0;MIG.deferred=false;MIG.reviewed=true}
+   receipt("m2",`Moved ${f(co.count)} prospects at ${co.name} to ${dest.name}.`,
+     ()=>{dest.prospects-=co.count;MIG.unassigned+=co.count;MIG.companies.push(co);
+       MIG.reviewed=wasReviewed;MIG.deferred=wasDeferred},
+     `moved ${co.name} to ${dest.name}`);
    render()});
  q("[data-m2done]").forEach(b=>b.onclick=()=>{
    if(MIG.unassigned>0) MIG.deferred=true;
@@ -8859,7 +8862,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="7ef6f21";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="b5d615e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
