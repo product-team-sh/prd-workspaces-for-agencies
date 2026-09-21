@@ -2359,7 +2359,7 @@ function renderRail(){
     ["Owned by the agency",["mail","tmpl"]],
     ["Account",["people","billing"]]]
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
-    ["Outreach",OUTREACH],["Account",["people","billing"]],["Your workspace",["usage","cws"]]];
+    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","cws"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
  /* 16 Flow A said Home and the Work queue both wait for a first client.
     Version C splits them. The Work queue still waits, because a queue of work
@@ -2371,6 +2371,10 @@ function renderRail(){
  const allowed=k=>{const r=byKey[k];if(!r)return false;const sc=r[3];
    /* the client's own two. Workspace only where there is a link to revoke;
       Usage is a granted screen like the rest and falls through to that check */
+   /* 21 Sep, Hitesh: "in client workspace there should be an option to usage".
+      The agency standing inside a client's workspace sees the same screen the
+      client does, from its own side. */
+   if(k==="usage"&&!inAgency()&&!asClient&&!isNormal()&&ctx!=="own"&&byId[ctx]) return true;
    if(sc==="client"){if(!(asClient&&!inAgency()))return false;if(k==="cws")return isLinked(byId[ctx])}
    /* a client sees a rail item only if the agency switched that screen on */
    if(asClient&&!inAgency()) return !!RAIL2CVIEW[k]&&seesC(byId[ctx],RAIL2CVIEW[k]);
@@ -2449,6 +2453,7 @@ function renderRail(){
       jump to an agency screen, or the rail becomes a way out of the workspace
       you are working in without meaning to leave it.                      */
    if(asClient&&!inAgency()&&RAIL2CVIEW[n]){cView=RAIL2CVIEW[n];openProspect=null;render();return}
+   if(!inAgency()&&!asClient&&n==="usage"){inMod="usage";openProspect=null;if(view.name==="settings")view={name:"clients"};render();return}
    if(!inAgency()&&AGY_MOD[n]){inMod=RAIL2MOD[n]||n;openProspect=null;
      /* Settings outranks the client branch in the render chain, so a stale
         settings view would keep painting over the module just navigated to. */
@@ -2463,7 +2468,27 @@ function renderRail(){
 /* 17 Sep 2026, round 7 (44-ui-audit.md P8): one label map for the modules a
    staff member works in inside a client, used by the crumb and the toolbar. */
 const IN_LBL={sequences:"Sequences",prospects:"Prospects",inbox:"Inbox",accounts:"Email accounts",tmpl:"Templates"};
-const inModLabel=()=>IN_LBL[inMod]||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences");
+const inModLabel=()=>(inMod==="usage"?"Usage":IN_LBL[inMod])||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences");
+/* the client's Usage screen from the agency's side: the same rows, named as
+   what you allocated, with the way to change them one click away */
+function agencyUsage(c){
+ if(!funded(c)) return `<div class="panel"><div class="panel-h"><span class="panel-t">${c.name} is on its own plan</span>
+   <span class="chip c-vio">Linked workspace</span></div>
+   <div class="panel-b"><p class="sub" style="margin:0">Nothing here draws on your pool, so there is nothing to cap. Their usage is theirs to see.</p></div></div>`;
+ const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id];if(!r)return "";
+   const st=rowState(k,c.id,m),pc=Math.min(100,Math.round(st.pct*100));
+   return `<tr><td><span style="font-weight:500">${R.label}</span><span class="cs" style="display:block">${r.res?f(r.res)+" reserved for them":"Shared pool"}</span></td>
+    <td class="ar tnum">${f(r.used)}</td><td class="ar tnum">${f(r.cap)}</td><td>${meter(pc,st.tone,st.state)}</td><td class="ar tnum">${f(st.draw)}</td></tr>`}).join("");
+ const pend=REQUESTS.filter(q=>q.client===c.id);
+ return `<div class="panel">
+  <div class="panel-h"><span class="panel-t">What you allocated to ${c.name}</span><span class="sub">${CYCLE.month} &middot; from ${AGENCY.name}'s pool</span>
+   <span class="c-a"><button class="linkbtn" data-golimits="${c.id}">Change limits &rarr;</button></span></div>
+  ${pend.length?`<div class="panel-b" style="border-bottom:1px solid var(--gray-13)"><div class="msg m-info">${infoI}<span><strong>${c.name} asked for more:</strong> ${pend.map(q=>"+"+f(q.amount)+" "+RES[q.res].unit+" of "+RES[q.res].label+", "+AGE(q.when)).join("; ")}. Decide it in the Work queue.</span></div></div>`:""}
+  <div class="tscroll"><table class="organism" style="min-width:760px">
+   <thead><tr><th>Allowance</th><th class="ar">Used</th><th class="ar">Limit</th><th>Usage</th><th class="ar">Available</th></tr></thead>
+   <tbody>${rows}</tbody></table></div>
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${c.name} sees these same numbers on its own Usage screen. A request from them lands in your Work queue.</p></div>`;
+}
 function renderShell(){
  const inC=ctx!=="agency", c=inC?byId[ctx]:null;
  if(solo){const o=byId[ctx].link.owner,loc=o.split("@")[0];
@@ -5225,6 +5250,7 @@ function vInClient(){
   :inMod==="prospects"?(openProspect?cProspect(c):cPros(c))
   :inMod==="tmpl"?(own?ownTmpl():cTmpl(c))
   :inMod==="accounts"?rMail(c)
+  :inMod==="usage"?agencyUsage(c)
   :inMod==="inbox"?`<div class="panel"><div class="tscroll"><table class="organism" style="min-width:700px">
      <thead><tr><th>From</th><th>Message</th><th>Age</th><th class="colact"></th></tr></thead><tbody>
      ${inboxRows.length?inboxRows.map(r=>`<tr><td style="font-weight:500">${r.from}</td><td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
@@ -7318,6 +7344,7 @@ function wire(){
    if(k==="client update"){ctx="agency";view={name:"record",id};tab="update";render();return}
    ctx=id;asClient=false;inMod=k==="email account"?"accounts":"sequences";openProspect=null;render()});
  q("[data-manage]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
+ q("[data-golimits]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.golimits};tab="limits";render()});
  q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  q("[data-rclivex]").forEach(b=>b.onclick=()=>{RC_LIVE_SEEN[b.dataset.rclivex]=true;render()});
  q("input[data-lim]").forEach(i=>i.oninput=()=>{const p=el("rcLimSay");if(p&&byId[view.id])p.innerHTML=rcLimSentence(byId[view.id])});
@@ -8209,7 +8236,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="c9fa5df";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="b4e2983";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
