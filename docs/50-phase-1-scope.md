@@ -2,6 +2,8 @@
 
 Written 21 Sep 2026 after stakeholder feedback that the full scope is too large for the engineering window. The full scope is frozen as the master: [PRD](https://product-team-sh.github.io/prd-workspaces-for-agencies/master/) and [prototype](https://product-team-sh.github.io/prd-workspaces-for-agencies/master/prototype/), both at commit `99a8506`. Nothing in the master is deleted; this document says what ships first and what waits.
 
+> **Update, 21 Sep 2026, later the same day.** Points 1, 3, 4 and 5 have been applied to the working PRD and prototype (create only; all usage limits; roll-ups in pending Rajat, ask drafted in [52](52-ask-rajat-rollups.md); client update out). **Point 2, roles, is not applied.** Hitesh asked for a deeper analysis before any role change; that is [51-roles-analysis.md](51-roles-analysis.md), which also revises the client role names and the treatment of the two hardcoded accounts proposed below. Read the roles sections here as the first pass, not the decision.
+
 ## Decision first
 
 **Phase 1 ships the container, the cap and the reservation. It does not ship the connection, the graded permissions or the report.** Concretely: a client is a workspace the agency creates; one pool with a cap and an optional reservation per workspace; six roles instead of an access editor; membership decides who sees which workspace; the master's Home, Work queue, Clients and Billing allocation; and, subject to Rajat's estimate, the two roll-ups. Linking an existing account, per-screen access, independent budgets and the monthly client update move to phase 2 with user feedback to shape them.

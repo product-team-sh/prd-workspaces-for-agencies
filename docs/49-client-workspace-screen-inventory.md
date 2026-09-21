@@ -32,7 +32,7 @@ Order follows the live rail. "Prototype" says whether the vC prototype shows the
 | Top bar | Account name | Workspace name and "Your workspace"; the crumb names the screen | Built |
 | First arrival | Onboarding checklist | One banner, once, written from the access set in the second person ("You can see your sequences, replies ... You can also reply to prospects and pause or edit sequences.") | Built |
 | Limit reached | Saleshandy upgrade prompt | The agency is named, never Saleshandy; what still works is stated; Request more goes to the agency | Built |
-| Your update | Does not exist | A monthly summary from the agency, with a reply address; the rail item carries an unread dot until opened | Built |
+| Your update | Does not exist | **Phase 2 (21 Sep 2026).** A summary from the agency, with a reply address; the rail item carries an unread dot until opened. Removed from the phase-1 prototype; the master keeps it | Master only |
 | Invite | Credentials emailed by the agency | Invite and accept; the client sets its own password; the invite sentence is generated from the access set | Built (J1) |
 
 ## What this changes in the PRD
