@@ -1561,6 +1561,8 @@ const I={
  usage:['0 0 24 24','<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
  cws:['0 0 24 24','<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/>'],
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
+ warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
+ refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
@@ -1578,7 +1580,8 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
  /* 'client' scopes an item to a client's own view. Decided 12 Sep 2026: the
     rail is the client's only navigation, so the two screens the tab strip
     used to carry alone live here now. */
- ['usage','Usage',null,'client'],['cws','Workspace',null,'client']];
+ ['usage','Usage',null,'client'],['warmup','Email Warm-up'],['refer','Refer a Friend'],
+ ['cws','Workspace',null,'client']];
 const inAgency=()=>ctx==="agency";
 /* Version C's third persona. A normal user is an account with one workspace and
    no clients: the population every Saleshandy signup lands in, and the one
@@ -2477,7 +2480,7 @@ function renderRail(){
     ["Owned by the agency",["mail","tmpl"]],
     ["Account",["people","billing"]]]
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
-    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","cws"]]];
+    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer","cws"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
  /* 16 Flow A said Home and the Work queue both wait for a first client.
     Version C splits them. The Work queue still waits, because a queue of work
@@ -3040,16 +3043,18 @@ let mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};
 const CLIENT_MODULES=[
  ["sequences","Sequences","Their campaigns, and how each one is performing","Outreach","both"],
  ["inbox","Replies","The replies their campaigns produced","Outreach","both"],
- ["task","Tasks","Follow-ups the campaigns raise","Outreach","staff"],
+ ["task","Tasks","Follow-ups the campaigns raise","Outreach","both"],
  ["prospects","Prospects","The people being contacted on their behalf","Audience","both"],
  ["leads","Lead Finder","Sourcing new prospects, spending your credits","Audience","both"],
- ["dialer","Dialer","Calls made on this client's outreach","Audience","staff"],
+ ["dialer","Dialer","Calls made on this client's outreach","Audience","both"],
  ["accounts","Email accounts","Which mailboxes send for them, and their health","Sending","both"],
- ["verify","Email Verifier","Checking the prospect list before it sends","Sending","staff"],
- ["tmpl","Templates","The messages this client's sequences send","Sending","staff"],
- ["radar","Inbox Radar","Deliverability tests for this client's mailboxes","Sending","staff"],
+ ["verify","Email Verifier","Checking the prospect list before it sends","Sending","both"],
+ ["tmpl","Templates","The messages this client's sequences send","Sending","both"],
+ ["radar","Inbox Radar","Deliverability tests for this client's mailboxes","Sending","both"],
+ ["warmup","Email Warm-up","Keeps their mailboxes' reputation warm","Sending","both"],
  ["analytics","Reports","Results only: sent, replies, meetings booked","Results","both"],
  ["usage","Usage","What you allocated, and what is left of it","Results","client"],
+ ["refer","Refer a Friend","Saleshandy's referral programme","Results","both"],
 ];
 const modsFor=subject=>CLIENT_MODULES.filter(m=>m[4]==="both"||m[4]===subject);
 /* [key, label, what it does, the screen it acts on]. An action without its
@@ -3286,13 +3291,15 @@ byId.al.access={mods:["sequences","inbox","prospects","leads","analytics","usage
    cannot do, and the invite sentence, all derived from the same access set. The
    eleven-row list with a switch 1,200px from its label is gone, and the members
    table moved to a tab of its own. */
-const MOD_ICON={sequences:"seq",inbox:"inbox",prospects:"crm",leads:"leads",accounts:"mail",analytics:"analytics",usage:"usage",task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar"};
+const MOD_ICON={sequences:"seq",inbox:"inbox",prospects:"crm",leads:"leads",accounts:"mail",analytics:"analytics",usage:"usage",task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",warmup:"warmup",refer:"refer"};
 /* the invite sentence is derived from the access set, never quoted from a role,
    and the same derivation feeds the preview so the two cannot disagree */
 function inviteCopy(c){
  const a=c.access||{mods:[],verbs:[]};
  const LBL={sequences:"your campaigns",inbox:"the replies they produced",prospects:"the people being contacted",
-   leads:"lead sourcing",accounts:"the mailboxes sending for you",analytics:"your results",usage:"what you have left"};
+   leads:"lead sourcing",accounts:"the mailboxes sending for you",analytics:"your results",usage:"what you have left",
+   task:"tasks",dialer:"the dialer",verify:"email verification",tmpl:"templates",radar:"inbox radar",
+   warmup:"email warm-up",refer:"the referral programme"};
  const screens=CLIENT_MODULES.filter(m=>a.mods.indexOf(m[0])>-1).map(m=>LBL[m[0]]);
  return screens.length
    ? "You will see "+(screens.length===1?screens[0]:screens.slice(0,-1).join(", ")+" and "+screens[screens.length-1])
@@ -5217,11 +5224,14 @@ const RAIL2MOD={seq:"sequences",crm:"prospects",inbox:"inbox",mail:"accounts",tm
 /* the client's own view models five screens, so only the rail items that map
    to one are offered while viewing as the client. */
 const RAIL2CVIEW={seq:"sequences",inbox:"inbox",crm:"prospects",leads:"leads",
- mail:"accounts",analytics:"analytics",usage:"usage",cws:"workspace"};
+ mail:"accounts",analytics:"analytics",usage:"usage",cws:"workspace",
+ task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",warmup:"warmup",refer:"refer"};
 /* what a client calls each screen. One name per thing, used by the rail, the
    orientation line and the landing rule alike. */
 const CLIENT_LBL={sequences:"Sequences",inbox:"Replies",prospects:"Prospects",leads:"Lead Finder",
- accounts:"Email accounts",analytics:"Reports",usage:"Usage"};
+ accounts:"Email accounts",analytics:"Reports",usage:"Usage",
+ task:"Tasks",dialer:"Dialer",verify:"Email Verifier",tmpl:"Templates",radar:"Inbox Radar",
+ warmup:"Email Warm-up",refer:"Refer a Friend"};
 /* the one line a restricted client's single screen carries, above its content.
    Names what they see, never what they lack. 21 Sep round 2. */
 const RESTRICT_NOUN={sequences:"sequences",inbox:"replies",prospects:"prospects",leads:"lead sourcing",
@@ -5238,6 +5248,8 @@ const AGY_MOD={
  tmpl:["Templates","The agency's own templates"],
  radar:["Inbox Radar","Placement for the agency's own domain"],
  analytics:["Analytics","Performance of the agency's own outreach"],
+ warmup:["Email Warm-up","Keeping the agency's own mailboxes' reputation warm"],
+ refer:["Refer a Friend","Saleshandy's referral programme, for the agency's own account"],
 };
 /* ═══ agency Unified Inbox ═══════════════════════════════════════════════════
    18 Sep 2026, Hitesh: "For unified inbox in agency admin panel, we should
@@ -6996,11 +7008,11 @@ function accessNote(c){
     "and", the label switches its own "and" to "or" so the sentence does not run two
     "and"s into each other. */
  const joinList=a=>a.length===1?a[0]:a.slice(0,-1).join(", ")+" and "+a[a.length-1];
- const screens=joinList(have);
+ const screens=have.length>6?have.length+" screens":"your "+joinList(have);
  const verbs=CLIENT_VERBS.filter(v=>canC(c,v[0])).map(v=>v[1].toLowerCase().replace(" and "," or "));
  const acts=verbs.length?` You can also ${joinList(verbs)}.`:"";
  return `<div class="msg m-info orient" style="margin-bottom:16px">${infoI}<span style="flex:1 1 auto">
-   ${AGENCY.name} runs your outreach here. You can see your ${screens}.${acts}</span>
+   ${AGENCY.name} runs your outreach here. You can see ${screens}.${acts}</span>
    <button class="linkbtn" data-orientok="${c.id}" style="flex:none">Got it</button></div>`;
 }
 function cInbox(c){
@@ -7045,10 +7057,11 @@ function cLeads(c){
    no other, including other clients of ${AGENCY.name}.</p>
   </div></div>`;
 }
-function cParked(c,title,note){
- return `<div class="panel"><div class="panel-h"><span class="panel-t">${title}</span></div>
+function cParked(c,title,note,tail,icon){
+ const closing=tail===undefined?"Everything here belongs to your workspace and appears in no other.":tail;
+ return `<div class="panel"><div class="panel-h">${icon?`<span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg(icon)}</span>`:""}<span class="panel-t">${title}</span></div>
   <div class="panel-b"><p class="sub" style="margin:0 0 8px">${note}</p>
-   <p class="sub" style="margin:0">Everything here belongs to your workspace and appears in no other.</p></div></div>`;
+   ${closing?`<p class="sub" style="margin:0">${closing}</p>`:""}</div></div>`;
 }
 
 /* Reports for the client: four numbers and fourteen days. Daily sends are
@@ -7171,6 +7184,8 @@ function vClientSide(){
    :cView==="inbox"?cInbox(c)
    :cView==="leads"?cLeads(c)
    :cView==="accounts"?cParked(c,"Email accounts","The mailboxes sending on your behalf, and the health of each. "+AGENCY.name+" assigns them.")
+   :["task","dialer","verify","tmpl","radar","warmup","refer"].indexOf(cView)>-1
+     ?cParked(c,CLIENT_LBL[cView],"The Saleshandy "+CLIENT_LBL[cView]+" screen, scoped to your workspace.","Everything here is yours; "+AGENCY.name+" sees it too.",MOD_ICON[cView])
    :cView==="analytics"?cReports(c)
    :cView==="settings"?cSettings(c)
    :cUpdate(c,false)}</div>`;
@@ -8257,8 +8272,8 @@ function wire(){
         `own` flag is. Checking membership alone let a client user keep the
         agency's own workspace, which is the one thing D2a forbids outright. */
      const c=byId[id]; return !!c&&!c.own&&!isLinked(c)});
-   /* the sets themselves cannot survive the switch. A staff grant is over 11
-      internal screens and a client's is over 7 different ones, so carrying
+   /* the sets themselves cannot survive the switch. A staff grant is over 13
+      internal screens and a client's is over 14 different ones, so carrying
       the modules across would produce a grant naming screens the subject
       cannot reach. Re-seeded from the right table instead. */
    AM.access={}; AM.wsIdx=0;
@@ -8640,7 +8655,7 @@ const TOPICS=[
   src:"16 §0.1, 19 §2",
   go:()=>{T_become("priya");solo=false;asClient=false;ctx="agency";view={name:"dash"}}},
  {k:"access", t:"What each client can reach, set per client",
-  claim:"Not two roles. Seven screens and four actions, switched per client workspace, with presets for the common shapes. A client that only wants the numbers gets one screen and lands on it. The product hardcodes exactly this for two named accounts today because it cannot express it per workspace.",
+  claim:`Not two roles. ${ALL_MODS.length} screens and ${CLIENT_VERBS.length} actions, switched per client workspace, with presets for the common shapes. A client that only wants the numbers gets one screen and lands on it. The product hardcodes exactly this for two named accounts today because it cannot express it per workspace.`,
   ask:"Take your two most different clients. What should each be able to see and do, and where do they differ?",
   watch:"If every client gets the same access, presets are enough and the toggles are waste. If they differ per client, two roles were never going to work and this is the feature.",
   src:"01 §55, user-details.tsx",
@@ -8862,7 +8877,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="b5d615e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="79b037f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
