@@ -946,6 +946,17 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .nc-prev b{display:block;font-size:14px;font-weight:600;color:var(--gray-17);line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nc-prev i{display:block;font-style:normal;font-size:12px;line-height:17px;color:var(--gray-15)}
 .nc-prev.is-empty b{color:var(--gray-11);font-weight:500}
+/* 21 Sep 2026, delight pass round 5: the tile's colour is the client's colour
+   everywhere else in the product, so it is a control here, not a fixed swatch.
+   A real button, cycling CLIENT_PAL one click at a time, keyboard reachable
+   like anything else that changes state. */
+.nc-swav{position:relative;flex:none;padding:0;border:none;background:none;cursor:pointer;border-radius:9px;line-height:0}
+.nc-swav:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.nc-swav .nc-swdot{position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;background:var(--gray-1);
+ border:1.5px solid var(--gray-1);box-shadow:0 0 0 1px var(--gray-13);display:grid;place-items:center}
+.nc-swav .nc-swdot svg{width:8px;height:8px;color:var(--gray-15)}
+.nc-swav:hover .nc-swdot{box-shadow:0 0 0 1px var(--gray-23)}
+.nc-colcap{margin:6px 0 0 48px;color:var(--gray-11)}
 .nc-eyebrow{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);margin-bottom:8px}
 /* step 2: the same preset cards the Access tab shows, then the screens as
    toggles and the actions as checkboxes. One model, drawn smaller. */
@@ -1631,6 +1642,7 @@ function openAddClient(){
 }
 function renderXform(){
  const L=el("xformLayer"); if(!L) return;
+ if(handover){renderHandover(L);return}
  if(!xform){L.innerHTML="";return}
  const b=xform.beat, O=AGENCY_OWN, cap=XS_CAPS[b];
  const item=(l,v)=>'<div class="xs-i"><span>'+l+'</span><b>'+v+'</b></div>';
@@ -1667,6 +1679,56 @@ function renderXform(){
        :'<span class="xs-wait"><span class="xs-spin"></span>Setting up your account</span>')
   +'</div></div></div>';
  L.querySelectorAll("[data-xsskip],[data-xsgo]").forEach(x=>x.onclick=endXform);
+}
+/* 21 Sep 2026, delight pass round 5: the moment after Add Client, on the
+   create path (Connect has its own confirmation and its own receipt, on the
+   Clients list). One beat, reusing the transformation's own stage above so
+   "something just changed" reads the same way both times, then the workspace
+   itself opens already on its setup guide, never on a record page the client
+   sitting inside their own workspace could not reach anyway. Skippable by a
+   click anywhere on it, same as the transformation is not, because this one
+   carries a single idea rather than four in sequence. */
+let handover=null;
+/* the id of a workspace just landed in via the handover above, shown once in
+   its toolbar and cleared the moment ctx moves on to anywhere else, so coming
+   back to the same workspace later in this session never shows it again. */
+let justCreatedWs=null;
+const HANDOVER_MS=900, HANDOVER_MS_REDUCED=400;
+function clientTileHTML(c){
+ return `<div class="nc-prev" style="max-width:380px;margin:0 auto">
+    <span class="avatar av-tint" style="--c:${c.colour}">${initials(c.name)}</span>
+    <span style="min-width:0;flex:1"><b>${c.name}</b>
+     <i>New workspace &middot; empty &middot; funded from your pool</i></span>
+    <span class="chip c-mute" style="flex:none">Owned by you</span></div>`;
+}
+function renderHandover(L){
+ /* Coordinator feedback: one beat has no business taking as long to ink in as
+    the four-idea transformation does. .xs-cap .xs-t's animation is shared with
+    that sequence at 420ms; overridden here to 150ms so this reaches full
+    colour almost immediately and then just holds, rather than being caught
+    mid-fade in a screenshot taken at a natural pause. Same class, same
+    heading colour as the transformation's own caption - only the speed differs. */
+ L.innerHTML='<div class="xs" data-hoclick><div class="xs-stage">'
+  +'<div class="xs-cap" style="min-height:auto"><div class="xs-t" style="animation-duration:.15s">'
+  +'<h3>Workspace ready</h3>'
+  +'<div style="margin:16px 0">'+handover.tile+'</div>'
+  +'<p>Nothing sends until you launch a sequence.</p>'
+  +'</div></div></div></div>';
+ L.querySelector("[data-hoclick]").onclick=endHandover;
+}
+function startHandover(c){
+ handover={id:c.id,tile:clientTileHTML(c)};
+ renderXform();
+ setTimeout(endHandover,REDUCED()?HANDOVER_MS_REDUCED:HANDOVER_MS);
+}
+function endHandover(){
+ if(!handover) return;
+ const id=handover.id;
+ handover=null; renderXform();
+ ctx=id; asClient=false; inMod="sequences"; openProspect=null; view={name:"clients"};
+ justCreatedWs=id;
+ render();
+ const b=document.querySelector("[data-cstep]"); if(b) b.focus();
 }
 /* one format for relative time everywhere it is printed: lowercase, "ago" on
    any count. One column carried five formats and two capitalisations. */
@@ -2677,7 +2739,7 @@ function vClients(){
   {id:"name",label:"Client Name",req:true,sort:true,
    cell:c=>`<td><div class="cell-main">
      ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>
-     <span class="cs">${c.email}</span></span></div></td>`},
+     <span class="cs">${isPending(c)?"Requested "+AGE(c.link.requested):c.email}</span></span></div></td>`},
   {id:"budget",label:"Budget",def:false,
    cell:c=>`<td>${isPending(c)?'<span class="chip c-warn">Link pending</span>'
      :isLinked(c)?'<span class="chip c-vio">Linked</span>'
@@ -2774,6 +2836,7 @@ function vClients(){
  </div>
  <div class="wrap">
   ${graceBanner()}
+  ${receiptBar("clients")}
   ${(()=>{const mine=REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} client${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn" id="toCredits2">Review</button></span></div>`:""})()}
@@ -5424,7 +5487,7 @@ function vInClient(){
   :seqTable(c,true);
  return `<div class="toolbar">
    <div class="cell-main">${av(c,32)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
-    <span class="cs">${isNormal()?"Your workspace":own?"Your own outreach":"Client workspace"} &middot; ${inModLabel()}</span></span></div>
+    <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Client workspace")+" &middot; "+inModLabel()}</span></span></div>
    <div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>
    <div class="tools">${own?"":queueBack()+clientNav(c)}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
     ${inMod==="sequences"?'<button class="shd-button shd-button--primary" data-flash="Not in this prototype">Create Sequence</button>'
@@ -6332,26 +6395,43 @@ function connectBody(){
    <input type="text" id="wsnm" value="${nc.name||""}" placeholder="Redmere Studio">
    <p class="sub" style="margin-top:6px">Only how it reads in your switcher. Their own workspace
    name does not change.</p></div>
+  <div class="field"><label class="flabel" for="nce">Their email</label>
+   <input type="email" id="nce" value="${nc.email||""}" placeholder="jo@redmere.studio">
+   <p class="sub" style="margin-top:6px">Who the request goes to. They approve or decline it from
+   their own account.</p></div>
   <div class="lsec"><div class="lsec-h">What stays exactly as it is</div>${li(stays,"ok")}</div>
   <div class="lsec"><div class="lsec-h">What changes</div>${li(changes,"ok")}</div>
-  <div class="lsec"><div class="lsec-h">What you are not getting</div>${li(nots,"no")}</div>
-  <div class="msg m-info" style="margin-top:14px">${infoI}<span>Sending this notifies the workspace
-   owner. <strong>Nothing happens until they approve it</strong>, and you will see it as
-   <em>Link pending</em> until they do.</span></div>`;
+  <div class="lsec"><div class="lsec-h">What you are not getting</div>${li(nots,"no")}</div>`;
+}
+/* Coordinator feedback: this belongs in the drawer footer, directly left of
+   Send link request, not in the scrolling body - it names the consequence of
+   the exact click beside the button that fires it, visible at that moment
+   regardless of scroll position. Derived live from the email just typed
+   above; rewrites via its own oninput binding in renderDrawer(), not a full
+   re-render, so the field keeps focus and its caret. */
+function connectFooterHTML(){
+ const email=(nc.email||"").trim();
+ if(!email) return `Enter their email to send the request.`;
+ return `<strong>${email}</strong> gets a request naming <strong>${AGENCY.name}</strong>. Nothing changes until they approve.`;
 }
 
 function linkRequest(){
  const id="l"+Date.now().toString(36).slice(-4);
  const wsid=(nc.wsid||"WS-0000-XX").trim().toUpperCase();
+ const owner=(nc.email||"the workspace owner").trim();
  const pal=["#9333EA","#0E7490","#B91C1C","#4338CA","#A16207"];
  const c={id,name:(nc.name||wsid).trim(),company:(nc.name||wsid).trim(),email:nc.email||"owner@"+id+".example",
   colour:pal[CLIENTS.length%pal.length],mode:"linked",
-  link:{state:"pending",requestedBy:"Alex Meridian",wsid,requested:"just now",owner:nc.email||"the workspace owner"},
+  link:{state:"pending",requestedBy:"Alex Meridian",wsid,requested:"just now",owner},
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"09 Sep, 2026",permission:"No Access",
   users:[],mailboxes:[]};
  CLIENTS.push(c); byId[id]=c;
  nc=NC_INIT();
- drawer=null; renderDrawer(); view={name:"clients"}; ctx="agency"; render();
+ drawer=null; renderDrawer(); view={name:"clients"}; ctx="agency";
+ /* the receipt belongs to the Clients list, where sending it lands, per the
+    scope convention above receipt() and receiptBar() already keep. */
+ receipt("clients",`Request sent to ${owner}. It waits on them.`,null,`sent a link request to ${c.name}`);
+ render();
 }
 
 /* ── the client record for a workspace the agency does not own ─────────────── */
@@ -6454,6 +6534,7 @@ function drawerHTML(){
  /* the tile the switcher will show, drawn live as the name is typed: the form
     is making a workspace, and this is the one place that says so before Next */
  const b1=`<span class="nc-eyebrow">This creates</span>${ncPreviewHTML()}
+  <p class="sub nc-colcap">Its colour in the switcher and on every row.</p>
   <div class="nc-grid2" style="margin-top:16px">
    <div class="field"><label class="flabel" for="ncn">Client Name</label><input type="text" id="ncn" value="${nc.name}" placeholder="Alloy &amp; Co."></div>
    <div class="field"><label class="flabel" for="ncc">Company</label><input type="text" id="ncc" value="${nc.company}" placeholder="Alloy &amp; Co. Ltd"></div></div>
@@ -6480,6 +6561,7 @@ function drawerHTML(){
    <div class="nc-sech"><label class="flabel">The client's own access</label><span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span></div>
    <p class="sub" style="margin:0 0 10px">What anyone from ${who} reaches when they sign in. The same editor as the Access tab; change it there any time.</p>
    ${presets}
+   ${onMods?`<p class="nc-limsay" id="ncAccSay">${ncAccessSentence()}</p>`:""}
    <div class="nc-screens">
     <div><span class="cs"><span>Screens</span><span>${onMods} of ${modsC.length}</span></span>${chips}</div>
     <div><span class="cs"><span>Actions</span><span>${onVerbs} of ${CLIENT_VERBS.length}</span></span>${verbs}</div>
@@ -6533,10 +6615,11 @@ function drawerHTML(){
    (k?`<li class="st-line" data-done="${s>n-1?1:0}" aria-hidden="true"></li>`:"")+
    `<li data-on="${s===n?1:0}" data-done="${s>n?1:0}" ${s===n?'aria-current="step"':""}><span class="st-n">${s>n?IC.tick:n}</span>${l}</li>`).join("")}</ol>`}
   <div class="dr-b">${s===1?chooser+(connect?connectBody():b1):s===2?b2:b3}</div>
-  <div class="dr-f"><div>${(!connect&&s>1)?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':""}
-    ${(!connect&&s<3)?'<button class="linkbtn" id="drSkip" title="Create the client now; the remaining steps wait on its Overview">Finish later</button>':""}</div>
+  <div class="dr-f"><div style="${connect?"flex:1;min-width:0":""}">${(!connect&&s>1)?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':""}
+    ${(!connect&&s<3)?'<button class="linkbtn" id="drSkip" title="Create the client now; the remaining steps wait on its Overview">Finish later</button>':""}
+    ${connect?`<span class="sub" id="ncConnFoot">${connectFooterHTML()}</span>`:""}</div>
    <div class="tools">${connect
-     ?'<button class="shd-button shd-button--primary" id="drLink">Send link request</button>'
+     ?`<button class="shd-button shd-button--primary" id="drLink" ${(nc.email||"").trim()?"":"disabled"}>Send link request</button>`
      :(s<3?'<button class="shd-button shd-button--primary" id="drNext">Next</button>'
           :'<button class="shd-button shd-button--primary" id="drDone">Add Client</button>')}</div></div>
  </aside>`;
@@ -6567,13 +6650,51 @@ function ncLimSentence(){
  if(short.length) return `Emails stay a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. <span style="color:var(--orange-12)">The ${short.map(h=>h.l).join(" and ")} hold${short.length>1?"s exceed":" exceeds"} what is free today (${short.map(h=>f(h.c)+" against "+f(h.free)).join(", ")}).</span>`;
  return `Emails stay a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. The credits are held for them; <b class="tnum">${f(held[0].left)}</b> Lead Finder, <b class="tnum">${f(held[1].left)}</b> verification and <b class="tnum">${f(held[2].left)}</b> AI credits stay in the shared pool for everyone else.`;
 }
-/* the same tile drawerHTML paints on step 1, callable from the input binding */
-function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
+/* 21 Sep 2026, delight pass round 5: the Access step says in one sentence what
+   the toggles mean, mirroring ncLimSentence above. Screens first, then what
+   the client can do with them, then what they still cannot. Verb checkboxes
+   repaint only this paragraph on change, not the whole step, so a keyboard
+   user tabbing through them never loses their place. A mod chip or a preset
+   still re-renders the step (it changes which checkboxes even exist), and
+   picks this sentence up fresh as part of that.
+   Coordinator feedback: full labels, not shorthand, and the ungranted half
+   lists every action the client cannot take, whether or not its own screen
+   happens to be on - "cannot reveal leads" is still true with Lead Finder
+   switched off, and saying so is the point of naming it. */
+const NC_VERB_FULL={reply:"reply to prospects",editseq:"pause or edit sequences",export:"export prospects",reveal:"reveal leads"};
+function ncAccessSentence(){
+ const acc=ncAccess(), who=(nc.company||nc.name||"this client").trim(), onMods=acc.mods.length;
+ if(!onMods) return "";
+ const granted=CLIENT_VERBS.filter(v=>acc.verbs.indexOf(v[0])>-1).map(v=>NC_VERB_FULL[v[0]]);
+ const denied=CLIENT_VERBS.filter(v=>acc.verbs.indexOf(v[0])<0).map(v=>NC_VERB_FULL[v[0]]);
+ const list=(a,word)=>a.length<2?a.join(""):a.length===2?a.join(" "+word+" "):a.slice(0,-1).join(", ")+" "+word+" "+a[a.length-1];
+ const head=`Anyone from <b>${who}</b> can see <b class="tnum">${onMods}</b> screen${onMods===1?"":"s"}`;
+ if(!granted.length) return `${head} and change nothing.`;
+ return `${head}, ${list(granted,"and")}${denied.length?", but not "+list(denied,"or"):""}.`;
+}
+/* the same tile drawerHTML paints on step 1, callable from the input binding.
+   21 Sep 2026, delight pass round 5: the colour is now a choice, not a
+   position in CLIENT_PAL. nc.colour holds it once touched; until then this
+   keeps showing the same next-in-line colour it always did, so an untouched
+   tile looks exactly as before. */
+function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  return `<div class="nc-prev${nm?"":" is-empty"}" id="ncPrev" aria-live="polite">
-    <span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span>
+    <button type="button" class="nc-swav" data-nccol aria-label="Change colour">
+     <span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span>
+     <span class="nc-swdot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.65 6.35A8 8 0 1 0 20 12"/><path d="M20 4v5h-5"/></svg></span>
+    </button>
     <span style="min-width:0;flex:1"><b>${nm||"Your client's workspace"}</b>
      <i>${nm?"New workspace &middot; empty &middot; funded from your pool":"Type a name to see it take shape"}</i></span>
     <span class="chip c-mute" style="flex:none">Owned by you</span></div>`}
+/* repaints only the tile, so the name field never loses focus mid-keystroke
+   and the swatch click never scrolls the drawer. Rebinds the swatch's own
+   handler each time, since the node it lived on was just replaced. */
+function paintPrev(){const old=el("ncPrev");if(!old)return;
+ const t=document.createElement("div");t.innerHTML=ncPreviewHTML();const node=t.firstElementChild;
+ old.replaceWith(node);
+ const b=node.querySelector("[data-nccol]");if(b)b.onclick=e=>{e.stopPropagation();cycleColour()}}
+function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
+ nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev()}
 function renderDrawer(){
  const L=el("layer");if(!drawer){L.innerHTML="";return}
  L.innerHTML=drawerHTML();
@@ -6604,13 +6725,26 @@ function renderDrawer(){
    if(at>-1){a.mods.splice(at,1);CLIENT_VERBS.filter(v=>v[3]===k).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)})}
    else a.mods.push(k);
    renderDrawer()});
+ /* a verb checkbox changes nothing else on the step (no other chip, count or
+    checkbox depends on it), so only the sentence repaints and the checkbox
+    itself keeps focus, exactly the ncLimSentence pattern above. */
  L.querySelectorAll("[data-ncverb]").forEach(c=>c.onchange=()=>{const k=c.dataset.ncverb,a=ncAccess(),at=a.verbs.indexOf(k);
    if(c.checked&&at<0)a.verbs.push(k); if(!c.checked&&at>-1)a.verbs.splice(at,1);
-   renderDrawer()});
+   const p=el("ncAccSay");if(p)p.innerHTML=ncAccessSentence()});
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
- {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;const old=el("ncPrev");
-   if(old){const t=document.createElement("div");t.innerHTML=ncPreviewHTML();old.replaceWith(t.firstElementChild)}}}
+ {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
+ /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
+    then paintPrev() rebinds it on every repaint after */
+ L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
+ /* the footer note names whoever was just typed and the button waits on the
+    same address; only these two repaint, so the email field keeps focus and
+    its caret. Harmless on the create path, where #nce also lives: nc.email
+    still gets captured, and both lookups below simply find nothing to touch
+    since #ncConnFoot and #drLink do not exist there. */
+ {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value;
+   const p=el("ncConnFoot");if(p)p.innerHTML=connectFooterHTML();
+   const b=el("drLink");if(b)b.disabled=!e.value.trim();}}
  /* the reserve switch changes what the column means, so the step repaints */
  {const r=el("ncBifRow");if(r)r.querySelector(".sw").onclick=()=>{cap();nc.bif=!nc.bif;renderDrawer()}}
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
@@ -6670,7 +6804,7 @@ function create(){
     hardcoded three-name list and write only to c.staff, which nothing else
     read, so a client created with a "member" on it actually had none. Now it
     picks from the real PEOPLE and writes the one store that is enforced. */
- const c={id,name,company:nc.company||name,email:nc.email||"–",colour:pal[CLIENTS.length%pal.length],
+ const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",permission,
   users:nc.email?[[nc.email,permission]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,
   access:{mods:acc.mods.slice(),verbs:acc.verbs.slice()}};
@@ -6682,15 +6816,14 @@ function create(){
   RES[k].rows[id]={res:nc.bif?cap:0,cap,used:0}});
  nc=NC_INIT();
  drawer=null;renderDrawer();
- /* Version C. The first client is the moment the account becomes a workspace
-    model, so the user is taken to Home to watch it happen rather than dropped
-    into the record of the client they just made. Every client after the first
-    behaves as before, because there is no transformation left to show.     */
- /* the account was converted before the wizard opened, so this is an ordinary
-    create. The first client lands in its own workspace, where the setup guide
-    is waiting; later ones land on the record as before. */
- if(CLIENTS.length===1){ctx=id;asClient=false;inMod="sequences";view={name:"clients"};render();return}
- view={name:"record",id};tab="overview";render();
+ /* Version C: the first client is the moment the account becomes a workspace
+    model, so it always went to Home to watch it happen rather than to the
+    record of the client just made. 21 Sep 2026, delight pass round 5: every
+    client after the first now gets the same landing, not the record page,
+    because a client cannot open its own record and never could - it opens
+    its workspace. The handover beat is what makes "we just left the wizard
+    for something new" true a second time and every time after. */
+ startHandover(c);
 }
 
 
@@ -7524,6 +7657,9 @@ function renderModal(){
    prototype does not implement says so when clicked, instead of doing nothing. */
 function flash(b,msg){const s=document.createElement("span");s.className="sub flash";s.textContent=msg;s.style.marginLeft="8px";b.insertAdjacentElement("afterend",s);setTimeout(()=>s.remove(),2400)}
 function render(){
+ /* the handover's toolbar line is for this landing only; leaving the
+    workspace it named, for any reason, spends it for the rest of the session */
+ if(justCreatedWs&&ctx!==justCreatedWs) justCreatedWs=null;
  /* Version C: Home stands on its own before a first client, so only the Work
     queue still bounces. It lands on Home now rather than Client Management,
     which a normal user cannot reach.                                        */
@@ -8634,7 +8770,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="0722daf";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="79cabff";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
