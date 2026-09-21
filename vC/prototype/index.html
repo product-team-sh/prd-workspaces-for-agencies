@@ -454,6 +454,8 @@ svg{display:block}
    mix as a proportion rather than as four numbers to compare by eye */
 .sbar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}
 .sbar i{display:block;height:100%;border-radius:2px}
+.sbar button.wsseg{display:block;height:100%;border-radius:2px;border:none;padding:0;margin:0;cursor:pointer;box-sizing:border-box}
+.sbar button.wsseg:focus-visible,.sbar button.wsseg.ws-hl{outline:2px solid var(--gray-17);outline-offset:1px}
 .lgd{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:8px}
 .lgd span{display:inline-flex;align-items:center;gap:5px;font-size:11px;line-height:16px;color:var(--gray-12)}
 .lgd i{width:6px;height:6px;border-radius:50%;flex:none}
@@ -503,6 +505,9 @@ table.organism td:last-child{padding-right:24px;border-right:1px solid var(--gra
    shadow is not clipped by the neighbouring cells' borders.                */
 table.organism tbody tr{background:#fff;transition:box-shadow .2s ease}
 table.organism tbody tr:hover{position:relative;z-index:1;box-shadow:0 0 4px rgba(31,41,55,.16)}
+table.organism tbody tr.crow-hl{background:var(--blue-17)}
+table.organism tbody tr.crow-flash{animation:crowFlash 1.2s ease-out}
+@keyframes crowFlash{0%{background:var(--green-11)}100%{background:#fff}}
 table.organism tbody tr:last-child td{border-bottom:1px solid var(--gray-13)}
 /* 18 Sep QA: the group label starts where the first column's text starts */
 table.organism tr.grouprow>td{padding:10px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);border-bottom:0;background:transparent}
@@ -628,7 +633,7 @@ table.organism th.ar .sortable{flex-direction:row-reverse}
 .dq-receipt .dq-x{flex:none;width:24px;height:24px;color:var(--gray-12)}
 .dq-receipt .dq-x svg{width:14px;height:14px}
 @keyframes dq-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.dq-receipt{animation:none}.dq-out,.pri2.dq-out{transition:none}}
+@media (prefers-reduced-motion:reduce){.dq-receipt{animation:none}.dq-out,.pri2.dq-out{transition:none}table.organism tbody tr.crow-flash{animation:none}}
 .dq-empty{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:20px 24px 22px}
 .dq-check{width:36px;height:36px;border-radius:50%;background:var(--green-11);color:var(--green-12);display:grid;place-items:center;margin-bottom:2px}
 .dq-check svg{width:18px;height:18px}
@@ -1170,6 +1175,8 @@ tr.bl-focus>td{background:var(--blue-17);transition:background .6s ease}
 .tbody{font-size:13.5px;line-height:20px;color:var(--gray-12);background:var(--gray-19);border-radius:var(--radius-input);padding:10px 14px;margin-top:6px}
 .dash-toolbar{padding:24px 24px 12px}
 .dash-title{font-size:22px;line-height:30px;font-weight:600;letter-spacing:-.01em;color:var(--gray-17)}
+.dash-arrival{display:block;margin-top:4px;max-width:640px}
+.dash-arrival .linkbtn{font-size:12px}
 @media(max-width:1180px){.dwrap{grid-template-columns:1fr}}
 /* the collapsed rail replaces the old disappearing act: 57px of icons stays
    reachable where display:none left no way back to the switcher at all. */
@@ -4632,7 +4639,7 @@ function planCard(norm){
  const byWs=fundedWorkspaces().map(c=>({c,u:cRow("sends",c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
  const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,3), rest=byWs.slice(3);
  const wsBar=byWs.length?'<div class="pace-ws"><span class="sbar" style="height:8px">'
-    +byWs.map(x=>'<i style="width:'+(x.u/wsTot*100).toFixed(1)+'%;background:'+x.c.colour+'" title="'+x.c.name+' '+f(x.u)+'"></i>').join("")+'</span>'
+    +byWs.map(x=>'<button type="button" class="wsseg" data-wsseg="'+x.c.id+'" data-golimits="'+x.c.id+'" style="width:'+(x.u/wsTot*100).toFixed(1)+'%;background:'+x.c.colour+'" title="'+x.c.name+' '+f(x.u)+'" aria-label="'+x.c.name+'"></button>').join("")+'</span>'
     +'<span class="lgd">'+top.map(x=>'<span><i style="background:'+x.c.colour+'"></i>'+x.c.name+' <b class="tnum">'+abbr(x.u)+'</b></span>').join("")
     +(rest.length?'<span><i style="background:var(--gray-23)"></i>+'+rest.length+' other'+(rest.length===1?"":"s")+' <b class="tnum">'+abbr(rest.reduce((a,x)=>a+x.u,0))+'</b></span>':"")
     +'</span></div>':"";
@@ -4696,6 +4703,42 @@ function normDecisions(){
    w:"It sends at a reduced volume until warm-up finishes. No action needed unless you need the capacity now.",a:"Open warm-up",g:"mail"})});
  return out;
 }
+/* 21 Sep, delight pass round 4: one sentence under the Home title, naming
+   the most consequential thing that happened since the account was last
+   opened. Priority is fixed: a client at its limit outranks a decision
+   count, which outranks a reply count, because that is the same ordering
+   the rail and the Clients table already use. It reads live off
+   dashItems()/attention()/REPLIES, the same data the rest of Home reads, so
+   it can never disagree with what is a scroll away. A backend-connected
+   product would compute this once per calendar day against real "since you
+   were last here" timestamps; this fixture has no such clock to test
+   against, so it recomputes on every render instead of caching a stale day. */
+function arrivalLine(mine,items){
+ if(!mine.length) return "Nothing needs you right now.";
+ const lim=mine.map(c=>({c,a:attention(c)})).find(x=>x.a&&/^At limit/.test(x.a.chip));
+ const nDec=items.length;
+ const byClient={};
+ REPLIES.forEach(r=>{if(mine.some(c=>c.id===r.client))(byClient[r.client]=byClient[r.client]||[]).push(r)});
+ const repTop=Object.keys(byClient).map(id=>({c:byId[id],list:byClient[id]}))
+   .sort((a,b)=>b.list.length-a.list.length)[0];
+ const rank=t=>/day/.test(t)?2:/yesterday/.test(t)?1:0;
+ let limClause=null;
+ if(lim){
+  const k=RK.find(kk=>RES[kk].rows[lim.c.id]&&rowState(kk,lim.c.id,compute(kk)).room===0);
+  const label=RES[k].label.replace(" Credits","").replace("Monthly Emails Sent","sending");
+  limClause='<button class="linkbtn" data-manage="'+lim.c.id+'">'+lim.c.name+'</button> hit its '+label+' limit '+AGE(atLimitSince(lim.c,k));
+ }
+ const decClause=nDec?'<button class="linkbtn" data-nav2="queue">'+nDec+' decision'+(nDec===1?"":"s")+' '+(nDec===1?"is":"are")+' waiting</button>':null;
+ let repClause=null;
+ if(repTop){
+  const n=repTop.list.length, oldest=repTop.list.slice().sort((a,b)=>rank(b.age)-rank(a.age))[0].age;
+  repClause=n+' repl'+(n===1?"y":"ies")+' came in for <button class="linkbtn" data-goto="'+repTop.c.id+'|inbox">'+repTop.c.name+'</button> since '+AGE(oldest);
+ }
+ if(limClause) return limClause+"; "+(decClause||"nothing else needs you")+".";
+ if(decClause) return decClause+".";
+ if(repClause) return repClause+"; nothing needs you.";
+ return "Nothing needs you right now.";
+}
 function vDash(){
  if(!canI("dashboard")) return denied("see the agency dashboard");
  /* Superseded 17 Sep 2026. Home used to exist for a normal user, so every region
@@ -4713,6 +4756,11 @@ function vDash(){
     clients, one state later.                                              */
  const fresh=norm&&!setupDone;
  const items=fresh?[]:norm?normDecisions():dashItems(), shown=items.slice(0,5), rest=items.length-shown.length;
+ /* 21 Sep, delight pass round 4: exactly one client, and it has never sent.
+    The Clients table becomes that client's own setup, and the zero-value
+    tiles below say why they are zero instead of just being zero. */
+ const oneNew=!norm&&mine.length===1&&mine[0].sent===0;
+ const arrival=norm?null:arrivalLine(mine,items);
  const rep=mine.reduce((t,c)=>t+repOf(c),0);
  const tch=touches();
  const NS=norm?normStats():null;
@@ -4733,9 +4781,9 @@ function vDash(){
  ].join(""):""):(owner?[
   kpiTile("Clients",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),
     "was "+f(LAST.clients)+" last month",false,mine.length-LAST.clients),
-  kpiTile("Outreach",svg("analytics"),f(tch.total),pctDelta(tch.total,LAST.touches),
-    "was "+f(LAST.touches)+" last month"),
-  kpiTile("Replies",svg("inbox"),f(rep),pctDelta(rep,LAST.replies),"was "+f(LAST.replies)+" last month")
+  kpiTile("Outreach",svg("analytics"),f(tch.total),oneNew?null:pctDelta(tch.total,LAST.touches),
+    oneNew?"Counts start with the first send.":"was "+f(LAST.touches)+" last month"),
+  kpiTile("Replies",svg("inbox"),f(rep),oneNew?null:pctDelta(rep,LAST.replies),oneNew?"Counts start with the first send.":"was "+f(LAST.replies)+" last month")
  ]:[
   kpiTile("Your clients",svg("clients"),f(mine.length),null,"Assigned to you by the agency"),
   kpiTile("Outreach",svg("analytics"),f(tch.total),null,"Across your clients this cycle"),
@@ -4758,7 +4806,8 @@ function vDash(){
   ["update","Update","M7 17 17 7M7 7h10v10"]];
  const crow=({c,a})=>{
   const pend=isPending(c); if(pend) a=null;
-  return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
+  const flash=!pend&&FLASH_CID===c.id;
+  return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
    +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
    +'<span class="cs">'+c.email+'</span></span></div>'
    +(pend?'':'<div class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
@@ -4779,17 +4828,42 @@ function vDash(){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')
    +'</span></td></tr>'};
 
+ /* 21 Sep, delight pass round 4: one client, never sent. The row that would
+    otherwise be a single blank line becomes that client's own setup, reusing
+    rcSetup's markup and data so it reads exactly as the record's Overview
+    does. The name and Manage stay so the row still identifies and opens the
+    client; data-hometab is what makes a "Set up" click land on that client's
+    record and tab instead of a no-op tab flip. */
+ const oneRow=(()=>{if(!oneNew) return "";
+   const c=mine[0], S=steps(c), done=doneN(c);
+   const setupHtml=rcSetup(c,S,done)
+     .replace('class="rc-setup"','class="rc-setup" style="margin:0;flex:1;min-width:0"')
+     .replace(/data-tab="/g,'data-hometab="'+c.id+'" data-tab="');
+   return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
+     +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
+     +'<span class="cs">'+c.email+'</span></span></div></td>'
+     +'<td colspan="4">'+setupHtml+'</td>'
+     +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Clients</span>'
    +'<div class="pills" style="padding:0;margin-left:6px">'+PT.map(([k,l,n])=>'<button data-clitab="'+k+'" aria-pressed="'+(cliTab===k)+'">'+l+'<span class="pn">'+n+'</span></button>').join("")+'</div>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Clients &rarr;</button></span></div>'
   +'<div class="tscroll"><table class="organism" style="min-width:760px">'
-   +'<thead><tr><th>Client</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
-   +'<th class="colact"></th></tr></thead>'
-   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>')+'</tbody></table></div>'
+   /* coordinator feedback, round 4: a one-client Home replaces the row with
+      a setup strip spanning Status/Outreach/Replies/Usage, so the header
+      over it has to agree - "Setup" spanning the same four, not four labels
+      for columns that row does not have. */
+   +(oneNew
+     ?'<thead><tr><th>Client</th><th colspan="4">Setup</th><th class="colact"></th></tr></thead>'
+     :'<thead><tr><th>Client</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
+      +'<th class="colact"></th></tr></thead>')
+   +'<tbody>'+(oneNew?oneRow:(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Clients &rarr;</button></div>':'')
   +'</div>';
+ /* single-use: whether or not FLASH_CID matched a row above, it does not
+    survive past this render. */
+ FLASH_CID=null;
 
  /* the normal user's main column. Setup while it is outstanding, then the
     sequences table, in the same slot doing the same job as the clients table. */
@@ -4854,7 +4928,9 @@ function vDash(){
     noise; the discovery card in the main column carries it instead, and the
     header gains the button permanently once a client exists.               */
  return '<div class="toolbar dash-toolbar" style="position:relative">'
-  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span></span></div>'
+  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
+  +(arrival?'<span class="sub dash-arrival">'+arrival+'</span>':'')
+  +'</span></div>'
   +'<div class="tools" style="position:relative">'
    +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">'
      +(norm?'New &#9662;':'New for a client &#9662;')+'</button>'+newMenuHTML()+'</div>'
@@ -5859,6 +5935,12 @@ let ORIGIN=null;
    receipt clears after 8 s or when the next decision replaces it. DECIDED
    feeds the "Last decision" line when the rail is empty. */
 let RECEIPT=null, receiptTimer=null; const DECIDED=[];
+/* 21 Sep, delight pass round 4: the client id to flash in Home's Clients
+   table on the render that follows an Approve/Deny/Raise from the rail, so
+   the consequence shows up where the user looks next instead of a silent
+   number change. Set right before decide() runs, cleared the instant the
+   Clients table is built, and never set at all under reduced motion. */
+let FLASH_CID=null;
 /* 21 Sep 2026, coordinator feedback round 3: a receipt belongs to the screen
    that produced it. Every receipt now carries the scope it was created in,
    and receiptBar only draws it for a matching scope, so switching tab or
@@ -7584,6 +7666,24 @@ function wire(){
    ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
  q("[data-golimits]").forEach(b=>b.onclick=()=>{ORIGIN=null;ctx="agency";view={name:"record",id:b.dataset.golimits};tab="limits";render()});
  q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+ /* the setup strip embedded in Home's one-client row carries rcSetup's own
+    "Set up" buttons, generic data-tab links that only make sense once a
+    record's own tab bar exists. data-hometab pairs one with the client id so
+    it opens that record on the right tab instead of flipping a tab variable
+    nobody on this screen is looking at; bound after the generic handler so
+    it wins, the same later-forEach-overwrites pattern used everywhere else
+    in this file. */
+ q("[data-tab][data-hometab]").forEach(b=>b.onclick=()=>{ORIGIN=null;ctx="agency";view={name:"record",id:b.dataset.hometab};tab=b.dataset.tab;render()});
+ /* 21 Sep, delight pass round 4: a plan-pacing segment and its client's row
+    in the Clients table are the same client seen twice, so hovering either
+    highlights both. Plain onmouseenter/onmouseleave, not a re-render: a
+    render here would cost more than it is worth and could steal focus. */
+ {const rows={}; q("tr.crow[data-crow]").forEach(r=>{rows[r.dataset.crow]=r});
+  q(".pace-ws button.wsseg").forEach(seg=>{const id=seg.dataset.wsseg, row=rows[id];
+   const on=()=>{seg.classList.add("ws-hl"); if(row) row.classList.add("crow-hl")};
+   const off=()=>{seg.classList.remove("ws-hl"); if(row) row.classList.remove("crow-hl")};
+   seg.onmouseenter=on; seg.onmouseleave=off; seg.onfocus=on; seg.onblur=off;
+   if(row){row.onmouseenter=on; row.onmouseleave=off}})}
  q("[data-rclivex]").forEach(b=>b.onclick=()=>{RC_LIVE_SEEN[b.dataset.rclivex]=true;render()});
  q("input[data-lim]").forEach(i=>i.oninput=()=>{const p=el("rcLimSay");if(p&&byId[view.id])p.innerHTML=rcLimSentence(byId[view.id])});
  q("[data-rcedit]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;const [kind,key,cid]=b.dataset.rcedit.split("|");
@@ -7633,6 +7733,7 @@ function wire(){
  q("[data-collision]").forEach(b=>b.onclick=()=>{modal={kind:"collision"};renderModal()});
  q("[data-raise]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.raise.split("|");
    const m=compute(k), step=Math.max(500,Math.round(m.free*0.4/500)*500);
+   FLASH_CID=(!REDUCED()&&view.name==="dash")?id:null;
    decide(b,()=>{RES[k].rows[id].cap+=step;
     receipt("queue",`Raised. ${byId[id].name} can use ${f(RES[k].rows[id].cap)} ${RES[k].unit}, ${f(compute(k).free)} left in the pool.`,
       ()=>{RES[k].rows[id].cap-=step}, `raised ${byId[id].name}'s ${RES[k].label.toLowerCase()} limit by ${f(step)}`,
@@ -7839,11 +7940,13 @@ function wire(){
    RC_REFUSED=null; Object.keys(DRAFT).forEach(x=>{if(inScope(x,k,id))delete DRAFT[x]});render()});
  const bs=el("bifSw");if(bs)bs.onclick=()=>{setBif(view.id,bs.getAttribute("aria-checked")!=="true");render()};
  q("[data-ok]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.ok); if(!r) return;
+  FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
      ()=>{R.rows[r.client].cap-=r.amount; REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
+  FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
      ()=>{REQUESTS.push(r)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
@@ -8531,7 +8634,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="e93821f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="0722daf";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
