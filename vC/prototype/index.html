@@ -647,6 +647,13 @@ table.organism th.ar .sortable{flex-direction:row-reverse}
 .crow .dq-card{left:auto;right:0}
 .dq-card-r{display:block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.18);color:#9CA3AF}
 .dq-card-r .dq-l{display:flex}
+/* 21 Sep 2026, delight pass round 1: the consequence tooltip. Same dark card as
+   the usage tooltip above, but focusable, because the control it sits on is a
+   button someone tabs to, not just hovers over. */
+.dq-fore{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:30;width:max-content;max-width:260px;
+ background:var(--gray-24);color:#fff;font-size:11.5px;line-height:16px;font-weight:400;padding:8px 10px;border-radius:4px;box-shadow:var(--shadow-dropdown);text-align:left;white-space:normal}
+.dq-tip:hover>.dq-fore,.dq-tip:focus-within>.dq-fore{display:block}
+td.colact .dq-fore,.pri-a .dq-fore{left:auto;right:0}
 .u-head{display:block;font-size:13px;font-weight:600;line-height:18px}
 .u-quiet{display:block;font-size:12px;line-height:18px;color:var(--gray-11)}
 .u-sub{display:block;font-size:11px;line-height:16px;color:var(--gray-12);margin-top:1px}
@@ -4502,10 +4509,11 @@ function newMenuHTML(){
 function decisionRow(q){
  const c=q.client?byId[q.client]:null, tone={critical:"#DC2626",decision:"#1D4ED8",warning:"#D97706",info:"#9CA3AF"};
  let act;
- if(q.req) act='<button class="shd-button shd-button--primary shd-button--sm" data-ok="'+q.req+'">Approve</button>'
-             +'<button class="linkbtn quiet" data-decline="'+q.req+'">Deny</button>';
+ if(q.req){const rq=REQUESTS.find(x=>x.id===q.req);
+   act=dqTip('<button class="shd-button shd-button--primary shd-button--sm" data-ok="'+q.req+'">Approve</button>',reqConsequence(rq))
+     +dqTip('<button class="linkbtn quiet" data-decline="'+q.req+'">Deny</button>',denyConsequence(rq))}
  else if(q.raise){const [k,id]=q.raise.split("|"),m=compute(k),step=Math.max(500,Math.round(m.free*0.4/500)*500);
-   act='<button class="shd-button shd-button--primary shd-button--sm" data-raise="'+q.raise+'">Raise to '+abbr(RES[k].rows[id].cap+step)+'</button>'}
+   act=dqTip('<button class="shd-button shd-button--primary shd-button--sm" data-raise="'+q.raise+'">Raise to '+abbr(RES[k].rows[id].cap+step)+'</button>',raiseConsequence(k,id))}
  else if(c&&isPending(c)) act='<button class="linkbtn" data-resend="'+c.id+'">Resend request</button>';
  else if(q.collision) act='<button class="linkbtn" data-collision>Review</button>';
  else if(c){const mb=(((q.what||"")+" "+(q.why||"")).match(/\S+@\S+\.\w+/)||[])[0];
@@ -4544,7 +4552,7 @@ function planCard(norm){
      :'<p class="pace">On pace to finish the cycle inside the plan.</p>')
    +segbars(creds)
    +'<div class="tools" style="margin-top:12px">'
-    +'<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>'
+    +dqTip('<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>',ADD_CAP_TIP)
    +'</div></div></div>';
  }
  const sm=compute("sends"), used=sm.used, pool=sm.R.pool, sd=burnDays("sends");
@@ -4568,7 +4576,7 @@ function planCard(norm){
   +'<div class="c-b">'
   +'<div class="big"><span class="big-v">'+f(used)+'</span>'
   +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone &middot; '
-   +(tight?'<b style="color:var(--orange-12)">exhausted around '+onDay(sd)+', '+early+' days early</b> <button class="linkbtn" data-gobill style="font-size:12px">Add capacity</button>':'on pace to finish inside the plan')+'</span></div>'
+   +(tight?'<b style="color:var(--orange-12)">exhausted around '+onDay(sd)+', '+early+' days early</b> '+dqTip('<button class="linkbtn" data-gobill style="font-size:12px">Add capacity</button>',ADD_CAP_TIP):'on pace to finish inside the plan')+'</span></div>'
   +wsBar
   +planChart(true,88)
   /* the three credit lines moved to Billing; the top row is about this cycle's emails */
@@ -5416,6 +5424,16 @@ function dashItems(){
 }
 
 /* the reason a client is pinned to the top of zone 3, or null */
+/* 21 Sep 2026, delight pass: "At limit" is a moment, not a permanent state, so
+   the chip says when it happened. Seeded from the request that asked about
+   the same resource, when one exists, since that is the same event; a fresh
+   limit with no matching request is dated to today. Session-lived, like
+   DECIDED, so a page reload starts the clock over. */
+const AT_LIMIT_SINCE={};
+function atLimitSince(c,k){
+ if(!AT_LIMIT_SINCE[c.id]){const r=REQUESTS.find(x=>x.client===c.id&&x.res===k);
+   AT_LIMIT_SINCE[c.id]=r?r.when:"today"}
+ return AT_LIMIT_SINCE[c.id]}
 function attention(c){
  /* a disabled client outranks everything else that could be said about it.
     Nothing it does matters until it is re-enabled, and the row has to say so
@@ -5424,7 +5442,7 @@ function attention(c){
    why:"Sending is stopped and nothing goes out. Re-enable to start again. Nothing has been lost."};
  const m=medianCPP(), cp=costPer(c);
  const lim=funded(c)?RK.map(k=>({k,st:rowState(k,c.id,compute(k))})).filter(x=>x.st.room===0):[];
- if(lim.length) return{rank:0,pin:true,chip:"At limit",tone:"c-bad",
+ if(lim.length) return{rank:0,pin:true,chip:"At limit since "+atLimitSince(c,lim[0].k),tone:"c-bad",
    why:RES[lim[0].k].label+" is exhausted. Sending and sourcing stop until you raise it."};
  /* a quarter down and at least a point down. Without the floor a move from
     1.2 to 0.8 flags, and at forty clients a third of the book is "Falling". */
@@ -5740,8 +5758,16 @@ function vSettings(){
    the same data with a better frame.                                           */
 function vQueue(){
  const Q=queueItems();
+ /* 21 Sep 2026, delight pass: a member with two clients does not see "the
+    queue", they see their two clients' work. The owner sees every client, so
+    naming them would be the whole book and say nothing the title doesn't
+    already say. Coordinator feedback: the page keeps its title either way;
+    the scope is a subtitle, the same "cs" line every other page uses under
+    its title, not a swap of the title itself. */
+ const names=listAnd(myClients().map(c=>c.name));
+ const sub=isOwnerP(ME())?"":"Your "+Q.length+" item"+(Q.length===1?"":"s")+" across "+names+(/[.!?]$/.test(names)?"":".");
  return `<div class="toolbar">
-   <div class="cell-main"><span class="semibold-3">Work queue</span></div></div>
+   <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">Work queue</span>${sub?'<span class="cs">'+sub+'</span>':''}</span></div></div>
   <div class="wrap">${aQueue(QSEV[qFilter]?Q.filter(x=>QSEV[qFilter].includes(x.sev)):Q,queuePills(Q))}</div>`;
 }
 
@@ -5754,8 +5780,8 @@ let qFrom=null;
    receipt clears after 8 s or when the next decision replaces it. DECIDED
    feeds the "Last decision" line when the rail is empty. */
 let RECEIPT=null, receiptTimer=null; const DECIDED=[];
-function receipt(text,undo,what,short){
- clearTimeout(receiptTimer); const entry={what,at:Date.now()}; DECIDED.unshift(entry);
+function receipt(text,undo,what,short,freed){
+ clearTimeout(receiptTimer); const entry={what,at:Date.now(),freed}; DECIDED.unshift(entry);
  RECEIPT={text,short:short||text,undo,entry}; receiptTimer=setTimeout(()=>{RECEIPT=null;render()},8000)}
 function clearReceipt(){RECEIPT=null;clearTimeout(receiptTimer)}
 const receiptBar=cls=>RECEIPT?`<div class="dq-receipt${cls?" "+cls:""}" role="status"><span class="dq-tick">${tickI}</span><span style="min-width:0">${cls?RECEIPT.short:RECEIPT.text}</span>`
@@ -5767,7 +5793,23 @@ function decide(btn,commit){const row=btn.closest("tr,.pri2");
 const agoText=t=>{const m=Math.round((Date.now()-t)/60000); return m<1?"just now":m<60?m+" min ago":Math.round(m/60)+" h ago"};
 function decisionsEmpty(){const d=DECIDED[0];
  return '<div class="c-b dq-empty"><span class="dq-check">'+tickI+'</span><p class="dq-empty-t">Nothing needs you right now</p>'
-  +'<p class="sub" style="margin:0">'+(d?'Last decision '+agoText(d.at)+': '+d.what:'Decisions will appear here as clients ask for things.')+'</p></div>'}
+  +'<p class="sub" style="margin:0">'+(d?'Last decision '+agoText(d.at)+': '+d.what+(d.freed?'; '+d.freed:''):'Decisions will appear here as clients ask for things.')+'</p></div>'}
+/* 21 Sep 2026, delight pass round 1: the queue's own empty state, in the
+   check-illustration style decisionsEmpty() already uses on Home, but with
+   the queue's own last-item line and the queue's own first-time copy. */
+function queueEmpty(){const d=DECIDED[0];
+ return '<div class="dq-empty"><span class="dq-check">'+tickI+'</span><p class="dq-empty-t">Nothing needs you right now</p>'
+  +'<p class="sub" style="margin:0">'+(d?'Last item: '+d.what+' '+agoText(d.at):'Items appear here as clients ask for things and as sending needs attention.')+'</p></div>'}
+/* the consequence a control carries, in the row's own numbers, shown before
+   the click rather than after. Same derivation compute() and REQUESTS feed
+   into the row's own copy, so the tooltip can never disagree with the row. */
+const dqTip=(html,tip)=>'<span class="dq-tip">'+html+'<span class="dq-fore" role="tooltip">'+tip+'</span></span>';
+function reqConsequence(r){const m=compute(r.res);
+ return 'Leaves '+f(Math.max(0,m.free-r.amount))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+r.amount)/m.R.pool*100)+'%'}
+function denyConsequence(r){return byId[r.client].name+' stays at its limit; they are told, not why'}
+function raiseConsequence(k,id){const m=compute(k),step=Math.max(500,Math.round(m.free*0.4/500)*500);
+ return 'Leaves '+f(Math.max(0,m.free-step))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+step)/m.R.pool*100)+'%'}
+const ADD_CAP_TIP='Opens Billing; nothing changes until you buy';
 /* 17 Sep 2026, round 4 (44-ui-audit.md P4): the queue's four counters were a
    strip of numbers nothing responded to. They are the filter now, All by default,
    in the counted-pill pattern Home already uses. */
@@ -5837,9 +5879,9 @@ function queueItems(){
     if(st.room===0&&!REQUESTS.some(r=>r.client===c.id&&r.res===k))
       add({score:90,sev:"critical",kind:"At limit",client:c.id,
         why:`${RES[k].label} stopped. ${byId[c.id].name} cannot continue until you raise it`,age:"today",act:"Raise limit",raise:k+"|"+c.id})})});
- REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).forEach(r=>
-   add({score:r.positive?70:45,sev:r.positive?"reply":"info",kind:r.positive?"Positive reply":"Reply",client:r.client,
-     why:`${r.from} · ${r.snippet}`,age:r.age,act:"Reply",reply:r.id}));
+ REPLIES.filter(r=>myClientsFor("inbox").some(c=>c.id===r.client)).forEach(r=>
+   add({score:r.replied?-10:(r.positive?70:45),sev:r.positive?"reply":"info",kind:r.positive?"Positive reply":"Reply",client:r.client,
+     why:`${r.from} · ${r.snippet}`,age:r.age,act:"Reply",reply:r.id,replied:!!r.replied}));
  /* name the steps that are actually outstanding. Saying "email accounts" when
     the missing step is limits sends the operator to the wrong tab.         */
  /* 16 §2.1 step 5: deferring the prospect review must leave something behind,
@@ -5874,23 +5916,29 @@ function aQueue(Q,filters){
   return `<tr>
    <td class="ar" style="width:34px"><span class="sub tnum">${i+1}</span></td>
    <td><span class="chip ${pill[q.sev]}">${label[q.sev]}</span></td>
-   <td><span style="font-weight:600;color:var(--gray-800)">${q.kind}</span>
+   <td><span style="font-weight:600;color:var(--gray-800)">${q.kind}</span>${q.replied?' <span class="chip c-ok">Replied just now</span>':''}
      <span class="cs" style="display:block;white-space:normal">${q.why}</span></td>
    <td>${c?`<div class="cell-main">${av(c,24)}<span class="trunc">${c.name}</span></div>`:q.plan||q.pay?'<span class="sub">Every client</span>':'<span class="sub">2 clients</span>'}</td>
    <td><span class="sub">${AGE(q.age)}</span></td>
    <td class="ar colact">${
-     q.req?(canI("limits")?`<button class="linkbtn" data-ok="${q.req}">Approve</button>`:`<span class="sub">Waiting on the agency</span>`)
-     :q.raise?(canI("limits")?`<button class="linkbtn" data-raise="${q.raise}">Raise limit</button>`:`<span class="sub">Waiting on the agency</span>`)
+     q.req?(canI("limits")?dqTip(`<button class="linkbtn" data-ok="${q.req}">Approve</button>`,reqConsequence(REQUESTS.find(x=>x.id===q.req))):`<span class="sub">Waiting on the agency</span>`)
+     :q.raise?(canI("limits")?dqTip(`<button class="linkbtn" data-raise="${q.raise}">Raise limit</button>`,raiseConsequence(...q.raise.split("|"))):`<span class="sub">Waiting on the agency</span>`)
      :q.migreview?`<button class="linkbtn" data-migreview>Review</button>`
      :q.collision?`<button class="linkbtn" data-collision>Review</button>`
      :q.reply?`<button class="linkbtn" data-openreply="${q.reply}">Reply</button>`
-     :q.plan||q.pay?`<button class="linkbtn" data-gobill>${q.act}</button>`
+     :q.plan?dqTip(`<button class="linkbtn" data-gobill>${q.act}</button>`,ADD_CAP_TIP)
+     :q.pay?`<button class="linkbtn" data-gobill>${q.act}</button>`
      :c?`<button class="linkbtn" data-goto="${c.id}|${destFor(q)}${q.mb?"|"+q.mb:""}">${q.act}</button>`
      :`<button class="linkbtn">${q.act}</button>`}</td></tr>`}).join("");
+ /* 21 Sep 2026, delight pass round 1, coordinator feedback: an empty queue is
+    not a table with nothing in it, so it drops the Type/What/Client/Age
+    header along with the rows, the way the rail's empty card carries no
+    table at all. */
+ if(!rows&&qFilter==="all") return `<div class="panel">${filters||""}${receiptBar()}${queueEmpty()}</div>`;
  return `<div class="panel">${filters||""}${receiptBar()}
    <div class="tscroll"><table class="organism" style="min-width:1040px">
     <thead><tr><th></th><th>Type</th><th>What needs doing, and why it matters</th><th>Client</th><th>Age</th><th class="colact"></th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="6"><span class="sub">'+(qFilter==="all"?"Queue is clear.":"Nothing in this group.")+'</span></td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'}</tbody>
    </table></div></div>`;
 }
 /* ═══ J1 Accept invite ═══════════════════════════════════════════════════════
@@ -7564,10 +7612,10 @@ function wire(){
    RC_REFUSED=null; Object.keys(DRAFT).forEach(x=>{if(inScope(x,k,id))delete DRAFT[x]});render()});
  const bs=el("bifSw");if(bs)bs.onclick=()=>{setBif(view.id,bs.getAttribute("aria-checked")!=="true");render()};
  q("[data-ok]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.ok); if(!r) return;
-  decide(b,()=>{const c=byId[r.client],R=RES[r.res]; R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
-   receipt(`Approved. ${c.name} can carry on, ${f(Math.max(0,compute(r.res).free-r.amount))} ${R.unit} left in the pool.`,
+  decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+   receipt(`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
      ()=>{R.rows[r.client].cap-=r.amount; REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
-     `Approved &middot; ${c.name} &middot; ${f(Math.max(0,compute(r.res).free-r.amount))} ${R.unit} left`)})});
+     `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    receipt(`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
@@ -8256,7 +8304,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="d5a63cb";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="21bb4f6";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
