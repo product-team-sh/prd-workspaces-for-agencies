@@ -4,29 +4,49 @@ Written 21 Sep 2026 after stakeholder feedback that the full scope is too large 
 
 ## Decision first
 
-**Phase 1 ships the container and the cap. It does not ship the connection, the graded permissions, the reservation or the report.** Concretely: a client is a workspace the agency creates; one pool with a cap per workspace; three roles instead of an access editor; membership decides who sees which workspace; the master's Home, Work queue, Clients and Billing allocation; and, subject to Rajat's estimate, the two roll-ups. Linking an existing account, per-screen access, independent budgets and the monthly client update move to phase 2 with user feedback to shape them.
+**Phase 1 ships the container, the cap and the reservation. It does not ship the connection, the graded permissions or the report.** Concretely: a client is a workspace the agency creates; one pool with a cap and an optional reservation per workspace; six roles instead of an access editor; membership decides who sees which workspace; the master's Home, Work queue, Clients and Billing allocation; and, subject to Rajat's estimate, the two roll-ups. Linking an existing account, per-screen access, independent budgets and the monthly client update move to phase 2 with user feedback to shape them.
 
-**What this protects.** The reason the feature exists survives intact: isolation (US4, US5 in its simple form), the cap that stops one client emptying the pool (US6), and staff restriction by membership (US2, US9). What moves out is the part every stakeholder found hard to size: the connect path with its approval flow on the client's side, the fourteen-screen grant editor, and the reservation arithmetic.
+**What this protects.** The reason the feature exists survives intact: isolation (US4, US5 in its simple form), the cap that stops one client emptying the pool (US6), and staff restriction by membership (US2, US9). What moves out is the part every stakeholder found hard to size: the connect path with its approval flow on the client's side, and the fourteen-screen grant editor.
 
 ## The five points, resolved
 
 | # | Hitesh's point | Phase 1 | Phase 2 | What it removes from the build |
 |---|---|---|---|---|
 | 1 | Create only, no connect | Add Client creates a workspace. The wizard's "Connect an existing one" card, the link request, the client-side approval (C0), the linked state on the record, "View as client" consent switch, Revoke | Connect, with the approval flow shaped by feedback | D11 entirely; the `link` state machine; the solo account screens; the "Own plan" and "Linked" states on every list |
-| 2 | Simplify roles | **Three roles.** Agency Owner (everything, billing, add and delete clients), Agency Member (works in the workspaces they are added to, no billing, no delete), Client (sees and works in their own workspace). Membership per workspace stays: it is one list per person and it is what delivers US2 and US9. See the role table below | Graded access: the fourteen-screen, four-action editor with presets, per-workspace staff presets, per-person client access, as a separate feature | D4's five roles become three; D5, D5a to D5e collapse to "a client user sees their workspace"; the Access tab, the wizard's Access step, the person page's access table, the Add member Access section, the invite preview |
-| 3 | Full usage limits, independent budget later | One pool, a cap per workspace on every consumable, the client's Usage screen, the at-limit message naming the agency, Request more into the Work queue, Approve with the number | "Manage budget independently": reservations, the Reserved column, the starved-pool state, the refused-save arithmetic | D7's reservation half; the Reserved column and switch on the wizard, the record's Limits and Billing allocation; Bifurcated |
+| 2 | Simplify roles | **Six roles, three each side.** Agency: Owner, Admin, Member. Client: Admin, Collaborator, Viewer. A role is one word on a person; there is no per-screen editor. Membership per workspace stays: it is one list per person and it is what delivers US2 and US9. Evidence and definitions below | Graded access: the fourteen-screen, four-action editor with presets, per-workspace staff presets, per-person client access, as a separate feature | D4's five roles become three; D5, D5a to D5e collapse to "a client user sees their workspace"; the Access tab, the wizard's Access step, the person page's access table, the Add member Access section, the invite preview |
+| 3 | Full usage limits | **Everything in the master.** One pool, a cap and an optional reservation per workspace on every consumable, "Manage budget independently" (reservation equal to cap), the refused save that names the fix, the client's Usage screen, the at-limit message naming the agency, Request more into the Work queue, Approve with the number | Nothing | Nothing; D7 ships whole |
 | 4 | Roll-ups in the master | **Preference: phase 1**, pending Rajat. The cross-client Unified Inbox and Tasks filtered by membership with the client on every row. The question for Rajat is below | If the estimate is large: phase 2, and the master's Home links into each client's own inbox instead | D3 stays; only the two screens are in question |
 | 5 | Client update | Out | The monthly summary, its editor, send and the client's copy | The record's Client update tab, the client's "Your update" item and unread dot, the reply address |
 
-## The three roles
+## Six roles, from the evidence
 
-| Role | Who | Can | Cannot |
-|---|---|---|---|
-| **Agency Owner** | The account holder, and anyone they promote | Everything: billing, plan and caps, add and delete clients, add people, enter every workspace without being a member, Home, Work queue | Nothing |
-| **Agency Member** | Staff | Work inside the workspaces they are members of; the roll-ups over those workspaces; approve a client's request for more if the owner allows it (one switch per account) | Billing, adding or deleting clients, adding people, entering a workspace they are not in |
-| **Client** | People at the client | Everything inside their own workspace: sequences, replies, prospects, mailboxes, reports, Usage, request more | See the agency, another client, the plan, costs or limits they were not given |
+**Where the competitors landed.** Instantly ships five roles, Owner, Admin, Editor, View/VA and a dedicated Client role "specifically for Agency whitelabel clients", and inside a workspace an Editor or Viewer sees every campaign, list and metric; there is no per-screen granularity ([`15 §4`](15-instantly-teardown.md), [`03`](03-competitor-benchmark.md)). HeyReach invites clients "with view-only access" and nothing finer. Smartlead's client "only sees the email accounts and campaigns associated to them", again one shape. Nobody verifiable ships a per-screen grant editor for clients; everybody ships named roles. Our master went further than the field with fourteen screens by four actions; phase 1 comes back to where the field is.
 
-Two things this table gives up, on purpose: a "Reports only" client, which two paying accounts have hardcoded today and which phase 2's graded access brings back; and an Admin who runs the business but not billing, which phase 1 folds into Owner. If either is a hard requirement for launch, the fourth role is Client (read only), not Admin, because the two hardcoded accounts are real and the Admin case is not.
+**What the users asked for.** The interviewed agency wanted to restrict which staff see which client, and wanted the daily view to differ by role: operators in one queue, owners on a dashboard ([`19`](19-agency-interview.md)). Two paying accounts are hardcoded today to a single client screen, Reports only and Lead Finder only ([`22 §7.1`](22-prototype-refinement.md)). The Basecamp record shows agencies asking to cap a client's spend, and to stop clients seeing each other, never asking for graded actions per client ([`29`](29-basecamp-history.md)). So the roles must give: staff restriction by membership, a results-only client, a client who can act, and a line between acting and spending the agency's money.
+
+### Agency roles
+
+| Role | Instantly's equivalent | Can | Cannot | Story |
+|---|---|---|---|---|
+| **Owner** | Owner | Everything: billing and plan, caps and reservations, add and delete clients, add people and set roles, enter every workspace without being a member, Home, Work queue | Nothing | US1, US6, US7 |
+| **Admin** | Admin, minus billing | Add clients, set caps and reservations, approve requests, add people up to Admin, enter every workspace, Home, Work queue | Billing and plan changes, delete a client, promote to Owner | US1, US6 |
+| **Member** | Editor and View/VA merged | Work inside the workspaces they are a member of: sequences, replies, prospects, mailboxes, tasks; the roll-ups over those workspaces; request a raise for a client but not approve it | Anything account-level; any workspace they are not in | US2, US3, US9 |
+
+Admin exists because the interview's owner does not run the day; someone else adds clients and sets caps while billing stays with the owner. Instantly welds billing into Admin; we keep it with Owner because in an agency the person who pays and the person who runs clients are usually different people ([`15 §4`](15-instantly-teardown.md)).
+
+### Client roles
+
+| Role | Sees | Can do | Cannot | Maps from today |
+|---|---|---|---|---|
+| **Client Admin** | Every screen in their workspace | Reply, pause and edit sequences, export prospects, reveal leads against their cap, manage their own mailboxes, request more | See the agency, other clients, the plan or costs; add users (phase 2) | New; the role a client running its own outreach on the agency's plan needs |
+| **Client Collaborator** | Every screen in their workspace | Reply to prospects, pause and edit sequences, request more | Export prospects, reveal leads, touch mailboxes: the actions that spend the agency's money or take data off the platform | Full access |
+| **Client Viewer** | Reports and Usage | Read results, request more | Everything else | Limited access and No access; the two hardcoded Reports-only and Lead Finder-only accounts land here (Lead Finder only becomes Viewer plus a note, until phase 2 brings back graded screens) |
+
+The line between Collaborator and Admin is the line between working and spending: export and reveal are the two actions that cost the agency money or move its data, which is exactly the split the master's four actions drew. Viewer is one shape, Reports and Usage, because that is the results-only client every competitor ships and the one the hardcoded accounts prove exists.
+
+**Migration of today's levels.** Full access becomes Collaborator. Limited access becomes Viewer, which loses them the sequence and prospect screens they can read today; the alternative, Collaborator, would grant them actions they never had. Losing screens is the safer default and is stated on launch day (M1). If Hitesh prefers no loss, Limited becomes Collaborator and the M1 line says so instead.
+
+**What phase 2 adds, without breaking this.** The graded editor returns as a way to customise a role for one workspace ("Collaborator, but without pause"), so the six roles stay the vocabulary and the editor becomes the exception, the way Instantly's modular matrix sits under its Client role.
 
 ## The question for Rajat
 
@@ -43,12 +63,12 @@ If the two together are under a sprint, phase 1. If not, phase 1 ships Home's pe
 
 | Screen | Change for phase 1 |
 |---|---|
-| Add Client wizard | Two steps, Details and Limits. No path chooser, no Access step. Limits shows Limit only, no Reserve switch |
+| Add Client wizard | Two steps, Details and Limits. No path chooser. The client user's role is one field on Details (Viewer, Collaborator, Admin; default Collaborator). Limits keeps Limit, Reserve and the live sentence |
 | Clients list | No Linked, Link pending or Own plan states; Status is Running, Falling, At limit, Not started |
-| Client record | Tabs: Overview, Members, Limits, Email Accounts, Settings. Members is a list of agency staff in the workspace plus the client's users, add and remove only. No Access tab, no Client update tab, no funding chip |
-| Billing | Client limits & usage without the Reserved column and the reservation warnings; Email Accounts unchanged |
-| People | Three roles; the person page lists workspaces with add and remove, no access column; Add member has Person and Workspaces, no Access section |
-| Client side | Full product rail inside their workspace, Usage, Request more. No orientation banner about grants, no restricted-client line, no Your update, no Settings > Workspace link panel |
+| Client record | Tabs: Overview, Members, Limits, Email Accounts, Settings. Members lists agency staff in the workspace and the client's users, each with a role chip and a role picker; add and remove. No per-screen editor, no Client update tab, no funding chip. Limits unchanged from the master |
+| Billing | Unchanged from the master |
+| People | Three agency roles with the role cards; the person page lists workspaces with add and remove, no access column; Add member has Person (with role) and Workspaces, no Access section; a client user is added from the record's Members tab with one of the three client roles |
+| Client side | The rail their role gives: Viewer sees Reports and Usage; Collaborator and Admin see the full product rail. Usage and Request more for all three. The orientation banner reads from the role. No Your update, no Settings > Workspace link panel |
 | Home | Unchanged, except decision rows for link requests go |
 | Work queue | Unchanged, except link items go |
 | Launch day (M1, M2) | Unchanged |
@@ -56,13 +76,12 @@ If the two together are under a sprint, phase 1. If not, phase 1 ships Home's pe
 
 ## Counter-case
 
-- **"Three roles cannot express Reports-only, and two customers have it today."** True. Either those two keep their hardcoded state until phase 2, or the fourth role is Client (read only). Decide before dev starts, not after.
+- **"Six roles is still a permission system."** It is six words on a person and one membership list, which every competitor ships and every agency understands; the thing removed is the fourteen-by-four editor. Lead Finder-only, one paying account, is the one shape six roles cannot express until phase 2.
 - **"Dropping connect removes the only path for a client that already pays Saleshandy."** Also true. In phase 1 such a client is created as a new workspace and migrates, or waits. The interview agency did not have this case; the two that asked for isolation did not either.
-- **"Caps without reservations still let the pool starve."** Yes, and the at-limit message still names the agency, so the failure is visible and attributable. Reservations fix the economics, not the clarity.
 - **"Phase 2 never comes."** The master is frozen and linkable so phase 2 has a spec on day one rather than a memory.
 
 ## Next steps, in order
 
-1. Hitesh confirms the three roles (or four) and the phase-1 column above.
+1. Hitesh confirms the six roles, the Limited-to-Viewer migration default, and the phase-1 column above.
 2. Rajat's estimate on the two roll-ups.
-3. I cut the working PRD to phase 1 (decisions D4, D5 to D5e, D7, D11 amended with dated notes pointing at the master; user stories tagged by phase) and the working prototype to the screens above, each cut reviewed before publish, the master untouched.
+3. I cut the working PRD to phase 1 (decisions D4, D5 to D5e and D11 amended with dated notes pointing at the master; user stories tagged by phase) and the working prototype to the screens above, each cut reviewed before publish, the master untouched.
