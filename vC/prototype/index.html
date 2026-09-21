@@ -315,13 +315,13 @@ svg{display:block}
 .me{display:flex;align-items:center;gap:8px;border:0;background:none;border-radius:999px;padding:4px 8px 4px 4px;cursor:pointer}
 .me:hover{background:var(--gray-16)}
 .me .avatar{width:30px;height:30px;border-radius:50%;font-size:11px}
-.pop{position:fixed;width:320px;background:var(--gray-1);border-radius:var(--radius-surface);
+.pop{position:fixed;width:360px;background:var(--gray-1);border-radius:var(--radius-surface);
  box-shadow:var(--shadow-dropdown);z-index:1001;overflow:hidden;border:1px solid var(--gray-13)}
 .pop-s{padding:10px 10px 6px}
 .pop-s input{width:100%;height:32px;border:1px solid var(--gray-13);border-radius:var(--radius-input);background:var(--gray-1);padding:0 12px;font:inherit;font-size:13px;outline:none}
 .pop-l{max-height:min(64vh,520px);overflow:auto;padding:4px 6px 6px}
 .pop-tag--warn{color:var(--orange-12)}.pop-tag--bad{color:var(--red-12)}
-.pop-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);padding:10px 10px 4px}
+.pop-h{font-size:12px;font-weight:600;color:var(--gray-11);padding:10px 10px 4px;white-space:nowrap}
 .acc-row{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;padding:8px 0}
 .acc-row b{font-size:13px;font-weight:600;color:var(--gray-17);display:block;line-height:1.4}
 .acc-row i{font-style:normal;font-size:12px;color:var(--gray-15);display:block;line-height:1.45}
@@ -1415,10 +1415,11 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
 .xs-cap .xs-t{animation:xsCap .42s cubic-bezier(.4,0,.2,1) both}
 @keyframes xsCap{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 /* progress: which idea we are on, and that work is still happening */
-.xs-foot{display:flex;align-items:center;gap:14px;min-height:34px}
+.xs-foot{display:flex;flex-direction:column;align-items:center;gap:24px;min-height:34px}
 .xs-pips{display:flex;gap:6px}
 .xs-pip{width:22px;height:3px;border-radius:2px;background:var(--gray-13);transition:background .3s ease}
 .xs-pip.on{background:var(--blue-11)}
+.xs-steps{padding:0}
 .xs-wait{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-11)}
 .xs-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--gray-13);border-top-color:var(--blue-11);
   animation:xsSpin .7s linear infinite}
@@ -1573,6 +1574,10 @@ const XS_CAPS=[
  ["And you get a level above them",
   "Home, the Work queue and Client Management are new. They are how you run the account itself, across every workspace."]
 ];
+const XS_TICK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+/* short enough to sit one to a line at 760px; the full sentence stays put in
+   the caption above, which is the only place that ever needed to say it in full. */
+const XS_STEP_LBL=["One place","Now a workspace","Nothing crosses","A level above"];
 function startXform(){
  if(xformDone) return false;
  xformDone=true;
@@ -1633,8 +1638,9 @@ function renderXform(){
     +theirs+'</div>'
   +'<div class="xs-cap"><div class="xs-t">'
     +'<h3>'+cap[0]+'</h3><p>'+cap[1]+'</p></div></div>'
-  +'<div class="xs-foot"><span class="xs-pips">'
-    +XS_CAPS.map((x,i)=>'<span class="xs-pip'+(i<=b?" on":"")+'"></span>').join("")+'</span>'
+  +'<div class="xs-foot"><ol class="dr-steps xs-steps" aria-label="Steps">'
+    +XS_CAPS.map((x,i)=>(i?'<li class="st-line" data-done="'+(b>i?1:0)+'" aria-hidden="true"></li>':"")
+      +'<li data-on="'+(b===i?1:0)+'" data-done="'+(b>i?1:0)+'"'+(b===i?' aria-current="step"':"")+'><span class="st-n">'+(b>i?XS_TICK:i+1)+'</span>'+XS_STEP_LBL[i]+'</li>').join("")+'</ol>'
    +(b<XS_CAPS.length-1
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-xsskip>Skip</button>'
      :xform.ready
@@ -2501,7 +2507,7 @@ function renderShell(){
  el("wsNm").textContent=inC?c.name:AGENCY.name;
  el("popAddWrap").hidden=!canI("billing");
  /* nothing to search through when there is one workspace and no clients */
- el("popSWrap").hidden=isNormal();
+ el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
  /* the global search offers to find clients, which a normal user has none of */
  {const dq=el("dq"); if(dq) dq.placeholder=isNormal()
    ?"Search prospects, sequences, email accounts"
@@ -6512,14 +6518,28 @@ function rSettings(c){
    permanent banner listing what they could not do, which is the wrong first
    sentence for someone who has just been given a workspace. What they cannot
    do is said on the control itself, where they would look for it. */
-const ORIENT_SEEN={};
+const ORIENT_SEEN={}, ORIENT_FIRST={};
 function accessNote(c){
  if(isLinked(c)||ORIENT_SEEN[c.id]) return "";
+ /* shown once, on whichever screen the client happens to land on first this
+    session. Any later screen, even without a click, ends it the same way
+    dismissing it would: a fact worth stating once is not worth restating
+    every time the tab changes. */
+ if(ORIENT_FIRST[c.id]===undefined) ORIENT_FIRST[c.id]=cView;
+ else if(ORIENT_FIRST[c.id]!==cView){ORIENT_SEEN[c.id]=true; return ""}
  const have=CLIENT_MODULES.filter(m=>seesC(c,m[0])).map(m=>{const l=CLIENT_LBL[m[0]]||m[1];return l==="Lead Finder"?l:l.toLowerCase()});
  if(!have.length) return "";
- const list=have.length===1?have[0]:have.slice(0,-1).join(", ")+" and "+have[have.length-1];
+ /* one joiner, used for both lists, so a third list never invents a third
+    style. A verb's own label can carry its own "and" (pausing and editing are
+    both on offer); once that label sits inside a list that also ends in
+    "and", the label switches its own "and" to "or" so the sentence does not run two
+    "and"s into each other. */
+ const joinList=a=>a.length===1?a[0]:a.slice(0,-1).join(", ")+" and "+a[a.length-1];
+ const screens=joinList(have);
+ const verbs=CLIENT_VERBS.filter(v=>canC(c,v[0])).map(v=>v[1].toLowerCase().replace(" and "," or "));
+ const acts=verbs.length?` You can also ${joinList(verbs)}.`:"";
  return `<div class="msg m-info orient" style="margin-bottom:16px">${infoI}<span style="flex:1 1 auto">
-   ${AGENCY.name} runs your outreach here. You can see your ${list}.</span>
+   ${AGENCY.name} runs your outreach here. You can see your ${screens}.${acts}</span>
    <button class="linkbtn" data-orientok="${c.id}" style="flex:none">Got it</button></div>`;
 }
 function cInbox(c){
@@ -7745,7 +7765,7 @@ function resetToNormal(){
    redirects / to /sequence). The seeded seven-client agency is still one hash
    away for anyone who wants to review that side; it is what v1 and v2 already
    publish. Boot order matters: this runs before the first render().         */
-if(!/^#agency\b/.test(location.hash)){resetToNormal();
+if(!location.hash||/^#(setup|confirm|transform|home|new-agency)$/.test(location.hash)){resetToNormal();
   ctx="own";inMod="sequences";view={name:"clients"}}
 /* Home runs in the master context, which for a normal user is the same place
    as the house workspace and is presented as such. #home is the direct way in
@@ -8236,7 +8256,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="b4e2983";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="d5a63cb";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
