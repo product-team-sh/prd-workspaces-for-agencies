@@ -1752,6 +1752,10 @@ const CLIENTS=[
   users:[],mailboxes:[]},
 ];
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
+/* 21 Sep 2026, delight pass round 3: the Client update preview says when it
+   last went out. Seeded to the 1st of the cycle's previous month wherever a
+   fixture does not already carry a date. */
+CLIENTS.forEach(c=>{if(!c.lastUpdateSent)c.lastUpdateSent="1 Aug"});
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
    A prototype stops being believed at the first count that disagrees with the
@@ -2796,10 +2800,11 @@ const rcHdrChip=c=>{if(isLinked(c)||isPending(c)) return "";
  if(!at.length&&!rq.length) return "";
  const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
  return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
-let RC_EDIT=null, RC_REFUSED=null;
+let RC_EDIT=null, RC_REFUSED=null, RC_LASTCHK=null;
 function vRecord(id){
  const c=byId[id];
  if(RC_EDIT&&RC_EDIT.cid!==id) RC_EDIT=null;
+ if(RC_LASTCHK&&RC_LASTCHK.cid!==id) RC_LASTCHK=null;
  const T=isLinked(c)
   ?(isPending(c)?[["limits","Link status"]]
     :[["overview","Overview"],["access","Access"],["limits","Funding"],["mailboxes","Email Accounts"],["update","Client update"]])
@@ -2900,7 +2905,12 @@ const ROLEMAP={"Admin":"Admin","Member":"Member","Owner":"Owner","Manager":"Admi
  "Full Access":"Client, full","Limited Access":"Client, reader","No Access":"Client, reader"};
 const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"just now",
  "ops@northwind.co":"yesterday","growth@vertexhealth.io":"6 days ago",
- "marcus@alloyco.com":"3 days ago","ceo@brightline.app":"never"};
+ /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
+    is the case the last-screen confirmation below exists for. */
+ "marcus@alloyco.com":"just now","ceo@brightline.app":"never"};
+/* "just now" or "today" only, per the rule this round works to: an hour-old
+   session does not count as someone still at the keyboard. */
+const signedIn=k=>{const s=AGE(LASTSEEN[k]||"unknown");return s==="just now"||s==="today"};
 let mb={email:"",kind:"client",role:"Client",personKey:"",preset:"Everything"};
 
 /* ══ what a client workspace can reach ═══════════════════════════════════════
@@ -3342,12 +3352,20 @@ function rcInline(c,kind,key,name){
   const scr=a.mods.indexOf(v[3])>-1, on=scr&&a.verbs.indexOf(v[0])>-1, lbl=(mods.find(m=>m[0]===v[3])||[0,v[3]])[1];
   return `<label class="accchk${scr?"":" is-off"}"><input type="checkbox" ${on?"checked":""} ${scr?"":"disabled"} data-rcverb="${v[0]}" aria-label="${v[1]}">
    <span style="min-width:0"><b>${v[1]}</b><i>${scr?v[2]:"Needs the "+lbl+" screen switched on first"}</i></span></label>`}).join("")}</div></div>`;
+ /* 21 Sep 2026, coordinator feedback round 3: the last-screen confirmation
+    sits right under the Screens row it is about, above Actions, not stranded
+    at the foot of the editor. */
+ const lastChk=(!staff&&RC_LASTCHK&&RC_LASTCHK.cid===c.id&&RC_LASTCHK.key===key)
+   ?(ml=>`<div><div class="inlineconfirm" role="alert"><span><strong>${name.charAt(0).toUpperCase()+name.slice(1)}</strong> is signed in now and would lose ${ml}.</span>
+    <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-rclastkeep>Keep</button>
+    <button class="shd-button shd-button--secondary shd-button--sm" data-rclastgo>Remove</button></span></div></div>`)((mods.find(m=>m[0]===RC_LASTCHK.mod)||[0,RC_LASTCHK.mod])[1])
+   :"";
  return `<tr class="rc-editrow"><td colspan="7"><div class="rc-edit">
   <div class="rc-edit-h"><span class="sub">What <b style="color:var(--gray-17)">${name}</b> reaches in ${c.name}</span>
    <span class="chip c-${cur==="Custom"?"warn":"info"}">${cur}</span>
    <button class="linkbtn" data-rcdone style="margin-left:auto;font-weight:600">Done</button></div>
   <div class="preset-row nc-presets" role="radiogroup" aria-label="Access preset">${cards}</div>
-  <div class="nc-screens"><div><span class="cs"><span>Screens</span><span>${a.mods.length} of ${mods.length}</span></span><div class="nc-chips">${chips}</div></div>${verbs}</div>
+  <div class="nc-screens"><div><span class="cs"><span>Screens</span><span>${a.mods.length} of ${mods.length}</span></span><div class="nc-chips">${chips}</div></div>${lastChk}${verbs}</div>
   ${staff?`<span class="cs" style="margin-top:8px">The last screen cannot be switched off; remove them from the workspace instead.</span>`:""}
  </div></td></tr>`;
 }
@@ -3448,6 +3466,7 @@ function rAccess(c){
    <div class="panel-h"><span class="panel-t">Access for ${c.name}</span>
     <span class="sub">${M.internal} from ${AGENCY.name} can reach this workspace</span>
     <span class="c-a"><span class="chip c-vio">Their workspace, their rules</span></span></div>
+   ${receiptBar("access:"+c.id)}
    <div class="tscroll"><table class="organism" style="min-width:920px">${head}
     <tbody>${M.staff}</tbody></table></div>
    <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
@@ -3462,6 +3481,7 @@ function rAccess(c){
      <span class="sub">New ${c.name} users start at <strong style="color:var(--gray-17)">${cur}</strong></span>
      <button class="linkbtn" data-clientdefault="${c.id}">Change</button>
      <button class="shd-button shd-button--primary shd-button--sm" data-addmember="${c.id}">Add member</button></span></div>
+   ${receiptBar("access:"+c.id)}
    <div class="tscroll"><table class="organism" style="min-width:920px">${head}
     <tbody>
      ${grp("Agency staff")}${M.staff}
@@ -3852,12 +3872,15 @@ function rLimits(c){
     <th>Usage</th><th class="ar">Available</th></tr></thead>
    <tbody>${rows}</tbody></table></div>
   <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)}</p></div>
-  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${draftBar({id:c.id})}</div>`;
+  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}${draftBar({id:c.id})}</div>`;
 }
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
    actually reads on this screen: they are not auditing addresses, they are
    asking how much of this client's sending estate is currently up.        */
 let mailAll=false, mbHealth="all";
+/* 21 Sep 2026, delight pass round 3: one reconnect timer per address, so a
+   re-render never doubles the wait before the chip goes healthy again. */
+const RECONN_TIMERS={};
 const MB_TONE={Healthy:"ok",Warning:"warn",Warming:"info",Disconnected:"bad"};
 /* "warming" and "warning" differ by one glyph and sat side by side as chips.
    The product calls the feature Email Warm-up, so the state is "Warming up". */
@@ -3878,15 +3901,18 @@ function rMail(c){
  return `
  <div class="panel"><div class="panel-h"><span class="panel-t">Assigned</span>
    <span class="sub">${c.mailboxes.length} email account${c.mailboxes.length===1?"":"s"}</span></div>
+  ${receiptBar("mailboxes:"+c.id)}
   ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",c.mailboxes.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
     .map(([k,l,n])=>`<button data-mbh="${k}" aria-pressed="${mbHealth===k}">${l}<span class="pn">${n}</span></button>`).join("")}</div></div>`:""}
   <div class="tscroll"><table class="organism" style="min-width:560px">
    <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th><th></th></tr></thead>
    <tbody>${c.mailboxes.length?rows.map(m=>`<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
-    <td><span class="chip c-${MB_TONE[m[1]]||"mute"}">${MB_LABEL(m[1])}</span></td>
-    <td class="ar tnum">${m[1]==="Disconnected"?'<span class="sub">–</span>':m[2]}</td>
+    <td><span class="chip c-${MB_TONE[m[1]]||"mute"}">${m[1]==="Reconnecting"?"Reconnecting, usually a minute":MB_LABEL(m[1])}</span></td>
+    <td class="ar tnum">${m[1]==="Disconnected"||m[1]==="Reconnecting"?'<span class="sub">–</span>':m[2]}</td>
     <td class="ar">${m[1]==="Disconnected"
       ?`<button class="shd-button shd-button--primary shd-button--sm" data-reconnect="${m[0]}">Reconnect</button>`
+      :m[1]==="Reconnecting"
+      ?`<span class="sub" aria-disabled="true">Reconnecting</span>`
       :mbSrc(m)==="agency"
       ?`<button class="linkbtn" data-mbmove="${m[0]}">Reassign</button>`
       :`<span class="sub" title="${c.name} paid for this one, so it stays here">Not yours to move</span>`}</td></tr>`).join("")
@@ -4392,7 +4418,7 @@ function vBilling(){
   <div class="wrap"><div class="setwrap">${nav}<div class="billpage">${page}</div></div></div>`;
 }
 
-function blReceipt(k,before,prev){
+function blReceipt(k,before,prev,cid){
  const m=compute(k),R=RES[k],freed=m.free-before;
  /* the client nearest its limit, excluding the agency's own workspace and any
     row that was just changed; pct first, then room, so "at limit" wins */
@@ -4401,10 +4427,12 @@ function blReceipt(k,before,prev){
    .map(c=>({c,s:rowState(k,c.id,m)})).filter(x=>x.s.pct>=R.warn).sort((a,b)=>b.s.pct-a.s.pct)[0];
  const n=prev.length, first=x=>x.split(" ")[0].replace(/[,&]$/,"");
  let text=n===1?"Saved.":"Saved, "+n+" changes.";
- if(freed>0) text+=" "+f(freed)+" "+R.unit+" freed"+(near?"; "+near.c.name+(near.s.room===0?" is at its limit":" is near its limit")+" and could use them.":" for the shared pool.");
- else if(freed<0) text+=" "+f(-freed)+" "+R.unit+" more of the pool is now spoken for.";
+ /* 21 Sep 2026, delight pass round 3: a save scoped to one client's Limits tab
+    (cid set) speaks about that client rather than the shared pool. */
+ if(freed>0) text+=" "+f(freed)+" "+R.unit+" freed"+(near?"; "+near.c.name+(near.s.room===0?" is at its limit":" is near its limit")+" and could use them.":cid?"":" for the shared pool.");
+ else if(freed<0) text+=" "+f(-freed)+" "+R.unit+(cid?" now held for "+byId[cid].name:" more of the pool is now spoken for.");
  clearTimeout(blrTimer);
- BLR={text,k,undo:()=>{prev.forEach(([xk,xid,fld,v])=>{RES[xk].rows[xid][fld]=v})},
+ BLR={text,k,id:cid||"",undo:()=>{prev.forEach(([xk,xid,fld,v])=>{RES[xk].rows[xid][fld]=v})},
    act:freed>0&&near?{label:"Allocate to "+first(near.c.name),cid:near.c.id}:null};
  blrTimer=setTimeout(()=>{BLR=null;render()},8000);
 }
@@ -4445,7 +4473,7 @@ function vCredits(){
  return `
  <div class="tabbar">${RK.map(k=>`<button data-res="${k}" aria-selected="${k===activeRes}">${RES[k].label}</button>`).join("")}</div>
  <div class="wrap">
-  ${BLR&&BLR.k===activeRes?blReceiptBar():""}
+  ${BLR&&!BLR.id&&BLR.k===activeRes?blReceiptBar():""}
   <div class="panel">
    <div class="panel-h"><span class="panel-t">${R.label}</span></div>
    <div class="stats">
@@ -4819,7 +4847,7 @@ function vDash(){
         +'<p class="sub" style="margin:0 0 8px">'+d.w+'</p>'
         +'<button class="linkbtn" data-nav2n="'+d.g+'">'+d.a+'</button></div>').join("")
        :'<div class="c-b"><span class="sub">Nothing needs you right now.</span></div>')
-     :receiptBar("dq-receipt--rail")+(shown.length?shown.map(decisionRow).join(""):decisionsEmpty()))+'</div>';
+     :receiptBar("queue","dq-receipt--rail")+(shown.length?shown.map(decisionRow).join(""):decisionsEmpty()))+'</div>';
 
  /* one assembly for both densities. The header keeps Add Client out of a normal
     user's way, because a bare button for a feature they have never heard of is
@@ -4886,7 +4914,7 @@ function vSolo(){
      <span class="cs">${c.company}</span></span></div>
    <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="seq">Back to Sequences</button></div>
   </div>
-  <div class="wrap">${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar())}<div class="setwrap">
+  <div class="wrap">${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar("solo:settings"))}<div class="setwrap">
    <div class="setnav">
      <h4>Workspace settings</h4>
      <button ${soloSet==="workspace"?'aria-current="page"':''} data-soloset="workspace">Workspace
@@ -5822,16 +5850,24 @@ function vQueue(){
    header, and a way back to the queue when that is where you came from. Sam
    works eighteen items across two clients; the switcher was three clicks each. */
 let qFrom=null;
+/* 21 Sep 2026, delight pass round 3: which client the record's header pager
+   walks, and in what order, captured once at the moment the record was
+   entered from Home or the Work queue. Never recomputed while paging. */
+let ORIGIN=null;
 /* 18 Sep, delight pass: a decision is not a silent re-render. The row slides
    out, a receipt says what changed in numbers, and Undo puts it back. The
    receipt clears after 8 s or when the next decision replaces it. DECIDED
    feeds the "Last decision" line when the rail is empty. */
 let RECEIPT=null, receiptTimer=null; const DECIDED=[];
-function receipt(text,undo,what,short,freed){
+/* 21 Sep 2026, coordinator feedback round 3: a receipt belongs to the screen
+   that produced it. Every receipt now carries the scope it was created in,
+   and receiptBar only draws it for a matching scope, so switching tab or
+   view stops showing a receipt that is no longer about what is on screen. */
+function receipt(scope,text,undo,what,short,freed){
  clearTimeout(receiptTimer); const entry={what,at:Date.now(),freed}; DECIDED.unshift(entry);
- RECEIPT={text,short:short||text,undo,entry}; receiptTimer=setTimeout(()=>{RECEIPT=null;render()},8000)}
+ RECEIPT={scope,text,short:short||text,undo,entry}; receiptTimer=setTimeout(()=>{RECEIPT=null;render()},8000)}
 function clearReceipt(){RECEIPT=null;clearTimeout(receiptTimer)}
-const receiptBar=cls=>RECEIPT?`<div class="dq-receipt${cls?" "+cls:""}" role="status"><span class="dq-tick">${tickI}</span><span style="min-width:0">${cls?RECEIPT.short:RECEIPT.text}</span>`
+const receiptBar=(scope,cls)=>(RECEIPT&&RECEIPT.scope===scope)?`<div class="dq-receipt${cls?" "+cls:""}" role="status"><span class="dq-tick">${tickI}</span><span style="min-width:0">${cls?RECEIPT.short:RECEIPT.text}</span>`
   +(RECEIPT.undo?'<button class="linkbtn" data-undo>Undo</button>':"")
   +'<button class="ubtn dq-x" data-rcpx aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>':"";
 /* slide the acted-on row out, then commit the change and repaint */
@@ -5870,11 +5906,28 @@ const QPILLS=[["all","All"],["now","Needs you now"],["dec","Decisions"],["rep","
 const queuePills=Q=>{const n=k=>QSEV[k]?Q.filter(x=>QSEV[k].includes(x.sev)).length:Q.length;
  return '<div class="filters"><div class="pills">'+QPILLS.map(([k,l])=>'<button data-qf="'+k+'" aria-pressed="'+(qFilter===k)+'">'+l+' <span class="pn">'+n(k)+'</span></button>').join("")+'</div></div>'};
 const wsList=()=>myClients().filter(c=>!isPending(c));
+/* 21 Sep 2026, delight pass round 3: the same ranking Home's Clients table or
+   the Work queue was showing when the record was opened, so paging through
+   follows that order rather than the plain client list. */
+function homeOrderIds(ft){
+ const mine=myClients(), flag=mine.map(c=>({c,a:attention(c)}));
+ const grpOf=x=>isPending(x.c)?"new":x.c.disabled?"att":x.a&&x.a.pin?"att":x.c.sent>0?"run":"new";
+ return (ft==="all"?flag:flag.filter(x=>grpOf(x)===ft))
+   .sort((a,b)=>((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent).map(x=>x.c.id);
+}
+function queueOrderIds(){
+ const Q=queueItems(), F=QSEV[qFilter]?Q.filter(x=>QSEV[qFilter].includes(x.sev)):Q, ids=[];
+ F.forEach(x=>{if(x.client&&ids.indexOf(x.client)<0)ids.push(x.client)});
+ return ids;
+}
 function clientNav(c){
- const L=wsList(), i=L.findIndex(x=>x.id===c.id);
+ const fromOrigin=ORIGIN&&ORIGIN.order.indexOf(c.id)>-1;
+ const L=fromOrigin?ORIGIN.order.map(id=>byId[id]).filter(Boolean):wsList();
+ const i=L.findIndex(x=>x.id===c.id);
  if(i<0||L.length<2) return "";
  const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
- return `<span class="cnav"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous client, ${p.name}">&#8249;</button><span class="sub tnum">${i+1} of ${L.length}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next client, ${n.name}">&#8250;</button></span>`;
+ const suffix=fromOrigin&&ORIGIN.attn?" needing attention":"";
+ return `<span class="cnav"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous client, ${p.name}">&#8249;</button><span class="sub tnum">${i+1} of ${L.length}${suffix}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next client, ${n.name}">&#8250;</button></span>`;
 }
 function queueBack(){
  if(!qFrom) return "";
@@ -5889,7 +5942,13 @@ let focusMb=null;
 /* the four destinations that are record tabs rather than workspace modules */
 const RECTAB={update:1,overview:1,limits:1,access:1};
 function gotoClient(id,mod,pid){
- if(RECTAB[mod]){ctx="agency";view={name:"record",id};tab=mod;render();return}
+ if(RECTAB[mod]){
+   /* capture the ranking the operator was actually looking at, once, rather
+      than let the header pager re-derive it from the plain client list */
+   ORIGIN=view.name==="queue"?{order:queueOrderIds(),attn:false}
+     :view.name==="dash"?{order:homeOrderIds(cliTab),attn:cliTab==="att"}
+     :null;
+   ctx="agency";view={name:"record",id};tab=mod;render();return}
  ctx=id; asClient=false; inMod=mod; openProspect=mod==="prospects"?(pid||null):null; focusMb=mod==="accounts"?(pid||null):null;
  if(view.name==="settings")view={name:"clients"}; render()}
 /* One queue. An operator does not think in categories, they think about what needs them
@@ -5985,8 +6044,8 @@ function aQueue(Q,filters){
     not a table with nothing in it, so it drops the Type/What/Client/Age
     header along with the rows, the way the rail's empty card carries no
     table at all. */
- if(!rows&&qFilter==="all") return `<div class="panel">${filters||""}${receiptBar()}${queueEmpty()}</div>`;
- return `<div class="panel">${filters||""}${receiptBar()}
+ if(!rows&&qFilter==="all") return `<div class="panel">${filters||""}${receiptBar("queue")}${queueEmpty()}</div>`;
+ return `<div class="panel">${filters||""}${receiptBar("queue")}
    <div class="tscroll"><table class="organism" style="min-width:1040px">
     <thead><tr><th></th><th>Type</th><th>What needs doing, and why it matters</th><th>Client</th><th>Age</th><th class="colact"></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'}</tbody>
@@ -6792,7 +6851,7 @@ function vClientSide(){
     them the moment access ends. */
  const granted=fixClientCView(c);
  if(cView==="update") UPDATE_SEEN[c.id]=true;
- const rb=receiptBar();
+ const rb=receiptBar("client:"+c.id);
  return `<div class="toolbar">
    <div class="cell-main">${av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">${c.name}</span>
@@ -7004,16 +7063,22 @@ function atLimitBanner(c){
 }
 
 /* The artefact the client actually needs: something they can forward without editing. */
+/* 21 Sep 2026, delight pass round 3: whether this browser session has already
+   sent this client's update, and which client's Send now is mid-confirm. */
+let UPD_SENT={}, UPD_CONFIRM=null;
 function cUpdate(c,agencyView){
  const pos=positives(c), rep=Math.round(c.sent*c.reply/100);
  const live=(PROSPECTS[c.id]||[]).filter(p=>p.status==="Replied");
  const blocked=RK.filter(k=>{const m=compute(k);return rowState(k,c.id,m).room===0});
+ const sentNow=UPD_SENT[c.id];
  return `${agencyView?`<div class="msg m-info">${infoI}<span>
     This goes to <strong>${c.email}</strong> on the first working day of each month, under your branding.
     They can forward it without editing.</span></div>`:""}
   <div class="panel" style="max-width:720px">
    <div class="panel-h"><span class="panel-t">Your outbound, August 2026</span>
      <span class="sub">from ${AGENCY.name}</span></div>
+   ${agencyView?`<div style="padding:0 24px 14px"><span class="sub">${sentNow?`Sent just now to ${c.email}`:`Not sent yet this month. Last sent ${c.lastUpdateSent}.`}</span></div>`:""}
+   ${agencyView?receiptBar("update:"+c.id):""}
    <div class="panel-b">
     <p style="font-size:15px;line-height:23px;color:var(--ink);margin-bottom:16px">
       In August we contacted <strong>${f(c.sent)}</strong> people for you.
@@ -7034,8 +7099,11 @@ function cUpdate(c,agencyView){
     </div>
    </div>
    ${agencyView?`<div class="panel-b" style="border-top:1px solid var(--gray-200)" class="tools">
-     <button class="shd-button shd-button--primary shd-button--sm" data-flash="Sent to ${c.email}">Send now</button>
-     <button class="shd-button shd-button--tertiary shd-button--sm" style="margin-left:8px" data-flash="Not in this prototype">Edit before sending</button></div>`:""}
+     ${UPD_CONFIRM===c.id?`<div class="inlineconfirm" role="alert"><span>Sends to <strong>${c.email}</strong> as <strong>${AGENCY.name}</strong>.</span>
+       <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-updcancel>Cancel</button>
+       <button class="shd-button shd-button--primary shd-button--sm" data-updconfirm="${c.id}">Send now</button></span></div>`
+     :`<button class="shd-button shd-button--primary shd-button--sm" data-updask="${c.id}">Send now</button>
+     <button class="shd-button shd-button--tertiary shd-button--sm" style="margin-left:8px" data-flash="Not in this prototype">Edit before sending</button>`}</div>`:""}
   </div>`;
 }
 /* ═══ modals: destructive confirms and the collision panel ═══ */
@@ -7351,7 +7419,7 @@ function renderModal(){
    if(modal.kind==="revoke"){const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
      REQUESTS=REQUESTS.filter(r=>r.client!==id);
      delete byId[id].mode; byId[id].revoked=true;
-     receipt(`${AGENCY.name} no longer has access. Nothing else changed.`,null);
+     receipt(solo?"solo:settings":"client:"+id,`${AGENCY.name} no longer has access. Nothing else changed.`,null);
      modal=null;renderModal();render();return;
    }
    if(modal.kind==="delete"){const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
@@ -7429,9 +7497,15 @@ function wire(){
    if(!q||!q.client){qFrom=null;ctx="agency";asClient=false;view={name:"queue"};render();return}
    qFrom={i};gotoClient(q.client,destFor(q),q.mb)});
  q("[data-reconnect]").forEach(b=>b.onclick=()=>{const a=b.dataset.reconnect;
-   CLIENTS.forEach(c=>c.mailboxes.forEach(m=>{if(m[0]===a){m[1]="Healthy";m[2]=100}}));
+   let ownerId="";
+   CLIENTS.forEach(c=>c.mailboxes.forEach(m=>{if(m[0]===a){m[1]="Reconnecting";m[2]=0;ownerId=c.id}}));
    for(let i=INFRA_ALL.length-1;i>=0;i--) if(INFRA_ALL[i].kind==="Email account disconnected"&&INFRA_ALL[i].detail.indexOf(a)>-1) INFRA_ALL.splice(i,1);
-   focusMb=null;render()});
+   focusMb=null;
+   receipt("mailboxes:"+ownerId,`Reconnecting ${a}. Sending resumes when it completes.`,null,`reconnected ${a}`);
+   if(!RECONN_TIMERS[a]) RECONN_TIMERS[a]=setTimeout(()=>{
+     CLIENTS.forEach(c=>c.mailboxes.forEach(m=>{if(m[0]===a&&m[1]==="Reconnecting"){m[1]="Healthy";m[2]=100}}));
+     delete RECONN_TIMERS[a]; render()},4000);
+   render()});
  q("[data-inmod]").forEach(b=>b.onclick=()=>{inMod=b.dataset.inmod;openProspect=null;render()});
  q("[data-mailall]").forEach(b=>b.onclick=()=>{mailAll=b.dataset.mailall==="1";render()});
  q("[data-mbh]").forEach(b=>b.onclick=()=>{mbHealth=b.dataset.mbh;mailAll=false;render()});
@@ -7452,7 +7526,12 @@ function wire(){
    drawer={kind:"staffaccess",client:cid,person:personKey};renderDrawer()});
  q("[data-staffremove]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
    const [personKey,cid]=b.dataset.staffremove.split("|");
-   if(PEOPLE[personKey].ws) delete PEOPLE[personKey].ws[cid]; render()});
+   const P=PEOPLE[personKey], cc=byId[cid], had=P&&P.ws?P.ws[cid]:undefined;
+   if(P&&P.ws) delete P.ws[cid];
+   if(P&&cc) receipt("access:"+cid,`Removed ${P.name} from ${cc.name}.`,
+     ()=>{P.ws=P.ws||{};if(had!=null)P.ws[cid]=had},
+     `removed ${P.name} from ${cc.name}`);
+   render()});
  q("[data-amod]").forEach(b=>b.onclick=()=>{const [id,k,subj]=b.dataset.amod.split("|");
    if(subj){toggleStaffMod(subj,id,k);render();return}
    const a=byId[id].access, i=a.mods.indexOf(k);
@@ -7500,14 +7579,16 @@ function wire(){
    if(k==="member"){ctx="agency";amOpen({ws:[id],from:{name:"record",id,tab:"access"}});return}
    if(k==="client update"){ctx="agency";view={name:"record",id};tab="update";render();return}
    ctx=id;asClient=false;inMod=k==="email account"?"accounts":"sequences";openProspect=null;render()});
- q("[data-manage]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
- q("[data-golimits]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.golimits};tab="limits";render()});
+ q("[data-manage]").forEach(b=>b.onclick=()=>{
+   ORIGIN=view.name==="dash"?{order:homeOrderIds(cliTab),attn:cliTab==="att"}:null;
+   ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
+ q("[data-golimits]").forEach(b=>b.onclick=()=>{ORIGIN=null;ctx="agency";view={name:"record",id:b.dataset.golimits};tab="limits";render()});
  q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  q("[data-rclivex]").forEach(b=>b.onclick=()=>{RC_LIVE_SEEN[b.dataset.rclivex]=true;render()});
  q("input[data-lim]").forEach(i=>i.oninput=()=>{const p=el("rcLimSay");if(p&&byId[view.id])p.innerHTML=rcLimSentence(byId[view.id])});
  q("[data-rcedit]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;const [kind,key,cid]=b.dataset.rcedit.split("|");
-   RC_EDIT=(RC_EDIT&&RC_EDIT.key===key&&RC_EDIT.cid===cid)?null:{kind,key,cid};render()});
- q("[data-rcdone]").forEach(b=>b.onclick=()=>{RC_EDIT=null;render()});
+   RC_EDIT=(RC_EDIT&&RC_EDIT.key===key&&RC_EDIT.cid===cid)?null:{kind,key,cid};RC_LASTCHK=null;render()});
+ q("[data-rcdone]").forEach(b=>b.onclick=()=>{RC_EDIT=null;RC_LASTCHK=null;render()});
  q("[data-rcpre]").forEach(b=>b.onclick=()=>{if(!RC_EDIT)return;const n=b.dataset.rcpre;
    if(RC_EDIT.kind==="staff"){const P=PEOPLE[RC_EDIT.key];if(!P)return;P.ws=P.ws||{};P.ws[RC_EDIT.cid]=n}
    else{const u=rcUser();if(!u)return;const pr=ACCESS_PRESETS[n];u[2]={mods:pr.mods.slice(),verbs:pr.verbs.slice()}}
@@ -7515,21 +7596,34 @@ function wire(){
  q("[data-rcmod]").forEach(b=>b.onclick=()=>{if(!RC_EDIT)return;const k=b.dataset.rcmod;
    if(RC_EDIT.kind==="staff")toggleStaffMod(RC_EDIT.key,RC_EDIT.cid,k);
    else{const u=rcUser();if(!u)return;const a=rcUserSet(byId[RC_EDIT.cid],u),at=a.mods.indexOf(k);
-    if(at>-1){a.mods.splice(at,1);CLIENT_VERBS.filter(v=>v[3]===k).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)})}
+    if(at>-1){
+      if(a.mods.length===1&&signedIn(u[0])){RC_LASTCHK={cid:RC_EDIT.cid,key:u[0],mod:k};render();return}
+      a.mods.splice(at,1);CLIENT_VERBS.filter(v=>v[3]===k).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)})}
     else a.mods.push(k)}
    render()});
  q("[data-rcverb]").forEach(cb=>cb.onchange=()=>{if(!RC_EDIT)return;const u=rcUser();if(!u)return;
    const a=rcUserSet(byId[RC_EDIT.cid],u),k=cb.dataset.rcverb,at=a.verbs.indexOf(k);
    if(cb.checked&&at<0)a.verbs.push(k);if(!cb.checked&&at>-1)a.verbs.splice(at,1);render()});
+ q("[data-rclastkeep]").forEach(b=>b.onclick=()=>{RC_LASTCHK=null;render()});
+ q("[data-rclastgo]").forEach(b=>b.onclick=()=>{if(!RC_LASTCHK)return;const c=byId[RC_LASTCHK.cid],u=c&&(c.users||[]).find(x=>x[0]===RC_LASTCHK.key);
+   if(u){const a=rcUserSet(c,u),at=a.mods.indexOf(RC_LASTCHK.mod);
+    if(at>-1){a.mods.splice(at,1);CLIENT_VERBS.filter(v=>v[3]===RC_LASTCHK.mod).forEach(v=>{const j=a.verbs.indexOf(v[0]);if(j>-1)a.verbs.splice(j,1)})}}
+   RC_LASTCHK=null;render()});
  q("[data-cview]").forEach(b=>b.onclick=()=>{cView=b.dataset.cview;openProspect=null;render()});
  q("[data-orientok]").forEach(b=>b.onclick=()=>{ORIENT_SEEN[b.dataset.orientok]=true;render()});
  q("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
+ q("[data-updask]").forEach(b=>b.onclick=()=>{UPD_CONFIRM=b.dataset.updask;render()});
+ q("[data-updcancel]").forEach(b=>b.onclick=()=>{UPD_CONFIRM=null;render()});
+ q("[data-updconfirm]").forEach(b=>b.onclick=()=>{const id=b.dataset.updconfirm,c=byId[id];if(!c)return;
+   UPD_SENT[id]=true;UPD_CONFIRM=null;
+   receipt("update:"+id,`Sent to ${c.email}.`,null,`sent the client update to ${c.email}`);
+   render()});
  q("[data-seqask]").forEach(b=>b.onclick=()=>{seqConfirm=b.dataset.seqask;render()});
  q("[data-seqcancel]").forEach(b=>b.onclick=()=>{seqConfirm=null;render()});
  q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
    const s=(byId[id].sequences||[]).find(x=>x.name===name); if(!s) return;
    const was=s.state; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
-   receipt(was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.`,
+   receipt("client:"+id,was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.`,
      ()=>{s.state=was;render()});
    render()});
  q("[data-prospect]").forEach(b=>b.onclick=()=>{openProspect=b.dataset.prospect||null;render()});
@@ -7540,7 +7634,7 @@ function wire(){
  q("[data-raise]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.raise.split("|");
    const m=compute(k), step=Math.max(500,Math.round(m.free*0.4/500)*500);
    decide(b,()=>{RES[k].rows[id].cap+=step;
-    receipt(`Raised. ${byId[id].name} can use ${f(RES[k].rows[id].cap)} ${RES[k].unit}, ${f(compute(k).free)} left in the pool.`,
+    receipt("queue",`Raised. ${byId[id].name} can use ${f(RES[k].rows[id].cap)} ${RES[k].unit}, ${f(compute(k).free)} left in the pool.`,
       ()=>{RES[k].rows[id].cap-=step}, `raised ${byId[id].name}'s ${RES[k].label.toLowerCase()} limit by ${f(step)}`,
       `Raised &middot; ${byId[id].name} &middot; ${f(compute(k).free)} ${RES[k].unit} left`)})});
  /* Decided 14 Sep 2026, Hitesh: replying from a roll-up must not throw the
@@ -7572,12 +7666,12 @@ function wire(){
      REQUESTS.push({id:"r"+Date.now().toString(36).slice(-4),client:id,res:k,amount:amt,
        note:(whyEl&&whyEl.value||"").trim(),when:"just now"});
    reqForm=null;
-   receipt(`Sent to ${AGENCY.name}. They see it in their queue.`,null);
+   receipt("client:"+id,`Sent to ${AGENCY.name}. They see it in their queue.`,null);
    render()});
  q("[data-reqwithdraw]").forEach(b=>b.onclick=()=>{const rid=b.dataset.reqwithdraw,r=REQUESTS.find(x=>x.id===rid);
    if(!r)return;
    REQUESTS=REQUESTS.filter(x=>x.id!==rid);
-   receipt(`Withdrawn. ${AGENCY.name} no longer sees this request.`,()=>{REQUESTS.push(r);render()});
+   receipt("client:"+r.client,`Withdrawn. ${AGENCY.name} no longer sees this request.`,()=>{REQUESTS.push(r);render()});
    render()});
  const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
@@ -7623,7 +7717,7 @@ function wire(){
       Clearing the state (not the object) is enough to drop the request. */
    c.link.state="none"; delete c.link.requested; delete c.link.requestedBy;
    c.permission="No Access";
-   receipt(`${AGENCY.name} no longer has access. Nothing else changed.`,null);
+   receipt(solo?"solo:settings":"client:"+c.id,`${AGENCY.name} no longer has access. Nothing else changed.`,null);
    render()});
  q("[data-c0confirm]").forEach(b=>b.onclick=()=>{const c=byId[ctx];
    if(!c0Confirm){render();return}
@@ -7631,7 +7725,7 @@ function wire(){
    c0Confirm=null;
    const names=Object.values(PEOPLE).filter(p=>p.role!=="Owner").map(p=>p.name);
    const namesText=names.length<=1?(names[0]||"Their staff"):names.slice(0,-1).join(", ")+" and "+names[names.length-1];
-   receipt(`Linked. ${namesText} from ${AGENCY.name} can now open this workspace.`,null);
+   receipt(solo?"solo:settings":"client:"+c.id,`Linked. ${namesText} from ${AGENCY.name} can now open this workspace.`,null);
    render()});
  q("[data-c0cancel]").forEach(b=>b.onclick=()=>{c0Confirm=null;render()});
  q("[data-migreview]").forEach(b=>b.onclick=()=>{view={name:"m2"};render()});
@@ -7733,22 +7827,25 @@ function wire(){
      render(); return}
    RC_REFUSED=null;
    /* 18 Sep, delight pass: on the Client limits page a save says what it freed
-      and who could use it, with a way back and a way to hand it on */
-   const before=k?compute(k).free:null, prev=[];
+      and who could use it, with a way back and a way to hand it on. 21 Sep,
+      round 3: the client's own Limits tab reuses the same receipt, scoped to
+      the one resource it touched rather than the whole pool. */
+   const before=k?compute(k).free:(touched.length===1?compute(touched[0]).free:null), prev=[];
    Object.keys(DRAFT).forEach(x=>{if(inScope(x,k,id)){const [xk,xid,fld]=x.split("|");prev.push([xk,xid,fld,RES[xk].rows[xid][fld]]);RES[xk].rows[xid][fld]=DRAFT[x];delete DRAFT[x]}});
    if(k) blReceipt(k,before,prev);
+   else if(id&&touched.length===1) blReceipt(touched[0],before,prev,id);
    render()});
  q("[data-ddiscard]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.ddiscard.split("|");
    RC_REFUSED=null; Object.keys(DRAFT).forEach(x=>{if(inScope(x,k,id))delete DRAFT[x]});render()});
  const bs=el("bifSw");if(bs)bs.onclick=()=>{setBif(view.id,bs.getAttribute("aria-checked")!=="true");render()};
  q("[data-ok]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.ok); if(!r) return;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
-   receipt(`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
+   receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
      ()=>{R.rows[r.client].cap-=r.amount; REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
-   receipt(`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
+   receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
      ()=>{REQUESTS.push(r)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Declined &middot; ${c.name} &middot; limit stays ${f(R.rows[r.client].cap)}`)})};
  q("[data-no]").forEach(b=>b.onclick=()=>declineReq(b,b.dataset.no));
@@ -8434,7 +8531,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="f2e2dfa";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="e93821f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
