@@ -614,6 +614,9 @@ table.organism th.ar .sortable{flex-direction:row-reverse}
 .track{height:5px;border-radius:var(--radius-control);background:var(--gray-16);overflow:hidden}
 .track>span{display:block;height:100%;border-radius:var(--radius-control)}
 .meter-t{font-size:12px;line-height:18px;color:var(--gray-15)}
+.u-usagebtn{background:none;border:0;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer;border-radius:4px}
+.u-usagebtn:hover .track{background:var(--gray-14)}
+.u-usagebtn:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
 /* two-line numeric cell: the count leads, the rate or the mix sits under it */
 .stackv{display:block;font-weight:600;color:var(--ink)}
 .stackb{display:block;font-size:11px;line-height:16px;color:var(--gray-12)}
@@ -1100,7 +1103,7 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .ubx-filter{padding:10px 12px;border-bottom:1px solid var(--gray-16)}
 .ubx-filter .pills button{height:24px;padding:2px 9px;font-size:11.5px}
 .ubx-scroll{overflow-y:auto;flex:1;min-height:0}
-.ubx-grp{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--gray-19);border-bottom:1px solid var(--gray-16);font-size:12px;font-weight:600;color:var(--gray-17)}
+.ubx-grp{position:sticky;top:0;z-index:2;display:flex;align-items:center;flex-wrap:wrap;row-gap:2px;gap:8px;padding:7px 12px;background:var(--gray-19);border-bottom:1px solid var(--gray-16);font-size:12px;font-weight:600;color:var(--gray-17)}
 .ubx-grp+.ubx-th{border-top:0}
 .ubx-grp .sub{margin-left:auto;font-weight:500;white-space:nowrap}
 .ubx-th{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;width:100%;padding:12px 12px 12px 9px;border:0;border-bottom:1px solid var(--gray-16);border-left:3px solid transparent;background:var(--gray-1);text-align:left;font:inherit;cursor:pointer}
@@ -1363,9 +1366,16 @@ tr.rc-editrow>td{padding:0 16px 14px!important;background:var(--gray-1)}
    the moment Send is pressed rather than one screen earlier. */
 .am-foot{position:sticky;bottom:0;z-index:5;margin-top:20px;background:var(--gray-1);
  border:1px solid var(--gray-13);border-radius:var(--radius-control);padding:12px 16px;
- display:flex;align-items:center;gap:12px;box-shadow:0 -2px 8px rgba(31,41,55,.06)}
+ display:flex;flex-direction:column;gap:8px;box-shadow:0 -2px 8px rgba(31,41,55,.06)}
+.am-footrow{display:flex;align-items:center;gap:12px}
 .fsum{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;color:var(--gray-12);flex-wrap:wrap}
 .fsum strong{color:var(--gray-17);font-weight:600}
+/* coordinator feedback, round 6: the preview reads as its own line, full
+   width, left-aligned and muted, never squeezed between Cancel and Send;
+   the action row underneath keeps the original summary-left, buttons-right
+   shape. Nothing here wraps, even for a longer sentence than the fixture
+   produces. */
+.am-preview{display:block;width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .modal.wide{width:min(720px,94vw)}
 .modal.wide .modal-b{max-height:min(66vh,560px);overflow-y:auto}
 table.cmp td,table.cmp th{vertical-align:middle}
@@ -2383,12 +2393,15 @@ const statusCell=c=>{const a=attention(c);
    that made every row 115px and, at forty clients, a wall of grey. */
 const usageMeterCell=c=>{const u=usageOf(c); if(!u.length) return usageNone(c);
  if(u.every(y=>y.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
- const x=u[0],p=Math.min(100,Math.round(x.pct*100)),rest=u.filter(y=>y.tone!=="ok"&&y.tone!=="info").length-1;
+ const x=u[0],p=Math.min(100,Math.round(x.pct*100)),rest=u.length-1;
  const word=x.room===0?(x.storage?"Full":"Out"):x.draw===0?"Pool empty":x.state;
- /* 18 Sep, delight pass: the bar names its resource and exact numbers on hover */
- return '<div class="meter dq-tip" style="min-width:150px" aria-label="'+usageTip(u)+'">'+usageCard(u)+'<div class="track"><span style="width:'+p+'%;background:'+barCol(x.tone)+'"></span></div>'
+ /* 21 Sep 2026, delight pass round 6: a hover card told nothing a click could
+    not tell better. The cell opens the client's own Limits tab, scrolled to
+    this exact resource, instead of floating a card over the row. */
+ return '<button type="button" class="meter u-usagebtn" style="min-width:150px" data-goclim="'+c.id+'|'+x.k+'" aria-label="Open '+c.name+'\u2019s limits, '+RES[x.k].label+'">'
+  +'<div class="track"><span style="width:'+p+'%;background:'+barCol(x.tone)+'"></span></div>'
   +'<span class="meter-t tnum">'+p+'% '+x.short+(x.tone==="ok"?'':' &middot; <b style="font-weight:500;color:'+METER_TXT[x.tone]+'">'+word+'</b>')+'</span>'
-  +(rest>0?'<span class="meter-t">'+rest+' other'+(rest>1?'s':'')+' near a limit</span>':'')+'</div>'};
+  +(rest>0?'<span class="u-sub">+'+rest+' more</span>':'')+'</button>'};
 
 /* Home: compact. The binding pool in words, then how many others are close, in
    words too. An earlier pass put five state dots here and they said nothing: a
@@ -2405,9 +2418,9 @@ const usageCard=u=>{const y=u[0];
 function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  if(u.every(x=>x.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
  const bad=u.filter(x=>x.tone!=="ok"&&x.tone!=="info");
- if(!bad.length) return '<span class="u-quiet dq-tip" aria-label="'+usageTip(u)+'">'+usageCard(u)+'All '+u.length+' healthy</span>';
+ if(!bad.length) return '<span class="u-quiet" aria-label="'+usageTip(u)+'">All '+u.length+' healthy</span>';
  const rest=bad.length-1;
- return '<span class="u-head dq-tip" aria-label="'+usageTip(u)+'" style="color:'+USAGE_COL[u[0].tone]+'">'+usageCard(u)+usageHead(u[0])+'</span>'
+ return '<span class="u-head" aria-label="'+usageTip(u)+'" style="color:'+USAGE_COL[u[0].tone]+'">'+usageHead(u[0])+'</span>'
   +'<span class="u-sub">'+(rest?rest+' other'+(rest>1?'s':'')+' near a limit'
     :'the other '+(u.length-1)+' are fine')+'</span>'}
 
@@ -2978,6 +2991,11 @@ const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"
  /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
     is the case the last-screen confirmation below exists for. */
  "marcus@alloyco.com":"just now","ceo@brightline.app":"never"};
+/* 21 Sep 2026, delight pass round 6: when an invite went out, keyed by name
+   the way LASTSEEN already is, so the People row can say "Invited 21 Sep"
+   rather than only "never". */
+let INVITED={};
+const TODAY_STR="21 Sep";
 /* "just now" or "today" only, per the rule this round works to: an hour-old
    session does not count as someone still at the keyboard. */
 const signedIn=k=>{const s=AGE(LASTSEEN[k]||"unknown");return s==="just now"||s==="today"};
@@ -3774,9 +3792,10 @@ function vAddMember(){
   <div class="wrap"><div class="am-wrap">
    ${amRail()}
    <div><div class="panel">${amSecPerson()}${amSecWhere()}${amSecAccess()}</div>
-   <div class="am-foot">${line}<span class="sp"></span>
+   <div class="am-foot">${(AM.mode!=="edit"&&amPersonOk()&&AM.ws.length)?`<span class="cs am-preview">${amInvitePreview()}</span>`:""}
+    <div class="am-footrow">${line}<span class="sp"></span>
     <button class="shd-button shd-button--tertiary" data-amback>Cancel</button>
-    <button class="shd-button shd-button--primary" data-amsend ${amCanSend()?"":"disabled"}>${AM.mode==="edit"?"Save access":"Send invite"}</button></div>
+    <button class="shd-button shd-button--primary" data-amsend ${amCanSend()?"":"disabled"}>${AM.mode==="edit"?"Save access":"Send invite"}</button></div></div>
    </div></div></div>`;
 }
 
@@ -3787,11 +3806,12 @@ function vAddMember(){
 function amSend(){
  if(!amCanSend()) return;
  if(AM.kind==="agency"){
-  let key=Object.keys(PEOPLE).filter(k=>PEOPLE[k].email===AM.email.trim())[0];
-  if(!key){ key=(AM.email.trim().split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5));
+  const addr=AM.email.trim(), wasFix=!!AM.fixGaps, wsNames=AM.ws.map(id=>amById(id).name), whoName=AM.name.trim();
+  let key=Object.keys(PEOPLE).filter(k=>PEOPLE[k].email===addr)[0], isNewPerson=!key;
+  if(!key){ key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5));
    while(PEOPLE[key]) key+="x";
-   PEOPLE[key]={name:AM.name.trim(),initials:initials(AM.name.trim()),role:AM.role,email:AM.email.trim(),ws:{}};
-   LASTSEEN[AM.name.trim()]="never";
+   PEOPLE[key]={name:whoName,initials:initials(whoName),role:AM.role,email:addr,ws:{}};
+   LASTSEEN[whoName]="never"; INVITED[whoName]=TODAY_STR;
   } else { PEOPLE[key].role=AM.role }
   PEOPLE[key].ws=PEOPLE[key].ws||{};
   /* stored as the preset name when it matches one and as the set when it does
@@ -3802,7 +3822,10 @@ function amSend(){
   /* the destination is the confirmation: this file has no toast layer, and
      landing on the person's own page shows the membership that was written
      rather than asserting it happened. */
-  AM=Object.assign({},AM_BLANK); view={name:"person",id:key}; render(); return;
+  AM=Object.assign({},AM_BLANK);
+  if(wasFix) receipt("people-gaps",listAnd(wsNames)+(wsNames.length===1?" is":" are")+" now covered by "+whoName+".",null,"fixed the coverage gap");
+  else if(isNewPerson) receipt("people","Invite sent to "+addr+".",null,"invited "+whoName);
+  view={name:"person",id:key}; render(); return;
  }
  const addr=AM.email.trim();
  AM.ws.forEach(id=>{const c=byId[id]; if(!c) return;
@@ -3900,8 +3923,21 @@ function draftBar(scope){
   .filter(d=>(scope.k?d.k===scope.k:d.id===scope.id)&&d.from!==d.to);
  if(!ch.length) return "";
  const who=d=>scope.k?(d.id==="own"?OWN_WS.name:byId[d.id].name):RES[d.k].label;
+ /* 21 Sep 2026, delight pass round 6: the pool-wide bar names its own effect
+    before Apply, in the pool's own unit, reading the drafts the same way
+    blReceipt reads an applied change so the two never disagree. */
+ let live="";
+ if(scope.k){
+  const R=RES[scope.k]; let heldBefore=0,heldAfter=0;
+  Object.keys(R.rows).forEach(id=>{const r=R.rows[id];
+   heldBefore+=Math.max(0,r.res-r.used); heldAfter+=Math.max(0,dval(scope.k,id,"res")-r.used)});
+  const freed=heldBefore-heldAfter;
+  live=freed>0?". These changes free "+f(freed)+" "+R.unit+"."
+   :freed<0?". These changes hold "+f(-freed)+" "+R.unit+" more for clients."
+   :"";
+ }
  return `<div class="draftbar"><span><strong>${ch.length} change${ch.length===1?"":"s"} not applied.</strong>
-   ${ch.map(d=>`${who(d)} ${d.fld==="res"?"reserved":"limit"} ${f(d.from)} to ${f(d.to)}`).join(" &middot; ")}</span>
+   ${ch.map(d=>`${who(d)} ${d.fld==="res"?"reserved":"limit"} ${f(d.from)} to ${f(d.to)}`).join(" &middot; ")}${live}</span>
   <span class="tools"><button class="shd-button shd-button--primary shd-button--sm" data-dapply="${scope.k||""}|${scope.id||""}">Apply</button>
    <button class="shd-button shd-button--tertiary shd-button--sm" data-ddiscard="${scope.k||""}|${scope.id||""}">Discard</button></span></div>`;
 }
@@ -3922,7 +3958,7 @@ function rcLimSentence(c){
 function rLimits(c){
  const bif=isBif(c.id);
  const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id],s=rowState(k,c.id,m),p=Math.min(100,Math.round(s.pct*100));
-  return `<tr><td><span style="font-weight:500">${R.label}</span></td>
+  return `<tr id="rlim-${k}" class="${FOCUS_LIM===k?"is-focus":""}"><td><span style="font-weight:500">${R.label}</span></td>
    <td class="ar">${R.floors?numIn(dval(k,c.id,"res"),R.unit,`data-lim="${k}" data-fld="res" aria-label="Reserved"`):noIn}</td>
    <td class="ar">${numIn(dval(k,c.id,"cap"),R.unit,`data-lim="${k}" data-fld="cap" aria-label="Limit"`)}</td>
    <td class="ar tnum">${f(r.used)}</td>
@@ -4098,6 +4134,27 @@ function stSentence(name,role,grants){
 function amSay(){const t=AM.kind==="agency"?STAFF_PRESETS:ACCESS_PRESETS;
  return stSentence(AM.name,AM.kind==="agency"?AM.role:"Client",
   AM.ws.map(id=>({name:amById(id).name,pre:presetOf(AM.access[id]||{mods:[],verbs:[]},t)})))}
+/* 21 Sep 2026, delight pass round 6: the Send button carries a preview of the
+   invite itself, in the second person the invitee will actually read, so the
+   sender rehearses the message rather than only the internal access summary. */
+function amInvitePreview(){
+ if(!AM.ws.length) return "";
+ const t=AM.kind==="agency"?STAFF_PRESETS:ACCESS_PRESETS;
+ const grants=AM.ws.map(id=>({name:amById(id).name,pre:presetOf(AM.access[id]||{mods:[],verbs:[]},t)}));
+ const first=(AM.name||"").trim().split(" ")[0]||"They";
+ const byPre={}; grants.forEach(g=>{(byPre[g.pre]=byPre[g.pre]||[]).push(g.name)});
+ const pres=Object.keys(byPre);
+ let where;
+ if(grants.length<=3){
+  where="you can see "+listAnd(grants.map(g=>g.name))
+   +(pres.length===1
+     ?(grants.length===1?", "+pres[0]+" there":", "+pres[0]+" on "+(grants.length===2?"both":"all three"))
+     :": "+grants.map(g=>g.pre+" on "+g.name).join(", "));
+ } else {
+  where="you can see "+grants.length+" workspaces: "+pres.map((pr,i)=>pr+" on "+byPre[pr].length+(i===0?" client"+(byPre[pr].length===1?"":"s"):"")).join(", ");
+ }
+ return first+" will be told: "+where+".";
+}
 function vPeople(){
  if(!canI("members")) return denied("see or manage people");
  const keys=Object.keys(PEOPLE).sort((a,b)=>ROLE_ORDER[PEOPLE[a].role]-ROLE_ORDER[PEOPLE[b].role]);
@@ -4107,7 +4164,7 @@ function vPeople(){
    one cell once it can differ by workspace (40-people-access-flow-diagnosis
    §3.1; also settles 30-cpo-review.md §5.7, which flagged this exact column
    as unreadable at forty clients). The person page is where it lives now. */
-const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown");
+const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown"), invitedOn=INVITED[P.name];
   const names=ids.map(i=>byId[i].name);
   /* a normal user has one workspace, so "which workspaces" is not a question
      they have. The column stays for layout but says nothing about a structure
@@ -4122,13 +4179,14 @@ const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unk
    <td><span class="chip ${P.role==="Member"?"c-mute":"c-info"}">${P.role}</span></td>
    <td>${isNormal()?"":`<span class="tnum" style="font-size:14px">${isOwnerP(P)?"All "+CLIENTS.length:ids.length}</span>
     <span class="cs" style="display:block">${where}</span>`}</td>
-   <td><span class="sub">${seen}</span>${seen==="never"?'<span class="cs" style="display:block;color:var(--amber-700)">Invited, never signed in</span>':""}</td>
+   <td><span class="sub">${seen}</span>${seen==="never"?'<span class="cs" style="display:block;color:var(--amber-700)">Invited'+(invitedOn?" "+invitedOn:"")+', not yet signed in <button class="linkbtn" data-flash="Invite resent to '+staffEmail(P)+'.">Resend</button></span>':""}</td>
    <td class="ar colact"><button class="linkbtn">Manage</button></td></tr>`};
 
  return `<div class="toolbar">
    <div class="cell-main"><span class="semibold-3">People</span></div>
    <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Add a member</button></div></div>
   <div class="wrap">
+   ${receiptBar("people")}
    <div class="card">
     <!-- 17 Sep 2026, round 6 (method §8 item 1): the role legend, once, where the roles are read -->
     <div class="panel-b" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding-bottom:12px">
@@ -4141,7 +4199,8 @@ const row=k=>{const P=PEOPLE[k], ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unk
    ${gaps.length?`<div class="msg m-warn st-gapbar" style="margin-top:16px;align-items:center">${warnI}<span style="min-width:0;flex:1">
     <strong>${gaps.length===1?"One workspace has":gaps.length+" workspaces have"} nobody but the owner:</strong>
     ${listAnd(gaps.map(c=>c.name))}. Nothing gets done ${gaps.length===1?"there":"in them"} unless the owner does it.</span>
-    <button class="linkbtn" data-fixgaps style="font-weight:600;flex:none">Fix &rarr;</button></div>`:""}
+    <button class="linkbtn" data-fixgaps style="font-weight:600;flex:none">Fix &rarr;</button></div>`
+    :(rb=>rb?`<div style="margin-top:16px">${rb}</div>`:"")(receiptBar("people-gaps"))}
   </div>`;
 }
 
@@ -4329,7 +4388,14 @@ const BILL_TABS=[["plan","Platform","Plan"],["email","Email Accounts","Plan"],["
  ["ai","AI Credits","Credits"],["verify","Email Verification Credits","Credits"],["radar","Inbox Radar","Deliverability"],
  ["alloc","Client limits & usage","Clients"]];
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
-const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",resets:"1 Oct, 2026"};
+const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
+/* 21 Sep 2026, delight pass round 6: the next invoice in words, once, so Plan
+   Details reads as a sentence rather than a bare dollar figure beside a date
+   it does not otherwise connect to. */
+const planNextLine=()=>{const amt=PLAN.amount.replace(/\.00$/,""), before=(PLAN.lastAmount||PLAN.amount),
+  a=parseFloat(PLAN.amount.replace(/[^0-9.]/g,"")), b=parseFloat(before.replace(/[^0-9.]/g,"")),
+  cmp=a===b?"same as last month":a>b?"up from "+before.replace(/\.00$/,"")+" last month":"down from "+before.replace(/\.00$/,"")+" last month";
+ return amt+" on "+PLAN.next.split(",")[0]+", "+cmp};
 const MBX_PRICE=3.5; /* per bought email account per month, illustrative */
 const usd=n=>"$"+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
 /* one pooled quota with its agency line underneath. `alloc` is the sum of the
@@ -4366,7 +4432,7 @@ function vPlatform(){
      <button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Manage Billing</button></span></div>
    <div class="panel-b plan-kv"><span><span class="cs">Start Date</span><b>${PLAN.start}</b></span>
     <span><span class="cs">Next Billing Date</span><b>${PLAN.next}</b></span>
-    <span><span class="cs">Next Billing Amount</span><b>${PLAN.amount}</b></span>
+    <span><span class="cs">Next Billing Amount</span><b>${planNextLine()}</b></span>
     ${isNormal()?"":`<span><span class="cs">Covers</span><b>${AGENCY.name} and ${CLIENTS.filter(c=>!isLinked(c)).length} client workspaces</b></span>`}</div>
   </div>
   <div class="panel">
@@ -4503,7 +4569,7 @@ function blReceipt(k,before,prev,cid){
  else if(freed<0) text+=" "+f(-freed)+" "+R.unit+(cid?" now held for "+byId[cid].name:" more of the pool is now spoken for.");
  clearTimeout(blrTimer);
  BLR={text,k,id:cid||"",undo:()=>{prev.forEach(([xk,xid,fld,v])=>{RES[xk].rows[xid][fld]=v})},
-   act:freed>0&&near?{label:"Allocate to "+first(near.c.name),cid:near.c.id}:null};
+   act:freed>0&&near?{label:"Raise "+first(near.c.name)+"'s limit",cid:near.c.id}:null};
  blrTimer=setTimeout(()=>{BLR=null;render()},8000);
 }
 const blReceiptBar=()=>BLR?`<div class="dq-receipt bl-receipt" role="status"><span class="dq-tick">${tickI}</span><span style="min-width:0">${BLR.text}</span>
@@ -5212,9 +5278,19 @@ function ubxListHTML(){
  const ids=[...new Set(th.map(r=>r.client))].sort((a,b)=>(a==="own")-(b==="own")||th.filter(r=>r.client===b).length-th.filter(r=>r.client===a).length||ubxClient({client:a}).name.localeCompare(ubxClient({client:b}).name));
  /* one client picked: its column row already names it, so no group header */
  if(UBX.client!=="all") return th.map(ubxCard).join("");
- return ids.map(id=>{const c=ubxClient({client:id}), rows=th.filter(r=>r.client===id), un=rows.filter(ubxUnread).length;
+ return ids.map(id=>{const c=ubxClient({client:id});
+  const rows=th.filter(r=>r.client===id).sort((a,b)=>(b.positive?1:0)-(a.positive?1:0));
+  const un=rows.filter(ubxUnread).length, ic=rows.filter(r=>r.positive).length;
+  /* coordinator feedback, round 6: "N threads" plus unread plus interested
+     ran long enough that a longer client name pushed the meta to a second
+     line while a shorter one did not, so groups looked inconsistent for no
+     reason. The row already shows its own threads; once there is an unread
+     or interested count to report, that replaces the plain thread count
+     rather than piling on top of it, so the line stays one line. */
+  const metaBits=[]; if(un) metaBits.push(`<b style="color:var(--blue-11)">${un} unread</b>`); if(ic) metaBits.push(`${ic} interested`);
+  const meta=metaBits.length?metaBits.join(" &middot; "):`${rows.length} thread${rows.length===1?"":"s"}`;
   return `<div class="ubx-grp">${av(c,20)}<span class="trunc">${c.own?AGENCY.name+"'s own outreach":c.name}</span>
-    <span class="sub">${rows.length} thread${rows.length===1?"":"s"}${un?` &middot; <b style="color:var(--blue-11)">${un} unread</b>`:""}</span></div>`
+    <span class="sub">${meta}</span></div>`
    +rows.map(ubxCard).join("")}).join("");
 }
 /* 18 Sep, Hitesh (point 13): "if some agency have 10 clients then how the
@@ -5243,8 +5319,14 @@ function ubxClientsHTML(){
 }
 function ubxPaneHTML(){
  const r=UBX_ALL.find(x=>x.id===UBX.open);
- if(!r) return `<div class="ubx-empty">${ubxI.bubbles}<span>No conversations selected</span>
-   <span class="sub">Pick a thread on the left. Every one is filed under its client.</span></div>`;
+ if(!r){
+  const cid=UBX.client, line=cid==="all"
+    ?"Every thread is filed under its client; only that client's members see it."
+    :(()=>{const cc=ubxClient({client:cid}), n=UBX_ALL.filter(x=>x.client===cid).length;
+      return "Only people added to "+(cc.own?AGENCY.name:cc.name)+" see these "+n+" thread"+(n===1?"":"s")+".";})();
+  return `<div class="ubx-empty">${ubxI.bubbles}<span>No conversations selected</span>
+   <span class="sub">${line}</span></div>`;
+ }
  const c=ubxClient(r), own=r.client==="own";
  const mbx=((c.mailboxes||[]).find(m=>m[1]==="Healthy")||(c.mailboxes||[])[0]||["their mailbox"])[0];
  const first=r.from.split(/[ ,]/)[0], seq=ubxSeq(c,r);
@@ -5265,7 +5347,7 @@ function ubxPaneHTML(){
     :`<textarea id="ubxTxt" aria-label="Your reply" placeholder="Reply as ${c.own?AGENCY.name:c.name}, from ${mbx}">Thanks ${first}, </textarea>
      <div class="tools" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
       <span class="sub">Lands in <strong>${c.own?AGENCY.name:c.name}</strong>'s workspace, sent from ${mbx}. You stay here.</span>
-      <button class="shd-button shd-button--primary" data-ubxsend="${r.id}">Send reply</button></div>`}</div>`;
+      <button class="shd-button shd-button--primary" data-ubxsend="${r.id}">Send as ${c.own?AGENCY.name:c.name}</button></div>`}</div>`;
 }
 function ubxHTML(){
  const all=UBX_ALL, th=ubxThreads(), unread=all.filter(ubxUnread).length;
@@ -6084,6 +6166,10 @@ const Q_DEST={"Email account disconnected":"accounts","Bounce rate rising":"acco
  "Sequence stalled":"sequences","Setup incomplete":"overview","Near limit":"limits"};
 const destFor=q=>Q_DEST[q.kind]||(/limits near$/.test(q.kind)?"limits":"overview");
 let focusMb=null;
+/* 21 Sep 2026, delight pass round 6: which resource row the Clients list's
+   usage cell was about, so the Limits tab can land already scrolled there
+   instead of handing back a plain tab with six rows to search through. */
+let FOCUS_LIM=null;
 /* the four destinations that are record tabs rather than workspace modules */
 const RECTAB={update:1,overview:1,limits:1,access:1};
 function gotoClient(id,mod,pid){
@@ -7801,7 +7887,10 @@ function wire(){
    ORIGIN=view.name==="dash"?{order:homeOrderIds(cliTab),attn:cliTab==="att"}:null;
    ctx="agency";view={name:"record",id:b.dataset.manage};tab="overview";render()});
  q("[data-golimits]").forEach(b=>b.onclick=()=>{ORIGIN=null;ctx="agency";view={name:"record",id:b.dataset.golimits};tab="limits";render()});
- q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+ q("[data-goclim]").forEach(b=>b.onclick=()=>{const [id,k]=b.dataset.goclim.split("|");
+   ORIGIN=null;ctx="agency";view={name:"record",id};tab="limits";FOCUS_LIM=k;render();
+   const row=el("rlim-"+k); if(row) row.scrollIntoView({behavior:REDUCED()?"auto":"smooth",block:"center"})});
+ q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;FOCUS_LIM=null;render()});
  /* the setup strip embedded in Home's one-client row carries rcSetup's own
     "Set up" buttons, generic data-tab links that only make sense once a
     record's own tab bar exists. data-hometab pairs one with the client id so
@@ -8103,7 +8192,7 @@ function wire(){
  q("[data-topeople]").forEach(b=>b.onclick=()=>{view={name:"people"};render()});
  q("[data-invitestaff]").forEach(b=>b.onclick=()=>amOpen({from:{name:"people"}}));
  /* 18 Sep, delight pass: the gap warning opens A8 with the uncovered workspaces already picked */
- q("[data-fixgaps]").forEach(b=>b.onclick=()=>amOpen({kind:"agency",ws:uncovered().map(c=>c.id),from:{name:"people"}}));
+ q("[data-fixgaps]").forEach(b=>b.onclick=()=>amOpen({kind:"agency",ws:uncovered().map(c=>c.id),fixGaps:true,from:{name:"people"}}));
  q("[data-wsaddopen]").forEach(b=>b.onclick=()=>{const k=b.dataset.wsaddopen, P=PEOPLE[k];
    amOpen({kind:"agency",email:P.email||"",name:P.name,role:P.role,from:{name:"person",id:k}})});
  /* ── A8 wiring ── */
@@ -8770,7 +8859,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="79cabff";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="7ef6f21";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
