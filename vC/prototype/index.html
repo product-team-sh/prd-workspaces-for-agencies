@@ -1593,7 +1593,6 @@ const I={
  dash:['0 0 24 24','<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'],
  back:['0 0 24 24','<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'],
  usage:['0 0 24 24','<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
- cws:['0 0 24 24','<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 20V10"/>'],
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
@@ -1617,7 +1616,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
     rail is the client's only navigation, so the two screens the tab strip
     used to carry alone live here now. */
  ['usage','Usage',null,'client'],['warmup','Email Warm-up'],['refer','Refer a Friend'],
- ['cws','Workspace',null,'client']];
+ ];
 const inAgency=()=>ctx==="agency";
 /* Version C's third persona. A normal user is an account with one workspace and
    no clients: the population every Saleshandy signup lands in, and the one
@@ -2517,7 +2516,7 @@ function renderRail(){
     ["Account",["people","billing","analytics","apiint"]],
     ["Coming soon",["queue","inbox","task","mail","tmpl"]]]
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
-    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer","cws"]]];
+    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
  /* 16 Flow A said Home and the Work queue both wait for a first client.
     Version C splits them. The Work queue still waits, because a queue of work
@@ -2533,7 +2532,7 @@ function renderRail(){
       The agency standing inside a client's workspace sees the same screen the
       client does, from its own side. */
    if(k==="usage"&&!inAgency()&&!asClient&&!isNormal()&&ctx!=="own"&&byId[ctx]) return true;
-   if(sc==="client"){if(!(asClient&&!inAgency()))return false;if(k==="cws")return true}
+   if(sc==="client"){if(!(asClient&&!inAgency()))return false}
    /* a client sees a rail item only if the agency switched that screen on */
    if(asClient&&!inAgency()) return !!RAIL2CVIEW[k]&&seesC(byId[ctx],RAIL2CVIEW[k]);
    /* Version C: a normal user stands in the house workspace, so inAgency() is
@@ -2556,7 +2555,7 @@ function renderRail(){
      ||(k==="apiint"&&view.name==="apiint")
      ||(AGY_MOD[k]&&view.name===k))
    :(asClient?RAIL2CVIEW[k]===cView:(RAIL2MOD[k]||k)===inMod);
- const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,cws:1,apiint:1},
+ const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,apiint:1},
    Object.fromEntries(Object.keys(AGY_MOD).map(k=>[k,1])));
  /* a client reads its own labels, not ours. The tabs already say Replies,
     Prospects and Reports; the rail said Unified Inbox, CRM and Analytics for the
@@ -2680,10 +2679,19 @@ function renderShell(){
     re-inserted (with its click handler re-wired) the moment the session
     leaves that state, so a client session has no switcher trigger at all
     rather than an inert one that still answers to the DOM. */
- if(asClient||solo){const b=el("wsBtn"); if(b) b.remove();}
- else if(!el("wsBtn")){
-   el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
-   el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
+ if(asClient||solo){const b=el("wsBtn"); if(b) b.remove();
+   /* 25 Sep 2026: the header still names the workspace for a client session; it is a
+      label, not a trigger (no button, no chevron, no popover). */
+   const w=solo?byId[ctx]:c;
+   if(!el("wsStatic")) el("sbWs").insertAdjacentHTML("afterbegin",`<div class="ws-btn ws-static" id="wsStatic"><span class="avatar av-tint" id="wsStaticAv"></span><span style="min-width:0;flex:1"><span class="nm" id="wsStaticNm"></span><span class="ws-ctx" id="wsStaticCtx"></span></span></div>`);
+   el("wsStaticAv").textContent=initials(w.name); el("wsStaticAv").style.setProperty("--c",w.colour||AGENCY.colour);
+   el("wsStaticNm").textContent=w.name; el("wsStaticCtx").textContent=solo?"Your workspace":"Viewing as the client";
+ }
+ else {const st=el("wsStatic"); if(st) st.remove();
+   if(!el("wsBtn")){
+     el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
+     el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
+   }
  }
  if(solo){const o=byId[ctx].email,loc=o.split("@")[0];
    el("meAv").textContent=loc.slice(0,2).toUpperCase(); el("meNm").textContent=o;}
@@ -5225,7 +5233,7 @@ const RAIL2MOD={seq:"sequences",crm:"prospects",inbox:"inbox",mail:"accounts",tm
 /* the client's own view models five screens, so only the rail items that map
    to one are offered while viewing as the client. */
 const RAIL2CVIEW={seq:"sequences",inbox:"inbox",crm:"prospects",leads:"leads",
- mail:"accounts",analytics:"analytics",usage:"usage",cws:"workspace",
+ mail:"accounts",analytics:"analytics",usage:"usage",
  task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",warmup:"warmup",refer:"refer"};
 /* what a client calls each screen. One name per thing, used by the rail, the
    orientation line and the landing rule alike. */
@@ -7176,7 +7184,7 @@ function cReports(c){
    missing entirely, after an earlier version leaked agency items into it. */
 function cSettings(c){
  const u=(c.users&&c.users[0]&&c.users[0][0])||c.email;
- const notif=[["A new reply in your workspace",true],["Your monthly update is ready",true],["An allowance is close to its limit",false]];
+ const notif=[["A new reply in your workspace",true],["A mailbox in your workspace disconnected",true],["An allowance is close to its limit",false]];
  /* fix 25 Sep review #4: "Client Viewer: every screen read-only, changes
     nothing" is stated as absolute, and accessNote() already tells a Viewer
     that above every client-side screen. This was the one screen where the
@@ -7186,7 +7194,7 @@ function cSettings(c){
     wrong (a personal account setting isn't "the workspace"), this is the one
     line to revert. */
  const ro=actingRole(c)==="Client Viewer";
- return `<div class="grid">
+ return `${cWorkspaceSection(c)}<div class="grid" style="margin-top:16px">
   <div class="panel"><div class="panel-h"><span class="panel-t">Profile</span></div><div class="panel-b">
    <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${u.split("@")[0].replace(/^./,x=>x.toUpperCase())}" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" disabled>
@@ -7211,7 +7219,7 @@ function cSettings(c){
    cannot paint one screen's title over another's content. 21 Sep round 3. */
 function fixClientCView(c){
  const granted=CLIENT_MODULES.filter(m=>seesC(c,m[0])).map(m=>[m[0],CLIENT_LBL[m[0]]]);
- const nav=granted.concat([["settings","Settings"],["workspace","Workspace"]]);
+ const nav=granted.concat([["settings","Settings"]]);
  /* land them on the first screen they actually have. Without this a
     reports-only client opens on a Sequences tab that is not in their nav. */
  if(!nav.some(n=>n[0]===cView)) cView=nav.length?nav[0][0]:"settings";
@@ -7219,9 +7227,10 @@ function fixClientCView(c){
 }
 function vClientSide(){
  const c=byId[ctx];
- /* built from what the agency switched on, in rail order, plus the two screens
-    that are never the agency's to withhold: Settings, and the Workspace screen
-    naming who manages this workspace. */
+ /* built from what the agency switched on, in rail order, plus Settings, which
+    is never the agency's to withhold. The former "Workspace" item (who manages
+    this, your contact, since when) is a section at the top of Settings since
+    25 Sep 2026, Hitesh: "Please remove it". */
  const granted=fixClientCView(c);
  const rb=receiptBar("client:"+c.id);
  return `<div class="toolbar">
@@ -7235,7 +7244,6 @@ function vClientSide(){
    cView==="sequences"?cSeq(c)
    :cView==="prospects"?(openProspect?cProspect(c):cPros(c))
    :cView==="usage"?cUsage(c)
-   :cView==="workspace"?cWorkspace(c)
    :cView==="inbox"?cInbox(c)
    :cView==="leads"?cLeads(c)
    /* 25 Sep 2026: this used to be a placeholder line ("Meridian Growth
@@ -7253,15 +7261,15 @@ function vClientSide(){
 }
 /* phase 1: every client is created and owned by the agency, so this is a
    statement of fact, not a control. Nothing here about links, IDs or requests. */
-function cWorkspace(c){
- /* phase 1: every client workspace is created and run by the agency, so this
-    screen answers the three questions a client user actually has: who runs
-    it, who to talk to, and where their allowances are. Nothing about links. */
+function cWorkspaceSection(c){
+ /* the three facts a client user asks about, as the first panel of Settings:
+    who runs this workspace, who to talk to, since when. Was a rail item of its
+    own until 25 Sep 2026 (a leftover of the connect path). */
  const P=clientContact()||{name:AGENCY.name,email:""};
  const row=(k,v)=>`<div style="display:flex;gap:16px;padding:11px 0;border-top:1px solid var(--gray-13)">
    <span class="sub" style="flex:0 0 150px">${k}</span><span style="flex:1 1 auto;font-size:14px;line-height:20px">${v}</span></div>`;
  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">${c.name}</span><span class="sub">${c.company}</span></div>
+   <div class="panel-h"><span class="panel-t">Workspace</span><span class="sub">${c.name} · ${c.company}</span></div>
    <div class="panel-b" style="padding-top:0">
     ${row("Managed by",`<span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:600;background:${AGENCY.colour}1a;color:${AGENCY.colour}">${AGENCY.initials}</span><strong>${AGENCY.name}</strong></span>`)}
     ${row("Your contact",`${P.name}${P.email?` <span class="sub">· ${P.email}</span>`:""}`)}
@@ -9060,7 +9068,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="e672184";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="70be3bf";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
