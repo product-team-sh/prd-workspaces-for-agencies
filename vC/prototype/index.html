@@ -142,11 +142,11 @@ svg{display:block}
    removes the race instead of trying to outrun it. Bug found 15 Sep 2026 from
    a screenshot caught mid-transition on an iPad, reported to persist after the
    first fix. */
-.sb .lbl,.sb .nav-badge,.sb .nav-new,.sb-group,.sb .nm,.sb .ws-ctx,.sb-brand span,.sb .ws-btn svg{
+.sb .lbl,.sb .nav-badge,.sb .nav-new,.sb .nav-soon,.sb-group,.sb .nm,.sb .ws-ctx,.sb-brand span,.sb .ws-btn svg{
  opacity:0;transition:opacity .3s ease-in-out}
-.sb:hover .lbl,.sb:hover .nav-badge,.sb:hover .nav-new,.sb:hover .sb-group,.sb:hover .nm,
+.sb:hover .lbl,.sb:hover .nav-badge,.sb:hover .nav-new,.sb:hover .nav-soon,.sb:hover .sb-group,.sb:hover .nm,
 .sb:hover .ws-ctx,.sb:hover .sb-brand span,.sb:hover .ws-btn svg,
-.sb.is-open .lbl,.sb.is-open .nav-badge,.sb.is-open .nav-new,.sb.is-open .sb-group,
+.sb.is-open .lbl,.sb.is-open .nav-badge,.sb.is-open .nav-new,.sb.is-open .nav-soon,.sb.is-open .sb-group,
 .sb.is-open .nm,.sb.is-open .ws-ctx,.sb.is-open .sb-brand span,.sb.is-open .ws-btn svg{
  opacity:1;transition:opacity .3s ease-in-out}
 /* a count still has to be visible on a collapsed icon, or the one thing the
@@ -170,6 +170,15 @@ svg{display:block}
 /* the New badge stays visible on the collapsed icon too, where the product puts it */
 .sb:not(:hover):not(.is-open) .nav-new{position:absolute;top:0;left:15px;opacity:1;
  width:26px;height:14px;padding:1px 3px;display:flex;align-items:center;justify-content:center;line-height:12px}
+/* fix 25 Sep review #5/#23: "Soon" is a wider text pill than the count/New
+   badges (30px vs 16-26px) and the same corner-badge geometry that clears
+   the icon for those two instead lands the pill square on top of the icon
+   glyph (measured 11x8px overlap on every Coming-soon item, every screen).
+   Hidden in the collapsed rail instead of squeezed into a corner; it already
+   fades in on hover/open (the .sb:hover/.is-open rules above list
+   .nav-soon alongside .lbl), so the rail's tooltip-on-hover behaviour is
+   unchanged and nothing overlaps the icon collapsed. */
+.sb:not(:hover):not(.is-open) .nav-soon{display:none}
 /* .app-sidebar__header, deployed, exact: 50px, 11.5px vertical padding, 14px side
    margins, a 1px #e5e7eb rule beneath */
 .sb-brand{display:flex;align-items:center;gap:6px;height:50px;flex:none;padding:11.5px 0;margin:0 14px;border-bottom:1px solid var(--gray-13);color:var(--gray-17);font-weight:700;font-size:16px}
@@ -213,6 +222,10 @@ svg{display:block}
  min-width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;line-height:1}
 .nav-badge.hot{background:#ef4444}
 .nav-new{font-size:10px;font-weight:500;color:#fff;background:#f59e0b;border-radius:3px;padding:1px 5px;letter-spacing:0}
+/* Coming soon, 25 Sep 2026: a muted pill, not the New badge's amber, so a rail
+   full of "Soon" items reads as parked rather than freshly launched. */
+.nav-soon{font-size:10px;font-weight:500;color:var(--gray-11);background:var(--gray-19);
+ border:1px solid var(--gray-13);border-radius:3px;padding:1px 5px;letter-spacing:0}
 .nav-gap{flex:1}
 /* 18 Sep QA: Status stole width from the name and usage columns on Home, so
    "Northwind Logistics" and "89% Prospects" wrapped. */
@@ -222,7 +235,15 @@ svg{display:block}
 /* .app-sidebar__footer, deployed: a 1px #e5e7eb divider, then items at the same 8px gap */
 .sb-foot{border-top:1px solid var(--gray-13);padding-top:8px;display:flex;flex-direction:column;gap:8px}
 
-.main{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:57px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:57px;transition:margin-left .18s ease-in-out}
+/* fix 25 Sep review #6: .sb is position:absolute, so expanding it on hover
+   (57px to 240px, rule above) used to sit on top of .main's static
+   margin-left with no scrim, hiding up to 183px of live content (a KPI
+   card, banner text, table columns) behind the rail with nothing to say so.
+   .sb and .main are siblings under .app, so the same hover/is-open state
+   that opens the rail now pushes the page over to match it. */
+@media(hover:hover){.sb:hover ~ .main{margin-left:240px}}
+.sb.is-open ~ .main{margin-left:240px}
 .topbar{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:6px 24px;background:var(--gray-19);
  border-bottom:1px solid var(--gray-13);position:relative;z-index:30}
 .psplit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px;align-items:start}
@@ -1053,7 +1074,14 @@ tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 20
 .nc-poolbar{display:flex;height:6px;border-radius:3px;background:var(--gray-16);overflow:hidden}
 .nc-poolbar span:first-child{background:var(--green-16)}
 .nc-poolbar span:last-child{background:var(--blue-24)}
-.nc-pool i{display:block;font-style:normal;font-size:11.5px;line-height:16px;color:var(--gray-15);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* fix 25 Sep review #9: a single nowrap+ellipsis line truncated the "reserved"
+   clause AND the "· X free" figure together, and free is the one number this
+   screen exists to inform the limit decision with. Split into two flex
+   children: the used/reserved clause shrinks and ellipses on its own, the
+   free clause is flex:none so it is never the part that gets cut. */
+.nc-pool i{display:flex;align-items:baseline;gap:4px;min-width:0;font-style:normal;font-size:11.5px;line-height:16px;color:var(--gray-15);margin-top:5px}
+.nc-poolused{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nc-poolfree{flex:none;white-space:nowrap}
 .nc-pool i b{font-weight:600;color:var(--gray-17)}
 /* 18 Sep, Hitesh: the header sat over the unit words while the inputs start at
    the column edge. Header and inputs both align left now. */
@@ -1627,8 +1655,12 @@ const XS_CAPS=[
   "A workspace is a container. Everything you already have sits in yours, untouched, and every client you add gets one of their own."],
  ["Nothing crosses between workspaces",
   "Each one holds its own sequences, prospects, mailboxes and replies. A client can never see yours, or another client\u2019s."],
+ /* fix 25 Sep review #10/#24: Work queue is Coming soon on the admin panel,
+    so it dropped out of this beat rather than being relabelled Soon mid
+    animation, matching how Home and Client Management (both live) are the
+    two named here now. */
  ["And you get a level above them",
-  "Home, the Work queue and Client Management are new. They are how you run the account itself, across every workspace."]
+  "Home and Client Management are new. They are how you run the account itself, across every workspace."]
 ];
 const XS_TICK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 /* short enough to sit one to a line at 760px; the full sentence stays put in
@@ -1687,7 +1719,7 @@ function renderXform(){
     +'<span class="xs-av" style="background:'+AGENCY.colour+';width:22px;height:22px;font-size:10px">'+AGENCY.initials+'</span>'
     +'<span style="font-size:13px;font-weight:600;color:var(--gray-17)">'+AGENCY.name+'</span>'
     +'<span class="sub" style="flex:1;min-width:60px">across every workspace</span>'
-    +'<span class="xs-chip">Home</span><span class="xs-chip">Work queue</span><span class="xs-chip">Clients</span></div>'
+    +'<span class="xs-chip">Home</span><span class="xs-chip">Clients</span></div>'
   +'<div class="xs-row">'+mine
     +'<div class="xs-div'+(b>=2?" in":"")+'"><span class="xs-line"></span>'
      +'<span class="xs-lock"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--gray-11)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>'
@@ -1719,6 +1751,13 @@ let handover=null;
    its toolbar and cleared the moment ctx moves on to anywhere else, so coming
    back to the same workspace later in this session never shows it again. */
 let justCreatedWs=null;
+/* fix 25 Sep review #1: render() replaces #page's whole innerHTML on every
+   call, which resets .page's own scrollTop to 0 even when the call is just a
+   local UI toggle (an inline confirm opening, a receipt landing) on the same
+   screen the user was already scrolled into. lastPageKey lets render() tell
+   "still the same screen" apart from "navigated somewhere else": only a real
+   navigation resets the scroll position. */
+let lastPageKey=null;
 const HANDOVER_MS=900, HANDOVER_MS_REDUCED=400;
 function clientTileHTML(c){
  return `<div class="nc-prev" style="max-width:380px;margin:0 auto">
@@ -1816,7 +1855,13 @@ const CAN={
 };
 let me_="owner";
 const ME=()=>PEOPLE[me_];
-const myClients=()=>{const w=ME().ws;return w?CLIENTS.filter(x=>w[x.id]):CLIENTS};
+/* fix 25 Sep review #19: `ws` is an array of ids (see PEOPLE's own comment
+   above), but this indexed it like an id-keyed object (w[x.id]) - on a real
+   array that is always undefined, so every Member with a non-null ws filtered
+   every client out, everywhere myClients() is read (switcher, #clients,
+   Analytics' "All mine", Home, cost/median, API workspace options...). Same
+   array-membership test isMember() already uses correctly, a few lines down. */
+const myClients=()=>{const w=ME().ws;return w?CLIENTS.filter(x=>w.indexOf(x.id)>-1):CLIENTS};
 const canI=k=>CAN[ME().role][k];
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
@@ -2460,13 +2505,17 @@ function renderRail(){
  const GROUPS=isNormal()
   ?[["",OUTREACH.concat(["people","billing"])]]
   :inAgency()
-  ?[["Overview",["dash","queue"]],["Clients",["clients"]],
-    ["Across your clients",["inbox","task","analytics"]],
-    /* bought once by the agency, then distributed. Procurement is
-       administration, which is why it is in the master and not in the
-       agency's own outreach workspace. */
-    ["Owned by the agency",["mail","tmpl","apiint"]],
-    ["Account",["people","billing"]]]
+  /* 25 Sep 2026, founder decision relayed by Hitesh: the admin panel is Home,
+     Clients and full People/Billing/Analytics/API & Integrations. Work queue,
+     Unified Inbox, Tasks, Email Accounts and Templates all move to a later
+     phase; the rail keeps them visible, parked under Coming soon, rather than
+     hiding a whole idea the agency was already shown. Settings is gone from
+     this rail entirely: it is not deferred, it lives in each workspace now,
+     administration included, so there is nothing account-level left for it to
+     mean here. */
+  ?[["Overview",["dash"]],["Clients",["clients"]],
+    ["Account",["people","billing","analytics","apiint"]],
+    ["Coming soon",["queue","inbox","task","mail","tmpl"]]]
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
     ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer","cws"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
@@ -2513,12 +2562,17 @@ function renderRail(){
     Prospects and Reports; the rail said Unified Inbox, CRM and Analytics for the
     same three screens. One workspace, one name per thing. */
  const CLI_LBL={inbox:"Replies",crm:"Prospects",analytics:"Reports",mail:"Email accounts",leads:"Lead Finder"};
+ /* 25 Sep 2026: the five deferred admin modules keep their rail row, so the
+    agency still knows the idea exists; a "Soon" pill replaces whatever badge
+    the item would otherwise carry, so a stale critical count on Work queue
+    never reads as something to act on today. */
+ const soon=k=>inAgency()&&!!COMING_SOON[k];
  const item=k=>{const [,label0,badge0]=byKey[k];
    const label=(asClient&&!inAgency()&&CLI_LBL[k])||label0;
    let badge=typeof badge0==="function"?badge0():badge0;
-   if(k==="queue"){const n=queueItems().filter(x=>x.sev==="critical").length;badge=n?String(n):null}
+   if(k==="queue"&&!soon(k)){const n=queueItems().filter(x=>x.sev==="critical").length;badge=n?String(n):null}
    return `<button class="nav-item" ${cur(k)?'aria-current="page"':''} ${routed[k]?`data-nav="${k}"`:''}>${svg(k)}<span class="lbl">${label}</span>
-    ${badge==="NEW"?'<span class="nav-new">NEW</span>':badge?`<span class="nav-badge${k==="queue"?" hot":""}">${badge}</span>`:''}</button>`};
+    ${soon(k)?'<span class="nav-soon">Soon</span>':badge==="NEW"?'<span class="nav-new">NEW</span>':badge?`<span class="nav-badge${k==="queue"?" hot":""}">${badge}</span>`:''}</button>`};
  if(view.name==="invite"||view.name==="m1"||view.name==="m2"){el("navList").innerHTML="";return}
  /* the client's own account: the plain product, and nothing that implies an
     agency exists. */
@@ -2548,8 +2602,11 @@ function renderRail(){
      a client exists, so the way up is hidden rather than pointing at itself. */
   +(isOwn()&&!isNormal()?`<button class="nav-item" data-nav="agency">${svg("back")}<span class="lbl">Back to agency</span></button>`:"")
   /* in a client's own view Settings is the client's own: profile, password,
-     notifications. Nothing of the agency's is behind it. */
-  +`<button class="nav-item" data-nav="settings" ${(ctx==="agency"&&view.name==="settings")||(asClient&&!inAgency()&&cView==="settings")?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`
+     notifications. Nothing of the agency's is behind it. 25 Sep 2026: the
+     admin panel carries no Settings at all any more, agency's own or
+     otherwise, because every settings surface, including the agency's own
+     administration, now lives inside a workspace. */
+  +(ctx==="agency"?"":`<button class="nav-item" data-nav="settings" ${(asClient&&!inAgency()&&cView==="settings")?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
@@ -2590,12 +2647,25 @@ function agencyUsage(c){
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">What you allocated to ${c.name}</span><span class="sub">${CYCLE.month} &middot; from ${AGENCY.name}'s pool</span>
    <span class="c-a"><button class="linkbtn" data-golimits="${c.id}">Change limits &rarr;</button></span></div>
-  ${pend.length?`<div class="panel-b" style="border-bottom:1px solid var(--gray-13)"><div class="msg m-info">${infoI}<span><strong>${c.name} asked for more:</strong> ${pend.map(q=>"+"+f(q.amount)+" "+RES[q.res].unit+" of "+RES[q.res].label+", "+AGE(q.when)).join("; ")}. Decide it in the Work queue.</span></div></div>`:""}
+  ${/* fix 25 Sep review #11: the Work queue is Coming soon, so these two
+        sentences now point at Home's own "Needs a decision" card, the same
+        place the Home dashboard's equivalent copy was already repointed to
+        (see the "used to hand off to the Work queue" comment above
+        arrivalLine). */""}
+  ${pend.length?`<div class="panel-b" style="border-bottom:1px solid var(--gray-13)"><div class="msg m-info">${infoI}<span><strong>${c.name} asked for more:</strong> ${pend.map(q=>"+"+f(q.amount)+" "+RES[q.res].unit+" of "+RES[q.res].label+", "+AGE(q.when)).join("; ")}. Decide it from Home, under Needs a decision.</span></div></div>`:""}
   <div class="tscroll"><table class="organism" style="min-width:760px">
    <thead><tr><th>Allowance</th><th class="ar">Used</th><th class="ar">Limit</th><th>Usage</th><th class="ar">Available</th></tr></thead>
    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${c.name} sees these same numbers on its own Usage screen. A request from them lands in your Work queue.</p></div>`;
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${c.name} sees these same numbers on its own Usage screen. A request from them lands on your Home, under Needs a decision.</p></div>`;
 }
+/* the workspace-switcher trigger's own markup, captured once so renderShell
+   can remove it from the DOM for a client-role session and re-insert the
+   exact same node when leaving one. See the fix note in renderShell below. */
+const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
+  <span class="avatar av-tint" id="wsAv">MG</span>
+  <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Agency workspace</span></span>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
+</button>`;
 function renderShell(){
  const inC=ctx!=="agency", c=inC?byId[ctx]:null;
  /* correct cView before the crumb reads it: #asclient deep links always land
@@ -2603,6 +2673,18 @@ function renderShell(){
     fix it, which is why the crumb used to flash "Workspace" over a client's
     only screen. */
  if(asClient&&inC) fixClientCView(c);
+ /* fix 25 Sep review #20: a client-role session (asClient) or solo used to
+    only get a CSS class (ws-static) that hid the chevron and disabled the
+    click handler - the trigger itself, with its avatar, name and
+    aria-haspopup, stayed in the DOM. It is removed for real now, and
+    re-inserted (with its click handler re-wired) the moment the session
+    leaves that state, so a client session has no switcher trigger at all
+    rather than an inert one that still answers to the DOM. */
+ if(asClient||solo){const b=el("wsBtn"); if(b) b.remove();}
+ else if(!el("wsBtn")){
+   el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
+   el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
+ }
  if(solo){const o=byId[ctx].email,loc=o.split("@")[0];
    el("meAv").textContent=loc.slice(0,2).toUpperCase(); el("meNm").textContent=o;}
  else if(asClient&&inC){
@@ -2612,9 +2694,13 @@ function renderShell(){
    else {const u=c.users[0][0]; el("meAv").textContent=u.slice(0,2).toUpperCase(); el("meNm").textContent=u;}}
  else {el("meAv").textContent=ME().initials; el("meNm").textContent=ME().name;}
  {const badge=document.querySelector(".ubadge"); if(badge) badge.hidden=asClient&&inC;}
- el("wsAv").textContent=inC?initials(c.name):AGENCY.initials;
- el("wsAv").style.setProperty("--c",inC?c.colour:AGENCY.colour);
- el("wsNm").textContent=inC?c.name:AGENCY.name;
+ /* wsAv/wsNm live inside wsBtn, which does not exist in the DOM for a
+    client-role or solo session (fix #20 above) - nothing to set them to. */
+ if(!asClient&&!solo){
+   el("wsAv").textContent=inC?initials(c.name):AGENCY.initials;
+   el("wsAv").style.setProperty("--c",inC?c.colour:AGENCY.colour);
+   el("wsNm").textContent=inC?c.name:AGENCY.name;
+ }
  el("popAddWrap").hidden=!canI("billing");
  /* nothing to search through when there is one workspace and no clients */
  el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
@@ -2632,8 +2718,8 @@ function renderShell(){
     Notion, Linear and the Claude Console all show the container with one in it
     (46 §1). Showing it live from day one is also the only way Add client is
     ever found, since the trigger is user-initiated. The gate still holds for
-    asClient and solo, which genuinely have nowhere to go.                   */
- el("wsBtn").classList.toggle("ws-static",asClient||solo);
+    asClient and solo, which genuinely have nowhere to go - fix #20 above now
+    enforces it by removing the trigger from the DOM rather than a CSS class. */
  /* Version C: while the account is normal, the master and the house workspace
     are one place. Both contexts therefore carry the same name, the same avatar
     and the same label, and no context stripe, so that navigating between Home
@@ -2642,7 +2728,7 @@ function renderShell(){
     tell this one apart from.                                                */
  const norm=isNormal();
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
- el("wsCtx").textContent=solo?"Your workspace":norm?"Your workspace":isOwn()?"Own outreach":inC?(asClient?"Viewing as the client":"Client workspace"):"Managing the account";
+ if(!asClient&&!solo) el("wsCtx").textContent=norm?"Your workspace":isOwn()?"Own outreach":inC?"Client workspace":"Managing the account";
  el("sbWs").style.boxShadow=inC&&!norm?"inset 3px 0 0 "+c.colour:"none";
  el("ctxBar").style.setProperty("--ctx",inC&&!norm?c.colour:"transparent");
  el("crumbTail").textContent=solo?(soloMod==="settings"?"Settings":AGY_MOD[soloMod][0])
@@ -2670,7 +2756,12 @@ function renderPop(q=""){
     the account, doing the agency's own outreach, and working inside a client.
     Switching has to be one click from any screen, which is why this lives in
     the sidebar header and not in settings.                                */
- const ownMatch=!t||OWN_WS.name.toLowerCase().includes(t)||"own outreach campaigns".includes(t);
+ /* fix 25 Sep review #22: D2a - "A Member sees an own-outreach row only if
+    they are a member of the agency's own-outreach workspace, an ordinary
+    membership like any other." This matched on search text alone, with no
+    membership check, so a Member with no "own" in their ws array (Sam:
+    ws:["al","nw"]) still saw and could open it. */
+ const ownMatch=(!t||OWN_WS.name.toLowerCase().includes(t)||"own outreach campaigns".includes(t))&&isMember(ME(),"own");
  /* Version C. A normal user has one workspace, so the switcher lists one thing.
     The master and the house workspace are two contexts in the model, but naming
     them separately here is the model leaking: it asks someone with no clients to
@@ -2685,11 +2776,11 @@ function renderPop(q=""){
    <span class="pop-tag">${OWN_WS.seq} sequences</span></button>`;
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{closePop()});
   return}
- el("popL").innerHTML=`<div class="pop-h">Managing the account</div>
+ el("popL").innerHTML=`<div class="pop-h">${isOwnerOrAdmin()?"Managing the account":"Your clients"}</div>
   <button class="pop-r" data-go="agency" aria-current="${ctx==="agency"}">
    <span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span>
    <span class="t">${AGENCY.name}</span>
-   <span class="pop-tag">Admin</span></button>`
+   <span class="pop-tag">${ME().role}</span></button>`
   +(ownMatch?`<div class="pop-h">${AGENCY.name}'s own outreach</div>
   <button class="pop-r" data-go="own" aria-current="${ctx==="own"}">
    <span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span>
@@ -2792,15 +2883,17 @@ function vClients(){
  if(CLIENTS.length===0){
   const O=AGENCY_OWN, can=canI("billing");
   const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
+  /* fix 25 Sep review #10: Work queue is Coming soon on the admin panel, so
+     it came out of this first-run mock rail and its "what you get" cards
+     (People replaces it below - a real, shipped capability on this panel). */
   const railI={home:fi('<path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/>'),
-    queue:fi('<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>'),
     clients:fi('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')};
   const tile=(nm,ini,col,sub,kv,dim)=>'<div class="fc-tile'+(dim?' is-new':'')+'"><div class="fc-nm">'
     +'<span class="avatar av-tint" style="--c:'+col+'">'+ini+'</span><b>'+nm+'</b></div>'
     +'<i>'+sub+'</i><div class="fc-kv">'+kv.map(x=>'<span>'+x+'</span>').join('')+'</div></div>';
   const pic=`<div class="fc-vis cempty-vis">
      <div class="fc-top"><span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span><b>${AGENCY.name}</b>
-      <span class="fc-rail"><span>${railI.home}Home</span><span>${railI.queue}<i class="l">Work queue</i><i class="s">Queue</i></span><span>${railI.clients}Clients</span></span></div>
+      <span class="fc-rail"><span>${railI.home}Home</span><span>${railI.clients}Clients</span></span></div>
      <svg class="fc-branch" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
       <path d="M50 0v5M50 5C50 15 25 11 25 22M50 5C50 15 75 11 75 22" fill="none" stroke="var(--gray-23)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
      <div class="fc-ws">
@@ -2808,7 +2901,7 @@ function vClients(){
       ${tile("Your first client","+","var(--gray-11)","Empty, and its own",["0 sequences","0 prospects","0 mailboxes"],true)}
      </div></div>`;
   const gets=[[svg("dash"),"Home","Every client's health on one screen, ranked by what needs you."],
-    [svg("queue"),"Work queue","Every decision across clients in one list, ordered by what it costs to ignore."],
+    [svg("people"),"People","Everyone with access, and which workspace each of them reaches."],
     ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',"Switcher","Move between clients and your own outreach without signing out."]];
   return `
  <div class="toolbar"><div class="cell-main"><span class="semibold-3">Clients</span></div></div>
@@ -2882,8 +2975,23 @@ const rcHdrChip=c=>{
 let RC_REFUSED=null;
 function vRecord(id){
  const c=byId[id];
+ /* fix 25 Sep review #18: this route had no membership check at all - a
+    Member not on this client's workspace (isMember false) got the full
+    record: totals, chart, activity feed, and working Members/Limits/Email
+    Accounts/Settings tabs, including live "Open workspace" and "View as
+    client" buttons that would carry them straight into a workspace they are
+    not on. D4: a Member "cannot: anything account-level; any workspace they
+    are not in." Every other agency-side surface reaches this client only
+    through myClients(), which already excludes it for such a Member (fix
+    #19); this closes the direct #client=<id> route the same way. */
+ if(c&&!isMember(ME(),id)) return denied("open "+c.name);
  const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["mailboxes","Email Accounts"],["settings","Settings"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
+ /* fix 25 Sep review #7: attention(c)'s "Disabled" chip already exists and was
+    only wired into the Clients list and Home rows, never into this toolbar -
+    so the record page itself never reflected a state change without a manual
+    re-navigation. */
+ const att=attention(c);
  return `
  <div class="toolbar">
   <div class="cell-main">
@@ -2891,10 +2999,12 @@ function vRecord(id){
    ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
    <span class="cs">${c.company} · ${c.email}</span></span></div>
   <div class="tools">${clientNav(c)}
+   ${att&&att.chip?`<span class="chip ${att.tone}">${att.chip}</span>`:""}
    ${isBif(c.id)?'<span class="chip c-vio">Independent budget</span>':'<span class="chip c-info">Shared pool</span>'}${rcHdrChip(c)}
    ${viewAsBtn(c,"shd-button shd-button--tertiary")}
    <button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>${recMenuHTML(c)}</div>
  </div>
+ ${receiptBar("client:"+c.id)}
  <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${
   tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):rMail(c)}</div>`;
@@ -3809,9 +3919,15 @@ const MB_TONE={Healthy:"ok",Warning:"warn",Warming:"info",Disconnected:"bad"};
 /* "warming" and "warning" differ by one glyph and sat side by side as chips.
    The product calls the feature Email Warm-up, so the state is "Warming up". */
 const MB_LABEL=t=>t==="Warming"?"Warming up":t;
+/* 25 Sep 2026, founder decision relayed by Hitesh: a mailbox is bought inside
+   the workspace that uses it, billed to the agency, and belongs to that
+   workspace from the moment it is bought. There is no agency pool to hold an
+   unassigned mailbox in and nothing here to reassign between workspaces, so
+   the old "Unassigned" panel and its Assign/Reassign controls are gone; this
+   panel owns its own purchase entry instead (Buy mailboxes for agency staff,
+   Connect your own only for a client). */
 function rMail(c){
- const taken=new Set(CLIENTS.flatMap(x=>x.mailboxes.map(m=>m[0])));
- const free=UNASSIGNED.filter(m=>!taken.has(m[0]));
+ const clientSide=asClient&&!inAgency();
  const cnt=t=>c.mailboxes.filter(m=>m[1]===t).length;
  const summary=[["Healthy",cnt("Healthy")],["Warming",cnt("Warming")],["Warning",cnt("Warning")],
                 ["Disconnected",cnt("Disconnected")]].filter(x=>x[1]);
@@ -3822,40 +3938,43 @@ function rMail(c){
  /* 17 Sep 2026, round 5b: the health summary is a filter now, not a row of chips */
  const filt=mbHealth==="all"?ordered:ordered.filter(m=>m[1]===mbHealth);
  const rows=mailAll?filt:filt.slice(0,10);
+ const buyActions=clientSide
+   ?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Connect your own</button>`
+   :`<button class="shd-button shd-button--primary shd-button--sm" data-buymbx="${c.id}">Buy mailboxes</button>
+     <button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype" style="margin-left:6px">Connect your own</button>`;
  return `
- <div class="panel"><div class="panel-h"><span class="panel-t">Assigned</span>
-   <span class="sub">${c.mailboxes.length} email account${c.mailboxes.length===1?"":"s"}</span></div>
+ <div class="panel"><div class="panel-h"><span class="panel-t">Email accounts</span>
+   <span class="sub">${c.mailboxes.length} email account${c.mailboxes.length===1?"":"s"}</span>
+   <span class="c-a">${buyActions}</span></div>
   ${receiptBar("mailboxes:"+c.id)}
   ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",c.mailboxes.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
     .map(([k,l,n])=>`<button data-mbh="${k}" aria-pressed="${mbHealth===k}">${l}<span class="pn">${n}</span></button>`).join("")}</div></div>`:""}
   <div class="tscroll"><table class="organism" style="min-width:560px">
    <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th><th></th></tr></thead>
-   <tbody>${c.mailboxes.length?rows.map(m=>`<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
+   <tbody>${c.mailboxes.length?rows.map(m=>{
+    /* fix 25 Sep review #3: Reconnect is a state mutation and was rendered
+       live for every role, Viewer included. Gated the same way the Warm-up
+       toggle already gates itself (canC(c,"warmup") + mbSrc!=="agency"): a
+       client role never acts on an agency-sourced mailbox, and Viewer has no
+       "warmup" verb at all so never gets an enabled button. Agency staff
+       (not asClient) are unaffected. */
+    const mayReconnect=!asClient||(canC(c,"warmup")&&mbSrc(m)!=="agency");
+    return `<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
     <td><span class="chip c-${MB_TONE[m[1]]||"mute"}">${m[1]==="Reconnecting"?"Reconnecting, usually a minute":MB_LABEL(m[1])}</span></td>
     <td class="ar tnum">${m[1]==="Disconnected"||m[1]==="Reconnecting"?'<span class="sub">–</span>':m[2]}</td>
     <td class="ar">${m[1]==="Disconnected"
-      ?`<button class="shd-button shd-button--primary shd-button--sm" data-reconnect="${m[0]}">Reconnect</button>`
+      ?(mayReconnect
+        ?`<button class="shd-button shd-button--primary shd-button--sm" data-reconnect="${m[0]}">Reconnect</button>`
+        :`<span class="sub" aria-disabled="true"${mbSrc(m)==="agency"?` title="Set up by ${AGENCY.name}"`:` title="Your role cannot reconnect mailboxes"`}>Reconnect</span>`)
       :m[1]==="Reconnecting"
       ?`<span class="sub" aria-disabled="true">Reconnecting</span>`
-      :mbSrc(m)==="agency"
-      ?`<button class="linkbtn" data-mbmove="${m[0]}">Reassign</button>`
-      :`<span class="sub" title="${c.name} paid for this one, so it stays here">Not yours to move</span>`}</td></tr>`).join("")
-    :'<tr><td colspan="4"><span class="sub">'+(mbHealth==="all"?"No email accounts assigned. This client cannot send.":"None in this state.")+'</span></td></tr>'}
+      :""}</td></tr>`;}).join("")
+    :'<tr><td colspan="4"><span class="sub">'+(mbHealth==="all"?"No email accounts yet. This workspace cannot send.":"None in this state.")+'</span></td></tr>'}
    </tbody></table></div>
   ${filt.length>10?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
     <span class="sub">Showing ${rows.length} of ${filt.length}</span>
     <button class="linkbtn" data-mailall="${mailAll?0:1}" style="margin-left:10px">${mailAll?"Show fewer":"Show all "+filt.length}</button></div>`:""}
- </div>
- <div class="panel"><div class="panel-h"><span class="panel-t">Unassigned</span>
-   <span class="sub">${isNormal()?"Connected to this workspace":"In "+AGENCY.name+"'s account, not yet given to a client"}</span></div>
-  <div class="panel-b">${free.map(([e,h])=>`<div class="list-row">
-   <span class="trunc">${e}</span><span class="tools"><span class="chip c-${MB_TONE[h]||"mute"}">${MB_LABEL(h)}</span>
-   <button class="shd-button shd-button--tertiary shd-button--sm" data-mbmove="${e}">Assign</button></span></div>`).join("")}
-   ${(c.own?[]:CLIENTS.filter(x=>x.id!==c.id&&x.mailboxes.length).slice(0,1)).map(x=>`<div class="list-row">
-     <span class="trunc" style="color:var(--gray-400)">${x.mailboxes[0][0]}</span>
-     <span class="tools"><span class="chip c-mute">Assigned to ${x.name}</span>
-     <button class="shd-button shd-button--tertiary shd-button--sm" data-conflict="${x.id}|${x.mailboxes[0][0]}">Assign</button></span></div>`).join("")}
-   </div></div>`;
+ </div>`;
 }
 
 /* ══ the sending estate ══════════════════════════════════════════════════════
@@ -4419,9 +4538,12 @@ function vEmailBilling(){
    ["01 Aug, 2026","Email accounts, August",Math.max(0,bought-3),usd(Math.max(0,bought-3)*MBX_PRICE),"Paid"],
    ["14 Jul, 2026","3 accounts added mid-cycle, prorated",3,usd(3*MBX_PRICE*0.55),"Paid"],
    ["01 Jul, 2026","Email accounts, July",Math.max(0,bought-3),usd(Math.max(0,bought-3)*MBX_PRICE),"Paid"]];
+ /* 25 Sep 2026: this panel used to carry its own "Buy email accounts" button.
+    Buying happens inside a workspace now, not from Billing, so this is a
+    billing report of what every workspace bought, not a purchase entry; each
+    row's "Email accounts" link is where that changes. */
  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">Email accounts</span><span class="sub">Connected accounts are free; accounts bought through Saleshandy bill monthly</span>
-    <span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Buy email accounts</button></span></div>
+   <div class="panel-h"><span class="panel-t">Email accounts</span><span class="sub">Connected accounts are free; accounts bought through Saleshandy bill monthly, itemised by workspace</span></div>
    <div class="stats">
     <div class="stat"><span class="stat-l">Connected</span><span class="stat-v">${total}</span></div>
     <div class="stat"><span class="stat-l">Bought through Saleshandy</span><span class="stat-v">${bought}</span></div>
@@ -4749,6 +4871,11 @@ const SETUP_STEPS=[["Create New Sequence","seq"],["Add Prospects","crm"],
 /* the demo account is a running one, which is the state worth reviewing. #setup
    opens the same Home with the checklist still outstanding. */
 let setupDone=true, addCardOff=false, onboardOff=false;
+/* 25 Sep 2026: "Needs a decision" used to hand off to the Work queue past five
+   items; the queue is Coming soon now, so "See all" expands the same card in
+   place instead, the same show-all/show-fewer pattern the Email accounts
+   panel already uses for its own long list. */
+let dashAll=false;
 const clientSetupOff={};
 function normStats(){
  const O=AGENCY_OWN, sent=O.contacted, rep=Math.round(sent*O.reply/100), pos=Math.round(sent*O.pos/100);
@@ -4796,7 +4923,10 @@ function arrivalLine(mine,items){
   const label=RES[k].label.replace(" Credits","").replace("Monthly Emails Sent","sending");
   limClause='<button class="linkbtn" data-manage="'+lim.c.id+'">'+lim.c.name+'</button> hit its '+label+' limit '+AGE(atLimitSince(lim.c,k));
  }
- const decClause=nDec?'<button class="linkbtn" data-nav2="queue">'+nDec+' decision'+(nDec===1?"":"s")+' '+(nDec===1?"is":"are")+' waiting</button>':null;
+ /* 25 Sep 2026: used to jump to the Work queue; the queue is Coming soon now,
+    so this expands the Needs a decision card in place instead, same as its
+    own "See all". */
+ const decClause=nDec?'<button class="linkbtn" data-dashall="1">'+nDec+' decision'+(nDec===1?"":"s")+' '+(nDec===1?"is":"are")+' waiting</button>':null;
  let repClause=null;
  if(repTop){
   const n=repTop.list.length, oldest=repTop.list.slice().sort((a,b)=>rank(b.age)-rank(a.age))[0].age;
@@ -4823,7 +4953,8 @@ function vDash(){
     be the same defect as showing an agency dashboard to someone with no
     clients, one state later.                                              */
  const fresh=norm&&!setupDone;
- const items=fresh?[]:norm?normDecisions():dashItems(), shown=items.slice(0,5), rest=items.length-shown.length;
+ const items=fresh?[]:norm?normDecisions():dashItems(), moreN=Math.max(0,items.length-5),
+   shown=dashAll?items:items.slice(0,5);
  /* 21 Sep, delight pass round 4: exactly one client, and it has never sent.
     The Clients table becomes that client's own setup, and the zero-value
     tiles below say why they are zero instead of just being zero. */
@@ -4981,7 +5112,8 @@ function vDash(){
      +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
      +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
  const railRest=fresh?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
-   +'<span class="c-a">'+(rest>0?'<button class="linkbtn" data-goall>See all '+items.length+'</button>':'')+'</span></div>'
+   +'<span class="c-a">'+(dashAll&&moreN>0?'<button class="linkbtn" data-dashall="0">Show fewer</button>'
+     :moreN>0?'<button class="linkbtn" data-dashall="1">See all '+items.length+'</button>':'')+'</span></div>'
    +(norm
      ?(shown.length?shown.map(d=>'<div class="c-b" style="border-top:1px solid var(--gray-13)">'
         +'<p class="semibold-3" style="margin:0 0 2px">'+d.t+'</p>'
@@ -5599,6 +5731,8 @@ let API_WEBHOOKS=[
   url:"https://hooks.meridiangrowth.com/sh",lastSent:"12 min ago",status:"on"},
 ];
 const isOwnerOrAdmin=()=>ME().role!=="Member";
+/* where the queue used to be the fallback: Home for those who have it, Clients otherwise (D13) */
+const homeView=()=>({name:canI("dashboard")?"dash":"clients"});
 const apiScopeName=s=>s==="agency"?"Agency":s==="own"?AGENCY.name:(byId[s]?byId[s].name:s);
 const apiWsOpts=()=>myClients().concat([OWN_WS]);
 function apiKeyTable(list,note,kind){
@@ -5702,6 +5836,11 @@ function vApiInt(){
 
 function vInClient(){
  const c=byId[ctx];
+ /* fix 25 Sep review #18: same membership gate as vRecord, so entering a
+    client's workspace directly (ctx set without going through the record
+    page's now-gated "Open workspace" button) is denied for a Member who is
+    not on it, per AC7: "any Vertex route ... Denied". */
+ if(!isMember(ME(),ctx)) return denied("open "+c.name);
  const T=[["sequences","Sequences"],["prospects","Prospects"],["inbox","Inbox"],["accounts","Email accounts"],["tmpl","Templates"]];
  /* the own workspace runs through this same renderer on purpose: it is a
     workspace like any other, and anything that has to be special-cased here is
@@ -5736,8 +5875,7 @@ function vInClient(){
     <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Client workspace")+" &middot; "+inModLabel()}</span></span></div>
    <div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>
    <div class="tools">${own?"":queueBack()+clientNav(c)}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
-    ${inMod==="sequences"?'<button class="shd-button shd-button--primary" data-flash="Not in this prototype">Create Sequence</button>'
-     :inMod==="accounts"?'<button class="shd-button shd-button--primary" data-flash="Not in this prototype">Add Email Account</button>':""}</div></div>
+    ${inMod==="sequences"?'<button class="shd-button shd-button--primary" data-flash="Not in this prototype">Create Sequence</button>':""}</div></div>
 
   <div class="wrap">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
      :(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
@@ -6112,7 +6250,11 @@ const SETS=[
   "<b>No account level key that can act across every workspace.</b> That is a security decision, not a convenience. Existing keys get pinned to the agency workspace."],
  ["mcp","MCP","company","W","Same reasoning as the API key. The workspace boundary is the first permission gate this page has ever had."],
  ["ctd","Custom Tracking Domain","company","A pool &rarr; W",
-  "The account holds the pool; a domain is assigned to exactly one workspace. Mirrors the mailbox rule."],
+  /* 25 Sep 2026: this used to say "Mirrors the mailbox rule", when both were
+     bought centrally and handed down. Mailboxes no longer work that way; a
+     tracking domain still does, and the sentence stood on a comparison that
+     is no longer true, so it is dropped rather than left to mislead. */
+  "The account holds the pool; a domain is assigned to exactly one workspace."],
  ["dnc","Do Not Contact List","company","A floor + W",
   "Already client aware today (All Clients or Specific Client). Global lists are the floor and <b>cannot be removed here</b>; client lists become this workspace's. Suppression gets stricter, never looser."],
  ["dncall","Do Not Call List","company","A floor + W","Same rule as the do-not-contact list, and the item is no longer hidden from agencies."],
@@ -6494,11 +6636,18 @@ function vM1(){
 
   ${MIG.flagged.length?`<div class="mig-block migflag">
    <h2>${MIG.flagged.length} mailbox${MIG.flagged.length===1?"":"es"} sent for more than one client</h2>
+   ${/* fix 25 Sep review #15: D13 ended mailboxes as an assignable resource
+        (no pool, no assignment, no move), so there is no later "choose an
+        owner" step and nowhere left to point one at - Email Accounts on the
+        admin panel is Coming soon and never had an owner-picker even before.
+        A flagged mailbox has no cross-workspace move under the new model
+        either, so it stays put and each client picks up a mailbox of its own
+        inside its own workspace instead. */""}
    ${MIG.flagged.map(x=>`<p><strong>${x.mailbox}</strong> was on sequences for
      ${x.clients.map(i=>byId[i]?byId[i].name:i).join(" and ")}. A mailbox belongs to one workspace,
-     so it was flagged rather than split, and it stays in your agency workspace until you choose.</p>`).join("")}
-   <p class="mig-note">Nothing stopped sending. Choose an owner whenever suits you, from
-   Email Accounts.</p>
+     so it was flagged rather than split; it stays in ${AGENCY.name}'s own workspace, and each
+     client above connects or buys a mailbox of its own inside its workspace whenever it needs one.</p>`).join("")}
+   <p class="mig-note">Nothing stopped sending.</p>
   </div>`:""}
 
   <div class="mig-block">
@@ -6631,7 +6780,7 @@ function drawerHTML(){
    return `<div class="nc-limrow" data-capfor="${k}">
     <span class="nc-limlab"><b>${R.label}</b><i>${R.nature}${nc.bif&&!R.floors?" &middot; cap only, cannot be reserved":""}</i></span>
     <span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
-     <i>${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)} &middot; <b>${f(m.free)} free</b></i></span>
+     <i><span class="nc-poolused" title="${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} free</b></span></i></span>
     <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
  const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage limits for ${whoL}</span>
    <p class="sub" style="margin:0">Each number is the most ${whoL} can draw from your shared pool this cycle. Nothing is set aside
@@ -6947,8 +7096,8 @@ function warmupRow(c,m){
 }
 function cWarmup(c){
  const rows=c.mailboxes||[];
- return `<p class="sub" style="margin:0 0 14px">${AGENCY.name} sets up warm-up for this workspace through
-   TrulyInbox. You can pause and resume warm-up on mailboxes you connected yourself.</p>
+ return `<p class="sub" style="margin:0 0 14px">${AGENCY.name} sets up warm-up for this workspace.
+   You can pause and resume warm-up on mailboxes you connected yourself.</p>
   <div class="panel"><div class="tscroll"><table class="organism" style="min-width:720px">
    <thead><tr><th>Email account</th><th>Warm-up</th><th class="ar">Sent today</th><th class="ar">Received today</th>
     <th class="ar">Deliverability</th><th class="colact"></th></tr></thead>
@@ -7028,19 +7177,28 @@ function cReports(c){
 function cSettings(c){
  const u=(c.users&&c.users[0]&&c.users[0][0])||c.email;
  const notif=[["A new reply in your workspace",true],["Your monthly update is ready",true],["An allowance is close to its limit",false]];
+ /* fix 25 Sep review #4: "Client Viewer: every screen read-only, changes
+    nothing" is stated as absolute, and accessNote() already tells a Viewer
+    that above every client-side screen. This was the one screen where the
+    controls stayed live regardless of role, so the text promised read-only
+    and the buttons didn't back it. Personal-profile fields are disabled for
+    a Viewer the same as any other workspace control; if that reading is
+    wrong (a personal account setting isn't "the workspace"), this is the one
+    line to revert. */
+ const ro=actingRole(c)==="Client Viewer";
  return `<div class="grid">
   <div class="panel"><div class="panel-h"><span class="panel-t">Profile</span></div><div class="panel-b">
-   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${u.split("@")[0].replace(/^./,x=>x.toUpperCase())}"></div>
+   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${u.split("@")[0].replace(/^./,x=>x.toUpperCase())}" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" disabled>
     <p class="sub" style="margin-top:6px">Your sign-in. ${AGENCY.name} invited this address; ask them to invite another to change it.</p></div>
-   <button class="shd-button shd-button--primary shd-button--sm" data-flash="Saved">Save</button></div></div>
+   <button class="shd-button shd-button--primary shd-button--sm" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Password</span></div><div class="panel-b">
-   <div class="field"><label class="flabel" for="cpOld">Current password</label><input type="password" id="cpOld" autocomplete="current-password"></div>
-   <div class="field"><label class="flabel" for="cpNew">New password</label><input type="password" id="cpNew" placeholder="At least 8 characters" autocomplete="new-password"></div>
-   <button class="shd-button shd-button--primary shd-button--sm" data-flash="Password changed">Change password</button>
+   <div class="field"><label class="flabel" for="cpOld">Current password</label><input type="password" id="cpOld" autocomplete="current-password" ${ro?"disabled":""}></div>
+   <div class="field"><label class="flabel" for="cpNew">New password</label><input type="password" id="cpNew" placeholder="At least 8 characters" autocomplete="new-password" ${ro?"disabled":""}></div>
+   <button class="shd-button shd-button--primary shd-button--sm" ${ro?"disabled":""} data-flash="Password changed">Change password</button>
    <p class="sub" style="margin-top:10px">${AGENCY.name} never sees or holds your password.</p></div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
-   ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" aria-label="${l}"></button></div>`).join("")}
+   ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
    <p class="sub" style="margin-top:10px">Only about this workspace. Nothing about ${AGENCY.name}'s other clients reaches you.</p></div></div>
   ${seesC(c,"sequences")?`<div class="panel"><div class="panel-h"><span class="panel-t">Workspace settings</span></div><div class="panel-b" style="padding-top:4px">
    ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Agency default, add your own"}</span></div>`).join("")}
@@ -7080,7 +7238,13 @@ function vClientSide(){
    :cView==="workspace"?cWorkspace(c)
    :cView==="inbox"?cInbox(c)
    :cView==="leads"?cLeads(c)
-   :cView==="accounts"?cParked(c,"Email accounts","The mailboxes sending on your behalf, and the health of each. "+AGENCY.name+" assigns them.")
+   /* 25 Sep 2026: this used to be a placeholder line ("Meridian Growth
+      assigns them"), left over from the central-pool model. rMail is the
+      real screen every other Email Accounts surface already uses, and it
+      already gates Buy vs. Connect on asClient&&!inAgency(), so the client
+      gets the real mailbox list, not a description of one, and never sees
+      a purchase entry. */
+   :cView==="accounts"?rMail(c)
    :["task","dialer","verify","tmpl","radar","refer"].indexOf(cView)>-1
      ?cParked(c,CLIENT_LBL[cView],"The Saleshandy "+CLIENT_LBL[cView]+" screen, scoped to your workspace.","Everything here is yours; "+AGENCY.name+" sees it too.",MOD_ICON[cView])
    :cView==="warmup"?cWarmup(c)
@@ -7272,11 +7436,15 @@ function atLimitBanner(c){
 
 /* ═══ modals: destructive confirms and the collision panel ═══ */
 const CONSEQ={
+ /* fix 25 Sep review #14: D13 ended mailboxes as an assignable resource (no
+    pool, no assignment, no move); the delete row below was already updated
+    to say so ("Email accounts" / "Stopped, retained 30 days") and this row
+    was the one left behind with the old assign language. */
  disable:[["Client sign-in","Blocked"],["Sequences in flight","Paused"],["Emails scheduled tomorrow","Held, not cancelled"],
-   ["Prospects and history","Retained"],["Assigned email accounts","Stay assigned, sending paused"],
+   ["Prospects and history","Retained"],["Email accounts","Stay with the workspace, sending paused"],
    ["Reserved capacity","Released to the pool"],["Integrations and webhooks","Suspended"]],
  delete:[["Client sign-in","Removed"],["Sequences in flight","Stopped, retained 30 days"],["Emails scheduled tomorrow","Cancelled"],
-   ["Prospects and history","Retained 30 days, then purged"],["Assigned email accounts","Released to unassigned"],
+   ["Prospects and history","Retained 30 days, then purged"],["Email accounts","Stopped, retained 30 days"],
    ["Consumed credits","Stay on the invoice"],["Reserved capacity","Released to the pool"],["Integrations and webhooks","Deleted"]],
 };
 function modalHTML(){
@@ -7303,8 +7471,10 @@ function modalHTML(){
      footnote: it is the single most anxiety-reducing thing on the screen and it
      was set in 12px grey at the bottom.                                     */
   const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
+  /* fix 25 Sep review #10: Work queue is Coming soon on the admin panel, so
+     dropped from this "New in the sidebar" preview - Home and Clients are
+     what actually appears. */
   const railI={home:fi('<path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/>'),
-    queue:fi('<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>'),
     clients:fi('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')};
   const tile=(nm,ini,col,sub,kv,dim)=>'<div class="fc-tile'+(dim?' is-new':'')+'"><div class="fc-nm">'
     +'<span class="avatar av-tint" style="--c:'+col+'">'+ini+'</span><b>'+nm+'</b></div>'
@@ -7315,7 +7485,7 @@ function modalHTML(){
     <p class="fc-lead">This turns ${AGENCY.name} into an agency account. Nothing you have moves; one new place appears next to it.</p>
     <div class="fc-vis">
      <div class="fc-top"><span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span><b>${AGENCY.name}</b>
-      <span class="fc-rail"><em>New in the sidebar</em><span>${railI.home}Home</span><span>${railI.queue}Work queue</span><span>${railI.clients}Clients</span></span></div>
+      <span class="fc-rail"><em>New in the sidebar</em><span>${railI.home}Home</span><span>${railI.clients}Clients</span></span></div>
      <svg class="fc-branch" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
       <path d="M50 0v5M50 5C50 15 25 11 25 22M50 5C50 15 75 11 75 22" fill="none" stroke="var(--gray-23)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
      <div class="fc-ws">
@@ -7440,6 +7610,50 @@ function modalHTML(){
     `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
      <button class="shd-button shd-button--primary" data-mbmoveok>Move it</button>`);
  }
+ /* 25 Sep 2026: buying now happens inside the workspace that will use the
+    mailboxes, opened from rMail's own "Buy mailboxes" button. Step 1 asks how
+    many and on what domain; step 2 is the receipt, and it names the workspace
+    once, because that is the whole point of the new rule: bought here, billed
+    to the agency, belongs to this workspace from the moment it is bought. No
+    unassigned pool, no later assignment step. */
+ if(modal.kind==="buymbx"){
+  const ws=byId[modal.wsId];
+  if(!ws) return card("Buy mailboxes","<p class=\"sub\">This workspace no longer exists.</p>",
+    `<button class="shd-button shd-button--tertiary" data-mclose>Close</button>`);
+  const wsLabel=ws.own?"your own outreach":ws.name;
+  if(modal.step===2){
+   /* fix 25 Sep review #8: this step wrote nothing until "Done" (data-buymbxok,
+      the only branch that pushes onto ws.mailboxes) but read as an
+      already-completed receipt, with "Close" sitting at the same visual
+      weight as any other secondary button - so closing it silently discarded
+      a purchase that looked done. Reworded to a pending confirmation and
+      renamed the discard action Cancel to match, so nothing here claims a
+      purchase that has not happened yet. */
+   return card(`Buy mailboxes`,`
+     <div class="conseq">
+      <div><span>Quantity</span><span>${modal.qty} mailbox${modal.qty===1?"":"es"}</span></div>
+      <div><span>Domain</span><span>${modal.domain}</span></div>
+      <div><span>For workspace</span><span>${wsLabel}</span></div>
+      <div><span>Billed to</span><span>${AGENCY.name}</span></div>
+     </div>
+     <p class="sub" style="margin-top:14px">About to buy for ${wsLabel}, billed to ${AGENCY.name}. It will belong to this workspace from the moment you confirm; there is no pool to reassign it from later.</p>`,
+     `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
+      <button class="shd-button shd-button--primary" data-buymbxok>Buy</button>`);
+  }
+  return card(`Buy mailboxes for ${wsLabel}`,`
+    <div class="field"><label class="fl" for="buyQty">How many</label>
+     <input type="number" min="1" max="20" id="buyQty" class="inp" value="${modal.qty}"></div>
+    <div class="field" style="margin-top:12px"><label class="fl" for="buyDomain">Domain</label>
+     <input type="text" id="buyDomain" class="inp" value="${modal.domain}"></div>
+    <p class="sub" style="margin-top:12px">These mailboxes belong to ${wsLabel} from the moment they are bought. Billed to ${AGENCY.name}.</p>`,
+    `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
+     <button class="shd-button shd-button--primary" data-buymbxnext>Continue</button>`);
+ }
+ /* dead code, 25 Sep 2026: only vEstate's own "Buy mailboxes" button opened
+    this modal, and vEstate is no longer reachable from any rail item or hash
+    in the agency context (Email Accounts now dispatches to Coming soon).
+    Left in place rather than deleted, same as vEstate itself. The live
+    purchase flow is modal.kind==="buymbx" above. */
  if(modal.kind==="estbuy"){
   return card(`Buy mailboxes`,`
     <p style="font-size:14px;line-height:21px">Mailboxes bought here land in
@@ -7494,6 +7708,27 @@ function renderModal(){
  {const mv=L.querySelector("[data-mbmoveok]");
   if(mv) mv.onclick=()=>{const sel=L.querySelector("#mbTarget");
     doMbMove(modal.addr,sel?sel.value:"");modal=null;renderModal();render()}}
+ /* 25 Sep 2026: Buy mailboxes, two steps in the same modal. Step 1 reads its
+    own inputs and advances to the receipt; step 2 is the only place the
+    purchase actually writes, straight onto the workspace it was opened from. */
+ {const nx=L.querySelector("[data-buymbxnext]");
+  if(nx) nx.onclick=()=>{
+    const qty=Math.max(1,Math.min(20,num(L.querySelector("#buyQty").value)||modal.qty));
+    const domain=(L.querySelector("#buyDomain").value||"").trim()||modal.domain;
+    modal=Object.assign({},modal,{step:2,qty,domain});renderModal()}}
+ {const dn=L.querySelector("[data-buymbxok]");
+  if(dn) dn.onclick=()=>{
+    const ws=byId[modal.wsId], n=modal.qty, dom=modal.domain;
+    const prefixes=["hello","team","sales","growth","outreach","hi","go","reach","connect","send"];
+    for(let i=0;i<n;i++){
+      const p=prefixes[(ws.mailboxes.length+i)%prefixes.length];
+      ws.mailboxes.push([p+(i?String(i+1):"")+"@"+dom,"Warming",30]);
+    }
+    ws.mbx=ws.mailboxes.length;
+    const wsLabel=ws.own?"your own outreach":ws.name;
+    receipt("mailboxes:"+ws.id,`Bought ${n} mailbox${n===1?"":"es"} for ${wsLabel}, billed to ${AGENCY.name}.`,
+      null,`bought ${n} mailbox${n===1?"":"es"} for ${wsLabel}`);
+    modal=null;renderModal();render()}}
  const ok=L.querySelector("[data-mconfirm]");
  if(ok) ok.onclick=()=>{
    const id=modal.client;
@@ -7512,10 +7747,61 @@ function renderModal(){
      RK.forEach(k=>delete RES[k].rows[id]);
      REQUESTS=REQUESTS.filter(r=>r.client!==id);
      view={name:"clients"};}
-   else {byId[id].disabled=true;}
+   else {byId[id].disabled=true;
+     /* fix 25 Sep review #7: confirming Disable wrote the state but left the
+        record page pixel-identical, no receipt, no status chip, matching
+        Buy mailboxes' pattern (a receipt call plus an Undo) instead. */
+     receipt("client:"+id,`${byId[id].name} disabled. Sending is stopped; nothing is lost.`,
+       ()=>{byId[id].disabled=false;render()},`disabled ${byId[id].name}`);}
    modal=null;renderModal();render();
  };
  el("mscrim").onclick=e=>{if(e.target.id==="mscrim"){modal=null;renderModal()}};
+}
+
+/* ═══ Coming soon ═══════════════════════════════════════════════════════════
+   25 Sep 2026, founder decision relayed by Hitesh: phase 1 of the admin panel
+   is Home, Clients, and full People/Billing/Analytics/API & Integrations.
+   Work queue, Unified Inbox, Tasks, Email Accounts and Templates are real
+   screens already built (vQueue, vAgencyMod, vEstate) and deliberately left
+   in place below; this table and renderer intercept their five view names in
+   the agency context only, so the code they still point at is a rollback, not
+   a rebuild. One shape, one screen, so the promise reads the same everywhere
+   it appears instead of five one-off pages drifting apart. */
+const COMING_SOON={
+ queue:{title:"Work queue",
+  promise:"One list of every decision across your clients, ordered by what it costs to ignore.",
+  bullets:["Capacity requests","Disconnected and paused mailboxes","Unread replies grouped by client"],
+  meanwhile:"Home shows the decisions waiting today",go:"dash"},
+ inbox:{title:"Unified Inbox",
+  promise:"Every client's replies in one inbox, each row naming its client, replies sent from that client's mailbox.",
+  bullets:["Every reply from every client, one list","Each row named by its client and sequence","Sent from that client's own mailbox, never yours"],
+  meanwhile:"Open a client workspace and use its Replies",go:"clients"},
+ task:{title:"Tasks",
+  promise:"Every client's tasks in one list, completed in place.",
+  bullets:["Every open task across your clients, one list","Each row named by its client","Complete it here, without opening that workspace"],
+  meanwhile:"Open a client workspace and use its Tasks",go:"clients"},
+ mail:{title:"Email Accounts",
+  promise:"Every mailbox across your clients on one screen: health, warm-up, who pays, move between workspaces.",
+  bullets:["Health and warm-up for every mailbox, in one place","Who pays for it, and which workspace it belongs to","Move a mailbox between workspaces when a client changes"],
+  meanwhile:"Each workspace's Email Accounts, where mailboxes are bought and connected",go:"clients"},
+ tmpl:{title:"Templates",
+  promise:"A library you publish once and every workspace inherits.",
+  bullets:["Publish a template once, from here","Every workspace inherits it automatically","Lock the ones you do not want a workspace changing"],
+  meanwhile:"Templates inside each workspace",go:"clients"},
+};
+function vComingSoon(key){
+ const s=COMING_SOON[key]; if(!s) return vClients();
+ return `<div class="toolbar">
+   <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">${s.title}</span>
+    <span class="cs">Coming soon</span></span></div></div>
+  <div class="wrap"><div class="card" style="max-width:640px;margin:32px auto"><div class="c-b">
+    <span class="chip c-info" style="display:inline-block;margin-bottom:12px">Coming soon</span>
+    <p class="semibold-3" style="margin:0 0 12px;font-size:16px;line-height:24px;font-weight:600">${s.promise}</p>
+    <ul style="margin:0 0 16px;padding-left:18px;display:flex;flex-direction:column;gap:6px">
+     ${s.bullets.map(b=>`<li class="sub" style="font-size:13px">${b}</li>`).join("")}</ul>
+    <p class="sub" style="margin:0;padding-top:14px;border-top:1px solid var(--gray-13)">
+     Meanwhile: <button class="linkbtn" data-nav2="${s.go}">${s.meanwhile}</button></p>
+  </div></div></div>`;
 }
 
 /* ═══ render ═══ */
@@ -7545,8 +7831,15 @@ function render(){
  const bn=el("asBanner"); bn.hidden=!(inClient&&asClient);
  if(inClient&&asClient) bn.innerHTML=`<span>Viewing as <strong>${byId[ctx].name}</strong> &middot; this session is logged to their workspace</span>
    <button id="exitAs">Back to agency view</button>`;
- el("page").innerHTML=solo?vSolo()
+ const pageEl=el("page"), prevScroll=pageEl.scrollTop;
+ pageEl.innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
+  /* 25 Sep 2026: Work queue, Unified Inbox, Tasks, Email Accounts and Templates
+     are deferred out of the admin panel. This branch has to come before the
+     vEstate/vAgencyMod/vQueue checks below, which is why it sits first: it
+     intercepts the same five view names those still answer, without deleting
+     them, so a rollback of this decision is a one-line move. */
+  :(ctx==="agency"&&COMING_SOON[view.name])?vComingSoon(view.name)
   :(ctx==="agency"&&view.name==="mail")?vEstate()
   :(ctx==="agency"&&view.name==="analytics")?vAgencyAnalytics()
   :(ctx==="agency"&&view.name==="apiint")?vApiInt()
@@ -7560,7 +7853,13 @@ function render(){
   :view.name==="queue"?vQueue()
   :view.name==="dash"?vDash()
   :view.name==="record"?vRecord(view.id):view.name==="credits"?vBilling():vClients();
- el("page").scrollTop=0;wire();renderThread();
+ /* same screen as last render (a confirm/receipt toggling in place) keeps the
+    scroll position; a real navigation (view/ctx/tab/mod changed) resets to
+    top like before. */
+ const pageKey=ctx+"|"+view.name+"|"+(view.id||"")+"|"+(inMod||"")+"|"+(tab||"")+"|"+(asClient?1:0)+"|"+(cView||"");
+ pageEl.scrollTop=(pageKey===lastPageKey)?prevScroll:0;
+ lastPageKey=pageKey;
+ wire();renderThread();
  renderXform();
 }
 function wire(){
@@ -7578,9 +7877,9 @@ function wire(){
  q("[data-cprev],[data-cnext]").forEach(b=>b.onclick=()=>{const id=b.dataset.cprev||b.dataset.cnext;
    if(ctx==="agency"&&view.name==="record"){view={name:"record",id};render();return}
    ctx=id;openProspect=null;focusMb=null;render()});
- q("[data-backq]").forEach(b=>b.onclick=()=>{qFrom=null;focusMb=null;ctx="agency";asClient=false;view={name:"queue"};render()});
+ q("[data-backq]").forEach(b=>b.onclick=()=>{qFrom=null;focusMb=null;ctx="agency";asClient=false;view=homeView();render()});
  q("[data-nextq]").forEach(b=>b.onclick=()=>{const i=+b.dataset.nextq,q=queueItems()[i];
-   if(!q||!q.client){qFrom=null;ctx="agency";asClient=false;view={name:"queue"};render();return}
+   if(!q||!q.client){qFrom=null;ctx="agency";asClient=false;view=homeView();render();return}
    qFrom={i};gotoClient(q.client,destFor(q),q.mb)});
  q("[data-reconnect]").forEach(b=>b.onclick=()=>{const a=b.dataset.reconnect;
    let ownerId="";
@@ -7656,6 +7955,14 @@ function wire(){
    inMod="sequences";openProspect=null;view={name:"clients"};render()});
  q("[data-mbmove]").forEach(b=>b.onclick=()=>{modal={kind:"mbmove",addr:b.dataset.mbmove};renderModal()});
  {const b=document.querySelector("[data-estbuy]");if(b)b.onclick=()=>{modal={kind:"estbuy"};renderModal()}}
+ /* 25 Sep 2026: rMail's own "Buy mailboxes" button, opened on whichever
+    workspace's Email accounts screen it was clicked from (own or a client's,
+    for agency staff only; a client user never sees this button). */
+ q("[data-buymbx]").forEach(b=>b.onclick=()=>{
+   const ws=byId[b.dataset.buymbx];
+   modal={kind:"buymbx",wsId:ws.id,step:1,qty:3,
+     domain:ws.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-mail.com"};
+   renderModal()});
  q("[data-go2own]").forEach(b=>b.onclick=()=>{ctx="own";asClient=false;
    inMod=view.name==="task"?"task":"inbox";openProspect=null;render()});
  q("[data-tscope]").forEach(b=>b.onclick=()=>{const t=TEMPLATES.find(x=>x.id===b.dataset.tscope);
@@ -7854,7 +8161,7 @@ function wire(){
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
    if(canI("billing")){ctx="agency";view={name:"credits"};billTab="alloc"}
-   else{ctx="agency";view={name:"queue"}}
+   else{ctx="agency";view=homeView()}
    render()}});
  q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;render()});
  /* 18 Sep, delight pass: Email Accounts charge expander and the limits receipt */
@@ -7865,7 +8172,10 @@ function wire(){
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
  q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="alloc";activeRes=b.dataset.goalloc;render()});
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
- q("[data-goall]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"queue"};render()});
+ /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
+    Work queue (Coming soon); it expands the same card, and "Show fewer"
+    (dashAll=0) collapses it back. */
+ q("[data-dashall]").forEach(b=>b.onclick=()=>{dashAll=b.dataset.dashall==="1";render()});
  q("[data-godash]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"dash"};render()});
  q("[data-clitab]").forEach(b=>b.onclick=()=>{cliTab=b.dataset.clitab;render()});
  /* launch day. Deferring is a real choice, so it is recorded rather than just
@@ -8178,8 +8488,8 @@ el("meBtn").onclick=()=>{
   if(solo)return;   /* not an agency person, and there is nobody to switch to */
   const k=Object.keys(PEOPLE);me_=k[(k.indexOf(me_)+1)%k.length];
   const mine=ME().ws;
-  if(ctx!=="agency"&&mine&&!mine[ctx]){ctx="agency";view={name:"queue"};asClient=false}
-  if(ctx==="agency"&&view.name==="dash"&&!canI("dashboard")) view={name:"queue"};
+  if(ctx!=="agency"&&mine&&mine.indexOf(ctx)<0){ctx="agency";view={name:"clients"};asClient=false}
+  if(ctx==="agency"&&view.name==="dash"&&!canI("dashboard")) view={name:"clients"};
   render()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
 el("popQ").oninput=e=>renderPop(e.target.value);
@@ -8198,7 +8508,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(modal){modal=nul
 
 /* an operator is never routed to the dashboard, at boot or on a person switch.
    A half-redacted portfolio screen is worse than not offering one. */
-if(view.name==="dash"&&!canI("dashboard")) view={name:"queue"};
+if(view.name==="dash"&&!canI("dashboard")) view={name:"clients"};
 function resetToNormal(){
  CLIENTS.length=0; REQUESTS.length=0;
  /* everything keyed by client id, keeping the house workspace, which is not a
@@ -8372,6 +8682,14 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,settings:1,invite:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
  if(flat[k]&&(k!=="dash"||canI("dashboard"))) view={name:k};
+ /* fix 25 Sep review #13/#21: #settings is a flat route (line above), so it
+    left ctx untouched and rendered vSettings() with ctx still "agency" - the
+    one deep link that could land on the admin panel's own Settings, which
+    D13 ended ("no Settings on the admin panel; every setting lives in a
+    workspace, including the agency's own"). Routed into the agency's own
+    workspace like #seq/#crm below, so #settings opens the real, correctly
+    scoped screen instead of a state the rail itself no longer links to. */
+ if(k==="settings"){ctx="own";asClient=false}
  /* #seq, #crm, #leads and the rest used to mean "the agency's own X" inside the
     master workspace. They still mean that; the workspace is just a real one now. */
  if(AGY_MOD[k]&&!MASTER_MOD[k]&&k!=="analytics"){ctx="own";asClient=false;inMod=RAIL2MOD[k]||k;view={name:"clients"}}
@@ -8516,18 +8834,26 @@ const TOPICS=[
   src:"01 §55, user-details.tsx",
   open:"A role outside the six is not offered, on purpose: today's product cannot even express the two it hardcodes, in user-details.tsx, without naming the account in code.",
   go:()=>{T_become("owner");solo=false;asClient=false;ctx="agency";view={name:"record",id:"bl"};tab="members"}},
+ /* fix 25 Sep review #16: both go()s below used to open Unified Inbox/Work
+    queue directly; both are Coming soon in the agency context now, so
+    COMING_SOON intercepts view.name before either ever painted, and clicking
+    through this topic showed a "Coming soon" placeholder instead of the
+    rollup it was demonstrating. Repointed at Home's own "Needs a decision"
+    list, the one live screen that already does this ranking (same
+    substitution the Home dashboard's own copy already made - see the "used
+    to hand off to the Work queue" comment near arrivalLine). */
  {k:"rollup", t:"Replies and tasks still roll up",
-  claim:"Isolation must not cost the agency its own workflow. Work queues in one list filtered by assignment, with every row naming its client. Assets do not roll up.",
+  claim:"Isolation must not cost the agency its own workflow. Home's 'Needs a decision' list already rolls requests and limit hits up across every assigned client, each naming its client. Work queue and Unified Inbox extend the same rollup to every reply and task and are Coming soon.",
   ask:"You work several clients in a morning. Would you rather one list with a client column, or switch workspace per client?",
   watch:"If they want sequences and prospects rolled up too, the work-versus-asset line we drew is wrong.",
   src:"16 §0.1, 20 T3",
-  go:()=>{T_become("owner");solo=false;asClient=false;ctx="agency";agyScope="clients";view={name:"inbox"}}},
+  go:()=>{T_become("owner");solo=false;asClient=false;ctx="agency";dashAll=true;view={name:"dash"}}},
  {k:"queue", t:"One queue, ordered by what it costs to ignore",
-  claim:"Across every assigned client, ranked by consequence rather than by arrival. A dead mailbox outranks a reply.",
+  claim:"Across every assigned client, ranked by consequence rather than by arrival. A dead mailbox outranks a reply. Work queue itself is Coming soon; Home's 'Needs a decision' list is where this ranking ships today.",
   ask:"What would you check first thing on a Monday, and is it on this list?",
   watch:"Anything they name that is missing is a real gap. Anything here they would not look at is furniture.",
   src:"17, 16 §7",
-  go:()=>{solo=false;asClient=false;ctx="agency";view={name:"queue"}}},
+  go:()=>{solo=false;asClient=false;ctx="agency";dashAll=true;view={name:"dash"}}},
  {k:"caps", t:"One pool, a cap per client",
   claim:"Credits stay pooled because that is what you bought, and each client gets a ceiling against it. A client at its ceiling asks you, not us.",
   ask:"Cap each client, reserve a floor for each, or let them draw freely and watch it?",
@@ -8547,12 +8873,16 @@ const TOPICS=[
   watch:"If they do not price on cost, this is a nice number rather than a reason to switch.",
   src:"17, 14",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"dash"};cliTab="all"}},
- {k:"estate", t:"The sending estate per client",
-  claim:"A mailbox belongs to exactly one workspace. You buy in the master, assign down, and what you purchased comes back to you when a client leaves so it can go to the next one. An inbox somebody connected because they already owned it goes where they go.",
-  ask:"Who buys the mailboxes today, and what happens to them when a client leaves you?",
-  watch:"Whether a mailbox keeps its warm-up and reputation through a move is unresolved, and no competitor manages it without losing the history. If they expect it to survive, that expectation is the risk.",
-  src:"08 §16b, 20 row 4",
-  open:"Whether a mailbox keeps its warm-up and reputation through a move, which no competitor manages without losing the history, and whether a client not on its own plan can connect an inbox at all.",
+ /* 25 Sep 2026: resolved. This topic used to ask an open question about a
+    central pool and an assign-down step; the founder decided against both.
+    Left in the session script, updated, rather than removed, because the
+    record of what was asked and how it was settled is worth keeping. */
+ {k:"estate", t:"Mailboxes are bought per workspace",
+  claim:"A mailbox is bought inside the workspace that uses it, billed to the agency, and belongs to that workspace from the moment it is bought. There is no central pool and no later assignment step; an inbox somebody connected because they already owned it works the same way it always did.",
+  ask:"Decided 25 Sep 2026, founder call: is per-workspace purchase the right default for every agency, or does a larger one still want to buy centrally and hand off later?",
+  watch:"Whether a mailbox keeps its warm-up and reputation when it moves between workspaces is still open, for whenever cross-workspace move ships (see Email Accounts, Coming soon).",
+  src:"08 §16b, 20 row 4, 25 Sep decision",
+  open:"Whether a mailbox keeps its warm-up and reputation through a cross-workspace move, and whether a client not on its own plan can connect an inbox at all.",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"record",id:"nw"};tab="mailboxes";mailAll=false}},
  {k:"launch", t:"Launch day for an account that already exists",
   claim:"Nothing moves without you. Existing clients become workspaces, and the only work asked of you is resolving mailboxes used by more than one client.",
@@ -8565,7 +8895,11 @@ const TOPICS=[
   ask:"Do you run outbound for your own new business today? From where, and who works the replies?",
   watch:"If they want to build a client campaign without leaving the screen they administer from, the separation costs them more than it saves and the picker comes back.",
   src:"20 row 1",
-  go:()=>{solo=false;asClient=false;ctx="agency";agyScope="own";view={name:"seq"}}},
+  /* fix 25 Sep review #16: "seq" is not a name render() dispatches on while
+     ctx==="agency" (MASTER_MOD has no "seq" key), so this silently fell
+     through to vClients() and never showed the agency's own workspace it
+     was meant to demonstrate. ctx="own" is how #seq itself routes there. */
+  go:()=>{solo=false;asClient=false;ctx="own";inMod="sequences";view={name:"clients"}}},
  {k:"scope", t:"Templates: one library, or one set per client",
   claim:"Nineteen features placed by three tests, and this is the one row where the test gives an answer we do not believe. Built as Pattern A: you publish a library, a workspace may write its own, and you can lock what you do not want changed. Switch into a client and open Templates to see the other half.",
   ask:"Templates: one library you publish to every client, or a separate set per client?",
@@ -8586,7 +8920,7 @@ const RDOT={yes:"d-yes",no:"d-no",meh:"d-meh",new:"d-new"};
 /* switching person goes through the same path the person menu uses, so the rail
    and the dashboard guard both apply. An operator must not be dropped on a
    dashboard they cannot see. */
-function T_become(who){me_=who;if(view.name==="dash"&&!canI("dashboard"))view={name:"queue"}}
+function T_become(who){me_=who;if(view.name==="dash"&&!canI("dashboard")) view={name:"clients"}}
 
 const SKEY="sess.agency-workspaces.v1";
 let sIdx=0, sOpen=false, sData={};
@@ -8726,7 +9060,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="33d0b9f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="e672184";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>

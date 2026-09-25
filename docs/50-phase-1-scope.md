@@ -2,6 +2,8 @@
 
 Written 21 Sep 2026 after stakeholder feedback that the full scope is too large for the engineering window. The full scope is frozen as the master: [PRD](https://product-team-sh.github.io/prd-workspaces-for-agencies/master/) and [prototype](https://product-team-sh.github.io/prd-workspaces-for-agencies/master/prototype/), both at commit `99a8506`. Nothing in the master is deleted; this document says what ships first and what waits.
 
+> **Amended, 25 Sep 2026 (D13, founder).** The admin panel keeps Home, Clients, People, Billing, Analytics and API & Integrations; Work queue, cross-workspace inbox and tasks, the mailbox estate and the template library become phase 2 with Coming soon placeholders (point 4 resolved: phase 2); settings live only in workspaces; mailboxes are bought inside the workspace that uses them. Analytics across workspaces stays in phase 1 (D12).
+
 > **Amended, 24 Sep 2026.** Client Viewer now sees every screen in the workspace read-only and changes nothing (was Reports and Usage only); Hitesh: "we need to update client view role". The other five roles stand.
 
 > **Decided, 23 Sep 2026.** Hitesh: "These 6 roles are perfect so let's incorporate this." The six roles below, with these names and capabilities, are the phase-1 model and are now in the PRD (D4, D5, §6.3) and the prototype. The alternatives in [51](51-roles-analysis.md) (keeping today's client role names, a read-only Viewer, leaving the hardcoded accounts untouched) were not taken.
