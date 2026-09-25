@@ -589,6 +589,12 @@ tr:hover .hovercell .rowacts,tr:focus-within .hovercell .rowacts{visibility:visi
    the numbers under it. The icon leads in those columns; the label's right
    edge is the column's. */
 table.organism th.ar .sortable{flex-direction:row-reverse}
+/* the Analytics totals row: a blended figure is not another data row, so it
+   gets a filled background and a firmer rule above it. */
+.an-totals td{background:var(--gray-16);border-top:2px solid var(--gray-13)}
+/* a workspace named in a table row, tinted to that workspace's own colour, the
+   same technique the unified inbox's client chip already uses (.ubx-chip.cl). */
+.chip.cl{border-color:transparent;background:color-mix(in srgb,var(--c) 16%,#fff);color:var(--c);font-weight:600}
 .reason{display:block;font-size:12px;line-height:18px;color:var(--gray-15);white-space:normal;margin-top:2px;max-width:420px;font-weight:400}
 .stat{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--gray-12);font-weight:400}
 .stat i{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -1563,6 +1569,7 @@ const I={
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
+ apiint:['0 0 24 24','<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>'],
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
@@ -1575,6 +1582,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
    return String(REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).length+AGENCY_OWN.replies.length)}],['clients','Clients',null,'agency'],
  ['leads','Lead Finder'],['crm','CRM'],['dialer','Dialer','NEW'],['verify','Email Verifier'],
  ['mail','Email Accounts'],['tmpl','Templates'],['radar','Inbox Radar'],['analytics','Analytics'],
+ ['apiint','API & Integrations'],
  ['people','People',null,'agency'],
  ['billing','Billing',null,'agency'],
  /* 'client' scopes an item to a client's own view. Decided 12 Sep 2026: the
@@ -2453,11 +2461,11 @@ function renderRail(){
   ?[["",OUTREACH.concat(["people","billing"])]]
   :inAgency()
   ?[["Overview",["dash","queue"]],["Clients",["clients"]],
-    ["Across your clients",["inbox","task"]],
+    ["Across your clients",["inbox","task","analytics"]],
     /* bought once by the agency, then distributed. Procurement is
        administration, which is why it is in the master and not in the
        agency's own outreach workspace. */
-    ["Owned by the agency",["mail","tmpl"]],
+    ["Owned by the agency",["mail","tmpl","apiint"]],
     ["Account",["people","billing"]]]
   :[["Overview",["dash","queue"]],["Clients",["clients"]],
     ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer","cws"]]];
@@ -2496,9 +2504,10 @@ function renderRail(){
    ?((k==="dash"&&view.name==="dash")||(k==="queue"&&view.name==="queue")
      ||(k==="clients"&&(view.name==="clients"||view.name==="record"))||(k==="billing"&&view.name==="credits")
      ||(k==="people"&&(view.name==="people"||view.name==="person"||view.name==="addmember"))
+     ||(k==="apiint"&&view.name==="apiint")
      ||(AGY_MOD[k]&&view.name===k))
    :(asClient?RAIL2CVIEW[k]===cView:(RAIL2MOD[k]||k)===inMod);
- const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,cws:1},
+ const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,cws:1,apiint:1},
    Object.fromEntries(Object.keys(AGY_MOD).map(k=>[k,1])));
  /* a client reads its own labels, not ours. The tabs already say Replies,
     Prospects and Reports; the rail said Unified Inbox, CRM and Analytics for the
@@ -2562,7 +2571,7 @@ function renderRail(){
      render();return}
    ctx="agency";
    view=n==="clients"?{name:"clients"}:n==="dash"?{name:"dash"}:n==="queue"?{name:"queue"}
-     :n==="billing"?{name:"credits"}:n==="people"?{name:"people"}:AGY_MOD[n]?{name:n}:{name:"clients"};
+     :n==="billing"?{name:"credits"}:n==="people"?{name:"people"}:n==="apiint"?{name:"apiint"}:AGY_MOD[n]?{name:n}:{name:"clients"};
    if(n==="billing") billTab="plan";
    render()});
 }
@@ -2643,9 +2652,10 @@ function renderShell(){
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
    :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription / "+billLabel(billTab))
-   :view.name==="addmember"?"People / Add a member"
+   :view.name==="addmember"?"People / Add a person"
    :view.name==="people"?"People"
-   :view.name==="person"?("People / "+(PEOPLE[view.id]?PEOPLE[view.id].name:""))
+   :view.name==="person"?("People / "+(view.id&&view.id.indexOf("c:")===0?view.id.slice(view.id.indexOf("|")+1):PEOPLE[view.id]?PEOPLE[view.id].name:""))
+   :view.name==="apiint"?"API & Integrations"
    :view.name==="record"?byId[view.id].name:"Clients";
  renderRail();
 }
@@ -3038,6 +3048,7 @@ const CLIENT_VERBS=[
  ["editseq","Pause and edit sequences","Changes what goes out, without asking you","sequences"],
  ["export","Export prospects","Takes the list off the platform","prospects"],
  ["reveal","Reveal leads","Spends your Lead Finder credits, against this client's cap","leads"],
+ ["warmup","Pause and resume warm-up","Starts and stops warm-up on mailboxes they connected themselves","warmup"],
 ];
 const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=CLIENT_VERBS.map(v=>v[0]);
 /* the six fixed roles' client-side half. One table: mods and verbs are the
@@ -3052,7 +3063,7 @@ const CLIENT_ROLE_DEFS={
    desc:"Edits campaigns, adds prospects, exports, and spends against the cap",
    banner:`${AGENCY.name} runs your outreach here. As a Client Admin you can see and change everything in this workspace: edit sequences, add prospects and templates, export prospects, and reveal leads against your cap.`,
    wizTail:"can do everything there, including spending against the cap."},
- "Client Collaborator":{mods:ALL_MODS, verbs:["reply"],
+ "Client Collaborator":{mods:ALL_MODS, verbs:["reply","warmup"],
    desc:"Reads everything, replies and connects mailboxes; cannot change what goes out",
    banner:`${AGENCY.name} runs your outreach here. As a Client Collaborator you can see everything in this workspace, reply to prospects and connect your mailboxes. Changing what goes out stays with ${AGENCY.name}.`,
    wizTail:"sees everything in the workspace.",
@@ -3223,6 +3234,40 @@ const staffEmail=P=>P.email||(P.name.toLowerCase().replace(/[^a-z ]/g,"").split(
    mid-confirm. One global each: only one client record is open at a time. */
 let NCU={email:"",role:DEFAULT_CLIENT_ROLE};
 let memberRmConfirm=null;
+/* ═══ People rework, 25 Sep 2026 (54-people-rework.md) ═══
+   Which of the two People tabs is showing, and the key of the row that was
+   just written, so its row gets one flash (crow-flash) on the render right
+   after a write and never again - the same single-use pattern FLASH_CID uses
+   on Home. Agency-side flash keys are "p:<PEOPLE key>"; client-user flash
+   keys are "c:<clientId>|<email>". */
+let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
+/* an upgrade (or a lateral Owner<->Admin change) confirms inline before it
+   writes; {key,to,from}. A downgrade to Member is a different shape, because
+   it turns an enumerated-nowhere ws:null into a real list someone has to
+   choose, so it gets its own checklist state below rather than a plain
+   confirm. */
+let personRoleConfirm=null;
+let personDowngradeWs=null;                 /* {key,sel:[wsId,...]} */
+let personAddWsOpen=null, personAddWsSel=[]; /* which person's page has the inline "add to workspaces" checklist open, and what is ticked */
+let personWsRemoveConfirm=null;              /* "personKey|wsId" */
+let personRemoveAcctConfirm=null;            /* PEOPLE key pending "remove from the agency" */
+let clientPersonRoleConfirm=null;            /* {cid,email,to}, the client-user person page's own role-change confirm */
+/* 25 Sep 2026, coordinator review round 2: a client user who is the only
+   sign-in for their workspace has nothing to click that does anything, so the
+   reason lived in the row permanently - four rows of "This is the only
+   sign-in..." standing under a six-row table. The action column now carries a
+   muted, inert-looking button instead, its title holding the same sentence
+   for a hover; the full sentence appears inline, the same "shown only on an
+   actual attempt" shape every other refusal in this file uses, only when
+   that button is actually clicked. "cid|email" while shown, else null. */
+let onlySignInNote=null;
+/* what changes, in one line, spoken about the role being moved TO - shared by
+   every role-change confirm on the person page. */
+const ROLE_UPGRADE_WHY={
+ Admin:"Admin reaches every workspace and can add clients and set caps.",
+ Owner:"Owner reaches everything, including billing, and can delete a client.",
+ Member:"Member only reaches the workspaces you pick for them.",
+};
 /* Alloy & Co. is the one client name that already ends in a period, which a
    template literal appending "." after it renders as "Alloy & Co..". Every
    sentence in this file that closes on a name goes through this rather than
@@ -3310,7 +3355,8 @@ function rMembers(c){
  const head=`<thead><tr><th>Person</th><th>Role</th><th>Last active</th><th class="colact"></th></tr></thead>`;
  return `<div><div class="panel">
    <div class="panel-h"><span class="panel-t">Members of ${c.name}</span>
-    <span class="sub">${c.users.length} client user${c.users.length===1?"":"s"} &middot; ${owners.length+members.length} from ${AGENCY.name}</span></div>
+    <span class="sub">${c.users.length} client user${c.users.length===1?"":"s"} &middot; ${owners.length+members.length} from ${AGENCY.name}</span>
+    <span class="c-a"><button class="linkbtn" data-topeopleclients>Manage all client users &rarr;</button></span></div>
    ${receiptBar("members:"+c.id)}
    <div class="tscroll"><table class="organism" style="min-width:760px">${head}
     <tbody>
@@ -3337,7 +3383,13 @@ function rMembers(c){
    client user is invited from the client record's own Members tab instead
    (rMembers, ncuSend), because that is where the six-role decision put it:
    a client role is a property of the client user, not a third kind here. */
-const AM_BLANK={email:"",name:"",role:"Member",ws:[],mode:"invite",from:null};
+/* 25 Sep 2026: "Add a member" becomes "Add a person", one screen with two
+   paths from a first "who are you adding" step, because the old screen could
+   only ever invite someone at the agency itself - a client user had no way
+   in here at all (defect D5, 54-people-rework.md). `kind` is null at the
+   picker, then "agency" or "client" for the rest of the session. */
+const AM_BLANK={email:"",name:"",role:"Member",ws:[],mode:"invite",from:null,
+ kind:null,wsId:"",crole:"Client Collaborator"};
 let AM=Object.assign({},AM_BLANK);
 
 const amWs=()=>CLIENTS.concat([OWN_WS]);
@@ -3347,8 +3399,30 @@ const amPersonOk=()=>amValidEmail(AM.email)&&AM.name.trim().length>1;
 /* Owner and Admin reach every workspace by role alone, so Workspaces is only
    a real question, and only a required one, for a Member. */
 const amFilled=()=>AM.role!=="Member"||AM.ws.length>0;
-const amCanSend=()=>amPersonOk()&&amFilled();
+const amWsPicked=()=>!!AM.wsId;
+const amCanSend=()=>AM.kind==="client"?(amWsPicked()&&amPersonOk())
+ :AM.kind==="agency"?(amPersonOk()&&amFilled()):false;
 const amOpen=o=>{AM=Object.assign({},AM_BLANK,{ws:[]},o||{}); view={name:"addmember"}; render()};
+
+/* keystrokes update the model directly and repaint only the bits that must
+   stay live (footer, rail, preview), never the whole screen: a full render on
+   every keystroke would steal the caret out from under the person typing.
+   `amLiveBind` is the one place that trick lives, so every text field in this
+   flow gets it the same way. Fixed 25 Sep 2026 (defect D1): the old handler
+   updated the model and nothing else, so Send stayed disabled until the next
+   click happened to trigger a full render. */
+function amLiveBind(input,key){
+ if(!input) return;
+ input.oninput=()=>{AM[key]=input.value; amPatchLive()};
+}
+function amPatchLive(){
+ const foot=document.querySelector(".am-footrow"), sendBtn=document.querySelector("[data-amsend]");
+ const preview=document.querySelector(".am-preview");
+ if(sendBtn) sendBtn.disabled=!amCanSend();
+ if(foot){const line=foot.querySelector(".sub,.fsum"); if(line) line.outerHTML=amFooterLine()}
+ if(preview) preview.innerHTML=amPreviewLine();
+ const railWrap=document.querySelector(".am-rail"); if(railWrap) railWrap.outerHTML=amRail();
+}
 
 function amSecPerson(){
  return `<div class="panel-b sec" id="amSec1">
@@ -3362,7 +3436,7 @@ function amSecPerson(){
    <div class="fld" style="margin:0"><label class="cs" for="amName">Full name</label>
     <input type="text" id="amName" style="width:100%" value="${AM.name}" placeholder="Ana Costa" autocomplete="off"></div></div>
   <div style="margin-top:16px"><span class="cs">Account role</span>
-   <span class="cs" style="margin:0 0 8px">What they may do to ${AGENCY.name} itself.</span>
+   <span class="cs" style="margin:0 0 8px">What they may do to ${AGENCY.name} itself. Owner is transferred, not offered here; see a person's own page.</span>
    ${roleCards(AGENCY_ROLES.filter(r=>r!=="Owner"),AM.role,"data-amrole",false)}
    <button class="linkbtn" data-amcompare style="margin-top:8px">Compare all roles</button></div>
  </div>`;
@@ -3392,81 +3466,206 @@ function amSecWhere(){
      <span class="wsc trunc">${health}</span></span></label>`}).join("")}</div>
  </div>`;
 }
+/* the client path's role cards, reusing CLIENT_ROLE_DEFS's own one-line
+   description so this can never say something different from what the
+   client's own workspace says about the same role. `ctxVal`, when given,
+   makes each card's value "ctx|role" instead of a bare role, so the same
+   markup serves both the invite flow (no context needed) and a specific
+   client user's own person page (context: clientId|email). */
+function clientRoleCards(sel,attr,ctxVal){
+ return `<div class="choices" role="radiogroup" aria-label="Client role">${CLIENT_ROLES.map(r=>{
+  const d=CLIENT_ROLE_DEFS[r];
+  return `<button class="choice" role="radio" aria-checked="${sel===r}" ${attr}="${ctxVal?ctxVal+"|"+r:r}">
+   <span class="rdo"></span><span style="min-width:0"><b>${r}</b><i>${d.desc}</i></span></button>`}).join("")}</div>`;
+}
+function amSecWorkspaceSingle(){
+ return `<div class="panel-b sec" id="amSec1">
+  <div class="sec-h"><span class="sec-n${amWsPicked()?" is-done":""}">1</span><span class="sec-t">Workspace</span>
+   <span class="sub">Which client they sign in to</span></div>
+  <select id="amWsPick" class="inp" style="width:100%;max-width:420px">
+   <option value="">Choose a workspace</option>
+   ${CLIENTS.map(c=>`<option value="${c.id}" ${AM.wsId===c.id?"selected":""}>${c.name}</option>`).join("")}
+  </select>
+ </div>`;
+}
+function amSecClientRole(){
+ return `<div class="panel-b sec" id="amSec2">
+  <div class="sec-h"><span class="sec-n is-done">2</span><span class="sec-t">Role</span>
+   <span class="sub">${AM.crole}</span></div>
+  ${clientRoleCards(AM.crole,"data-amcrole")}
+ </div>`;
+}
+function amSecClientPerson(){
+ return `<div class="panel-b sec" id="amSec3">
+  <div class="sec-h"><span class="sec-n${amPersonOk()?" is-done":""}">3</span><span class="sec-t">Person</span>
+   <span class="sub">Email and name</span></div>
+  <div class="frow">
+   <div class="fld" style="margin:0"><label class="cs" for="amEmail">Work email</label>
+    <input type="email" id="amEmail" style="width:100%" value="${AM.email}" placeholder="ana@northwind.co" autocomplete="off" spellcheck="false">
+    <span class="cs" style="margin-top:6px">The invite goes here. They set their own password.</span></div>
+   <div class="fld" style="margin:0"><label class="cs" for="amName">Full name</label>
+    <input type="text" id="amName" style="width:100%" value="${AM.name}" placeholder="Ana Costa" autocomplete="off"></div></div>
+ </div>`;
+}
 
 /* one row per section, saying what that section currently holds rather than
-   what it is called, so the rail is a summary and not a table of contents. */
+   what it is called, so the rail is a summary and not a table of contents.
+   Two shapes: the agency path (Person, Workspaces) and the client path
+   (Workspace, Role, Person), picked by AM.kind. */
 function amRail(){
- const rows=[
-  {n:1,t:"Person",   done:amPersonOk(),
-   s:amPersonOk()?AM.name:(AM.email||AM.name?"Needs an email and a name":"Email, name and role")},
-  {n:2,t:"Workspaces",done:amFilled(),
-   s:AM.role!=="Member"?"Every workspace":AM.ws.length?AM.ws.length+" picked":"None picked yet"},
- ];
+ const rows=AM.kind==="client"?[
+   {n:1,t:"Workspace",done:amWsPicked(),s:amWsPicked()?amById(AM.wsId).name:"Which workspace they sign in to"},
+   {n:2,t:"Role",done:true,s:AM.crole},
+   {n:3,t:"Person",done:amPersonOk(),s:amPersonOk()?AM.name:"Email and name"},
+  ]:[
+   {n:1,t:"Person",   done:amPersonOk(),
+    s:amPersonOk()?AM.name:(AM.email||AM.name?"Needs an email and a name":"Email, name and role")},
+   {n:2,t:"Workspaces",done:amFilled(),
+    s:AM.role!=="Member"?"Every workspace":AM.ws.length?AM.ws.length+" picked":"None picked yet"},
+  ];
  return `<nav class="am-rail" aria-label="Sections">${rows.map(r=>
   `<button class="am-rail-i${r.done?" is-done":""}" data-amjump="${r.n}">
    <span class="am-rail-n">${r.done?"&check;":r.n}</span>
    <span style="min-width:0"><span class="am-rail-t">${r.t}</span>
     <span class="am-rail-s trunc">${r.s}</span></span></button>`).join("")}</nav>`;
 }
-/* the preview follows the role, not a toggled set: an Owner or Admin is told
-   they reach everything; a Member is told which workspaces by name. */
-function amInvitePreview(){
+/* the one-line consequence, on both paths, built fresh from the current
+   choices every time - never a toggled string, so it can never say something
+   the model does not agree with. */
+const AM_CLIENT_TAIL={
+ "Client Admin":"can do everything there, including spending against the cap",
+ "Client Collaborator":"sees everything there; they can reply and connect mailboxes",
+ "Client Viewer":"sees everything there and changes nothing",
+};
+function amPreviewLine(){
+ if(AM.kind==="client"){
+  if(!amWsPicked()) return "";
+  const subject=(AM.email||"").trim()||"This person", w=amById(AM.wsId);
+  return `${subject} signs in as a ${AM.crole} of ${w.name} and ${AM_CLIENT_TAIL[AM.crole]}.`;
+ }
  const first=(AM.name||"").trim().split(" ")[0]||"They";
  if(AM.role!=="Member") return `${first} will be told: every workspace, as ${AM.role}.`;
  if(!AM.ws.length) return "";
  return `${first} will be told: you can see ${listAnd(AM.ws.map(id=>amById(id).name))}, as a Member.`;
 }
-
-function vAddMember(){
- if(!canI("members")) return denied("add people or set their role");
- /* the footer is the review step. It is always on screen, so the grant is
-    legible at the moment Send is pressed rather than one screen earlier. */
- let line;
- if(!amPersonOk()) line=`<span class="sub">Enter a work email and a name to begin.</span>`;
- else if(!amFilled()) line=`<span class="sub">Pick at least one workspace.</span>`;
- else line=`<span class="fsum"><span class="trunc"><strong>${AM.name}</strong> ${AM.email}</span>
+/* the footer's one line: exactly what is missing, or the review summary once
+   nothing is. Read by both the initial render and amPatchLive's live patch,
+   so the two can never say something different about the same state. */
+function amFooterLine(){
+ if(AM.kind==="client"){
+  if(!amWsPicked()) return `<span class="sub">Pick which workspace they sign in to.</span>`;
+  if(!amPersonOk()) return `<span class="sub">Enter their email and name to finish.</span>`;
+  return `<span class="fsum"><span class="trunc"><strong>${AM.name}</strong> ${AM.email}</span>
+    <span class="sep">&middot;</span><span>${AM.crole}</span>
+    <span class="sep">&middot;</span><span class="trunc">${amById(AM.wsId).name}</span></span>`;
+ }
+ if(!amPersonOk()) return `<span class="sub">Enter a work email and a name to begin.</span>`;
+ if(!amFilled()) return `<span class="sub">Pick at least one workspace.</span>`;
+ return `<span class="fsum"><span class="trunc"><strong>${AM.name}</strong> ${AM.email}</span>
    <span class="sep">&middot;</span><span>${AM.role}</span>
    <span class="sep">&middot;</span><span class="trunc">${AM.role==="Member"?AM.ws.length+" workspace"+(AM.ws.length===1?"":"s"):"Every workspace"}</span></span>`;
+}
+
+function vAddMemberPicker(){
  return `<div class="toolbar">
    <div class="cell-main"><button class="linkbtn" data-amback style="margin-right:10px">&larr; Back</button>
-    <span class="semibold-3">${AM.mode==="edit"?AM.email:"Add a member"}</span>
+    <span class="semibold-3">Add a person</span>
+    <span class="sub" style="margin-left:10px">Who are you adding?</span></div></div>
+  <div class="wrap"><div class="card"><div class="panel-b">
+   <div class="choices" role="radiogroup" aria-label="Who are you adding" style="flex-direction:column;max-width:560px">
+    <button class="choice" role="radio" data-amkind="agency">
+     <span class="rdo"></span><span style="min-width:0"><b>Someone at ${AGENCY.name}</b>
+      <i>Joins your team: Admin or Member, with the workspaces they reach.</i></span></button>
+    <button class="choice" role="radio" data-amkind="client">
+     <span class="rdo"></span><span style="min-width:0"><b>Someone at a client</b>
+      <i>Signs in to one client workspace, as a Client Admin, Collaborator or Viewer.</i></span></button>
+   </div></div></div></div>`;
+}
+function vAddMemberAgency(){
+ if(!canI("members")) return denied("add people or set their role");
+ const line=amFooterLine();
+ return `<div class="toolbar">
+   <div class="cell-main"><button class="linkbtn" data-amback style="margin-right:10px">&larr; Back</button>
+    <span class="semibold-3">${AM.mode==="edit"?AM.email:"Add a person"}</span>
     <span class="sub" style="margin-left:10px">${AM.mode==="edit"
       ?"Their account role, and the workspaces they reach."
-      :"One person, their account role, and, for a Member, the workspaces they reach"}</span></div></div>
+      :"Someone at "+AGENCY.name+": their account role, and, for a Member, the workspaces they reach"}</span></div></div>
   <div class="wrap"><div class="am-wrap">
    ${amRail()}
    <div><div class="panel">${amSecPerson()}${amSecWhere()}</div>
-   <div class="am-foot">${(AM.mode!=="edit"&&amPersonOk()&&amFilled())?`<span class="cs am-preview">${amInvitePreview()}</span>`:""}
+   <div class="am-foot"><span class="cs am-preview">${(AM.mode!=="edit"&&amPersonOk()&&amFilled())?amPreviewLine():""}</span>
     <div class="am-footrow">${line}<span class="sp"></span>
     <button class="shd-button shd-button--tertiary" data-amback>Cancel</button>
     <button class="shd-button shd-button--primary" data-amsend ${amCanSend()?"":"disabled"}>${AM.mode==="edit"?"Save":"Send invite"}</button></div></div>
    </div></div></div>`;
 }
+function vAddMemberClient(){
+ if(!canI("members")) return denied("add people or set their role");
+ const line=amFooterLine();
+ return `<div class="toolbar">
+   <div class="cell-main"><button class="linkbtn" data-amback style="margin-right:10px">&larr; Back</button>
+    <span class="semibold-3">Add a person</span>
+    <span class="sub" style="margin-left:10px">Someone at a client: their workspace, their role there, and their sign-in</span></div></div>
+  <div class="wrap"><div class="am-wrap">
+   ${amRail()}
+   <div><div class="panel">${amSecWorkspaceSingle()}${amSecClientRole()}${amSecClientPerson()}</div>
+   <div class="am-foot"><span class="cs am-preview">${(amWsPicked()&&amPersonOk())?amPreviewLine():""}</span>
+    <div class="am-footrow">${line}<span class="sp"></span>
+    <button class="shd-button shd-button--tertiary" data-amback>Cancel</button>
+    <button class="shd-button shd-button--primary" data-amsend ${amCanSend()?"":"disabled"}>Send invite</button></div></div>
+   </div></div></div>`;
+}
+function vAddMember(){
+ if(!canI("members")) return denied("add people or set their role");
+ if(AM.kind==="client") return vAddMemberClient();
+ if(AM.kind==="agency") return vAddMemberAgency();
+ return vAddMemberPicker();
+}
 
-/* the one write. Additive on the workspaces: this is also how "Add to
-   workspaces" from a person's own page works, prefilled with that person's
-   identity and an empty picker, so ticking new ones here never drops the
-   ones they already had. */
-function amSend(){
- if(!amCanSend()) return;
+/* the two writes. Additive on the workspaces: this is also how "Add to
+   workspaces" from a person's own page works (see amPersonAddWsGo), so ticking
+   new ones there never drops the ones they already had. Both paths land on
+   People, on the tab that now has the new row, with a receipt that undoes the
+   whole write - deleting an invited person back out, or popping the client
+   user back off the workspace's own list. */
+function amSendAgency(){
  const addr=AM.email.trim(), wasFix=!!AM.fixGaps, wsNames=AM.ws.map(id=>amById(id).name), whoName=AM.name.trim();
- let key=Object.keys(PEOPLE).filter(k=>PEOPLE[k].email===addr)[0], isNewPerson=!key;
+ let key=Object.keys(PEOPLE).filter(k=>PEOPLE[k].email===addr)[0], isNewPerson=!key, prevSnap=null;
  if(!key){ key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5));
   while(PEOPLE[key]) key+="x";
   PEOPLE[key]={name:whoName,initials:initials(whoName),role:AM.role,email:addr,ws:AM.role==="Member"?[]:null};
   LASTSEEN[whoName]="never"; INVITED[whoName]=TODAY_STR;
  } else {
+  prevSnap={role:PEOPLE[key].role,ws:Array.isArray(PEOPLE[key].ws)?PEOPLE[key].ws.slice():PEOPLE[key].ws};
   PEOPLE[key].role=AM.role;
   PEOPLE[key].ws=AM.role==="Member"?(Array.isArray(PEOPLE[key].ws)?PEOPLE[key].ws:[]):null;
  }
  if(AM.role==="Member") AM.ws.forEach(id=>{if(PEOPLE[key].ws.indexOf(id)<0) PEOPLE[key].ws.push(id)});
- /* the destination is the confirmation: this file has no toast layer, and
-    landing on the person's own page shows the membership that was written
-    rather than asserting it happened. */
  AM=Object.assign({},AM_BLANK);
- if(wasFix) receipt("people-gaps",listAnd(wsNames)+(wsNames.length===1?" is":" are")+" now covered by "+whoName+".",null,"fixed the coverage gap");
- else if(isNewPerson) receipt("people","Invite sent to "+addr+".",null,"invited "+whoName);
- view={name:"person",id:key}; render();
+ PEOPLE_TAB="agency"; PEOPLE_FLASH="p:"+key;
+ if(wasFix) receipt("people",listAnd(wsNames)+(wsNames.length===1?" is":" are")+" now covered by "+whoName+".",null,"fixed the coverage gap");
+ else if(isNewPerson) receipt("people",`Invite sent to ${addr}.`,
+   ()=>{delete PEOPLE[key];delete LASTSEEN[whoName];delete INVITED[whoName];},`invited ${whoName}`);
+ else receipt("people",`${whoName} updated.`,
+   ()=>{PEOPLE[key].role=prevSnap.role;PEOPLE[key].ws=prevSnap.ws;},`updated ${whoName}`);
+ view={name:"people"}; render();
+}
+function amSendClient(){
+ const addr=AM.email.trim(), whoName=AM.name.trim(), c=amById(AM.wsId), role=AM.crole;
+ if(!c) return;
+ const row=[addr,role,"Invited"];
+ c.users.push(row);
+ LASTSEEN[addr]="never";
+ AM=Object.assign({},AM_BLANK);
+ PEOPLE_TAB="clients"; PEOPLE_FLASH="c:"+c.id+"|"+addr;
+ receipt("people",`Invite sent to ${addr} as a ${role} of ${c.name}.`,
+   ()=>{const i=c.users.indexOf(row); if(i>-1)c.users.splice(i,1);},`invited ${addr} to ${c.name}`);
+ view={name:"people"}; render();
+}
+function amSend(){
+ if(!amCanSend()) return;
+ if(AM.kind==="client") return amSendClient();
+ return amSendAgency();
 }
 
 /* ═══ C3 Usage and limits, the client's own view ══════════════════════════════
@@ -3739,17 +3938,23 @@ function stSentence(name,role,names){
  if(!names.length) return who+(pl?" do":" does")+" the work, and "+(pl?"are":"is")+" not in any workspace yet: they could sign in and see nothing.";
  return who+(pl?" do":" does")+" the work, and "+(pl?"see ":"sees ")+listAnd(names.map(n=>"<b>"+n+"</b>"))+".";
 }
-function vPeople(){
- if(!canI("members")) return denied("see or manage people");
+/* every client user, across every workspace, as one flat list of
+   {c,u,i}: the client record, the [email,role,status?] tuple, and its index
+   in c.users - which is the write target both here and on rMembers, so the
+   two screens are two views of one array and can never drift. */
+function clientUserRows(){
+ const out=[];
+ CLIENTS.forEach(c=>(c.users||[]).forEach((u,i)=>out.push({c,u,i})));
+ return out;
+}
+function vPeopleAgencyTab(gaps){
  const keys=Object.keys(PEOPLE).sort((a,b)=>ROLE_ORDER[PEOPLE[a].role]-ROLE_ORDER[PEOPLE[b].role]);
- const gaps=uncovered();
-
  /* no "access in them" column: a Member's workspace list does not compress
    into one cell once it can run to dozens (40-people-access-flow-diagnosis
    §3.1; also settles 30-cpo-review.md §5.7, which flagged this exact column
    as unreadable at forty clients). The person page is where it lives now. */
-const row=k=>{const P=PEOPLE[k], allWs=P.ws===null, ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown"), invitedOn=INVITED[P.name];
-  const names=ids.map(i=>byId[i].name);
+ const row=k=>{const P=PEOPLE[k], allWs=P.ws===null, ids=wsIdsOf(P), seen=AGE(LASTSEEN[P.name]||"unknown"), invitedOn=INVITED[P.name];
+  const names=ids.map(i=>byId[i].name), invited=seen==="never", flash=PEOPLE_FLASH==="p:"+k;
   /* a normal user has one workspace, so "which workspaces" is not a question
      they have. The column stays for layout but says nothing about a structure
      they do not have yet. Owner and Admin both read null here (P.ws===null),
@@ -3758,42 +3963,108 @@ const row=k=>{const P=PEOPLE[k], allWs=P.ws===null, ids=wsIdsOf(P), seen=AGE(LAS
   const where=isNormal()?"":allWs?"Every workspace, including ones added later"
     +(gaps.length?`<span class="st-gaps">${gaps.map(c=>`<span class="chip c-warn" title="Nobody but the owner is a member of ${c.name}">${c.name} &middot; only the owner</span>`).join("")}</span>`:"")
     :ids.length?names.slice(0,5).join(", ")+(names.length>5?", and "+(names.length-5)+" more":""):"Not added to any workspace yet";
-  return `<tr data-person="${k}" style="cursor:pointer">
+  return `<tr class="${flash?"crow-flash":""}" data-person="${k}" style="cursor:pointer">
    <td><div class="cell-main"><span class="avatar av-tint" style="--c:#4B5563;width:28px;height:28px;border-radius:6px;font-size:11px">${P.initials}</span>
     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${P.name}${k===me_?' <span class="cs">(you)</span>':""}</span>
     <span class="cs">${k===me_?"Signed in now":isNormal()?"On this account":"Agency staff"}</span></span></div></td>
    <td><span class="chip ${P.role==="Member"?"c-mute":"c-info"}">${P.role}</span></td>
    <td>${isNormal()?"":`<span class="tnum" style="font-size:14px">${allWs?"All "+CLIENTS.length:ids.length}</span>
     <span class="cs" style="display:block">${where}</span>`}</td>
-   <td><span class="sub">${seen}</span>${seen==="never"?'<span class="cs" style="display:block;color:var(--amber-700)">Invited'+(invitedOn?" "+invitedOn:"")+', not yet signed in <button class="linkbtn" data-flash="Invite resent to '+staffEmail(P)+'.">Resend</button></span>':""}</td>
+   <td><span class="sub">${seen}</span></td>
+   <td>${invited?`<span class="chip c-warn">Invited${invitedOn?" "+invitedOn:""}</span> <button class="linkbtn" data-flash="Invite resent to ${staffEmail(P)}.">Resend</button>`
+     :`<span class="chip c-ok">Active</span>`}</td>
    <td class="ar colact"><button class="linkbtn">Manage</button></td></tr>`};
 
- return `<div class="toolbar">
-   <div class="cell-main"><span class="semibold-3">People</span></div>
-   <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Add a member</button></div></div>
-  <div class="wrap">
-   ${receiptBar("people")}
-   <div class="card">
+ return `<div class="card">
     <!-- 23 Sep 2026: three role cards, Can and Cannot, generated from
          ACCOUNT_POWERS x CAN, the same table the picker and the compare
          table read. Nothing here is hand written per role. -->
     <div class="panel-b" style="padding-bottom:12px">
      ${roleCards(AGENCY_ROLES,null,"data-roleinfo",true)}
      <button class="linkbtn" data-amcompare style="margin-top:10px">Compare all roles</button></div>
-    <div class="tscroll"><table class="organism" style="min-width:900px">
-     <thead><tr><th>Person</th><th>Account role</th>${isNormal()?"<th></th>":"<th>Workspaces</th>"}<th>Last active</th><th class="colact"></th></tr></thead>
+    <div class="tscroll"><table class="organism" style="min-width:960px">
+     <thead><tr><th>Person</th><th>Account role</th>${isNormal()?"<th></th>":"<th>Workspaces</th>"}<th>Last active</th><th>Status</th><th class="colact"></th></tr></thead>
      <tbody>${keys.map(row).join("")}</tbody></table></div>
    </div>
    ${gaps.length?`<div class="msg m-warn st-gapbar" style="margin-top:16px;align-items:center">${warnI}<span style="min-width:0;flex:1">
     <strong>${gaps.length===1?"One workspace has":gaps.length+" workspaces have"} nobody but the owner:</strong>
     ${listAnd(gaps.map(c=>c.name))}. Nothing gets done ${gaps.length===1?"there":"in them"} unless the owner does it.</span>
     <button class="linkbtn" data-fixgaps style="font-weight:600;flex:none">Fix &rarr;</button></div>`
-    :(rb=>rb?`<div style="margin-top:16px">${rb}</div>`:"")(receiptBar("people-gaps"))}
+    :(rb=>rb?`<div style="margin-top:16px">${rb}</div>`:"")(receiptBar("people-gaps"))}`;
+}
+function vPeopleClientsTab(){
+ const rows=clientUserRows();
+ const row=({c,u})=>{
+  const email=u[0], role=u[1], status=u[2]||"Active", seen=AGE(LASTSEEN[email]||"unknown");
+  const flash=PEOPLE_FLASH==="c:"+c.id+"|"+email;
+  const confirming=memberRmConfirm===c.id+"|"+email, isLast=c.users.length===1;
+  return `<tr class="${flash?"crow-flash":""}">
+   <td><div class="cell-main"><span class="avatar av-tint" style="--c:${c.colour};width:28px;height:28px;border-radius:6px;font-size:11px">${initials(email.split("@")[0])}</span>
+    <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${email.split("@")[0].replace(/^./,x=>x.toUpperCase())}</span>
+    <span class="cs trunc">${email}</span></span></div></td>
+   <td><span class="chip cl" style="--c:${c.colour}">${c.name}</span></td>
+   <td><select class="inp" style="height:32px;width:200px" data-pcuserrole="${c.id}|${email}" aria-label="Role for ${email}">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===role?"selected":""}>${r}</option>`).join("")}</select></td>
+   <td>${status==="Invited"?`<span class="chip c-warn">Invited</span> <button class="linkbtn" data-flash="Invite resent to ${email}.">Resend</button>`:`<span class="chip c-ok">Active</span>`}</td>
+   <td><span class="sub">${seen}</span></td>
+   <td class="ar colact">${confirming?'<span class="sub">–</span>'
+     :isLast?`<button class="linkbtn" style="color:var(--gray-11)" title="Only sign-in for ${c.name}. To pause the client, use Disable." data-onlysignin="${c.id}|${email}">Only sign-in</button>`
+     :`<button class="linkbtn" style="color:var(--red-600)" data-pcuserrm="${c.id}|${email}">Remove</button>`}</td></tr>
+   ${isLast&&onlySignInNote===c.id+"|"+email?`<tr class="confirmrow"><td colspan="6"><div class="inlineconfirm">
+     <span>This is the only sign-in for ${sentEnd(c.name)} To pause the client, use Disable.</span>
+     <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-onlysigninclear>OK</button></span></div></td></tr>`:""}
+   ${confirming?`<tr class="confirmrow"><td colspan="6"><div class="inlineconfirm">
+     <span>${email} loses their sign-in to ${sentEnd(c.name)} Their replies stay.</span>
+     <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-pcuserrmcancel>Keep</button>
+     <button class="shd-button shd-button--secondary shd-button--sm" data-pcuserrmgo="${c.id}|${email}">Remove</button></span></div></td></tr>`:""}`;
+ };
+ return `<div class="card"><div class="panel-h"><span class="panel-t">Client users</span>
+   <span class="sub">${rows.length} across ${CLIENTS.length} workspace${CLIENTS.length===1?"":"s"}</span></div>
+  <div class="tscroll"><table class="organism" style="min-width:960px">
+   <thead><tr><th>Person</th><th>Workspace</th><th>Role</th><th>Status</th><th>Last active</th><th class="colact"></th></tr></thead>
+   <tbody>${rows.length?rows.map(row).join(""):`<tr><td colspan="6"><span class="sub">No client users yet.</span></td></tr>`}</tbody></table></div>
+  <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">Managed here and on each client's own Members tab; a change on either shows on both.</span></div>
+ </div>`;
+}
+function vPeople(){
+ if(!canI("members")) return denied("see or manage people");
+ const gaps=uncovered();
+ const body=PEOPLE_TAB==="clients"?vPeopleClientsTab():vPeopleAgencyTab(gaps);
+ PEOPLE_FLASH=null;
+ return `<div class="toolbar">
+   <div class="cell-main"><span class="semibold-3">People</span></div>
+   <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Add a person</button></div></div>
+  <div class="tabbar">
+   <button data-ptab="agency" aria-selected="${PEOPLE_TAB==="agency"}">Agency team</button>
+   <button data-ptab="clients" aria-selected="${PEOPLE_TAB==="clients"}">Client users</button>
+  </div>
+  <div class="wrap">
+   ${receiptBar("people")}
+   ${body}
   </div>`;
 }
 
+/* the confirm line for demoting or promoting someone, built fresh from the
+   role being moved to and, when it matters, the fact that a Member's own
+   workspace list stops applying the moment they are no longer a Member. */
+function roleChangeLine(P,to){
+ const first=P.name.split(" ")[0];
+ const wsNote=(P.role==="Member"&&to!=="Member")?` ${first}'s workspace list no longer applies.`:"";
+ return `Make ${first} ${/^[aeiou]/i.test(to)?"an":"a"} ${to}? ${ROLE_UPGRADE_WHY[to]||""}${wsNote}`;
+}
+/* what removing someone from one workspace costs: the sequences they built
+   there move to whoever is acting (you), so nothing sending stops sending. */
+function wsRemoveLine(P,c){
+ const n=(c.sequences||[]).filter(s=>s.owner===P.name).length;
+ return `${P.name} loses ${c.name}${n?`; the ${n} sequence${n===1?"":"s"} ${P.name} created there ${n===1?"is":"are"} reassigned to you`:""}.`;
+}
+function acctRemoveLine(P){
+ const ids=wsIdsOf(P);
+ const seqs=ids.reduce((t,id)=>t+(byId[id].sequences||[]).filter(s=>s.owner===P.name).length,0);
+ return `Remove ${P.name} from ${AGENCY.name}? They lose every sign-in.${seqs?` ${seqs} sequence${seqs===1?"":"s"} across ${ids.length} workspace${ids.length===1?"":"s"} ${seqs===1?"is":"are"} reassigned to you.`:""}`;
+}
 function vPerson(k){
  if(!canI("members")) return denied("see or manage people");
+ if(k&&k.indexOf("c:")===0) return vPersonClient(k.slice(2));
  const P=PEOPLE[k]; if(!P) return vPeople();
  /* Owner and Admin both reach every workspace by role alone now, so it is
     P.ws===null that means "every workspace", not the Owner role specifically.
@@ -3809,6 +4080,15 @@ function vPerson(k){
     powers, generated from ACCOUNT_POWERS x CAN, and the comparison including
     Owner is one click away. Hitesh, 16 Sep: users have no idea what these
     roles mean today. */
+ /* 25 Sep 2026 (defect D3): a role change used to write silently. Now an
+    upgrade or a lateral change (Owner<->Admin) confirms inline before it
+    writes; a downgrade to Member opens a checklist instead, because it turns
+    ws:null into a real list someone has to choose rather than one this screen
+    should pick for them. Either way it ends in a receipt with Undo. */
+ const roleConfirming=personRoleConfirm&&personRoleConfirm.key===k;
+ const downgrading=personDowngradeWs&&personDowngradeWs.key===k;
+ const addingWs=personAddWsOpen===k;
+ const removingAcct=personRemoveAcctConfirm===k;
 
  return `<div class="toolbar">
    <div class="cell-main"><button class="linkbtn" data-topeople style="margin-right:10px">&larr; People</button>
@@ -3816,6 +4096,7 @@ function vPerson(k){
     <span style="min-width:0;margin-left:10px"><span class="semibold-3">${P.name}</span>
     <span class="sub" style="display:block">${P.role} &middot; ${allWs?"every workspace, always":ids.length+(ids.length===1?" workspace":" workspaces")}</span></span></div></div>
   <div class="wrap">
+   ${receiptBar("people")}
    <div class="psplit">
     <div class="card">
      <div class="panel-h"><span class="panel-t">Account role</span></div>
@@ -3825,24 +4106,103 @@ function vPerson(k){
       ${isMe?`<div class="msg m-info" style="margin-top:10px">${infoI}<span>You cannot change your own role.
         Someone has to be able to undo a mistake, and it cannot be the person who made it.</span></div>`
        :lastOwner?`<div class="msg m-info" style="margin-top:10px">${infoI}<span>This is the only owner.
-        Make someone else an owner first, or the account would have nobody who can bill or delete.</span></div>`:""}
+        Make someone else an owner first, or the account would have nobody who can bill or delete.</span></div>`
+       :roleConfirming?`<div class="inlineconfirm" style="margin-top:10px">
+        <span>${roleChangeLine(P,personRoleConfirm.to)}</span>
+        <span class="tools"><button class="shd-button shd-button--sm shd-button--secondary" data-prole2go>Confirm</button>
+        <button class="shd-button shd-button--tertiary shd-button--sm" data-prole2cancel>Cancel</button></span></div>`
+       :downgrading?`<div class="panel" style="margin-top:10px;border:1px solid var(--gray-13);box-shadow:none"><div class="panel-b">
+        <p class="sub" style="margin:0 0 10px">${P.name} becomes a Member. Pick which workspaces they keep; the rest they lose today.</p>
+        <div class="wsbox">${CLIENTS.map(c=>{const on=personDowngradeWs.sel.indexOf(c.id)>-1;
+          return `<label class="wsrow"><input type="checkbox" data-pdws="${c.id}" ${on?"checked":""}>
+           <span class="avatar av-tint" style="--c:${c.colour};width:26px;height:26px;border-radius:6px;font-size:10px">${initials(c.name)}</span>
+           <span class="wsn trunc">${c.name}</span></label>`}).join("")}</div>
+        <div class="tools" style="margin-top:10px">
+         <button class="shd-button shd-button--sm shd-button--secondary" data-pdwsgo>Save, as Member of ${personDowngradeWs.sel.length}</button>
+         <button class="shd-button shd-button--tertiary shd-button--sm" data-pdwscancel>Cancel</button></div>
+        </div></div>`:""}
      </div></div>
 
     <div class="card">
      <div class="panel-h"><span class="panel-t">Workspaces</span>
       <span class="sub">${allWs?"Every workspace":ids.length+" of "+CLIENTS.length}</span>
-      ${allWs||!out.length?"":`<button class="shd-button shd-button--primary shd-button--sm" data-wsaddopen="${k}">Add to workspaces</button>`}</div>
+      ${allWs||!out.length||addingWs?"":`<button class="shd-button shd-button--primary shd-button--sm" data-wsaddopen="${k}">Add to workspaces</button>`}</div>
      <div class="st-say" id="stSay" style="margin:14px 16px 0">${stSentence(P.name,P.role,ids.map(id=>byId[id].name))}</div>
+     ${addingWs?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
+        <p class="sub" style="margin:0 0 10px">Workspaces ${P.name} is not on yet.</p>
+        <div class="wsbox">${out.map(c=>{const on=personAddWsSel.indexOf(c.id)>-1;
+          return `<label class="wsrow"><input type="checkbox" data-paws="${c.id}" ${on?"checked":""}>
+           <span class="avatar av-tint" style="--c:${c.colour};width:26px;height:26px;border-radius:6px;font-size:10px">${initials(c.name)}</span>
+           <span class="wsn trunc">${c.name}</span></label>`}).join("")}</div>
+        <div class="tools" style="margin-top:10px">
+         <button class="shd-button shd-button--sm shd-button--primary" data-pawsgo ${personAddWsSel.length?"":"disabled"}>Add ${personAddWsSel.length||""}</button>
+         <button class="shd-button shd-button--tertiary shd-button--sm" data-pawscancel>Cancel</button></div>
+       </div>`:""}
      ${allWs
        ?`<div class="panel-b"><span class="sub">Every workspace, always. ${P.role} reaches everything by role alone, including workspaces created later; there is nothing to add or remove.</span></div>`
        :`<div class="tscroll" style="margin-top:14px"><table class="organism" style="min-width:420px">
         <thead><tr><th>Workspace</th><th class="colact"></th></tr></thead>
-        <tbody>${ids.length?ids.map(id=>{const c=byId[id];
+        <tbody>${ids.length?ids.map(id=>{const c=byId[id], confirming=personWsRemoveConfirm===k+"|"+id;
           return `<tr><td><div class="cell-main">${av(c,24)}<span class="trunc">${c.name}</span></div></td>
-           <td class="ar colact"><button class="linkbtn" data-wsremove="${k}|${id}">Remove</button></td></tr>`}).join("")
+           <td class="ar colact">${confirming?'<span class="sub">–</span>':`<button class="linkbtn" data-wsremove="${k}|${id}">Remove</button>`}</td></tr>
+          ${confirming?`<tr class="confirmrow"><td colspan="2"><div class="inlineconfirm">
+            <span>${wsRemoveLine(P,c)}</span>
+            <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-wsremovecancel>Keep</button>
+            <button class="shd-button shd-button--secondary shd-button--sm" data-wsremovego="${k}|${id}">Remove</button></span></div></td></tr>`:""}`}).join("")
           :'<tr><td colspan="2"><span class="sub">Not added to any workspace. They can sign in and will see nothing.</span></td></tr>'}</tbody></table></div>
-       ${out.length?`<div class="panel-b" style="border-top:1px solid var(--gray-200)"><span class="sub">Not a member of ${out.slice(0,5).map(c=>c.name).join(", ")}${out.length>5?" and "+(out.length-5)+" more":""}.</span></div>`:""}`}
+       ${out.length&&!addingWs?`<div class="panel-b" style="border-top:1px solid var(--gray-200)"><span class="sub">Not a member of ${out.slice(0,5).map(c=>c.name).join(", ")}${out.length>5?" and "+(out.length-5)+" more":""}.</span></div>`:""}`}
     </div>
+   </div>
+   ${isMe||lastOwner?"":`<div class="card" style="margin-top:16px;border-color:var(--red-19)"><div class="panel-b">
+    ${removingAcct?`<div class="inlineconfirm">
+      <span>${acctRemoveLine(P)}</span>
+      <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-personrmacctcancel>Keep</button>
+      <button class="shd-button shd-button--sm shd-button--secondary" style="color:var(--red-600)" data-personrmacctgo>Remove</button></span></div>`
+     :`<button class="linkbtn" style="color:var(--red-600)" data-personrmacct="${k}">Remove ${P.name.split(" ")[0]} from ${AGENCY.name}</button>`}
+   </div></div>`}
+  </div>`;
+}
+/* the client user's own person page: same role-card, confirm-and-receipt
+   pattern as the agency side, but over the three client roles and one
+   workspace, since that is the whole of a client user's grant (13 §7). */
+function vPersonClient(rest){
+ const bar=rest.indexOf("|"), cid=rest.slice(0,bar), email=rest.slice(bar+1);
+ const c=byId[cid]; if(!c) return vPeople();
+ const u=(c.users||[]).find(x=>x[0]===email); if(!u) return vPeople();
+ const role=u[1], status=u[2]||"Active";
+ const roleConfirming=clientPersonRoleConfirm&&clientPersonRoleConfirm.cid===cid&&clientPersonRoleConfirm.email===email;
+ const removeConfirming=memberRmConfirm===cid+"|"+email, isLast=c.users.length===1;
+ return `<div class="toolbar">
+   <div class="cell-main"><button class="linkbtn" data-topeople style="margin-right:10px">&larr; People</button>
+    <span class="avatar av-tint" style="--c:${c.colour};width:32px;height:32px;border-radius:8px;font-size:12px">${initials(email.split("@")[0])}</span>
+    <span style="min-width:0;margin-left:10px"><span class="semibold-3">${email}</span>
+    <span class="sub" style="display:block">${role} &middot; <span class="chip cl" style="--c:${c.colour}">${c.name}</span></span></span></div>
+   <div class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-gotoc="${cid}">Open workspace</button></div></div>
+  <div class="wrap">
+   ${receiptBar("people")}
+   <div class="psplit">
+    <div class="card">
+     <div class="panel-h"><span class="panel-t">Client role</span></div>
+     <div style="padding:16px">
+      ${clientRoleCards(role,"data-cprole2",cid+"|"+email)}
+      ${roleConfirming?`<div class="inlineconfirm" style="margin-top:10px">
+        <span>Make ${email} a ${clientPersonRoleConfirm.to}? ${CLIENT_ROLE_DEFS[clientPersonRoleConfirm.to].desc}.</span>
+        <span class="tools"><button class="shd-button shd-button--sm shd-button--secondary" data-cprole2go>Confirm</button>
+        <button class="shd-button shd-button--tertiary shd-button--sm" data-cprole2cancel>Cancel</button></span></div>`:""}
+     </div></div>
+    <div class="card">
+     <div class="panel-h"><span class="panel-t">Status</span></div>
+     <div class="panel-b">
+      ${status==="Invited"
+        ?`<span class="chip c-warn">Invited</span> <button class="linkbtn" data-flash="Invite resent to ${email}.">Resend invite</button>`
+        :`<span class="chip c-ok">Active</span> <span class="sub" style="margin-left:8px">Last active ${AGE(LASTSEEN[email]||"unknown")}</span>`}
+      <div style="margin-top:16px">${isLast
+        ?`<span class="sub">This is the only sign-in for ${sentEnd(c.name)} To pause the client, use Disable.</span>`
+        :removeConfirming?`<div class="inlineconfirm"><span>${email} loses their sign-in to ${sentEnd(c.name)} Their replies stay.</span>
+           <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-pcuserrmcancel>Keep</button>
+           <button class="shd-button shd-button--secondary shd-button--sm" data-pcuserrmgo="${cid}|${email}">Remove</button></span></div>`
+        :`<button class="shd-button shd-button--secondary shd-button--sm" style="color:var(--red-600)" data-pcuserrm="${cid}|${email}">Remove from ${c.name}</button>`}</div>
+     </div></div>
    </div>
   </div>`;
 }
@@ -4745,6 +5105,9 @@ const CLIENT_LBL={sequences:"Sequences",inbox:"Replies",prospects:"Prospects",le
    Names what they see, never what they lack. 21 Sep round 2. */
 const RESTRICT_NOUN={sequences:"sequences",inbox:"replies",prospects:"prospects",leads:"lead sourcing",
  accounts:"email accounts",analytics:"results",usage:"usage"};
+/* the icon cParked draws beside a placeholder module's title, one per key that
+   still parks. Warm-up moved off this list once it got a real client view. */
+const MOD_ICON={task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",refer:"refer"};
 const AGY_MOD={
  seq:["Sequences","The agency's own campaigns, for winning clients"],
  task:["Tasks","Tasks on the agency's own outreach","Tasks across the clients you work on"],
@@ -5063,6 +5426,280 @@ function vAgencyMod(){
   </div>
   <div class="wrap">${scope}${body}</div>`;
 }
+
+/* ═══ agency-side Analytics: Sequence, Email account and Team reports blended
+   across every workspace the signed-in person is on. 25 Sep 2026, 54 §1.
+   Reuses the same membership rule as everything else cross-client: myClients()
+   is null-ws-means-every-workspace for Owner/Admin, an enumerated list for a
+   Member, so "who sees what" needs no special case here.                    */
+let anTab="seq", anWsOpen=false, anWsSel=null;
+let anSort={seq:{col:null,dir:-1},mail:{col:null,dir:-1},team:{col:null,dir:-1}};
+const anSources=()=>myClients().concat(canI("dashboard")?[OWN_WS]:[]);
+const anWsName=c=>c.own?AGENCY.name:c.name;
+const anVisible=()=>{const mine=anSources();
+ if(anWsSel===null) return mine;
+ const sel=new Set(anWsSel); return mine.filter(c=>sel.has(c.id))};
+const anWsLabel=()=>anWsSel===null?"All mine":anWsSel.length+" of "+anSources().length;
+const AN_TABS=[["seq","Sequence report"],["mail","Email account report"],["team","Team report"]];
+/* one small table per tab: [key,label,isNumeric]. Labels first, numerics last,
+   in every tab, so the totals row below can colspan the labels generically. */
+const AN_COLS={
+ seq:[["ws","Workspace"],["seq","Sequence"],["owner","Owner"],["prospects","Prospects",1],
+   ["contacted","Contacted",1],["opened","Opened",1],["replied","Replied",1],["positive","Positive",1]],
+ mail:[["ws","Workspace"],["mbx","Email account"],["setup","Setup score",1],["inbox","Inbox score",1],
+   ["sent","Sent",1],["replied","Replied",1],["bounced","Bounced",1]],
+ team:[["person","Person"],["role","Role"],["ws","Workspaces",1],["prospects","Prospects",1],
+   ["contacted","Contacted",1],["replied","Replied",1],["positive","Positive",1]],
+};
+const anDefaultSort=t=>{const c=AN_COLS[t].find(x=>x[2]);return c?c[0]:AN_COLS[t][0][0]};
+const anSortState=()=>{const s=anSort[anTab];return {col:s.col||anDefaultSort(anTab),dir:s.dir}};
+/* growSequences() falls back to the literal "the agency" for a client with no
+   Member staffed on it (Vertex, Brightline, Cascade all have none - only
+   Sam is enumerated, on Alloy and Northwind). That reads fine on the client's
+   own sequence list, where it is shorthand for "nobody named, an agency
+   person handles it", but the report's Owner column promises a named person
+   on every row, so it is re-pointed at a real one here rather than in the
+   shared fixture, which other screens still read as-is. Alternates so one
+   name does not carry the whole account. */
+const ANALYTICS_OWNER_FALLBACK=["Priya Nair","Alex Meridian"];
+function anSeqRows(wss){
+ const out=[];
+ wss.forEach(c=>{(c.sequences||[]).forEach((q,i)=>{
+   const opened=Math.min(q.contacted,Math.round(q.contacted*0.4));
+   const replied=Math.round(q.contacted*(q.reply||0)/100);
+   const ratio=c.reply?c.pos/c.reply:0.3;
+   const positive=Math.min(replied,Math.round(replied*ratio));
+   const owner=(q.owner&&q.owner!=="the agency")?q.owner:ANALYTICS_OWNER_FALLBACK[i%ANALYTICS_OWNER_FALLBACK.length];
+   out.push({wsId:c.id,ws:anWsName(c),seq:q.name,owner,
+     prospects:q.prospects,contacted:q.contacted,opened,replied,positive});
+ })});
+ return out;
+}
+function anMailRows(wss){
+ const out=[];
+ wss.forEach(c=>{(c.mailboxes||[]).forEach(m=>{
+   const [email,health,limit]=m, r=rng("anmbx:"+c.id+":"+email), down=health==="Disconnected";
+   const sent=down?0:Math.round((limit||60)*CYCLE.day*(0.5+r()*0.4));
+   out.push({wsId:c.id,ws:anWsName(c),mbx:email,
+     setup:down?0:60+Math.round(r()*39), inbox:down?0:55+Math.round(r()*44),
+     sent, replied:Math.round(sent*(c.reply||3)/100*(0.6+r()*0.7)),
+     bounced:Math.round(sent*(0.004+r()*0.014))});
+ })});
+ return out;
+}
+function anTeamRows(wss){
+ const ids=new Set(wss.map(c=>c.id));
+ return Object.keys(PEOPLE).map(key=>{
+  const p=PEOPLE[key];
+  const mine=(p.ws?p.ws.filter(id=>ids.has(id)):[...ids]).map(id=>byId[id]).filter(Boolean);
+  return {person:p.name,role:p.role,ws:mine.length,
+   prospects:mine.reduce((t,c)=>t+(c.prospects||0),0),
+   contacted:mine.reduce((t,c)=>t+(c.sent||0),0),
+   replied:mine.reduce((t,c)=>t+Math.round((c.sent||0)*(c.reply||0)/100),0),
+   positive:mine.reduce((t,c)=>t+positives(c),0)};
+ });
+}
+function anRows(wss){return anTab==="seq"?anSeqRows(wss):anTab==="mail"?anMailRows(wss):anTeamRows(wss)}
+function anSorted(rows){
+ const {col,dir}=anSortState();
+ return rows.slice().sort((a,b)=>{const av=a[col],bv=b[col];
+  if(typeof av==="number") return (av-bv)*dir;
+  return String(av).localeCompare(String(bv))*dir});
+}
+function anTh(col){
+ const [key,label,num]=col;
+ if(!num) return `<th>${label}</th>`;
+ const active=anSortState().col===key;
+ return `<th class="ar"><button class="linkbtn" data-ansort="${key}" style="display:inline-flex"><span class="sortable"${active?' style="color:var(--blue-11)"':""}>${label}${sortI}</span></button></th>`;
+}
+const anTd=(row,col)=>col[2]?`<td class="ar tnum">${f(row[col[0]])}</td>`:`<td>${row[col[0]]}</td>`;
+/* the Team tab's rows are per PERSON, and a workspace with two staff on it
+   (Owner and Admin both reach everywhere) would otherwise be summed twice -
+   once per row that touches it. Its totals are computed straight off the
+   workspace set instead (one figure per workspace, never per person), which
+   is what "blended" has to mean once more than one person can see the same
+   workspace. Workspaces is a per-person count on this tab, not a quantity
+   that sums, so its total cell reads "-" rather than a number nobody asked
+   for; the label already carries the real N. */
+function anTeamTotals(wss){
+ return {
+  prospects:wss.reduce((t,c)=>t+(c.prospects||0),0),
+  contacted:wss.reduce((t,c)=>t+(c.sent||0),0),
+  replied:wss.reduce((t,c)=>t+Math.round((c.sent||0)*(c.reply||0)/100),0),
+  positive:wss.reduce((t,c)=>t+positives(c),0),
+ };
+}
+function anTotalsRow(cols,rows,N,overrideSums,peopleCount){
+ const labels=cols.filter(c=>!c[2]), nums=cols.filter(c=>c[2]);
+ const sums=overrideSums||Object.fromEntries(nums.map(c=>[c[0],rows.reduce((t,r)=>t+(r[c[0]]||0),0)]));
+ const label=peopleCount==null?`Blended across ${N} workspace${N===1?"":"s"}`
+   :`Blended across ${N} workspace${N===1?"":"s"}, ${peopleCount} ${peopleCount===1?"person":"people"}`;
+ return `<tr class="an-totals"><td colspan="${labels.length}"><strong>${label}</strong></td>`
+  +nums.map(c=>{const v=sums[c[0]]; return `<td class="ar tnum"><strong>${v==null?"–":f(v)}</strong></td>`}).join("")+`</tr>`;
+}
+function vAgencyAnalytics(){
+ const wss=anVisible(), cols=AN_COLS[anTab], rows=anSorted(anRows(wss)), empty=!rows.length, wsOpts=anSources();
+ return `<div class="toolbar">
+   <div class="cell-main"><span style="min-width:0">
+     <span class="semibold-3" style="display:block">Analytics</span>
+     <span class="cs">Across your workspaces</span></span></div>
+   <div class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-anexport>Export</button></div>
+  </div>
+  <div class="tabbar">${AN_TABS.map(([k,l])=>`<button data-antab="${k}" aria-selected="${anTab===k}">${l}</button>`).join("")}</div>
+  <div class="wrap">
+   ${receiptBar("analytics")}
+   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+    <span style="position:relative">
+     <button class="shd-button shd-button--tertiary shd-button--sm" data-anwstoggle aria-expanded="${anWsOpen}">Workspace: ${anWsLabel()} &#8964;</button>
+     ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;left:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
+       <div class="panel-b" style="padding-bottom:8px;border-bottom:1px solid var(--gray-13)"><button class="linkbtn" data-anwsall>All mine</button></div>
+       <div class="panel-b" style="max-height:220px;overflow:auto;padding-top:8px">
+        ${wsOpts.map(c=>`<label class="list-row" style="padding:5px 0"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
+       </div>
+       <div class="panel-b" style="border-top:1px solid var(--gray-13)"><button class="linkbtn" data-anwsdone>Done</button></div>
+      </div>`:""}
+    </span>
+    <span class="chip c-mute">This cycle</span>
+   </div>
+   <div class="panel"><div class="tscroll"><table class="organism" style="min-width:${anTab==="team"?720:900}px">
+     <thead><tr>${cols.map(anTh).join("")}</tr></thead>
+     <tbody>${empty
+       ?`<tr><td colspan="${cols.length}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`
+       :rows.map(row=>`<tr>${cols.map(c=>anTd(row,c)).join("")}</tr>`).join("")}
+     </tbody>
+     ${empty?"":"<tfoot>"+(anTab==="team"?anTotalsRow(cols,rows,wss.length,anTeamTotals(wss),rows.length):anTotalsRow(cols,rows,wss.length))+"</tfoot>"}
+   </table></div></div>
+  </div>`;
+}
+
+/* ═══ agency-side API & Integrations, the agency's own section. 54 §2.
+   Keys and MCP sessions share one table shape (Label, Scope, Created by,
+   Created, Last used); scope is "agency" (acts across every workspace) or a
+   workspace id. Only Owner and Admin may mint an agency-scoped key; a Member
+   can still open the screen and create a workspace-scoped one.             */
+let apiTab="keys", apiKeyFormOpen=false, apiKeyRevokeConfirm=null,
+    apiWebhookFormOpen=false, apiWebhookEvSel=[], apiConnectOpen=null, apiDisconnectConfirm=null;
+const API_TABS=[["keys","API keys"],["mcp","MCP"],["integrations","Integrations"],["webhooks","Webhooks"]];
+const CRMS=[["pipedrive","Pipedrive"],["zoho","Zoho"],["hubspot","HubSpot"],["salesforce","Salesforce"]];
+let INTEGRATIONS={pipedrive:null,zoho:null,hubspot:"own",salesforce:null};
+const WEBHOOK_EVENTS=["Email Sent","Email Opened","Email Link Clicked","Reply Received","Email Bounced",
+ "Prospect Unsubscribed","Prospect Finished","Prospect Outcome Updated","Sequence Paused",
+ "Email Account Disconnected","Email Account Paused","Inbox Radar Test Completed","Task Created",
+ "Bulk Task Updated","Call Task Updated","WhatsApp Task Updated","LinkedIn Task Updated",
+ "Custom Task Updated","Task Updated"];
+let API_KEYS=[
+ {id:"k1",label:"Reporting pull",scope:"agency",by:"Alex Meridian",created:"02 Sep, 2026",used:"3 hours ago"},
+ {id:"k2",label:"Northwind CRM sync",scope:"nw",by:"Priya Nair",created:"14 Aug, 2026",used:"Yesterday"},
+];
+let API_MCP=[
+ {id:"m1",label:"Claude Desktop",scope:"agency",by:"Alex Meridian",created:"10 Sep, 2026",used:"1 day ago"},
+];
+let API_WEBHOOKS=[
+ {id:"w1",name:"Reporting sync",scope:"agency",events:["Email Sent","Reply Received","Sequence Paused"],
+  url:"https://hooks.meridiangrowth.com/sh",lastSent:"12 min ago",status:"on"},
+];
+const isOwnerOrAdmin=()=>ME().role!=="Member";
+const apiScopeName=s=>s==="agency"?"Agency":s==="own"?AGENCY.name:(byId[s]?byId[s].name:s);
+const apiWsOpts=()=>myClients().concat([OWN_WS]);
+function apiKeyTable(list,note,kind){
+ const rows=list.map(k=>`<tr><td>${k.label}</td>
+   <td><span class="chip c-${k.scope==="agency"?"vio":"mute"}">${apiScopeName(k.scope)}</span></td>
+   <td>${k.by}</td><td><span class="sub">${k.created}</span></td><td><span class="sub">${k.used||"Never"}</span></td>
+   <td class="ar colact">${apiKeyRevokeConfirm===k.id?'<span class="sub">–</span>':`<button class="linkbtn" data-apirevoke="${kind}|${k.id}">Revoke</button>`}</td></tr>
+  ${apiKeyRevokeConfirm===k.id?`<tr class="confirmrow"><td colspan="6"><div class="inlineconfirm">
+    <span>Revoke "${k.label}"? Any call using it stops working immediately.</span>
+    <span class="tools"><button class="shd-button shd-button--sm shd-button--secondary" data-apirevokego="${kind}|${k.id}">Revoke key</button>
+    <button class="shd-button shd-button--tertiary shd-button--sm" data-apirevokecancel>Cancel</button></span></div></td></tr>`:""}`).join("");
+ return `<div class="panel">${receiptBar("api")}<div class="tscroll"><table class="organism" style="min-width:760px">
+   <thead><tr><th>Label</th><th>Scope</th><th>Created by</th><th>Created</th><th>Last used</th><th class="colact"></th></tr></thead>
+   <tbody>${rows||`<tr><td colspan="6"><span class="sub">None yet.</span></td></tr>`}</tbody></table></div>
+   ${note?`<div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">${note}</span></div>`:""}
+  </div>`;
+}
+function apiKeysTab(){
+ const canAgency=isOwnerOrAdmin(), wsOpts=apiWsOpts();
+ return `<div style="margin-bottom:16px"><button class="shd-button shd-button--primary shd-button--sm" data-apikeynew>Create API key</button></div>
+  ${apiKeyFormOpen?`<div class="panel" style="margin-bottom:16px"><div class="panel-h"><span class="panel-t">Create API key</span></div>
+    <div class="panel-b">
+     <div class="field"><label class="flabel" for="apiKeyLabel">Label</label><input type="text" class="inp" id="apiKeyLabel" placeholder="Reporting pull"></div>
+     <div class="field"><label class="flabel" for="apiKeyScope">Scope</label>
+      <select class="inp" id="apiKeyScope" style="width:320px">
+       <option value="agency" ${canAgency?"":"disabled"} title="${canAgency?"":"Only an Owner or Admin can create an agency-scoped key"}">Agency, acts across workspaces</option>
+       ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
+      </select>
+      <p class="sub" style="margin-top:6px">An agency key must name the workspace it acts in on every call; a call without one acts in your own workspace.</p>
+      ${canAgency?"":'<p class="sub" style="margin-top:2px">Only an Owner or Admin can create an agency-scoped key.</p>'}
+     </div>
+     <div style="display:flex;gap:8px"><button class="shd-button shd-button--primary shd-button--sm" data-apikeysave>Create key</button>
+      <button class="shd-button shd-button--tertiary shd-button--sm" data-apikeycancel>Cancel</button></div>
+    </div></div>`:""}
+  ${apiKeyTable(API_KEYS,"Keys created before this account moved to workspaces act in "+AGENCY.name+"'s own workspace.","keys")}`;
+}
+const apiMcpTab=()=>apiKeyTable(API_MCP,"Connect an MCP client with one of these keys; it acts in the workspace the key names.","mcp");
+function apiIntegrationsTab(){
+ const wsOpts=apiWsOpts();
+ return `<div class="grid">${CRMS.map(([key,label])=>{
+   const connectedTo=INTEGRATIONS[key], wsName=connectedTo?apiScopeName(connectedTo):null;
+   return `<div class="card"><div class="panel-h"><span class="panel-t">${label}</span></div>
+    <div class="panel-b">
+     <p class="sub" style="margin:0 0 12px">${connectedTo?`Connected to: <strong>${wsName}</strong>`:"Not connected"}</p>
+     ${apiConnectOpen===key?`<div class="panel" style="margin-bottom:10px;box-shadow:none;border:1px solid var(--gray-13)"><div class="panel-b">
+        <p class="sub" style="margin:0 0 8px">Connect ${label} to:</p>
+        ${wsOpts.map(c=>`<button class="linkbtn" style="display:block;margin-bottom:6px" data-apiconnectgo="${key}|${c.id}">${anWsName(c)}</button>`).join("")}
+        <button class="linkbtn" data-apiconnectcancel>Cancel</button>
+       </div></div>`:""}
+     ${apiDisconnectConfirm===key?`<div class="inlineconfirm" style="margin-bottom:10px">
+        <span>Disconnect ${label} from ${wsName}?</span>
+        <span class="tools"><button class="shd-button shd-button--sm shd-button--secondary" data-apidiscgo="${key}">Disconnect</button>
+        <button class="shd-button shd-button--tertiary shd-button--sm" data-apidisccancel>Cancel</button></span></div>`:""}
+     <div style="display:flex;gap:8px">
+      ${connectedTo
+        ?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Configure</button>
+          <button class="shd-button shd-button--tertiary shd-button--sm" data-apidisc="${key}">Disconnect</button>`
+        :`<button class="shd-button shd-button--secondary shd-button--sm" data-apiconnect="${key}">Connect</button>`}
+     </div></div></div>`;
+ }).join("")}</div>
+ <div class="panel" style="margin-top:16px"><div class="panel-b"><span class="sub">CRM connections stay per workspace. A client's CRM is connected inside the client's own workspace, by ${AGENCY.name} or by a Client Admin.</span></div></div>`;
+}
+function apiWebhooksTab(){
+ const wsOpts=apiWsOpts();
+ const rows=API_WEBHOOKS.map(w=>`<tr><td>${w.name}</td>
+   <td><span class="chip c-${w.scope==="agency"?"vio":"mute"}">${apiScopeName(w.scope)}</span></td>
+   <td class="ar tnum">${w.events.length}</td><td><span class="sub trunc" style="max-width:220px;display:inline-block">${w.url}</span></td>
+   <td><span class="sub">${w.lastSent||"Never"}</span></td>
+   <td class="ar colact"><button class="sw" role="switch" aria-checked="${w.status==="on"}" data-webhookon="${w.id}" aria-label="Toggle ${w.name}"></button></td></tr>`).join("");
+ return `<div style="margin-bottom:16px"><button class="shd-button shd-button--primary shd-button--sm" data-webhooknew>Add webhook</button></div>
+  ${apiWebhookFormOpen?`<div class="panel" style="margin-bottom:16px"><div class="panel-h"><span class="panel-t">Add webhook</span></div>
+    <div class="panel-b">
+     <div class="field"><label class="flabel" for="whName">Name</label><input type="text" class="inp" id="whName" placeholder="Reporting sync"></div>
+     <div class="field"><label class="flabel" for="whUrl">URL</label><input type="text" class="inp" id="whUrl" placeholder="https://"></div>
+     <div class="field"><label class="flabel" for="whScope">Scope</label>
+      <select class="inp" id="whScope" style="width:320px">
+       <option value="agency">Agency, across every workspace</option>
+       ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
+      </select></div>
+     <div class="field"><label class="flabel">Events</label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 12px;max-height:200px;overflow:auto;border:1px solid var(--gray-13);border-radius:6px;padding:10px">
+       ${WEBHOOK_EVENTS.map(ev=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" data-wheventtog value="${ev}" ${apiWebhookEvSel.indexOf(ev)>-1?"checked":""}>${ev}</label>`).join("")}
+      </div>
+      <p class="sub" style="margin-top:6px">Every payload carries the workspace.</p></div>
+     <div style="display:flex;gap:8px"><button class="shd-button shd-button--primary shd-button--sm" data-webhooksave>Add webhook</button>
+      <button class="shd-button shd-button--tertiary shd-button--sm" data-webhookcancel>Cancel</button></div>
+    </div></div>`:""}
+  <div class="panel">${receiptBar("api")}<div class="tscroll"><table class="organism" style="min-width:820px">
+    <thead><tr><th>Name</th><th>Scope</th><th class="ar">Events</th><th>URL</th><th>Last sent</th><th class="colact">Status</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6"><span class="sub">No webhooks yet.</span></td></tr>'}</tbody></table></div>
+   <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">Every payload carries the workspace.</span></div></div>`;
+}
+function vApiInt(){
+ return `<div class="toolbar">
+   <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">API & Integrations</span>
+     <span class="cs">Keys, MCP, connections and webhooks owned by ${AGENCY.name}</span></span></div>
+  </div>
+  <div class="tabbar">${API_TABS.map(([k,l])=>`<button data-apitab="${k}" aria-selected="${apiTab===k}">${l}</button>`).join("")}</div>
+  <div class="wrap">${apiTab==="keys"?apiKeysTab():apiTab==="mcp"?apiMcpTab():apiTab==="integrations"?apiIntegrationsTab():apiWebhooksTab()}</div>`;
+}
+
 function vInClient(){
  const c=byId[ctx];
  const T=[["sequences","Sequences"],["prospects","Prospects"],["inbox","Inbox"],["accounts","Email accounts"],["tmpl","Templates"]];
@@ -6288,6 +6925,47 @@ function cParked(c,title,note,tail,icon){
    ${closing?`<p class="sub" style="margin:0">${closing}</p>`:""}</div></div>`;
 }
 
+/* ═══ client-side Email Warm-up. 54 §3.2/3.3: one TrulyInbox account per
+   agency, so a client user sees only their own workspace's mailboxes, never
+   the TrulyInbox login or the consent screen. Status and figures are held
+   here, seeded once per mailbox and mutated by the toggle so a pause/resume
+   sticks for the session. */
+const WARMUP_TONE={Warming:"info",Paused:"warn","Not started":"mute"};
+let WARMUP_STATE={};
+const warmupKey=(cid,email)=>cid+"|"+email;
+function warmupRow(c,m){
+ const [email,health]=m, key=warmupKey(c.id,email);
+ if(!WARMUP_STATE[key]){
+  const r=rng("warmup:"+key), down=health==="Disconnected";
+  const status=down?"Not started":(r()<0.15?"Paused":"Warming");
+  const sent=down?0:12+Math.round(r()*28);
+  const recv=down?0:Math.max(0,sent-2-Math.round(r()*6));
+  const deliv=down?0:88+Math.round(r()*11);
+  WARMUP_STATE[key]={status,sent,recv,deliv};
+ }
+ return WARMUP_STATE[key];
+}
+function cWarmup(c){
+ const rows=c.mailboxes||[];
+ return `<p class="sub" style="margin:0 0 14px">${AGENCY.name} sets up warm-up for this workspace through
+   TrulyInbox. You can pause and resume warm-up on mailboxes you connected yourself.</p>
+  <div class="panel"><div class="tscroll"><table class="organism" style="min-width:720px">
+   <thead><tr><th>Email account</th><th>Warm-up</th><th class="ar">Sent today</th><th class="ar">Received today</th>
+    <th class="ar">Deliverability</th><th class="colact"></th></tr></thead>
+   <tbody>${rows.length?rows.map(m=>{
+     const email=m[0], agency=mbSrc(m)==="agency", st=warmupRow(c,m);
+     const may=!agency&&canC(c,"warmup")&&st.status!=="Not started";
+     return `<tr><td>${email}</td>
+       <td><span class="chip c-${WARMUP_TONE[st.status]}">${st.status}</span></td>
+       <td class="ar tnum">${st.sent}</td><td class="ar tnum">${st.recv}</td>
+       <td class="ar tnum">${st.status==="Not started"?'<span class="sub">–</span>':st.deliv+"%"}</td>
+       <td class="ar colact"><button class="sw" role="switch" aria-checked="${st.status==="Warming"}"
+         ${may?`data-warmup="${c.id}|${email}"`:"disabled"}
+         ${agency?`title="Set up by ${AGENCY.name}"`:""} aria-label="Warm-up for ${email}"></button></td></tr>`;
+   }).join(""):'<tr><td colspan="6"><span class="sub">No email accounts connected to this workspace.</span></td></tr>'}
+   </tbody></table></div></div>`;
+}
+
 /* Reports for the client: four numbers and fourteen days. Daily sends are
    derived from the workspace's cycle total the same way the mailbox counts are,
    so the chart agrees with the tiles and the tiles agree with the client list.
@@ -6403,8 +7081,9 @@ function vClientSide(){
    :cView==="inbox"?cInbox(c)
    :cView==="leads"?cLeads(c)
    :cView==="accounts"?cParked(c,"Email accounts","The mailboxes sending on your behalf, and the health of each. "+AGENCY.name+" assigns them.")
-   :["task","dialer","verify","tmpl","radar","warmup","refer"].indexOf(cView)>-1
+   :["task","dialer","verify","tmpl","radar","refer"].indexOf(cView)>-1
      ?cParked(c,CLIENT_LBL[cView],"The Saleshandy "+CLIENT_LBL[cView]+" screen, scoped to your workspace.","Everything here is yours; "+AGENCY.name+" sees it too.",MOD_ICON[cView])
+   :cView==="warmup"?cWarmup(c)
    :cView==="analytics"?cReports(c)
    :cSettings(c)}</div>`;
 }
@@ -6869,6 +7548,8 @@ function render(){
  el("page").innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
   :(ctx==="agency"&&view.name==="mail")?vEstate()
+  :(ctx==="agency"&&view.name==="analytics")?vAgencyAnalytics()
+  :(ctx==="agency"&&view.name==="apiint")?vApiInt()
   :(ctx==="agency"&&AGY_MOD[view.name]&&MASTER_MOD[view.name])?vAgencyMod()
   :view.name==="m1"?vM1():view.name==="m2"?vM2()
   :view.name==="settings"?vSettings()
@@ -6981,6 +7662,89 @@ function wire(){
    t.scope=t.scope==="all"?"agency":"all"; if(t.scope==="agency")t.locked=false; render()});
  q("[data-tlock]").forEach(b=>b.onclick=()=>{const t=TEMPLATES.find(x=>x.id===b.dataset.tlock);
    t.locked=!t.locked; render()});
+ /* ═══ agency Analytics: tab, workspace filter, sort, export ═══ */
+ q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
+ q("[data-anexport]").forEach(b=>b.onclick=()=>{
+   const n=anSorted(anRows(anVisible())).length;
+   receipt("analytics",`Export started for ${n} row${n===1?"":"s"}; you will get an email.`,null,`exported analytics, ${n} rows`);
+   render()});
+ q("[data-anwstoggle]").forEach(b=>b.onclick=()=>{anWsOpen=!anWsOpen;render()});
+ q("[data-anwsall]").forEach(b=>b.onclick=()=>{anWsSel=null;render()});
+ q("[data-anws]").forEach(cb=>cb.onchange=()=>{
+   const id=cb.dataset.anws, all=anSources().map(c=>c.id);
+   let sel=anWsSel===null?all.slice():anWsSel.slice();
+   const at=sel.indexOf(id);
+   if(cb.checked&&at<0) sel.push(id); if(!cb.checked&&at>-1) sel.splice(at,1);
+   anWsSel=sel.length>=all.length?null:sel; render()});
+ q("[data-anwsdone]").forEach(b=>b.onclick=()=>{anWsOpen=false;render()});
+ q("[data-ansort]").forEach(b=>b.onclick=()=>{
+   const k=b.dataset.ansort, s=anSort[anTab], cur=s.col||anDefaultSort(anTab);
+   if(cur===k) s.dir*=-1; else {s.col=k;s.dir=-1}
+   render()});
+ /* ═══ agency API & Integrations: tabs, keys, MCP, CRM connections, webhooks ═══ */
+ q("[data-apitab]").forEach(b=>b.onclick=()=>{apiTab=b.dataset.apitab;apiKeyFormOpen=false;
+   apiWebhookFormOpen=false;apiConnectOpen=null;apiDisconnectConfirm=null;apiKeyRevokeConfirm=null;render()});
+ q("[data-apikeynew]").forEach(b=>b.onclick=()=>{apiKeyFormOpen=!apiKeyFormOpen;render()});
+ q("[data-apikeycancel]").forEach(b=>b.onclick=()=>{apiKeyFormOpen=false;render()});
+ q("[data-apikeysave]").forEach(b=>b.onclick=()=>{
+   const label=(el("apiKeyLabel").value||"").trim(), scope=el("apiKeyScope").value;
+   if(!label) return; if(scope==="agency"&&!isOwnerOrAdmin()) return;
+   const k={id:"k"+Date.now().toString(36).slice(-5),label,scope,by:ME().name,created:"just now",used:"Never"};
+   API_KEYS.unshift(k); apiKeyFormOpen=false;
+   receipt("api",`API key "${label}" created, scoped to ${apiScopeName(scope)}.`,
+     ()=>{const i=API_KEYS.findIndex(x=>x.id===k.id);if(i>-1)API_KEYS.splice(i,1)},`created API key ${label}`);
+   render()});
+ q("[data-apirevoke]").forEach(b=>b.onclick=()=>{apiKeyRevokeConfirm=b.dataset.apirevoke.split("|")[1];render()});
+ q("[data-apirevokecancel]").forEach(b=>b.onclick=()=>{apiKeyRevokeConfirm=null;render()});
+ q("[data-apirevokego]").forEach(b=>b.onclick=()=>{
+   const [kind,id]=b.dataset.apirevokego.split("|"), list=kind==="mcp"?API_MCP:API_KEYS;
+   const i=list.findIndex(x=>x.id===id); if(i<0) return;
+   const row=list[i]; list.splice(i,1); apiKeyRevokeConfirm=null;
+   receipt("api",`"${row.label}" revoked.`,()=>{list.splice(i,0,row)},`revoked ${row.label}`);
+   render()});
+ q("[data-apiconnect]").forEach(b=>b.onclick=()=>{apiConnectOpen=b.dataset.apiconnect;render()});
+ q("[data-apiconnectcancel]").forEach(b=>b.onclick=()=>{apiConnectOpen=null;render()});
+ q("[data-apiconnectgo]").forEach(b=>b.onclick=()=>{
+   const [key,wsId]=b.dataset.apiconnectgo.split("|"), was=INTEGRATIONS[key];
+   INTEGRATIONS[key]=wsId; apiConnectOpen=null;
+   receipt("api",`Connected ${CRMS.find(c=>c[0]===key)[1]} to ${apiScopeName(wsId)}.`,
+     ()=>{INTEGRATIONS[key]=was},`connected ${key}`);
+   render()});
+ q("[data-apidisc]").forEach(b=>b.onclick=()=>{apiDisconnectConfirm=b.dataset.apidisc;render()});
+ q("[data-apidisccancel]").forEach(b=>b.onclick=()=>{apiDisconnectConfirm=null;render()});
+ q("[data-apidiscgo]").forEach(b=>b.onclick=()=>{
+   const key=b.dataset.apidiscgo, was=INTEGRATIONS[key];
+   INTEGRATIONS[key]=null; apiDisconnectConfirm=null;
+   receipt("api",`${CRMS.find(c=>c[0]===key)[1]} disconnected.`,()=>{INTEGRATIONS[key]=was},`disconnected ${key}`);
+   render()});
+ q("[data-webhooknew]").forEach(b=>b.onclick=()=>{apiWebhookFormOpen=!apiWebhookFormOpen;apiWebhookEvSel=[];render()});
+ q("[data-webhookcancel]").forEach(b=>b.onclick=()=>{apiWebhookFormOpen=false;render()});
+ q("[data-wheventtog]").forEach(cb=>cb.onchange=()=>{
+   const v=cb.value, at=apiWebhookEvSel.indexOf(v);
+   if(cb.checked&&at<0) apiWebhookEvSel.push(v); if(!cb.checked&&at>-1) apiWebhookEvSel.splice(at,1)});
+ q("[data-webhooksave]").forEach(b=>b.onclick=()=>{
+   const name=(el("whName").value||"").trim(), url=(el("whUrl").value||"").trim(), scope=el("whScope").value;
+   if(!name||!url||!apiWebhookEvSel.length) return;
+   const w={id:"w"+Date.now().toString(36).slice(-5),name,url,scope,events:apiWebhookEvSel.slice(),lastSent:null,status:"on"};
+   API_WEBHOOKS.unshift(w); apiWebhookFormOpen=false; apiWebhookEvSel=[];
+   receipt("api",`Webhook "${name}" added.`,
+     ()=>{const i=API_WEBHOOKS.findIndex(x=>x.id===w.id);if(i>-1)API_WEBHOOKS.splice(i,1)},`added webhook ${name}`);
+   render()});
+ q("[data-webhookon]").forEach(b=>b.onclick=()=>{
+   const id=b.dataset.webhookon, w=API_WEBHOOKS.find(x=>x.id===id); if(!w) return;
+   const was=w.status; w.status=was==="on"?"off":"on";
+   receipt("api",`Webhook ${w.status==="on"?"turned on":"turned off"}: ${w.name}.`,
+     ()=>{w.status=was},`toggled webhook ${w.name}`);
+   render()});
+ /* ═══ client-side warm-up toggle (asClient only; agency-bought mailboxes and
+    a Client Viewer never reach this, since the row renders no data-warmup then) ═══ */
+ q("[data-warmup]").forEach(b=>b.onclick=()=>{
+   const [cid,email]=b.dataset.warmup.split("|"), key=warmupKey(cid,email), st=WARMUP_STATE[key];
+   if(!st||st.status==="Not started") return;
+   const was=st.status; st.status=was==="Warming"?"Paused":"Warming";
+   receipt("client:"+cid,`Warm-up ${st.status==="Warming"?"resumed":"paused"} on ${email}.`,
+     ()=>{st.status=was},`${st.status.toLowerCase()} warm-up on ${email}`);
+   render()});
  q("[data-decline]").forEach(b=>b.onclick=()=>declineReq(b,b.dataset.decline));
  {const i=el("dq");if(i){i.oninput=()=>{dq=i.value;el("srchOut").innerHTML=searchHTML();
     el("srchOut").querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{const [id,mod,pid]=b.dataset.goto.split("|");
@@ -7241,13 +8005,20 @@ function wire(){
  /* ── people ── */
  q("[data-person]").forEach(b=>b.onclick=()=>{view={name:"person",id:b.dataset.person};render()});
  q("[data-topeople]").forEach(b=>b.onclick=()=>{view={name:"people"};render()});
+ q("[data-topeopleclients]").forEach(b=>b.onclick=()=>{PEOPLE_TAB="clients";view={name:"people"};render()});
+ q("[data-ptab]").forEach(b=>b.onclick=()=>{PEOPLE_TAB=b.dataset.ptab;render()});
  q("[data-invitestaff]").forEach(b=>b.onclick=()=>amOpen({from:{name:"people"}}));
- /* 18 Sep, delight pass: the gap warning opens A8 with the uncovered workspaces already picked */
- q("[data-fixgaps]").forEach(b=>b.onclick=()=>amOpen({ws:uncovered().map(c=>c.id),fixGaps:true,from:{name:"people"}}));
- q("[data-wsaddopen]").forEach(b=>b.onclick=()=>{const k=b.dataset.wsaddopen, P=PEOPLE[k];
-   amOpen({email:P.email||"",name:P.name,role:P.role,from:{name:"person",id:k}})});
- /* ── A8 wiring ── */
- q("[data-amback]").forEach(b=>b.onclick=()=>{const f=AM.from||{name:"people"};
+ /* 18 Sep, delight pass: the gap warning opens A8 with the uncovered workspaces already picked.
+    It is a gap in the agency's OWN coverage, so it skips the picker straight to that path. */
+ q("[data-fixgaps]").forEach(b=>b.onclick=()=>amOpen({kind:"agency",role:"Member",ws:uncovered().map(c=>c.id),fixGaps:true,from:{name:"people"}}));
+ /* ── who-are-you-adding picker ── */
+ q("[data-amkind]").forEach(b=>b.onclick=()=>{AM.kind=b.dataset.amkind;render()});
+ /* ── A8 / Add a person wiring ── */
+ q("[data-amback]").forEach(b=>b.onclick=()=>{
+   /* one step back from either path's form is the picker, not out of the
+      screen entirely - Cancel (data-amback on the footer) still leaves. */
+   if(AM.kind&&AM.mode!=="edit"&&!AM.fixGaps){AM.kind=null;render();return}
+   const f=AM.from||{name:"people"};
    AM=Object.assign({},AM_BLANK); view={name:f.name,id:f.id}; if(f.tab)tab=f.tab; render()});
  q("[data-amsend]").forEach(b=>b.onclick=amSend);
  /* the rail jumps rather than navigates: every section is already on the page,
@@ -7269,39 +8040,129 @@ function wire(){
     const best=Object.keys(seen).sort((a,b)=>(seen[b]-seen[a])||(a-b))[0];
     if(best) lit(best);
   },{root:root,threshold:[0,.1,.25,.5,.75,1],rootMargin:"-60px 0px -55% 0px"});
-  [1,2].forEach(n=>{const t=el(spyOn+"Sec"+n); if(t) window.__amObs.observe(t)});
+  [1,2,3].forEach(n=>{const t=el(spyOn+"Sec"+n); if(t) window.__amObs.observe(t)});
   lit(1);
  }
  q("[data-amcompare]").forEach(b=>b.onclick=()=>{modal={kind:"rolecompare"};renderModal()});
- {const e=el("amEmail"), n=el("amName");
-  /* typed values repaint nothing, because re-rendering on a keystroke steals
-     the caret out of the field being typed in. The footer catches up on the
-     next real interaction, and on blur. */
-  if(e){e.oninput=()=>{AM.email=e.value}; e.onblur=render}
-  if(n){n.oninput=()=>{AM.name=n.value}; n.onblur=render}
-  }
+ /* defect D1 fix: a keystroke updates the model AND repaints the footer, the
+    rail and the preview line in place (amPatchLive), so Send goes live the
+    moment the form is actually valid rather than waiting for a blur or an
+    unrelated click. A full render still never runs on a keystroke, so the
+    caret is never stolen. */
+ amLiveBind(el("amEmail"),"email");
+ amLiveBind(el("amName"),"name");
  q("[data-amrole]").forEach(b=>b.onclick=()=>{AM.role=b.dataset.amrole;render()});
+ q("[data-amcrole]").forEach(b=>b.onclick=()=>{AM.crole=b.dataset.amcrole;render()});
+ {const s=el("amWsPick"); if(s) s.onchange=()=>{AM.wsId=s.value;amPatchLive()}}
  q("[name=amws]").forEach(i=>i.onchange=()=>{const id=i.value, at=AM.ws.indexOf(id);
    if(i.checked&&at<0)AM.ws.push(id); if(!i.checked&&at>-1)AM.ws.splice(at,1);
    AM.ws.sort((a,b)=>amWs().findIndex(w=>w.id===a)-amWs().findIndex(w=>w.id===b));
    render()});
- /* Owner and Admin both reach every workspace by role alone (ws:null); only a
-    Member is enumerated. Promoting out of Member drops the enumeration for
-    the same reason ownership was never enumerable; demoting into Member
-    keeps what they already reached rather than emptying it, so the change
-    being made is only to account power, not a second change nobody asked for. */
- q("[data-prole2]").forEach(b=>b.onclick=()=>{const k=view.id, r=b.dataset.prole2;
-   if(!PEOPLE[k]||PEOPLE[k].role===r) return;
-   if(k===me_||(isOwnerP(PEOPLE[k])&&ownerCount()===1)) return;
-   if(r==="Member"){ if(PEOPLE[k].ws===null) PEOPLE[k].ws=CLIENTS.map(c=>c.id) }
-   else PEOPLE[k].ws=null;
-   PEOPLE[k].role=r; render()});
- q("[data-wsremove]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.wsremove.split("|");
-   const P=PEOPLE[k]; if(P&&Array.isArray(P.ws)){const at=P.ws.indexOf(id); if(at>-1)P.ws.splice(at,1)}
-   /* removing yourself from the workspace you are standing in has to move you */
-   if(k===me_&&ctx===id){ctx="agency";asClient=false}
+ /* ── person page: agency role change, now confirmed and receipted (D3) ── */
+ q("[data-prole2]").forEach(b=>b.onclick=()=>{const k=view.id, r=b.dataset.prole2, P=PEOPLE[k];
+   if(!P||P.role===r) return;
+   if(k===me_||(isOwnerP(P)&&ownerCount()===1)) return;
+   if(r==="Member"&&P.ws===null){personDowngradeWs={key:k,sel:CLIENTS.map(c=>c.id)};render();return}
+   personRoleConfirm={key:k,to:r,from:P.role}; render()});
+ q("[data-prole2cancel]").forEach(b=>b.onclick=()=>{personRoleConfirm=null;render()});
+ q("[data-prole2go]").forEach(b=>b.onclick=()=>{
+   if(!personRoleConfirm) return;
+   const {key,to,from}=personRoleConfirm, P=PEOPLE[key]; if(!P) return;
+   const wasWs=Array.isArray(P.ws)?P.ws.slice():P.ws;
+   P.role=to; if(to!=="Member") P.ws=null;
+   personRoleConfirm=null;
+   receipt("people",`${P.name} is now ${/^[aeiou]/i.test(to)?"an":"a"} ${to}.`,
+     ()=>{P.role=from;P.ws=wasWs;},`changed ${P.name} to ${to}`);
    render()});
- q(".page .sw:not([data-viewas])").forEach(b=>{
+ /* downgrading out of Admin/Owner (ws:null) into Member needs an explicit
+    workspace list rather than one this screen silently invents. */
+ q("[data-pdws]").forEach(cb=>cb.onchange=()=>{if(!personDowngradeWs)return;
+   const id=cb.dataset.pdws, sel=personDowngradeWs.sel, at=sel.indexOf(id);
+   if(cb.checked&&at<0)sel.push(id); if(!cb.checked&&at>-1)sel.splice(at,1); render()});
+ q("[data-pdwscancel]").forEach(b=>b.onclick=()=>{personDowngradeWs=null;render()});
+ q("[data-pdwsgo]").forEach(b=>b.onclick=()=>{if(!personDowngradeWs)return;
+   const {key,sel}=personDowngradeWs, P=PEOPLE[key]; if(!P) return;
+   const wasRole=P.role, wasWs=P.ws; P.role="Member"; P.ws=sel.slice(); personDowngradeWs=null;
+   receipt("people",`${P.name} is now a Member of ${sel.length} workspace${sel.length===1?"":"s"}.`,
+     ()=>{P.role=wasRole;P.ws=wasWs;},`changed ${P.name} to Member`);
+   render()});
+ /* "Add to workspaces" (D2 fix): an inline checklist on this same page, not a
+    jump into the invite flow, which used to re-invite an existing person with
+    a blanked-out email. */
+ q("[data-wsaddopen]").forEach(b=>b.onclick=()=>{personAddWsOpen=b.dataset.wsaddopen; personAddWsSel=[]; render()});
+ q("[data-pawscancel]").forEach(b=>b.onclick=()=>{personAddWsOpen=null;personAddWsSel=[];render()});
+ q("[data-paws]").forEach(cb=>cb.onchange=()=>{const id=cb.dataset.paws, at=personAddWsSel.indexOf(id);
+   if(cb.checked&&at<0)personAddWsSel.push(id); if(!cb.checked&&at>-1)personAddWsSel.splice(at,1); render()});
+ q("[data-pawsgo]").forEach(b=>b.onclick=()=>{
+   const key=personAddWsOpen, P=key&&PEOPLE[key]; if(!P||!personAddWsSel.length) return;
+   const added=personAddWsSel.slice();
+   if(!Array.isArray(P.ws)) P.ws=[];
+   added.forEach(id=>{if(P.ws.indexOf(id)<0)P.ws.push(id)});
+   personAddWsOpen=null; personAddWsSel=[];
+   receipt("people",`${P.name} added to ${listAnd(added.map(id=>byId[id].name))}.`,
+     ()=>{added.forEach(id=>{const i=P.ws.indexOf(id);if(i>-1)P.ws.splice(i,1)})},
+     `added ${P.name} to ${added.length} workspace${added.length===1?"":"s"}`);
+   render()});
+ /* remove from one workspace: confirms the consequence, reassigns their
+    sequences there to you, and undoes both parts cleanly. */
+ q("[data-wsremove]").forEach(b=>b.onclick=()=>{personWsRemoveConfirm=b.dataset.wsremove;render()});
+ q("[data-wsremovecancel]").forEach(b=>b.onclick=()=>{personWsRemoveConfirm=null;render()});
+ q("[data-wsremovego]").forEach(b=>b.onclick=()=>{
+   const [k,id]=b.dataset.wsremovego.split("|"), P=PEOPLE[k]; if(!P||!Array.isArray(P.ws)) return;
+   const at=P.ws.indexOf(id); if(at<0) return;
+   const c=byId[id]; if(!c) return;
+   const affected=(c.sequences||[]).filter(s=>s.owner===P.name).map(s=>s.name);
+   affected.forEach(nm=>{const s=c.sequences.find(x=>x.name===nm); if(s)s.owner=ME().name});
+   P.ws.splice(at,1); personWsRemoveConfirm=null;
+   if(k===me_&&ctx===id){ctx="agency";asClient=false}
+   receipt("people",`${P.name} removed from ${sentEnd(c.name)}`,
+     ()=>{P.ws.splice(at,0,id); affected.forEach(nm=>{const s=c.sequences.find(x=>x.name===nm); if(s)s.owner=P.name})},
+     `removed ${P.name} from ${c.name}`);
+   render()});
+ /* remove from the agency entirely: same reassignment, across every
+    workspace they touched, then the person is gone. */
+ q("[data-personrmacct]").forEach(b=>b.onclick=()=>{personRemoveAcctConfirm=b.dataset.personrmacct;render()});
+ q("[data-personrmacctcancel]").forEach(b=>b.onclick=()=>{personRemoveAcctConfirm=null;render()});
+ q("[data-personrmacctgo]").forEach(b=>b.onclick=()=>{
+   const k=personRemoveAcctConfirm, P=k&&PEOPLE[k]; if(!P) return;
+   if(k===me_||(isOwnerP(P)&&ownerCount()===1)) return;
+   const ids=wsIdsOf(P), affected=[];
+   ids.forEach(id=>{const c=byId[id]; (c.sequences||[]).forEach(s=>{if(s.owner===P.name){affected.push({cid:id,name:s.name});s.owner=ME().name}})});
+   const snap={role:P.role,ws:Array.isArray(P.ws)?P.ws.slice():P.ws,name:P.name,initials:P.initials,email:P.email};
+   delete PEOPLE[k]; personRemoveAcctConfirm=null;
+   receipt("people",`${snap.name} removed from ${AGENCY.name}.`,
+     ()=>{PEOPLE[k]=snap; affected.forEach(a=>{const c=byId[a.cid],s=c&&c.sequences.find(x=>x.name===a.name); if(s)s.owner=snap.name})},
+     `removed ${snap.name} from the account`);
+   view={name:"people"}; render()});
+ /* ── People > Client users, and a client user's own person page ── */
+ q("[data-pcuserrole]").forEach(sel=>sel.onchange=()=>{if(!canI("members"))return;
+   const [cid,key]=sel.dataset.pcuserrole.split("|"), c=byId[cid], u=c&&(c.users||[]).find(x=>x[0]===key);
+   if(!u||u[1]===sel.value) return; const was=u[1]; u[1]=sel.value;
+   receipt("people",`${key} is now a ${u[1]} of ${c.name}.`,()=>{u[1]=was},`changed ${key} to ${u[1]}`);
+   render()});
+ q("[data-pcuserrm]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   memberRmConfirm=b.dataset.pcuserrm; render()});
+ q("[data-pcuserrmcancel]").forEach(b=>b.onclick=()=>{memberRmConfirm=null;render()});
+ q("[data-pcuserrmgo]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
+   const [cid,key]=b.dataset.pcuserrmgo.split("|"), c=byId[cid]; if(!c||c.users.length===1) return;
+   const i=(c.users||[]).findIndex(x=>x[0]===key); if(i<0) return;
+   const row=c.users[i]; c.users.splice(i,1); memberRmConfirm=null;
+   receipt("people",`${key} removed from ${sentEnd(c.name)}`,()=>{c.users.splice(i,0,row)},`removed ${key} from ${c.name}`);
+   view={name:"people"}; render()});
+ q("[data-onlysignin]").forEach(b=>b.onclick=()=>{onlySignInNote=b.dataset.onlysignin;render()});
+ q("[data-onlysigninclear]").forEach(b=>b.onclick=()=>{onlySignInNote=null;render()});
+ q("[data-cprole2]").forEach(b=>b.onclick=()=>{
+   const [cid,email,to]=b.dataset.cprole2.split("|"), c=byId[cid], u=c&&(c.users||[]).find(x=>x[0]===email);
+   if(!u||u[1]===to) return; clientPersonRoleConfirm={cid,email,to}; render()});
+ q("[data-cprole2cancel]").forEach(b=>b.onclick=()=>{clientPersonRoleConfirm=null;render()});
+ q("[data-cprole2go]").forEach(b=>b.onclick=()=>{
+   if(!clientPersonRoleConfirm) return;
+   const {cid,email,to}=clientPersonRoleConfirm, c=byId[cid], u=c&&(c.users||[]).find(x=>x[0]===email);
+   if(!u) return; const was=u[1]; u[1]=to; clientPersonRoleConfirm=null;
+   receipt("people",`${email} is now a ${to} of ${c.name}.`,()=>{u[1]=was},`changed ${email} to ${to}`);
+   render()});
+ q("[data-gotoc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.gotoc};tab="members";render()});
+ q(".page .sw:not([data-viewas]):not([data-warmup]):not([data-webhookon])").forEach(b=>{
    if(b.id!=="bifSw")b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true")});
 }
 /* hover expands on a pointer device. Where there is no hover, a click has to do
@@ -7513,7 +8374,16 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  if(flat[k]&&(k!=="dash"||canI("dashboard"))) view={name:k};
  /* #seq, #crm, #leads and the rest used to mean "the agency's own X" inside the
     master workspace. They still mean that; the workspace is just a real one now. */
- if(AGY_MOD[k]&&!MASTER_MOD[k]){ctx="own";asClient=false;inMod=RAIL2MOD[k]||k;view={name:"clients"}}
+ if(AGY_MOD[k]&&!MASTER_MOD[k]&&k!=="analytics"){ctx="own";asClient=false;inMod=RAIL2MOD[k]||k;view={name:"clients"}}
+ /* the agency-wide screens: #analytics is the cross-workspace report, #api is
+    the agency's own API & Integrations section. Neither is a workspace module. */
+ if(k==="analytics"){ctx="agency";asClient=false;view={name:"analytics"}}
+ if(k==="api"){ctx="agency";asClient=false;view={name:"apiint"}}
+ /* People, a person (agency key, or a client user's "c:<clientId>|<email>"),
+    and a cold Add a person: defect D4, none of the three worked from a hash. */
+ if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
+ if(k==="person"&&v) view={name:"person",id:v};
+ if(k==="addmember"){AM=Object.assign({},AM_BLANK); view={name:"addmember"}}
  if(k==="client"&&byId[v]) view={name:"record",id:v};
  /* the client's own side, and the create modal, are otherwise several clicks
     in. Coordinator review round 1, 24 Sep: a cold #asclient link lands on the
@@ -7856,7 +8726,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="ca1d6bd";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="33d0b9f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
