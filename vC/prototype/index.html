@@ -1913,7 +1913,9 @@ const CLIENTS=[
  {id:"cp",name:"Cascade Partners",company:"Cascade Partners LLP",email:"desk@cascade.partners",colour:"#4B5563",
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"08 Sep, 2026",
   users:[["desk@cascade.partners","Workspace Collaborator"]],mailboxes:[]},
-];
+];/* D14: every seeded workspace is for a client; a workspace created later says so itself */
+CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
+
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
@@ -2247,7 +2249,7 @@ const AGENCY_OWN={
    The open question this does not settle is whether agencies want their own
    outreach on the platform at all. That is topic 11 of the validation panel. */
 const OWN_WS={
- id:"own", name:AGENCY.name, company:AGENCY.name+", own outreach",
+ id:"own", name:AGENCY.name, company:AGENCY.name+", own outreach", forClient:false,
  email:"alex@meridiangrowth.com", colour:AGENCY.colour, own:true,
  seq:AGENCY_OWN.sequences.length, mbx:AGENCY_OWN.mailboxes.length,
  prospects:AGENCY_OWN.prospects, reply:AGENCY_OWN.reply, prev:4.1, pos:AGENCY_OWN.pos,
@@ -2388,7 +2390,10 @@ let UBX={tab:"all",client:"all",q:"",cq:"",open:null};
 /* the role a new client user gets unless the agency picks another; declared here
    because NC_INIT() runs at load, before the roles block below. */
 const DEFAULT_CLIENT_ROLE="Workspace Collaborator";
-const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:false,reachedStep3:false});
+/* D14, 28 Sep 2026: the creator says who the workspace is for. Only a
+   workspace for a client uses client wording (View as client, the sign-in
+   orientation line). Default: a client, the more common case. */
+const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:false,reachedStep3:false,forClient:true});
 /* the first entry used to be the agency's own blue, so a first client came out
    the same colour as the account it belongs to, which is the one pair that has
    to be told apart at a glance. Shared by the wizard's preview and create(), so
@@ -5946,7 +5951,7 @@ const PACE_DAYS=3;   /* under this many days of runway, pacing stops being a car
    names the agency and never the reason. Reachable with #grace. */
 const GRACE={on:false,failedOn:"7 Sep",daysLeft:5};
 const canViewAs=c=>true;
-const viewAsBtn=(c,cls)=>`<button class="${cls}" data-asclient="${c.id}">View as client</button>`;
+const viewAsBtn=(c,cls)=>`<button class="${cls}" data-asclient="${c.id}">${c.forClient===false?"View as its users":"View as client"}</button>`;
 const grace=()=>GRACE.on;
 const graceBanner=()=>grace()?`<div class="msg m-bad grace" style="margin-bottom:20px">${warnI}<span><strong>Payment failed on ${GRACE.failedOn}.</strong>
   ${GRACE.daysLeft} days to update the card before the account pauses. Everyone keeps reading their workspaces; nothing is sending.
@@ -6752,6 +6757,11 @@ function drawerHTML(){
   <div class="nc-grid2" style="margin-top:16px">
    <div class="field"><label class="flabel" for="ncn">Workspace Name</label><input type="text" id="ncn" value="${nc.name}" placeholder="Alloy &amp; Co."></div>
    <div class="field"><label class="flabel" for="ncc">Company</label><input type="text" id="ncc" value="${nc.company}" placeholder="Alloy &amp; Co. Ltd"></div></div>
+  <div class="field" style="margin-top:16px"><span class="flabel">This workspace is for</span>
+   <div class="choices" role="radiogroup" aria-label="Who this workspace is for">
+    <button type="button" class="choice" role="radio" aria-checked="${nc.forClient?"true":"false"}" data-ncfor="client"><span class="rdo"></span><span><b>A client</b><span class="sub" style="display:block">Someone outside your company. Their people sign in and see only this workspace.</span></span></button>
+    <button type="button" class="choice" role="radio" aria-checked="${nc.forClient?"false":"true"}" data-ncfor="own"><span class="rdo"></span><span><b>My own business</b><span class="sub" style="display:block">Another company you run. The same separation, your own people.</span></span></button>
+   </div></div>
   <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${nc.email}" placeholder="marcus@alloyco.com">
    <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
   <div class="field" style="margin-bottom:0"><label class="flabel" for="ncrole">Their role</label>
@@ -6874,6 +6884,7 @@ function renderDrawer(){
  /* the role select changes both the description under it and the "what they
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
  {const r=el("ncrole");if(r)r.onchange=()=>{cap();renderDrawer()}}
+ document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
  {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
@@ -6914,7 +6925,7 @@ function create(){
     workspace from the record's own Members tab, once it exists. */
  const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",
-  users:nc.email?[[nc.email,nc.role]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3};
+  users:nc.email?[[nc.email,nc.role]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,forClient:nc.forClient!==false};
  CLIENTS.push(c);byId[id]=c;
  if(nc.email) LASTSEEN[nc.email]="never";
  RK.forEach(k=>{const m=compute(k);
@@ -7010,7 +7021,10 @@ function accessNote(c){
  const role=actingRole(c);
  /* no client user yet: the banner is about the preview, not about the role;
     the role sentence would only repeat what the preview line already says. */
- const line=noClientUserYet(c)?`<strong>No one from ${c.name} has been invited yet.</strong> This is what a ${role} will see; you pick the role when you invite them from Members.`:roleSet(role).banner;
+ /* D14: "${AGENCY.name} runs your outreach here" is said to a client's user;
+    a user of the owner's own second business is told only what the role allows. */
+ const line=noClientUserYet(c)?`<strong>No one from ${c.name} has been invited yet.</strong> This is what a ${role} will see; you pick the role when you invite them from Members.`
+   :c.forClient===false?roleSet(role).banner.replace(AGENCY.name+" runs your outreach here. ",""):roleSet(role).banner;
  return `<div class="msg m-info orient" style="margin-bottom:16px">${infoI}<span style="flex:1 1 auto">
    ${line}</span>
    <button class="linkbtn" data-orientok="${c.id}" style="flex:none">Got it</button></div>`;
@@ -9030,7 +9044,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="24d6a98";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="203f35f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
