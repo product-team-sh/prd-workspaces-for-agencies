@@ -1564,7 +1564,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
     <div class="sb-ws" id="sbWs">
       <button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
         <span class="avatar av-tint" id="wsAv">MG</span>
-        <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Agency workspace</span></span>
+        <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
       </button>
       <div id="xformLayer"></div>
@@ -1632,7 +1632,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
    /* in a client's own view this badge must count that client's replies only.
       The agency-wide number told the client how much other work exists. */
    if(asClient&&!inAgency()){const n=REPLIES.filter(r=>r.client===ctx&&!r.replied).length;return n?String(n):null}
-   return String(REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).length+AGENCY_OWN.replies.length)}],['clients','Clients',null,'agency'],
+   return String(REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).length+AGENCY_OWN.replies.length)}],['clients','Workspaces',null,'agency'],
  ['leads','Lead Finder'],['crm','CRM'],['dialer','Dialer','NEW'],['verify','Email Verifier'],
  ['mail','Email Accounts'],['tmpl','Templates'],['radar','Inbox Radar'],['analytics','Analytics'],
  ['apiint','API & Integrations'],
@@ -1677,15 +1677,15 @@ const XS_CAPS=[
  ["Everything lived in one place",
   "Your sequences, prospects and mailboxes all belonged to this account, with nothing to tell one piece of work from another."],
  ["Your work is now a workspace",
-  "A workspace is a container. Everything you already have sits in yours, untouched, and every client you add gets one of their own."],
+  "A workspace is a container. Everything you already have sits in yours, untouched, and every workspace you add is its own."],
  ["Nothing crosses between workspaces",
-  "Each one holds its own sequences, prospects, mailboxes and replies. A client can never see yours, or another client\u2019s."],
+  "Each one holds its own sequences, prospects, mailboxes and replies. A workspace can never see yours, or another workspace\u2019s."],
  /* fix 25 Sep review #10/#24: Work queue is Coming soon on the admin panel,
     so it dropped out of this beat rather than being relabelled Soon mid
     animation, matching how Home and Client Management (both live) are the
     two named here now. */
  ["And you get a level above them",
-  "Home and Client Management are new. They are how you run the account itself, across every workspace."]
+  "Home and Workspaces are new. They are how you run the account itself, across every workspace."]
 ];
 const XS_TICK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 /* short enough to sit one to a line at 760px; the full sentence stays put in
@@ -1737,14 +1737,14 @@ function renderXform(){
  /* the shape of a client workspace, not a client. None exists yet, and naming
     one here would describe something the user has not done. */
  const theirs='<div class="xs-ws xs-new'+(b>=1?" in xs-on":"")+'" style="border-style:dashed">'
-   +'<div class="xs-nm"><span class="xs-av" style="background:var(--gray-11)">?</span>Your first client</div>'
+   +'<div class="xs-nm"><span class="xs-av" style="background:var(--gray-11)">?</span>Your first workspace</div>'
    +item("Sequences","0")+item("Prospects","0")+item("Mailboxes","0")+item("Replies","0")+'</div>';
  L.innerHTML='<div class="xs"><div class="xs-stage">'
   +'<div class="xs-top'+(b>=3?" in":"")+'">'
     +'<span class="xs-av" style="background:'+AGENCY.colour+';width:22px;height:22px;font-size:10px">'+AGENCY.initials+'</span>'
     +'<span style="font-size:13px;font-weight:600;color:var(--gray-17)">'+AGENCY.name+'</span>'
     +'<span class="sub" style="flex:1;min-width:60px">across every workspace</span>'
-    +'<span class="xs-chip">Home</span><span class="xs-chip">Clients</span></div>'
+    +'<span class="xs-chip">Home</span><span class="xs-chip">Workspaces</span></div>'
   +'<div class="xs-row">'+mine
     +'<div class="xs-div'+(b>=2?" in":"")+'"><span class="xs-line"></span>'
      +'<span class="xs-lock"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--gray-11)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>'
@@ -1758,7 +1758,7 @@ function renderXform(){
    +(b<XS_CAPS.length-1
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-xsskip>Skip</button>'
      :xform.ready
-       ?'<button class="shd-button shd-button--primary" data-xsgo>Add your first client</button>'
+       ?'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>'
        :'<span class="xs-wait"><span class="xs-spin"></span>Setting up your account</span>')
   +'</div></div></div>';
  L.querySelectorAll("[data-xsskip],[data-xsgo]").forEach(x=>x.onclick=endXform);
@@ -2419,7 +2419,7 @@ function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
  return{pct,room,draw,state:s,tone:t}}
 const isBif=i=>funded(byId[i]||{})&&RK.filter(k=>RES[k].floors).every(k=>{const r=RES[k].rows[i];return r&&r.cap>0&&r.res>=r.cap});
 const setBif=(i,on)=>RK.filter(k=>RES[k].floors).forEach(k=>{const r=RES[k].rows[i];if(r)r.res=on?r.cap:0});
-const steps=c=>[["Client created",true],["Client user invited",c.users.length>0],
+const steps=c=>[["Workspace created",true],["Workspace user invited",c.users.length>0],
  ["Email accounts assigned",c.mailboxes.length>0],["Limits set",!!c.limitsReviewed]];
 const doneN=c=>steps(c).filter(x=>x[1]).length;
 const lf=i=>{const m=compute("lead_finder");return{r:RES.lead_finder.rows[i]||{res:0,cap:0,used:0},s:rowState("lead_finder",i,m)}};
@@ -2538,10 +2538,10 @@ function renderRail(){
      this rail entirely: it is not deferred, it lives in each workspace now,
      administration included, so there is nothing account-level left for it to
      mean here. */
-  ?[["Overview",["dash"]],["Clients",["clients"]],
+  ?[["Overview",["dash"]],["Workspaces",["clients"]],
     ["Account",["people","billing","analytics","apiint"]],
     ["Coming soon",["queue","inbox","task","mail","tmpl"]]]
-  :[["Overview",["dash","queue"]],["Clients",["clients"]],
+  :[["Overview",["dash","queue"]],["Workspaces",["clients"]],
     ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
  /* 16 Flow A said Home and the Work queue both wait for a first client.
@@ -2628,7 +2628,7 @@ function renderRail(){
   /* Version C: a normal user has no agency to go back up to. The master and the
      house workspace are two contexts in the model but one place on screen until
      a client exists, so the way up is hidden rather than pointing at itself. */
-  +(isOwn()&&!isNormal()?`<button class="nav-item" data-nav="agency">${svg("back")}<span class="lbl">Back to agency</span></button>`:"")
+  +(isOwn()&&!isNormal()?`<button class="nav-item" data-nav="agency">${svg("back")}<span class="lbl">Back to account</span></button>`:"")
   /* in a client's own view Settings is the client's own: profile, password,
      notifications. Nothing of the agency's is behind it. 25 Sep 2026: the
      admin panel carries no Settings at all any more, agency's own or
@@ -2691,7 +2691,7 @@ function agencyUsage(c){
    exact same node when leaving one. See the fix note in renderShell below. */
 const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
   <span class="avatar av-tint" id="wsAv">MG</span>
-  <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Agency workspace</span></span>
+  <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
 </button>`;
 function renderShell(){
@@ -2727,7 +2727,7 @@ function renderShell(){
  else if(asClient&&inC){
    /* no client user yet: the header says it is a preview rather than showing a
       dash for a person who does not exist (24 Sep 2026). */
-   if(noClientUserYet(c)){el("meAv").textContent=(c.initials||c.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2)).toUpperCase(); el("meNm").textContent="Preview · no client user yet";}
+   if(noClientUserYet(c)){el("meAv").textContent=(c.initials||c.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2)).toUpperCase(); el("meNm").textContent="Preview · no workspace user yet";}
    else {const u=c.users[0][0]; el("meAv").textContent=u.slice(0,2).toUpperCase(); el("meNm").textContent=u;}}
  else {el("meAv").textContent=ME().initials; el("meNm").textContent=ME().name;}
  {const badge=document.querySelector(".ubadge"); if(badge) badge.hidden=asClient&&inC;}
@@ -2757,7 +2757,7 @@ function renderShell(){
     are one place. Both contexts therefore carry the same name, the same avatar
     and the same label, and no context stripe, so that navigating between Home
     and Sequences never looks like leaving anywhere. The colour stripe and the
-    "Client workspace" language start only when there is a second workspace to
+    "Workspace" language start only when there is a second workspace to
     tell this one apart from.                                                */
  const norm=isNormal();
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
@@ -2779,7 +2779,7 @@ function renderShell(){
    :view.name==="people"?"People"
    :view.name==="person"?("People / "+(view.id&&view.id.indexOf("c:")===0?view.id.slice(view.id.indexOf("|")+1):PEOPLE[view.id]?PEOPLE[view.id].name:""))
    :view.name==="apiint"?"API & Integrations"
-   :view.name==="record"?byId[view.id].name:"Clients";
+   :view.name==="record"?byId[view.id].name:"Workspaces";
  renderRail();
 }
 function renderPop(q=""){
@@ -2859,7 +2859,7 @@ function vClients(){
     searchable checkbox list with Select all and Apply, required columns
     locked. Nothing is deleted; it is just not on by default.              */
  const COLS=[
-  {id:"name",label:"Client Name",req:true,sort:true,
+  {id:"name",label:"Workspace Name",req:true,sort:true,
    cell:c=>`<td><div class="cell-main">
      ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>
      <span class="cs">${c.email}</span></span></div></td>`},
@@ -2891,7 +2891,7 @@ function vClients(){
  const all=myClients().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
  const pg=pageOf("clients",all.length,25);
  const rows=all.slice(pg.from,pg.to).map(c=>`<tr>${shown.map(x=>x.cell(c)).join("")}</tr>`).join("")
-   ||`<tr><td colspan="${shown.length}"><span class="sub">No client matches "${cliQ}".</span></td></tr>`;
+   ||`<tr><td colspan="${shown.length}"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`;
  const th=(l,r)=>`<th class="${r?'ar':''}"><span class="sortable">${l}${sortI}</span></th>`;
  /* 16 Flow A: a brand new agency-plan account, or an existing sender adding
     their first client, land here with nothing to filter or allocate yet. */
@@ -2912,27 +2912,27 @@ function vClients(){
     +'<i>'+sub+'</i><div class="fc-kv">'+kv.map(x=>'<span>'+x+'</span>').join('')+'</div></div>';
   const pic=`<div class="fc-vis cempty-vis">
      <div class="fc-top"><span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span><b>${AGENCY.name}</b>
-      <span class="fc-rail"><span>${railI.home}Home</span><span>${railI.clients}Clients</span></span></div>
+      <span class="fc-rail"><span>${railI.home}Home</span><span>${railI.clients}Workspaces</span></span></div>
      <svg class="fc-branch" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
       <path d="M50 0v5M50 5C50 15 25 11 25 22M50 5C50 15 75 11 75 22" fill="none" stroke="var(--gray-23)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
      <div class="fc-ws">
       ${tile(AGENCY.name,AGENCY.initials,AGENCY.colour,"What you have today",[O.sequences.length+" sequences",f(O.prospects)+" prospects",O.mailboxes.length+" mailboxes"],false)}
-      ${tile("Your first client","+","var(--gray-11)","Empty, and its own",["0 sequences","0 prospects","0 mailboxes"],true)}
+      ${tile("Your first workspace","+","var(--gray-11)","Empty, and its own",["0 sequences","0 prospects","0 mailboxes"],true)}
      </div></div>`;
-  const gets=[[svg("dash"),"Home","Every client's health on one screen, ranked by what needs you."],
+  const gets=[[svg("dash"),"Home","Every workspace's health on one screen, ranked by what needs you."],
     [svg("people"),"People","Everyone with access, and which workspace each of them reaches."],
-    ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',"Switcher","Move between clients and your own outreach without signing out."]];
+    ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',"Switcher","Move between workspaces and your own outreach without signing out."]];
   return `
- <div class="toolbar"><div class="cell-main"><span class="semibold-3">Clients</span></div></div>
+ <div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
  <div class="wrap cempty-wrap"><div class="panel cempty">
    <div class="cempty-hero">
     <div class="cempty-copy">
-     <span class="nc-eyebrow">No clients yet</span>
-     <h2 class="cempty-h">Bring your first client in</h2>
+     <span class="nc-eyebrow">No workspaces yet</span>
+     <h2 class="cempty-h">Bring your first workspace in</h2>
      <p class="cempty-p">${can
        ?"Their sequences, prospects, mailboxes and replies live in a workspace of their own, never mixed with yours or anyone else's."
-       :"An account owner adds the first client. Once one exists, this is where every client you work on will be."}</p>
-     ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">Add Client</button></div>`:""}
+       :"An account owner adds the first workspace. Once one exists, this is where every workspace you work on will be."}</p>
+     ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">Add a workspace</button></div>`:""}
     </div>
     ${pic}
    </div>
@@ -2940,27 +2940,27 @@ function vClients(){
  </div></div>`;
  }
  if(myClients().length===0) return `
- <div class="toolbar"><div class="cell-main"><span class="semibold-3">Clients</span></div></div>
+ <div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
  <div class="wrap"><div class="panel"><div class="empty">
    <p class="empty-t">Nothing assigned to you yet</p>
-   <p class="empty-s">${ME().name} is not a member of any client
+   <p class="empty-s">${ME().name} is not a member of any
      workspace. An owner or admin can add ${ME().name.split(" ")[0]} to one.</p>
  </div></div></div>`;
  return `
  <div class="toolbar">
   <div class="tools">
-   <div class="search">${srchI}<input type="text" id="cliSearch" placeholder="Search clients" value="${cliQ.replace(/"/g,"&quot;")}"></div>
+   <div class="search">${srchI}<input type="text" id="cliSearch" placeholder="Search workspaces" value="${cliQ.replace(/"/g,"&quot;")}"></div>
 </div>
   <div class="tools">
    ${colSel(COLS)}
    ${canI("billing")?'<button class="shd-button shd-button--tertiary" id="toCredits">Credits &amp; Limits</button>':""}
-   ${canI("billing")?'<button class="shd-button shd-button--primary" id="addClient">Add Client</button>':""}</div>
+   ${canI("billing")?'<button class="shd-button shd-button--primary" id="addClient">Add a workspace</button>':""}</div>
  </div>
  <div class="wrap">
   ${graceBanner()}
   ${receiptBar("clients")}
   ${(()=>{const mine=REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client));return mine.length?
-   `<div class="msg m-info">${infoI}<span>${mine.length} client${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
+   `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn" id="toCredits2">Review</button></span></div>`:""})()}
   <div class="panel"><div class="tscroll"><table class="organism">
    <thead><tr>${shown.map(x=>x.id==="act"?'<th class="colact"></th>'
@@ -2977,7 +2977,7 @@ function vClients(){
    assertions find them whether the menu is open or not. */
 function recMenuHTML(c){
  const items=[];
- if(canI("disable")) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Stops sending and signs the client out. Reversible.</span></button>`);
+ if(canI("disable")) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Stops sending and signs its users out. Reversible.</span></button>`);
  if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Soft delete. Restorable for 30 days, then purged.</span></button>`);
  if(!items.length) return "";
  return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions" style="padding:6px 10px;font-weight:700;letter-spacing:1px">&middot;&middot;&middot;</button>
@@ -3014,7 +3014,7 @@ function vRecord(id){
  return `
  <div class="toolbar">
   <div class="cell-main">
-   <button class="linkbtn" id="backList">Clients</button><span class="sep">/</span>
+   <button class="linkbtn" id="backList">Workspaces</button><span class="sep">/</span>
    ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
    <span class="cs">${c.company} · ${c.email}</span></span></div>
   <div class="tools">${clientNav(c)}
@@ -3084,9 +3084,9 @@ function rOverview(c){
    <div class="panel-b" style="padding-top:4px;padding-bottom:4px">${activityList(c)}</div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Details</span></div>
    <div class="panel-b"><dl class="dl">
-    <dt>Company</dt><dd>${c.company}</dd><dt>Client email</dt><dd>${c.email}</dd>
-    <dt>Client users</dt><dd>${c.users.length?c.users.length+" &middot; "+Object.entries(c.users.reduce((m,u)=>{m[u[1]]=(m[u[1]]||0)+1;return m},{})).map(([r,n])=>n+" "+r).join(", "):"None yet"}</dd><dt>Created on</dt><dd>${c.created}</dd>
-    <dt>Agency staff</dt><dd>${staffOf(c).length?staffOf(c).map(s=>s.name).join(", "):"Owner and Admin only"}</dd>
+    <dt>Company</dt><dd>${c.company}</dd><dt>Workspace email</dt><dd>${c.email}</dd>
+    <dt>Workspace users</dt><dd>${c.users.length?c.users.length+" &middot; "+Object.entries(c.users.reduce((m,u)=>{m[u[1]]=(m[u[1]]||0)+1;return m},{})).map(([r,n])=>n+" "+r).join(", "):"None yet"}</dd><dt>Created on</dt><dd>${c.created}</dd>
+    <dt>Your team</dt><dd>${staffOf(c).length?staffOf(c).map(s=>s.name).join(", "):"Owner and Admin only"}</dd>
     <dt>Email accounts</dt><dd>${c.mailboxes.length}</dd>
     <dt>Usage</dt><dd>${usage}</dd></dl></div></div>
  </div>`;
@@ -3099,7 +3099,7 @@ function rOverview(c){
    deliberately not a rung on the role ladder.                                   */
 const AGENCY_ROLES=["Owner","Admin","Member"];
 /* six fixed roles, decided 23 Sep 2026: three account roles above, and three
-   client roles below, one per client user. Nothing between them is graded
+   client roles below, one per workspace user. Nothing between them is graded
    per screen any more; see roleSet() just below CLIENT_MODULES/CLIENT_VERBS. */
 const CLIENT_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
 /* the old four staff titles map onto the three account roles */
@@ -3156,11 +3156,11 @@ const CLIENT_MODULES=[
  ["task","Tasks","Follow-ups the campaigns raise","Outreach","both"],
  ["prospects","Prospects","The people being contacted on their behalf","Audience","both"],
  ["leads","Lead Finder","Sourcing new prospects, spending your credits","Audience","both"],
- ["dialer","Dialer","Calls made on this client's outreach","Audience","both"],
+ ["dialer","Dialer","Calls made on this workspace's outreach","Audience","both"],
  ["accounts","Email accounts","Which mailboxes send for them, and their health","Sending","both"],
  ["verify","Email Verifier","Checking the prospect list before it sends","Sending","both"],
- ["tmpl","Templates","The messages this client's sequences send","Sending","both"],
- ["radar","Inbox Radar","Deliverability tests for this client's mailboxes","Sending","both"],
+ ["tmpl","Templates","The messages this workspace's sequences send","Sending","both"],
+ ["radar","Inbox Radar","Deliverability tests for this workspace's mailboxes","Sending","both"],
  ["warmup","Email Warm-up","Keeps their mailboxes' reputation warm","Sending","both"],
  ["analytics","Reports","Results only: sent, replies, meetings booked","Results","both"],
  ["usage","Usage","What you allocated, and what is left of it","Results","client"],
@@ -3176,14 +3176,14 @@ const CLIENT_VERBS=[
  ["reply","Reply to prospects","Sends email from their own mailbox, in their own name","inbox"],
  ["editseq","Pause and edit sequences","Changes what goes out, without asking you","sequences"],
  ["export","Export prospects","Takes the list off the platform","prospects"],
- ["reveal","Reveal leads","Spends your Lead Finder credits, against this client's cap","leads"],
+ ["reveal","Reveal leads","Spends your Lead Finder credits, against this workspace's cap","leads"],
  ["warmup","Pause and resume warm-up","Starts and stops warm-up on mailboxes they connected themselves","warmup"],
 ];
 const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=CLIENT_VERBS.map(v=>v[0]);
 /* the six fixed roles' client-side half. One table: mods and verbs are the
    grant, `desc` is the one-line description a role picker shows, `banner` is
    the orientation sentence a client reads on their own workspace (accessNote,
-   below), `wizTail`/`wizExtra` are the Add Client wizard's live "who signs in
+   below), `wizTail`/`wizExtra` are the Add a workspace wizard's live "who signs in
    as what" sentence (ncAccessSentence, coordinator round 2: per person, not
    per screen list). Nothing here is edited per client; a role is the whole
    grant, and changing it is picking a different row of this table. */
@@ -3215,8 +3215,8 @@ const roleSet=role=>CLIENT_ROLE_DEFS[role]||CLIENT_ROLE_DEFS["Workspace Viewer"]
    Collapsing them is how this codebase used to end up declaring fifteen roles
    and wiring up four of them.                                                */
 const ROLE_WHAT={
- Owner: "Everything, everywhere. Billing, deleting clients, and every workspace without being added to one.",
- Admin: "Runs the business day to day: adds clients, sets limits, manages people. No billing, and cannot delete a client.",
+ Owner: "Everything, everywhere. Billing, deleting workspaces, and every workspace without being added to one.",
+ Admin: "Runs the business day to day: adds workspaces, sets limits, manages people. No billing, and cannot delete a workspace.",
  Member:"Does the work. Reaches only the workspaces they are added to, and changes nothing about the account.",
 };
 const ROLE_ORDER={Owner:0,Admin:1,Member:2};
@@ -3236,12 +3236,12 @@ const ROLE_LINE={Owner:"Everything, everywhere",Admin:"Runs the business day to 
    which is exactly why the role stopped being a dropdown. */
 const ACCOUNT_POWERS=[
  ["billing",    "See and spend on billing"],
- ["destructive","Delete a client"],
- ["limits",     "Add clients and set their limits"],
+ ["destructive","Delete a workspace"],
+ ["limits",     "Add workspaces and set their limits"],
  ["members",    "Add people and set their role"],
- ["disable",    "Pause a client's sending"],
+ ["disable",    "Pause a workspace's sending"],
  ["settings",   "Change workspace settings"],
- ["dashboard",  "See the cross-client dashboard"],
+ ["dashboard",  "See the cross-workspace dashboard"],
  ["implicit",   "Reach every workspace without being added to it"],
 ];
 const tickI='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -3345,10 +3345,10 @@ function inviteCopy(c){
    workspace. So it is one panel of numbered sections with the same rail, and
    the sections are the three questions an agency actually has here.
 
-   Section 1 is the default a new client user starts from (D5d), not a grant to
+   Section 1 is the default a new workspace user starts from (D5d), not a grant to
    anyone. Sections 2 and 3 are the people who hold real grants, split by
    internal and external because that is the split that decides what you may
-   do to them: you set a colleague's access, and you set a client user's, but
+   do to them: you set a colleague's access, and you set a workspace user's, but
    only a colleague has an account role behind it.                            */
 /* the agency domain, taken from the one address the fixture actually states
    rather than guessed from the agency's name, which would break the day
@@ -3393,8 +3393,8 @@ let onlySignInNote=null;
 /* what changes, in one line, spoken about the role being moved TO - shared by
    every role-change confirm on the person page. */
 const ROLE_UPGRADE_WHY={
- Admin:"Admin reaches every workspace and can add clients and set caps.",
- Owner:"Owner reaches everything, including billing, and can delete a client.",
+ Admin:"Admin reaches every workspace and can add workspaces and set caps.",
+ Owner:"Owner reaches everything, including billing, and can delete a workspace.",
  Member:"Member only reaches the workspaces you pick for them.",
 };
 /* Alloy & Co. is the one client name that already ends in a period, which a
@@ -3433,7 +3433,7 @@ function rMembers(c){
      for every other row). Reuses .inlineconfirm's box without its Keep/
      Remove pair, since there is no choice being offered here, only a reason. */
   const lastRow=(canEdit&&isLast)?`<tr class="confirmrow"><td colspan="4"><div class="inlineconfirm">
-    <span>This is the only sign-in for ${sentEnd(c.name)} To pause the client, use Disable.</span>
+    <span>This is the only sign-in for ${sentEnd(c.name)} To pause the workspace, use Disable.</span>
    </div></td></tr>`:"";
   const confirmRow=confirming?`<tr class="confirmrow"><td colspan="4"><div class="inlineconfirm">
     <span>${key} loses their sign-in to ${sentEnd(c.name)} Their replies stay.</span>
@@ -3450,7 +3450,7 @@ function rMembers(c){
    <td class="ar colact"><span class="tblacts">${actions}</span></td></tr>${lastRow}${confirmRow}`};
 
  const addForm=!canEdit?"":`<tr><td colspan="4"><div class="rc-edit" style="padding:14px 16px;max-width:none">
-   <span class="cs" style="display:block;margin-bottom:8px;font-weight:600;color:var(--gray-17)">Add a client user</span>
+   <span class="cs" style="display:block;margin-bottom:8px;font-weight:600;color:var(--gray-17)">Add a workspace user</span>
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
     <div class="fld" style="margin:0;min-width:220px"><label class="cs" for="ncuEmail">Email</label>
      <input type="email" id="ncuEmail" value="${NCU.email}" placeholder="name@${(c.email.split("@")[1])||"company.com"}" style="width:100%"></div>
@@ -3476,7 +3476,7 @@ function rMembers(c){
    <td class="ar colact">${canEdit?`<button class="linkbtn" style="color:var(--red-600)" data-staffremove="${s2.key}|${c.id}">Remove</button>`:""}</td></tr>`;
  const notOn=Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Member"&&!isMember(PEOPLE[k],c.id));
  const addStaff=(!canEdit||!notOn.length)?"":`<tr><td colspan="4"><div style="display:flex;gap:10px;align-items:center;padding:10px 16px">
-   <select id="staffAddPick" class="inp" style="height:32px;max-width:260px" aria-label="Add an agency person">${notOn.map(k=>`<option value="${k}">${PEOPLE[k].name}</option>`).join("")}</select>
+   <select id="staffAddPick" class="inp" style="height:32px;max-width:260px" aria-label="Add a team member">${notOn.map(k=>`<option value="${k}">${PEOPLE[k].name}</option>`).join("")}</select>
    <button class="shd-button shd-button--tertiary shd-button--sm" data-staffaddgo="${c.id}">Add</button></div></td></tr>`;
 
  const owners=Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Owner"||PEOPLE[k].role==="Admin");
@@ -3484,13 +3484,13 @@ function rMembers(c){
  const head=`<thead><tr><th>Person</th><th>Role</th><th>Last active</th><th class="colact"></th></tr></thead>`;
  return `<div><div class="panel">
    <div class="panel-h"><span class="panel-t">Members of ${c.name}</span>
-    <span class="sub">${c.users.length} client user${c.users.length===1?"":"s"} &middot; ${owners.length+members.length} from ${AGENCY.name}</span>
-    <span class="c-a"><button class="linkbtn" data-topeopleclients>Manage all client users &rarr;</button></span></div>
+    <span class="sub">${c.users.length} workspace user${c.users.length===1?"":"s"} &middot; ${owners.length+members.length} from ${AGENCY.name}</span>
+    <span class="c-a"><button class="linkbtn" data-topeopleclients>Manage all workspace users &rarr;</button></span></div>
    ${receiptBar("members:"+c.id)}
    <div class="tscroll"><table class="organism" style="min-width:760px">${head}
     <tbody>
-     ${grp("Client users")}${c.users.length?c.users.map(userRow).join(""):`<tr><td colspan="4"><span class="sub">Nobody from ${c.name} can sign in yet.</span></td></tr>`}${addForm}
-     ${grp("Agency people on this workspace")}${owners.map(ownerAdminRow).join("")}${members.map(memberRow).join("")}${addStaff}
+     ${grp("Workspace users")}${c.users.length?c.users.map(userRow).join(""):`<tr><td colspan="4"><span class="sub">Nobody from ${c.name} can sign in yet.</span></td></tr>`}${addForm}
+     ${grp("Your team on this workspace")}${owners.map(ownerAdminRow).join("")}${members.map(memberRow).join("")}${addStaff}
     </tbody></table></div>
   </div></div>`;
 }
@@ -3509,12 +3509,12 @@ function rMembers(c){
    what is pre-filled.                                                        */
 /* A8, simplified 23 Sep 2026 for six fixed roles: an agency invite is a
    person, their account role, and, only for a Member, which workspaces. A
-   client user is invited from the client record's own Members tab instead
+   workspace user is invited from the client record's own Members tab instead
    (rMembers, ncuSend), because that is where the six-role decision put it:
-   a client role is a property of the client user, not a third kind here. */
+   a client role is a property of the workspace user, not a third kind here. */
 /* 25 Sep 2026: "Add a member" becomes "Add a person", one screen with two
    paths from a first "who are you adding" step, because the old screen could
-   only ever invite someone at the agency itself - a client user had no way
+   only ever invite someone at the agency itself - a workspace user had no way
    in here at all (defect D5, 54-people-rework.md). `kind` is null at the
    picker, then "agency" or "client" for the rest of the session. */
 const AM_BLANK={email:"",name:"",role:"Member",ws:[],mode:"invite",from:null,
@@ -3585,7 +3585,7 @@ function amSecWhere(){
       agency's own workspace carries its colour on the edge so it is never
       mistaken for a client */
    const near=RK.filter(k=>RES[k].rows[w.id]&&["warn","bad"].indexOf(rowState(k,w.id,compute(k)).tone)>-1).length;
-   const health=(w.own?"Your own outreach, not a client":w.company)
+   const health=(w.own?"Your own outreach":w.company)
       +" &middot; "+(w.own?"":staffOf(w).length+" staff &middot; ")+((w.mailboxes||[]).length)+" mailbox"+(((w.mailboxes||[]).length===1)?"":"es")
       +(near?` &middot; <span style="color:var(--amber-700)">${near} near a limit</span>`:"");
    return `<label class="wsrow${w.own?" st-own":""}" style="${w.own?"--c:"+w.colour:""}">
@@ -3600,9 +3600,9 @@ function amSecWhere(){
    client's own workspace says about the same role. `ctxVal`, when given,
    makes each card's value "ctx|role" instead of a bare role, so the same
    markup serves both the invite flow (no context needed) and a specific
-   client user's own person page (context: clientId|email). */
+   workspace user's own person page (context: clientId|email). */
 function clientRoleCards(sel,attr,ctxVal){
- return `<div class="choices" role="radiogroup" aria-label="Client role">${CLIENT_ROLES.map(r=>{
+ return `<div class="choices" role="radiogroup" aria-label="Workspace role">${CLIENT_ROLES.map(r=>{
   const d=CLIENT_ROLE_DEFS[r];
   return `<button class="choice" role="radio" aria-checked="${sel===r}" ${attr}="${ctxVal?ctxVal+"|"+r:r}">
    <span class="rdo"></span><span style="min-width:0"><b>${r}</b><i>${d.desc}</i></span></button>`}).join("")}</div>`;
@@ -3610,7 +3610,7 @@ function clientRoleCards(sel,attr,ctxVal){
 function amSecWorkspaceSingle(){
  return `<div class="panel-b sec" id="amSec1">
   <div class="sec-h"><span class="sec-n${amWsPicked()?" is-done":""}">1</span><span class="sec-t">Workspace</span>
-   <span class="sub">Which client they sign in to</span></div>
+   <span class="sub">Which workspace they sign in to</span></div>
   <select id="amWsPick" class="inp" style="width:100%;max-width:420px">
    <option value="">Choose a workspace</option>
    ${CLIENTS.map(c=>`<option value="${c.id}" ${AM.wsId===c.id?"selected":""}>${c.name}</option>`).join("")}
@@ -3706,8 +3706,8 @@ function vAddMemberPicker(){
      <span class="rdo"></span><span style="min-width:0"><b>Someone at ${AGENCY.name}</b>
       <i>Joins your team: Admin or Member, with the workspaces they reach.</i></span></button>
     <button class="choice" role="radio" data-amkind="client">
-     <span class="rdo"></span><span style="min-width:0"><b>Someone at a client</b>
-      <i>Signs in to one client workspace, as a Workspace Admin, Collaborator or Viewer.</i></span></button>
+     <span class="rdo"></span><span style="min-width:0"><b>Someone in one workspace</b>
+      <i>Signs in to one workspace, as a Workspace Admin, Collaborator or Viewer.</i></span></button>
    </div></div></div></div>`;
 }
 function vAddMemberAgency(){
@@ -3734,7 +3734,7 @@ function vAddMemberClient(){
  return `<div class="toolbar">
    <div class="cell-main"><button class="linkbtn" data-amback style="margin-right:10px">&larr; Back</button>
     <span class="semibold-3">Add a person</span>
-    <span class="sub" style="margin-left:10px">Someone at a client: their workspace, their role there, and their sign-in</span></div></div>
+    <span class="sub" style="margin-left:10px">Someone in one workspace: their workspace, their role there, and their sign-in</span></div></div>
   <div class="wrap"><div class="am-wrap">
    ${amRail()}
    <div><div class="panel">${amSecWorkspaceSingle()}${amSecClientRole()}${amSecClientPerson()}</div>
@@ -3880,7 +3880,7 @@ function draftBar(scope){
    heldBefore+=Math.max(0,r.res-r.used); heldAfter+=Math.max(0,dval(scope.k,id,"res")-r.used)});
   const freed=heldBefore-heldAfter;
   live=freed>0?". These changes free "+f(freed)+" "+R.unit+"."
-   :freed<0?". These changes hold "+f(-freed)+" "+R.unit+" more for clients."
+   :freed<0?". These changes hold "+f(-freed)+" "+R.unit+" more for workspaces."
    :"";
  }
  return `<div class="draftbar"><span><strong>${ch.length} change${ch.length===1?"":"s"} not applied.</strong>
@@ -3915,11 +3915,11 @@ function rLimits(c){
  <div class="panel"><div class="panel-h"><span class="panel-t">Budget</span></div>
   <div class="panel-b"><div class="swline">
    <button class="sw" role="switch" aria-checked="${bif}" id="bifSw" aria-label="Independent budget"></button>
-   <div><div style="font-size:14px;font-weight:500;color:var(--gray-800)">Manage this client's budget independently</div>
-    <p class="sub" style="margin-top:3px">The client draws only from its own allocation instead of the shared agency pool. Usage stays on the same invoice, itemised separately.</p></div>
+   <div><div style="font-size:14px;font-weight:500;color:var(--gray-800)">Manage this workspace's budget independently</div>
+    <p class="sub" style="margin-top:3px">The workspace draws only from its own allocation instead of the shared account pool. Usage stays on the same invoice, itemised separately.</p></div>
   </div></div></div>
  <div class="panel"><div class="panel-h"><span class="panel-t">Limits</span>
-   <button class="shd-button shd-button--tertiary shd-button--sm" id="toCredits">All clients</button></div>
+   <button class="shd-button shd-button--tertiary shd-button--sm" id="toCredits">All workspaces</button></div>
   <div class="tscroll"><table class="organism" style="min-width:800px" id="rcLimTable">
    <thead><tr><th>Resource</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
     <th>Usage</th><th class="ar">Available</th></tr></thead>
@@ -3943,7 +3943,7 @@ const MB_LABEL=t=>t==="Warming"?"Warming up":t;
    workspace from the moment it is bought. There is no agency pool to hold an
    unassigned mailbox in and nothing here to reassign between workspaces, so
    the old "Unassigned" panel and its Assign/Reassign controls are gone; this
-   panel owns its own purchase entry instead (Buy mailboxes for agency staff,
+   panel owns its own purchase entry instead (Buy mailboxes for your team,
    Connect your own only for a client). */
 function rMail(c){
  const clientSide=asClient&&!inAgency();
@@ -3975,7 +3975,7 @@ function rMail(c){
        live for every role, Viewer included. Gated the same way the Warm-up
        toggle already gates itself (canC(c,"warmup") + mbSrc!=="agency"): a
        client role never acts on an agency-sourced mailbox, and Viewer has no
-       "warmup" verb at all so never gets an enabled button. Agency staff
+       "warmup" verb at all so never gets an enabled button. Your team
        (not asClient) are unaffected. */
     const mayReconnect=!asClient||(canC(c,"warmup")&&mbSrc(m)!=="agency");
     return `<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
@@ -4050,7 +4050,7 @@ function estOther(rows){
     <span class="sub">${D.length} domains across ${rows.length} mailboxes</span></div>
    <div class="tscroll"><table class="organism" style="min-width:760px">
     <thead><tr><th>Domain</th><th class="ar">Mailboxes</th><th>Workspaces</th><th>Health</th></tr></thead>
-    <tbody>${D.map(o=>`<tr><td><span style="font-weight:500">${o.dom}</span>${o.src==="agency"?"":' <span class="chip c-mute">Connected by the client</span>'}</td><td class="ar tnum">${o.n}</td>
+    <tbody>${D.map(o=>`<tr><td><span style="font-weight:500">${o.dom}</span>${o.src==="agency"?"":' <span class="chip c-mute">Connected in the workspace</span>'}</td><td class="ar tnum">${o.n}</td>
       <td>${o.ws.join(", ")}</td><td><span class="chip c-${MB_TONE[o.worst]}">${o.worst==="Healthy"?"Healthy":"Worst mailbox: "+MB_LABEL(o.worst).toLowerCase()}</span></td></tr>`).join("")}</tbody></table></div></div>`}
  const D=domainRows(rows).filter(o=>o.src==="agency").map(o=>o.dom);
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Inframail IPs</span>
@@ -4104,7 +4104,7 @@ function vPeopleAgencyTab(gaps){
   return `<tr class="${flash?"crow-flash":""}" data-person="${k}" style="cursor:pointer">
    <td><div class="cell-main"><span class="avatar av-tint" style="--c:#4B5563;width:28px;height:28px;border-radius:6px;font-size:11px">${P.initials}</span>
     <span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${P.name}${k===me_?' <span class="cs">(you)</span>':""}</span>
-    <span class="cs">${k===me_?"Signed in now":isNormal()?"On this account":"Agency staff"}</span></span></div></td>
+    <span class="cs">${k===me_?"Signed in now":isNormal()?"On this account":"Your team"}</span></span></div></td>
    <td><span class="chip ${P.role==="Member"?"c-mute":"c-info"}">${P.role}</span></td>
    <td>${isNormal()?"":`<span class="tnum" style="font-size:14px">${allWs?"All "+CLIENTS.length:ids.length}</span>
     <span class="cs" style="display:block">${where}</span>`}</td>
@@ -4145,22 +4145,22 @@ function vPeopleClientsTab(){
    <td>${status==="Invited"?`<span class="chip c-warn">Invited</span> <button class="linkbtn" data-flash="Invite resent to ${email}.">Resend</button>`:`<span class="chip c-ok">Active</span>`}</td>
    <td><span class="sub">${seen}</span></td>
    <td class="ar colact">${confirming?'<span class="sub">–</span>'
-     :isLast?`<button class="linkbtn" style="color:var(--gray-11)" title="Only sign-in for ${c.name}. To pause the client, use Disable." data-onlysignin="${c.id}|${email}">Only sign-in</button>`
+     :isLast?`<button class="linkbtn" style="color:var(--gray-11)" title="Only sign-in for ${c.name}. To pause the workspace, use Disable." data-onlysignin="${c.id}|${email}">Only sign-in</button>`
      :`<button class="linkbtn" style="color:var(--red-600)" data-pcuserrm="${c.id}|${email}">Remove</button>`}</td></tr>
    ${isLast&&onlySignInNote===c.id+"|"+email?`<tr class="confirmrow"><td colspan="6"><div class="inlineconfirm">
-     <span>This is the only sign-in for ${sentEnd(c.name)} To pause the client, use Disable.</span>
+     <span>This is the only sign-in for ${sentEnd(c.name)} To pause the workspace, use Disable.</span>
      <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-onlysigninclear>OK</button></span></div></td></tr>`:""}
    ${confirming?`<tr class="confirmrow"><td colspan="6"><div class="inlineconfirm">
      <span>${email} loses their sign-in to ${sentEnd(c.name)} Their replies stay.</span>
      <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-pcuserrmcancel>Keep</button>
      <button class="shd-button shd-button--secondary shd-button--sm" data-pcuserrmgo="${c.id}|${email}">Remove</button></span></div></td></tr>`:""}`;
  };
- return `<div class="card"><div class="panel-h"><span class="panel-t">Client users</span>
+ return `<div class="card"><div class="panel-h"><span class="panel-t">Workspace users</span>
    <span class="sub">${rows.length} across ${CLIENTS.length} workspace${CLIENTS.length===1?"":"s"}</span></div>
   <div class="tscroll"><table class="organism" style="min-width:960px">
    <thead><tr><th>Person</th><th>Workspace</th><th>Role</th><th>Status</th><th>Last active</th><th class="colact"></th></tr></thead>
-   <tbody>${rows.length?rows.map(row).join(""):`<tr><td colspan="6"><span class="sub">No client users yet.</span></td></tr>`}</tbody></table></div>
-  <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">Managed here and on each client's own Members tab; a change on either shows on both.</span></div>
+   <tbody>${rows.length?rows.map(row).join(""):`<tr><td colspan="6"><span class="sub">No workspace users yet.</span></td></tr>`}</tbody></table></div>
+  <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">Managed here and on each workspace's own Members tab; a change on either shows on both.</span></div>
  </div>`;
 }
 function vPeople(){
@@ -4172,8 +4172,8 @@ function vPeople(){
    <div class="cell-main"><span class="semibold-3">People</span></div>
    <div class="tools"><button class="shd-button shd-button--primary" data-invitestaff>Add a person</button></div></div>
   <div class="tabbar">
-   <button data-ptab="agency" aria-selected="${PEOPLE_TAB==="agency"}">Agency team</button>
-   <button data-ptab="clients" aria-selected="${PEOPLE_TAB==="clients"}">Client users</button>
+   <button data-ptab="agency" aria-selected="${PEOPLE_TAB==="agency"}">Team</button>
+   <button data-ptab="clients" aria-selected="${PEOPLE_TAB==="clients"}">Workspace users</button>
   </div>
   <div class="wrap">
    ${receiptBar("people")}
@@ -4302,7 +4302,7 @@ function vPerson(k){
 }
 /* the client user's own person page: same role-card, confirm-and-receipt
    pattern as the agency side, but over the three client roles and one
-   workspace, since that is the whole of a client user's grant (13 §7). */
+   workspace, since that is the whole of a workspace user's grant (13 §7). */
 function vPersonClient(rest){
  const bar=rest.indexOf("|"), cid=rest.slice(0,bar), email=rest.slice(bar+1);
  const c=byId[cid]; if(!c) return vPeople();
@@ -4320,7 +4320,7 @@ function vPersonClient(rest){
    ${receiptBar("people")}
    <div class="psplit">
     <div class="card">
-     <div class="panel-h"><span class="panel-t">Client role</span></div>
+     <div class="panel-h"><span class="panel-t">Workspace role</span></div>
      <div style="padding:16px">
       ${clientRoleCards(role,"data-cprole2",cid+"|"+email)}
       ${roleConfirming?`<div class="inlineconfirm" style="margin-top:10px">
@@ -4335,7 +4335,7 @@ function vPersonClient(rest){
         ?`<span class="chip c-warn">Invited</span> <button class="linkbtn" data-flash="Invite resent to ${email}.">Resend invite</button>`
         :`<span class="chip c-ok">Active</span> <span class="sub" style="margin-left:8px">Last active ${AGE(LASTSEEN[email]||"unknown")}</span>`}
       <div style="margin-top:16px">${isLast
-        ?`<span class="sub">This is the only sign-in for ${sentEnd(c.name)} To pause the client, use Disable.</span>`
+        ?`<span class="sub">This is the only sign-in for ${sentEnd(c.name)} To pause the workspace, use Disable.</span>`
         :removeConfirming?`<div class="inlineconfirm"><span>${email} loses their sign-in to ${sentEnd(c.name)} Their replies stay.</span>
            <span class="tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-pcuserrmcancel>Keep</button>
            <button class="shd-button shd-button--secondary shd-button--sm" data-pcuserrmgo="${cid}|${email}">Remove</button></span></div>`
@@ -4346,7 +4346,7 @@ function vPersonClient(rest){
 }
 
 function vEstate(){
- if(!canI("members")) return denied("see the agency's sending estate");
+ if(!canI("members")) return denied("see the account's sending estate");
  const rows=estateRows();
  const agencyOwned=rows.filter(r=>mbSrc(r.m)==="agency");
  const clientOwned=rows.filter(r=>mbSrc(r.m)==="client");
@@ -4462,12 +4462,12 @@ let colOpen=false, colDraft=null, colQ="";
    a left column of Plan / Add-ons / Credits / Deliverability, the Platform page
    with Plan Details, Account Plan Usage and Lead Finder credits. The agency adds
    one line under each pooled bar (how much of it the workspace limits add up
-   to, and what is still free), one group of its own with Client limits & usage,
+   to, and what is still free), one group of its own with Workspace limits & usage,
    and an Email Accounts page with the billing and history that the live page
    lacks. Prices and dates are illustrative. */
 const BILL_TABS=[["plan","Platform","Plan"],["email","Email Accounts","Plan"],["crm","CRM","Add-ons"],["dialer","Dialer","Add-ons"],
  ["ai","AI Credits","Credits"],["verify","Email Verification Credits","Credits"],["radar","Inbox Radar","Deliverability"],
- ["alloc","Client limits & usage","Clients"]];
+ ["alloc","Workspace limits & usage","Workspaces"]];
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* 21 Sep 2026, delight pass round 6: the next invoice in words, once, so Plan
@@ -4498,11 +4498,11 @@ function poolBar(k,opts){
  return `<div class="ub"><div class="ub-h"><span class="ub-t">${(opts&&opts.title)||R.label}</span>
    <span class="ub-r tnum">${f(m.used)} of ${f(R.pool)} <span class="sub">(${p}% used)</span></span></div>
   <div class="ub-track"><span style="width:${p}%;background:${p>=90?"var(--red-12)":p>=75?"var(--orange-14)":"var(--blue-11)"}"></span>
-   ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for clients"></span>`:""}</div>
+   ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for workspaces"></span>`:""}</div>
   ${agency?blWsBar(k):""}
-  <div class="ub-f"><span class="sub">${f(R.pool-m.used)} (${100-p}%) remaining${m.held?", "+f(m.held)+" of it reserved for clients":""}</span>
+  <div class="ub-f"><span class="sub">${f(R.pool-m.used)} (${100-p}%) remaining${m.held?", "+f(m.held)+" of it reserved for workspaces":""}</span>
    ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> free to draw</span>
-     <button class="linkbtn" data-goalloc="${k}">Client limits &rarr;</button></span>`:""}</div></div>`;
+     <button class="linkbtn" data-goalloc="${k}">Workspace limits &rarr;</button></span>`:""}</div></div>`;
 }
 function vPlatform(){
  const own=CLIENTS.reduce((t,c)=>t+c.users.length,0);
@@ -4514,7 +4514,7 @@ function vPlatform(){
    <div class="panel-b plan-kv"><span><span class="cs">Start Date</span><b>${PLAN.start}</b></span>
     <span><span class="cs">Next Billing Date</span><b>${PLAN.next}</b></span>
     <span><span class="cs">Next Billing Amount</span><b>${planNextLine()}</b></span>
-    ${isNormal()?"":`<span><span class="cs">Covers</span><b>${AGENCY.name} and ${CLIENTS.filter(c=>!isLinked(c)).length} client workspaces</b></span>`}</div>
+    ${isNormal()?"":`<span><span class="cs">Covers</span><b>${AGENCY.name} and ${CLIENTS.filter(c=>!isLinked(c)).length} workspaces</b></span>`}</div>
   </div>
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Account Plan Usage</span><span class="sub">Email quota resets on ${PLAN.resets}</span>
@@ -4533,12 +4533,12 @@ function vPlatform(){
    <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
    <div class="panel-b">
     <div class="list-row"><span><span style="font-weight:500">Team seats</span>
-      <span class="cs" style="display:block">${isNormal()?"People on this account":"Agency staff, counted once whatever they are members of"}</span></span>
+      <span class="cs" style="display:block">${isNormal()?"People on this account":"Your team, counted once whatever they are members of"}</span></span>
       <span class="tnum">3 of 10</span></div>
-    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Client users</span>
-      <span class="cs" style="display:block">External people in client workspaces. Not charged as seats</span></span>
+    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Workspace users</span>
+      <span class="cs" style="display:block">External people in workspaces. Not charged as seats</span></span>
       <span class="tnum">${own}</span></div>
-    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Clients</span>
+    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Workspaces</span>
       <span class="cs" style="display:block">Unlimited on this plan</span></span>
       <span class="tnum">${CLIENTS.length}</span></div>
     <div class="list-row"><span><span style="font-weight:500">Whitelabel</span>
@@ -4571,11 +4571,11 @@ function vEmailBilling(){
    </div>
    ${isNormal()?"":`<div class="tscroll"><table class="organism" style="min-width:720px">
     <thead><tr><th>Workspace</th><th class="ar">Connected</th><th class="ar">Bought through Saleshandy</th><th class="ar">Monthly</th><th>Charge</th><th class="colact"></th></tr></thead>
-    <tbody>${rows.map(c=>{const n=(c.mailboxes||[]).length,b=mbxBought(c),open=BL_WHY===c.id,who=c.own?"the agency":"the client";
+    <tbody>${rows.map(c=>{const n=(c.mailboxes||[]).length,b=mbxBought(c),open=BL_WHY===c.id,who=c.own?"you":"the workspace";
      /* 18 Sep, delight pass: one chip repeated on every row said nothing; the
         charge explains itself on demand instead */
      return `<tr class="${open?"bl-open":""}"><td><div class="cell-main">${av(c)}<span style="min-width:0">${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
-       <span class="cs">${c.own?"The agency's own outreach workspace":isBif(c.id)?"Independent budget":"Shared pool"}</span></span></div></td>
+       <span class="cs">${c.own?"Your own outreach workspace":isBif(c.id)?"Independent budget":"Shared pool"}</span></span></div></td>
       <td class="ar tnum">${n}</td><td class="ar tnum">${b}</td><td class="ar tnum">${usd(b*MBX_PRICE)}</td>
       <td><button class="linkbtn bl-why" data-blwhy="${c.id}" aria-expanded="${open}">${open?"Hide":"Why "+usd(b*MBX_PRICE)}</button></td>
       <td class="ar colact">${c.own?"":`<button class="linkbtn" data-manage="${c.id}">Email accounts &rarr;</button>`}</td></tr>`
@@ -4630,7 +4630,7 @@ function vBilling(){
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0">
      <span class="semibold-3" style="display:block">Billing &amp; Subscription</span>
-     <span class="cs">${isNormal()?PLAN.name:PLAN.name+" · one plan for "+AGENCY.name+" and every client under it"}</span></span></div>
+     <span class="cs">${isNormal()?PLAN.name:PLAN.name+" · one plan for "+AGENCY.name+" and every workspace under it"}</span></span></div>
    <div class="tools">
     <button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Invoices</button>
     <button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Add Capacity</button></div>
@@ -4663,7 +4663,7 @@ const blReceiptBar=()=>BLR?`<div class="dq-receipt bl-receipt" role="status"><sp
 function vCredits(){
  const m=compute(activeRes),R=m.R,pc=n=>n/R.pool*100,A=[];
  if(!m.ok)A.push(`<div class="msg m-bad">${warnI}<span>Reserved amounts total ${f(m.reserved)}, more than the ${f(R.pool)} in your plan. Reduce a reservation by ${f(m.reserved-R.pool)} or add capacity.</span></div>`);
- if(m.ok&&m.oversub>1)A.push(`<div class="msg m-warn">${warnI}<span>Limits total ${Math.round(m.oversub*100)}% of your plan. Clients without a reservation may run out once the pool is used up. ${f(m.free)} ${R.unit} unallocated.</span></div>`);
+ if(m.ok&&m.oversub>1)A.push(`<div class="msg m-warn">${warnI}<span>Limits total ${Math.round(m.oversub*100)}% of your plan. Workspaces without a reservation may run out once the pool is used up. ${f(m.free)} ${R.unit} unallocated.</span></div>`);
  const st=m.ids.filter(i=>rowState(activeRes,i,m).state==="Pool exhausted");
  if(st.length)A.push(`<div class="msg m-bad">${warnI}<span>${st.map(i=>byId[i].name).join(", ")} cannot use the remaining limit because the pool is empty.</span></div>`);
  const rows=fundedWorkspaces().map(c=>{const r=R.rows[c.id],s=rowState(activeRes,c.id,m),p=Math.min(100,Math.round(s.pct*100));
@@ -4674,7 +4674,7 @@ function vCredits(){
   return `<tr><td><div class="cell-main">${av(c)}<span style="min-width:0">
     ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`
            :`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
-    <span class="cs">${c.own?"The agency's own outreach workspace"
+    <span class="cs">${c.own?"Your own outreach workspace"
       :isBif(c.id)?"Independent budget":"Shared pool"}</span></span></div></td>
    <td class="ar">${R.floors?numIn(dval(activeRes,c.id,"res"),R.unit,`data-cid="${c.id}" data-fld="res" aria-label="Reserved for ${c.name}"`):noIn}</td>
    <td class="ar">${numIn(dval(activeRes,c.id,"cap"),R.unit,`data-cid="${c.id}" data-fld="cap" aria-label="Limit for ${c.name}"`)}</td>
@@ -4710,7 +4710,7 @@ function vCredits(){
     ${A.join("")}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
-    <thead><tr><th>Client Name</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
+    <thead><tr><th>Workspace</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
      <th>Usage</th><th class="ar">Available</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td style="font-weight:600">Total</td>
@@ -4748,13 +4748,13 @@ function newMenuHTML(){
   ?[["sequence","Sequence","A new campaign in this workspace"],
     ["account","Email account","Connect a mailbox to this workspace"],
     ["member","Member","Someone on your team"]]
-  :[["sequence","Sequence","For one client"],
-    ["account","Email account","Connected to one client's workspace"],
-    ["member","Member","Agency staff or the client's own people"]]);
+  :[["sequence","Sequence","For one workspace"],
+    ["account","Email account","Connected to one workspace"],
+    ["member","Member","Your team or a workspace's own people"]]);
  if(!newPick) return '<div class="menu" id="newMenu">'+items.map(([k,l,d])=>
    '<button class="menu-i" data-new="'+k+'"><span class="menu-l">'+l+'</span><span class="menu-d">'+d+'</span></button>').join("")+'</div>';
  const list=myClients();
- return '<div class="menu" id="newMenu"><div class="menu-h">New '+newPick+' for which client?</div>'
+ return '<div class="menu" id="newMenu"><div class="menu-h">New '+newPick+' for which workspace?</div>'
   +list.map(c=>'<button class="menu-i menu-c" data-newfor="'+c.id+'">'+av(c,22)+'<span class="menu-l">'+c.name+'</span></button>').join("")
   +'<button class="menu-i menu-back" data-newback>&larr; Back</button></div>';
 }
@@ -4826,7 +4826,7 @@ function planCard(norm){
  const tight=sd<CYCLE.days-CYCLE.day;
  return '<div class="card"><div class="c-h"><span class="c-t">Plan pacing</span>'
   +'<span class="c-a tools" style="gap:10px;white-space:nowrap"><span class="sub">'+CYCLE.month+'</span>'
-   +(norm?'':'<button class="linkbtn" data-goalloc="sends">Client limits &rarr;</button>')+'</span></div>'
+   +(norm?'':'<button class="linkbtn" data-goalloc="sends">Workspace limits &rarr;</button>')+'</span></div>'
   +'<div class="c-b">'
   +'<div class="big"><span class="big-v">'+f(used)+'</span>'
   +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone &middot; '
@@ -4928,7 +4928,7 @@ function arrivalLine(mine,items){
  return "Nothing needs you right now.";
 }
 function vDash(){
- if(!canI("dashboard")) return denied("see the agency dashboard");
+ if(!canI("dashboard")) return denied("see the account dashboard");
  /* Superseded 17 Sep 2026. Home used to exist for a normal user, so every region
     below had a one-workspace density. Hitesh then established that the real
     product lands a new account on /sequence with the setup checklist there, and
@@ -4968,15 +4968,15 @@ function vDash(){
   kpiTile("Prospects",svg("crm"),f(NS.prospects),null,"In your workspace"),
   kpiTile("Mailboxes",svg("mail"),f(NS.mbx),null,"Connected and sending")
  ].join(""):""):(owner?[
-  kpiTile("Clients",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),
+  kpiTile("Workspaces",svg("clients"),f(mine.length),pctDelta(mine.length,LAST.clients),
     "was "+f(LAST.clients)+" last month",false,mine.length-LAST.clients),
   kpiTile("Outreach",svg("analytics"),f(tch.total),oneNew?null:pctDelta(tch.total,LAST.touches),
     oneNew?"Counts start with the first send.":"was "+f(LAST.touches)+" last month"),
   kpiTile("Replies",svg("inbox"),f(rep),oneNew?null:pctDelta(rep,LAST.replies),oneNew?"Counts start with the first send.":"was "+f(LAST.replies)+" last month")
  ]:[
-  kpiTile("Your clients",svg("clients"),f(mine.length),null,"Assigned to you by the agency"),
-  kpiTile("Outreach",svg("analytics"),f(tch.total),null,"Across your clients this cycle"),
-  kpiTile("Replies",svg("inbox"),f(rep),null,"Across your clients this cycle"),
+  kpiTile("Your workspaces",svg("clients"),f(mine.length),null,"Assigned to you by the account"),
+  kpiTile("Outreach",svg("analytics"),f(tch.total),null,"Across your workspaces this cycle"),
+  kpiTile("Replies",svg("inbox"),f(rep),null,"Across your workspaces this cycle"),
   kpiTile("Needing a decision",svg("radar"),f(items.length),null,"Ordered by what it costs to ignore")
  ]).join("");
 
@@ -5033,21 +5033,21 @@ function vDash(){
      +'<td colspan="4">'+setupHtml+'</td>'
      +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'})();
  const tableCard='<div class="card">'
-  +'<div class="c-h"><span class="c-t">Clients</span>'
+  +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<div class="pills" style="padding:0;margin-left:6px">'+PT.map(([k,l,n])=>'<button data-clitab="'+k+'" aria-pressed="'+(cliTab===k)+'">'+l+'<span class="pn">'+n+'</span></button>').join("")+'</div>'
-   +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Clients &rarr;</button></span></div>'
+   +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
   +'<div class="tscroll"><table class="organism" style="min-width:760px">'
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
    +(oneNew
-     ?'<thead><tr><th>Client</th><th colspan="4">Setup</th><th class="colact"></th></tr></thead>'
-     :'<thead><tr><th>Client</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
+     ?'<thead><tr><th>Workspace</th><th colspan="4">Setup</th><th class="colact"></th></tr></thead>'
+     :'<thead><tr><th>Workspace</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
       +'<th class="colact"></th></tr></thead>')
    +'<tbody>'+(oneNew?oneRow:(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
-    +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Clients &rarr;</button></div>':'')
+    +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
     survive past this render. */
@@ -5080,12 +5080,12 @@ function vDash(){
    +'</tbody></table></div></div>';
  /* the entry point itself. The only place version C advertises the feature to
     someone who does not have it, and the answer to the isAgency gate. Gated on
-    billing to match the Add Client button the Clients screen already carries. */
+    billing to match the Add a workspace button the Clients screen already carries. */
  const addCard=(owner&&!addCardOff)?'<div class="card"><div class="c-b">'
-   +'<p class="semibold-3" style="margin:0 0 4px">Running outreach for someone else?</p>'
-   +'<p class="sub" style="margin:0 0 12px;max-width:62ch">Give each client their own workspace: their own '
+   +'<p class="semibold-3" style="margin:0 0 4px">Running outreach for more than one business, or for clients?</p>'
+   +'<p class="sub" style="margin:0 0 12px;max-width:62ch">Give each its own workspace: its own '
    +'sequences, prospects and mailboxes, separate from yours and from each other.</p>'
-   +'<div class="tools"><button class="shd-button shd-button--primary shd-button--sm" id="dashAdd">Add your first client</button>'
+   +'<div class="tools"><button class="shd-button shd-button--primary shd-button--sm" id="dashAdd">Add a workspace</button>'
    +'<button class="shd-button shd-button--tertiary shd-button--sm" data-addcardoff>Not now</button></div>'
    +'</div></div>':'';
 
@@ -5098,9 +5098,9 @@ function vDash(){
   /* 18 Sep, Hitesh: plan pacing above Needs a decision, level with This cycle */
   :(norm?planCard(true)
     :owner?planCard()
-    :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your clients</span></div><div class="c-b">'
+    :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your workspaces</span></div><div class="c-b">'
      +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
-     +'<p class="sub" style="margin:10px 0 0">You can raise a client limit. What the agency pays is not shown to you.</p></div></div>');
+     +'<p class="sub" style="margin:10px 0 0">You can raise a workspace limit. What the account pays is not shown to you.</p></div></div>');
  const railRest=fresh?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
    +'<span class="c-a">'+(dashAll&&moreN>0?'<button class="linkbtn" data-dashall="0">Show fewer</button>'
      :moreN>0?'<button class="linkbtn" data-dashall="1">See all '+items.length+'</button>':'')+'</span></div>'
@@ -5122,8 +5122,8 @@ function vDash(){
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">'
-     +(norm?'New &#9662;':'New for a client &#9662;')+'</button>'+newMenuHTML()+'</div>'
-   +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd">Add Client</button>':"")
+     +(norm?'New &#9662;':'New in a workspace &#9662;')+'</button>'+newMenuHTML()+'</div>'
+   +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd">Add a workspace</button>':"")
   +'</div></div>'
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
@@ -5138,7 +5138,7 @@ function vDash(){
       ?'<div class="card"><div class="c-h"><span class="c-t">Replies by sequence</span></div><div class="c-b">'
         +segbars(AGENCY_OWN.sequences.filter(s=>s[3]).map((s,i)=>({l:s[0],c:["#1D4ED8","#059669","#D97706","#6B7280"][i%4],
           v:f(Math.round(s[3]*s[4]/100)),p:s[4]/Math.max(1,Math.max.apply(null,AGENCY_OWN.sequences.map(x=>x[4])))*100})))+'</div></div>'
-      :'<div class="card"><div class="c-h"><span class="c-t">Replies by client</span></div><div class="c-b">'+byClient()+'</div></div>')
+      :'<div class="card"><div class="c-h"><span class="c-t">Replies by workspace</span></div><div class="c-b">'+byClient()+'</div></div>')
    +'</div>'
    +'<div class="drail">'+railRest+'</div>'
   +'</div>';
@@ -5185,7 +5185,7 @@ function vSolo(){
 
 /* ═══ the agency's own outreach modules ═══════════════════════════════════════
    One renderer for every Outreach rail item in the agency workspace. The rule
-   it exists to make visible: what you see here is the agency's own, scoped the
+   it exists to make visible: what you see here is yours own, scoped the
    same way a client workspace is scoped. Never an aggregation across clients,
    because a roll-up here would quietly undo the isolation the rest of the
    model depends on. Modules the workspaces feature does not change are stated
@@ -5198,17 +5198,17 @@ function vSolo(){
    question. */
 const SCOPE_NOTE={
  leads:["A pool at the account, a cap per workspace",
-  "The search tool is identical everywhere and needs no scoping. What is scoped is the credit it spends, which comes out of one pool you bought, and the lead record it produces, which belongs to the workspace that revealed it. Two clients can pay to reveal the same person and we will not dedupe it, because deduping means showing one client's records to another."],
- dialer:["Per workspace, and it has no client dimension today",
-  "Phone numbers, calls and recordings carry no client field in the product as it stands, which is why a call cannot be attributed to a client at all right now. Under this model each one belongs to the workspace it was made from."],
+  "The search tool is identical everywhere and needs no scoping. What is scoped is the credit it spends, which comes out of one pool you bought, and the lead record it produces, which belongs to the workspace that revealed it. Two workspaces can pay to reveal the same person and we will not dedupe it, because deduping means showing one workspace's records to another."],
+ dialer:["Per workspace, and it has no workspace dimension today",
+  "Phone numbers, calls and recordings carry no workspace field in the product as it stands, which is why a call cannot be attributed to a workspace at all right now. Under this model each one belongs to the workspace it was made from."],
  verify:["A pool at the account, a cap per workspace",
-  "One pooled quota with a ceiling per client, exactly as Lead Finder. The lists themselves belong to the workspace that uploaded them."],
+  "One pooled quota with a ceiling per workspace, exactly as Lead Finder. The lists themselves belong to the workspace that uploaded them."],
  radar:["Infrastructure at the account, results at the workspace",
-  "The seed estate across Gmail, Yahoo and Outlook is bought and maintained once. A placement test, though, tests a specific domain and mailbox, so its result belongs to that workspace. A client can see its own deliverability without seeing your seed estate or any other client's score."],
+  "The seed estate across Gmail, Yahoo and Outlook is bought and maintained once. A placement test, though, tests a specific domain and mailbox, so its result belongs to that workspace. A workspace can see its own deliverability without seeing your seed estate or any other workspace's score."],
 };
 /* the only three Outreach modules the master workspace still answers for. The
    first two are cross-client by nature and the third is a publishing decision.
-   Everything else moved to the agency's own workspace, so a deep link to it now
+   Everything else moved to yours own workspace, so a deep link to it now
    lands there rather than 404ing or showing an empty agency screen.        */
 const MASTER_MOD={inbox:1,task:1,tmpl:1,mail:1};
 const RAIL2MOD={seq:"sequences",crm:"prospects",inbox:"inbox",mail:"accounts",tmpl:"tmpl"};
@@ -5231,25 +5231,25 @@ const RESTRICT_NOUN={sequences:"sequences",inbox:"replies",prospects:"prospects"
    still parks. Warm-up moved off this list once it got a real client view. */
 const MOD_ICON={task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",refer:"refer"};
 const AGY_MOD={
- seq:["Sequences","The agency's own campaigns, for winning clients"],
- task:["Tasks","Tasks on the agency's own outreach","Tasks across the clients you work on"],
- inbox:["Unified Inbox","Replies to the agency's own campaigns","Replies across the clients you work on"],
- leads:["Lead Finder","Sourcing for the agency's own pipeline"],
- crm:["CRM","The agency's own prospects: companies it wants as clients"],
- dialer:["Dialer","Calls on the agency's own outreach"],
- verify:["Email Verifier","Verification for the agency's own lists"],
- mail:["Email Accounts","Mailboxes on the agency's own domain"],
- tmpl:["Templates","The agency's own templates"],
- radar:["Inbox Radar","Placement for the agency's own domain"],
- analytics:["Analytics","Performance of the agency's own outreach"],
- warmup:["Email Warm-up","Keeping the agency's own mailboxes' reputation warm"],
- refer:["Refer a Friend","Saleshandy's referral programme, for the agency's own account"],
+ seq:["Sequences","Your own campaigns, for winning clients"],
+ task:["Tasks","Tasks on yours own outreach","Tasks across the workspaces you work on"],
+ inbox:["Unified Inbox","Replies to your own campaigns","Replies across the workspaces you work on"],
+ leads:["Lead Finder","Sourcing for your own pipeline"],
+ crm:["CRM","Your own prospects: companies it wants as clients"],
+ dialer:["Dialer","Calls on yours own outreach"],
+ verify:["Email Verifier","Verification for your own lists"],
+ mail:["Email Accounts","Mailboxes on yours own domain"],
+ tmpl:["Templates","Your own templates"],
+ radar:["Inbox Radar","Placement for yours own domain"],
+ analytics:["Analytics","Performance of yours own outreach"],
+ warmup:["Email Warm-up","Keeping your own mailboxes' reputation warm"],
+ refer:["Refer a Friend","Saleshandy's referral programme, for your own account"],
 };
 /* ═══ agency Unified Inbox ═══════════════════════════════════════════════════
    18 Sep 2026, Hitesh: "For unified inbox in agency admin panel, we should
    similar ui to this with clear separation between clients." The list and the
    pane are the live product's; the grouping, the chips, the filter and the
-   pane header are the agency's addition. */
+   pane header are yours addition. */
 let UBX_ALL=[];
 const ubxClient=r=>r.client==="own"?OWN_WS:byId[r.client];
 const ubxUnread=r=>!r.replied&&!r.read;
@@ -5283,7 +5283,7 @@ function ubxCard(r){
 function ubxListHTML(){
  const th=ubxThreads();
  if(UBX.tab==="scheduled"||UBX.tab==="draft") return `<div class="ubx-none"><p class="empty-t" style="font-size:14px">${UBX.tab==="scheduled"?"Nothing scheduled":"No drafts"}</p>
-   <p class="sub" style="margin:6px 0 0">${UBX.tab==="scheduled"?"Replies you schedule from any client's thread wait here.":"A reply you start and leave waits here, filed under its client."}</p></div>`;
+   <p class="sub" style="margin:6px 0 0">${UBX.tab==="scheduled"?"Replies you schedule from any workspace's thread wait here.":"A reply you start and leave waits here, filed under its workspace."}</p></div>`;
  if(!th.length) return `<div class="ubx-none"><p class="empty-t" style="font-size:14px">No threads</p><p class="sub" style="margin:6px 0 0">${UBX.q?"Nothing matches \\u201c"+UBX.q+"\\u201d.":"Nothing waiting in this view."}</p></div>`;
  /* one group per client, busiest first, the agency's own last. Not by unread:
     reading a thread must not reorder the list under the cursor. */
@@ -5307,7 +5307,7 @@ function ubxListHTML(){
 }
 /* 18 Sep, Hitesh (point 13): "if some agency have 10 clients then how the
    filter will look". A pill row does not scale past a handful, so the client
-   filter is its own column: one row per client, unread on the right, the
+   filter is its own column: one row per workspace, unread on the right, the
    agency's own last, and a search inside the column once there are more than
    six. It narrows the thread list exactly as the pills did. */
 /* every client you can see, not only those with a thread: a quiet client is a
@@ -5318,22 +5318,22 @@ function ubxClientRowsHTML(){
  const all=UBX_ALL, q=UBX.cq.trim().toLowerCase();
  const row=(k,name,ico,n,un)=>`<button class="ubx-cl" data-ubxclient="${k}" aria-pressed="${UBX.client===k}" title="${name}${un?", "+un+" unread":""}">${ico}<span class="nm trunc">${name}</span><span class="cnt tnum">${n}</span>${un?`<span class="ubx-badge">${un}</span>`:""}</button>`;
  const ids=ubxClientIds().filter(id=>!q||ubxClient({client:id}).name.toLowerCase().indexOf(q)>-1);
- return (q?"":row("all","All clients",`<span class="ubx-allico">${ubxI.inboxes}</span>`,all.length,all.filter(ubxUnread).length))
+ return (q?"":row("all","All workspaces",`<span class="ubx-allico">${ubxI.inboxes}</span>`,all.length,all.filter(ubxUnread).length))
   +ids.map(id=>{const c=ubxClient({client:id}),rows=all.filter(r=>r.client===id);
     return row(id,c.own?AGENCY.name:c.name,av(c,24),rows.length,rows.filter(ubxUnread).length)}).join("")
-  +(ids.length?"":`<p class="sub" style="padding:10px 12px;margin:0">No client matches.</p>`);
+  +(ids.length?"":`<p class="sub" style="padding:10px 12px;margin:0">No workspace matches.</p>`);
 }
 function ubxClientsHTML(){
  const n=ubxClientIds().length;
- return `<div class="ubx-clients"><div class="ubx-clh">Clients <span class="sub">${n}</span></div>
-  ${n>6?`<label class="ubx-search ubx-csearch">${ubxI.search}<input id="ubxCQ" type="search" value="${UBX.cq}" placeholder="Find a client" aria-label="Find a client"></label>`:""}
+ return `<div class="ubx-clients"><div class="ubx-clh">Workspaces <span class="sub">${n}</span></div>
+  ${n>6?`<label class="ubx-search ubx-csearch">${ubxI.search}<input id="ubxCQ" type="search" value="${UBX.cq}" placeholder="Find a workspace" aria-label="Find a workspace"></label>`:""}
   <div class="ubx-clrows" id="ubxClients">${ubxClientRowsHTML()}</div></div>`;
 }
 function ubxPaneHTML(){
  const r=UBX_ALL.find(x=>x.id===UBX.open);
  if(!r){
   const cid=UBX.client, line=cid==="all"
-    ?"Every thread is filed under its client; only that client's members see it."
+    ?"Every thread is filed under its workspace; only that workspace's members see it."
     :(()=>{const cc=ubxClient({client:cid}), n=UBX_ALL.filter(x=>x.client===cid).length;
       return "Only people added to "+(cc.own?AGENCY.name:cc.name)+" see these "+n+" thread"+(n===1?"":"s")+".";})();
   return `<div class="ubx-empty">${ubxI.bubbles}<span>No conversations selected</span>
@@ -5345,7 +5345,7 @@ function ubxPaneHTML(){
  return `<div class="ubx-ph">${av(c,32)}<span style="min-width:0;flex:1">
     <span style="display:flex;align-items:center;gap:8px"><span class="semibold-3 trunc">${c.own?AGENCY.name:c.name}</span>
      ${own?"":`<button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace">${ubxI.go}</button>`}</span>
-    <span class="cs trunc">${r.from} &middot; ${ubxSubject(c,r)} &middot; ${own?"external, to the agency's own mailbox":"replying from "+mbx}</span></span>
+    <span class="cs trunc">${r.from} &middot; ${ubxSubject(c,r)} &middot; ${own?"external, to your own mailbox":"replying from "+mbx}</span></span>
    ${r.replied?'<span class="chip c-ok">Replied</span>':r.positive?'<span class="chip c-ok">Interested</span>':'<span class="chip c-mute">Not interested</span>'}</div>
   <div class="ubx-pb">
    ${own?"":`<div class="tmsg tmsg-out"><span class="cs">${AGENCY.name} for ${c.name} &middot; ${seq}, step 2 &middot; 3 days ago</span>
@@ -5427,7 +5427,7 @@ function vAgencyMod(){
    <div class="panel-h"><span class="panel-t">${t}</span>
     ${n?`<span class="c-a"><span class="chip c-info">${n[0]}</span></span>`:""}</div>
    <div class="panel-b"><p class="sub" style="margin:0">${n?n[1]
-     :"The existing Saleshandy module, scoped to the agency workspace."}</p>
+     :"The existing Saleshandy module, scoped to your workspace."}</p>
    </div></div>`};
  let body;
  if(k==="seq"){
@@ -5449,21 +5449,21 @@ function vAgencyMod(){
     return x.inherited.some(i=>i.id===t.id)||x.overrides.some(o=>o.base===t.id)}).length;
   const overridden=t=>live.filter(c=>(CLIENT_TMPL[c.id]||[]).some(o=>o.base===t.id)).length;
   body=`<div class="panel">
-   <div class="panel-h"><span class="panel-t">Agency library</span>
-    <span class="sub">${TEMPLATES.length} templates &middot; ${shared} published to every client workspace &middot; ${locked} locked</span></div>
+   <div class="panel-h"><span class="panel-t">Your library</span>
+    <span class="sub">${TEMPLATES.length} templates &middot; ${shared} published to every workspace &middot; ${locked} locked</span></div>
    <div class="tscroll"><table class="organism" style="min-width:880px">
-    <thead><tr><th>Template</th><th>Where it appears</th><th>Client can edit</th>
-     <th class="ar">In sequences</th><th class="ar">Client workspaces</th><th>Last edited</th></tr></thead>
+    <thead><tr><th>Template</th><th>Where it appears</th><th>Workspace can edit</th>
+     <th class="ar">In sequences</th><th class="ar">Workspaces</th><th>Last edited</th></tr></thead>
     <tbody>${TEMPLATES.map(t=>`<tr>
       <td><span style="font-weight:600;color:var(--blue-15)">${t.name}</span>
         <span class="cs" style="display:block">${t.by}</span></td>
       <td>${canI("settings")
         ?`<button class="linkbtn" data-tscope="${t.id}" title="Switch where this template appears">
-           <span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Every client":"Agency only"}</span></button>`
-        :`<span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Every client":"Agency only"}</span>`}</td>
+           <span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Every workspace":"Your workspace only"}</span></button>`
+        :`<span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Every workspace":"Your workspace only"}</span>`}</td>
       <td>${t.scope!=="all"?'<span class="sub">–</span>'
         :canI("settings")
-        ?`<button class="linkbtn" data-tlock="${t.id}" title="Lock or unlock client editing">
+        ?`<button class="linkbtn" data-tlock="${t.id}" title="Lock or unlock workspace editing">
            <span class="chip c-${t.locked?"bad":"ok"}">${t.locked?"Locked":"Can copy and edit"}</span></button>`
         :`<span class="chip c-${t.locked?"bad":"ok"}">${t.locked?"Locked":"Can copy and edit"}</span>`}</td>
       <td class="ar tnum">${t.seqs}</td>
@@ -5476,7 +5476,7 @@ function vAgencyMod(){
   </div>`;
  } else if(k==="crm"){
   body=`<div class="panel"><div class="panel-h"><span class="panel-t">${f(O.prospects)} prospects</span>
-    <span class="c-a"><span class="sub">Companies the agency wants as clients</span></span></div>
+    <span class="c-a"><span class="sub">Companies you want as clients</span></span></div>
    <div class="tscroll"><table class="organism" style="min-width:640px">
     <thead><tr><th>Company</th><th>Stage</th><th class="ar">Contacted</th><th>Last activity</th></tr></thead>
     <tbody>${[["Fairline Freight","Replied",4,"2 hours"],["Cass Metals","Contacted",3,"yesterday"],
@@ -5493,8 +5493,8 @@ function vAgencyMod(){
       <td><span class="chip c-${h==="Healthy"?"ok":"warn"}">${h}</span></td>
       <td class="ar tnum">${v}</td></tr>`).join("")}</tbody></table></div>
    <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">A mailbox
-    belongs to exactly one workspace. These are the agency's; a client's mailboxes are on the
-    client's Email Accounts tab and cannot be moved here without unassigning them there.</span></div></div>`;
+    belongs to exactly one workspace. These are yours; a workspace's mailboxes are on the
+    workspace's Email Accounts tab and cannot be moved here without unassigning them there.</span></div></div>`;
  } else if(k==="inbox"){
   const ownRep=AGENCY_OWN.replies.map((x,i)=>({id:"own"+i,client:"own",from:x[0],snippet:x[1],age:x[2],positive:x[3]}));
   const allRep=REPLIES.filter(r=>myClientsFor("inbox").some(c=>c.id===r.client))
@@ -5502,7 +5502,7 @@ function vAgencyMod(){
   /* 18 Sep, Hitesh: agency Unified Inbox to the live inbox's shape, separated
      by client. The live screen is tabs, a thread list and a reading pane; the
      agency's version keeps that and makes the client the organising line:
-     grouped list with a sticky header per client, a client chip on every
+     grouped list with a sticky header per workspace, a client chip on every
      thread, a client filter above the list, and the client named first in the
      pane. Replies still land in the client's workspace. */
   UBX_ALL=allRep;
@@ -5521,9 +5521,9 @@ function vAgencyMod(){
        <td><span class="chip c-${t.due==="overdue"?"bad":t.due==="today"?"warn":"mute"}">${t.due}</span></td>
        <td><span class="sub">${t.who}</span></td>
        <td class="ar colact"><button class="linkbtn" data-taskdone="${t.id}">Done</button> <button class="linkbtn" data-goto="${c.id}|sequences" style="margin-left:10px">Open</button></td></tr>`}).join("")
-    :'<tr><td colspan="6"><span class="sub">No tasks on the agency\'s own outreach.</span></td></tr>';
+    :'<tr><td colspan="6"><span class="sub">No tasks on your own outreach.</span></td></tr>';
   body=`<div class="panel"><div class="tscroll"><table class="organism" style="min-width:900px">
-    <thead><tr><th>Client</th><th>Type</th><th>What needs doing</th><th>Due</th><th>Assigned to</th><th class="colact"></th></tr></thead>
+    <thead><tr><th>Workspace</th><th>Type</th><th>What needs doing</th><th>Due</th><th>Assigned to</th><th class="colact"></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="6"><span class="sub">Nothing due.</span></td></tr>'}</tbody></table></div></div>`;
  } else if(k==="analytics"){
   body=`<div class="kpis">
@@ -5533,9 +5533,9 @@ function vAgencyMod(){
        <span class="sub" style="display:block;margin-bottom:4px">${l}</span>
        <span style="font-size:26px;font-weight:600;color:var(--gray-17)">${v}</span></div></div>`).join("")}
    </div>
-   <div class="panel" style="margin-top:20px"><div class="panel-b"><span class="sub">The agency's
-    own numbers only. Overall performance across your clients already has a home: the
-    <button class="linkbtn" data-godash>Home</button>, which ranks clients rather than
+   <div class="panel" style="margin-top:20px"><div class="panel-b"><span class="sub">Your
+    own numbers only. Overall performance across your workspaces already has a home: the
+    <button class="linkbtn" data-godash>Home</button>, which ranks workspaces rather than
     blending them into one rate.</span></div></div>`;
  } else {
   body=parked(`${label} for ${AGENCY.name}`);
@@ -5543,7 +5543,7 @@ function vAgencyMod(){
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0">
      <span class="semibold-3" style="display:block">${label}</span>
-     <span class="cs">${across&&subAcross?subAcross:subOwn.replace(/the agency's/i,AGENCY.name+"'s")}</span></span></div>
+     <span class="cs">${across&&subAcross?subAcross:subOwn.replace(/yours/i,AGENCY.name+"'s")}</span></span></div>
    <div class="tools">${toggle}</div>
   </div>
   <div class="wrap">${scope}${body}</div>`;
@@ -5697,7 +5697,7 @@ function vAgencyAnalytics(){
 /* ═══ agency-side API & Integrations, the agency's own section. 54 §2.
    Keys and MCP sessions share one table shape (Label, Scope, Created by,
    Created, Last used); scope is "agency" (acts across every workspace) or a
-   workspace id. Only Owner and Admin may mint an agency-scoped key; a Member
+   workspace id. Only Owner and Admin may mint an account-scoped key; a Member
    can still open the screen and create a workspace-scoped one.             */
 let apiTab="keys", apiKeyFormOpen=false, apiKeyRevokeConfirm=null,
     apiWebhookFormOpen=false, apiWebhookEvSel=[], apiConnectOpen=null, apiDisconnectConfirm=null;
@@ -5723,7 +5723,7 @@ let API_WEBHOOKS=[
 const isOwnerOrAdmin=()=>ME().role!=="Member";
 /* where the queue used to be the fallback: Home for those who have it, Clients otherwise (D13) */
 const homeView=()=>({name:canI("dashboard")?"dash":"clients"});
-const apiScopeName=s=>s==="agency"?"Agency":s==="own"?AGENCY.name:(byId[s]?byId[s].name:s);
+const apiScopeName=s=>s==="agency"?"Account-wide":s==="own"?AGENCY.name:(byId[s]?byId[s].name:s);
 const apiWsOpts=()=>myClients().concat([OWN_WS]);
 function apiKeyTable(list,note,kind){
  const rows=list.map(k=>`<tr><td>${k.label}</td>
@@ -5748,11 +5748,11 @@ function apiKeysTab(){
      <div class="field"><label class="flabel" for="apiKeyLabel">Label</label><input type="text" class="inp" id="apiKeyLabel" placeholder="Reporting pull"></div>
      <div class="field"><label class="flabel" for="apiKeyScope">Scope</label>
       <select class="inp" id="apiKeyScope" style="width:320px">
-       <option value="agency" ${canAgency?"":"disabled"} title="${canAgency?"":"Only an Owner or Admin can create an agency-scoped key"}">Agency, acts across workspaces</option>
+       <option value="agency" ${canAgency?"":"disabled"} title="${canAgency?"":"Only an Owner or Admin can create an account-scoped key"}">Account-wide, acts across workspaces</option>
        ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
       </select>
-      <p class="sub" style="margin-top:6px">An agency key must name the workspace it acts in on every call; a call without one acts in your own workspace.</p>
-      ${canAgency?"":'<p class="sub" style="margin-top:2px">Only an Owner or Admin can create an agency-scoped key.</p>'}
+      <p class="sub" style="margin-top:6px">An account-wide key must name the workspace it acts in on every call; a call without one acts in your own workspace.</p>
+      ${canAgency?"":'<p class="sub" style="margin-top:2px">Only an Owner or Admin can create an account-scoped key.</p>'}
      </div>
      <div style="display:flex;gap:8px"><button class="shd-button shd-button--primary shd-button--sm" data-apikeysave>Create key</button>
       <button class="shd-button shd-button--tertiary shd-button--sm" data-apikeycancel>Cancel</button></div>
@@ -5783,7 +5783,7 @@ function apiIntegrationsTab(){
         :`<button class="shd-button shd-button--secondary shd-button--sm" data-apiconnect="${key}">Connect</button>`}
      </div></div></div>`;
  }).join("")}</div>
- <div class="panel" style="margin-top:16px"><div class="panel-b"><span class="sub">CRM connections stay per workspace. A client's CRM is connected inside the client's own workspace, by ${AGENCY.name} or by a Workspace Admin.</span></div></div>`;
+ <div class="panel" style="margin-top:16px"><div class="panel-b"><span class="sub">CRM connections stay per workspace. A workspace's CRM is connected inside that workspace, by ${AGENCY.name} or by a Workspace Admin.</span></div></div>`;
 }
 function apiWebhooksTab(){
  const wsOpts=apiWsOpts();
@@ -5799,7 +5799,7 @@ function apiWebhooksTab(){
      <div class="field"><label class="flabel" for="whUrl">URL</label><input type="text" class="inp" id="whUrl" placeholder="https://"></div>
      <div class="field"><label class="flabel" for="whScope">Scope</label>
       <select class="inp" id="whScope" style="width:320px">
-       <option value="agency">Agency, across every workspace</option>
+       <option value="agency">Account-wide, across every workspace</option>
        ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
       </select></div>
      <div class="field"><label class="flabel">Events</label>
@@ -5847,7 +5847,7 @@ function vInClient(){
      <div class="panel-h"><span class="panel-t">${parked} for ${c.name}</span>
       ${pnote?`<span class="c-a"><span class="chip c-info">${pnote[0]}</span></span>`:""}</div>
      <div class="panel-b"><p class="sub" style="margin:0 0 8px">${pnote?pnote[1]
-       :"The existing Saleshandy module, scoped to this client's workspace."}</p>
+       :"The existing Saleshandy module, scoped to this workspace."}</p>
       <p class="sub" style="margin:0">Everything here belongs to ${c.name}'s workspace and appears in no other.</p>
      </div></div>`
   :inMod==="prospects"?(openProspect?cProspect(c):cPros(c))
@@ -5858,11 +5858,11 @@ function vInClient(){
      <thead><tr><th>From</th><th>Message</th><th>Age</th><th class="colact"></th></tr></thead><tbody>
      ${inboxRows.length?inboxRows.map(r=>`<tr><td style="font-weight:500">${r.from}</td><td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
        <td class="ar colact"><span class="chip ${r.positive?"c-ok":"c-mute"}">${r.positive?"Interested":"Reply"}</span></td></tr>`).join("")
-      :'<tr><td colspan="4"><span class="sub">No replies yet'+(own?" on the agency's own campaigns":" for "+c.name)+'.</span></td></tr>'}</tbody></table></div></div>`
+      :'<tr><td colspan="4"><span class="sub">No replies yet'+(own?" on your own campaigns":" for "+c.name)+'.</span></td></tr>'}</tbody></table></div></div>`
   :seqTable(c,true);
  return `<div class="toolbar">
    <div class="cell-main">${av(c,32)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
-    <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Client workspace")+" &middot; "+inModLabel()}</span></span></div>
+    <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Workspace")+" &middot; "+inModLabel()}</span></span></div>
    <div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>
    <div class="tools">${own?"":queueBack()+clientNav(c)}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
     ${inMod==="sequences"?'<button class="shd-button shd-button--primary" data-flash="Not in this prototype">Create Sequence</button>':""}</div></div>
@@ -5897,7 +5897,7 @@ function clientSetupBlock(c){
   +'</div></div></div>';
 }
 function onboardBlock(){
- const done=setupDone?4:1, steps=SETUP_STEPS.concat([["Add Clients","__client"]]);
+ const done=setupDone?4:1, steps=SETUP_STEPS.concat([["Add a workspace","__client"]]);
  const pct=Math.round(done/steps.length*100);
  return '<div class="card" style="margin-bottom:16px"><div class="c-b">'
   +'<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
@@ -5916,11 +5916,11 @@ function onboardBlock(){
        +(ok?'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--green-16)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
           :'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>')
        +'<span style="font-size:14px;font-weight:'+(ok?400:500)+';color:var(--gray-'+(ok?"11":"17")+')">'+label+'</span></span>'
-      +(ok?'':'<button class="linkbtn" '+(last?'id="dashAdd"':'data-nav2n="'+go+'"')+'>'+(last?"Add Clients":label)+' &rarr;</button>')
+      +(ok?'':'<button class="linkbtn" '+(last?'id="dashAdd"':'data-nav2n="'+go+'"')+'>'+(last?"Add a workspace":label)+' &rarr;</button>')
       +'</div>'}).join("")
   +'</div>'
-  +(done>=SETUP_STEPS.length?'<p class="sub" style="margin:14px 0 0;max-width:62ch">Running outreach for someone else? '
-    +'Give each client their own workspace: their own sequences, prospects and mailboxes, separate from yours and from each other.</p>':'')
+  +(done>=SETUP_STEPS.length?'<p class="sub" style="margin:14px 0 0;max-width:62ch">Running outreach for more than one business, or for clients? '
+    +'Give each its own workspace: its own sequences, prospects and mailboxes, separate from yours and from each other.</p>':'')
   +'</div></div>';
 }
 
@@ -5949,7 +5949,7 @@ const canViewAs=c=>true;
 const viewAsBtn=(c,cls)=>`<button class="${cls}" data-asclient="${c.id}">View as client</button>`;
 const grace=()=>GRACE.on;
 const graceBanner=()=>grace()?`<div class="msg m-bad grace" style="margin-bottom:20px">${warnI}<span><strong>Payment failed on ${GRACE.failedOn}.</strong>
-  ${GRACE.daysLeft} days to update the card before the account pauses. Your clients keep reading their workspaces; nothing is sending.
+  ${GRACE.daysLeft} days to update the card before the account pauses. Everyone keeps reading their workspaces; nothing is sending.
   ${canI("billing")?'<button class="linkbtn" data-gobill>Update payment</button>':"An owner updates the card."}</span></div>`:"";
 const graceNote=c=>grace()?`<div class="msg m-warn grace" style="margin-bottom:16px">${warnI}<span>Sending is paused by ${AGENCY.name}.
   You can see everything as usual; your sequences resume when they restart them.</span></div>`:"";
@@ -5988,9 +5988,9 @@ function dashItems(){
     client:c?c.id:null, collision:cross,
     what:cross?a.kind:a.kind+" on "+c.name+", unresolved for "+a.age,
     why:a.kind==="Bounce rate rising"
-        ?a.detail+". Every client sending from this domain pool is exposed, not only this one."
+        ?a.detail+". Every workspace sending from this domain pool is exposed, not only this one."
       :a.kind==="Email account disconnected"
-        ?a.detail+". Volume the client is paying for is not going out."
+        ?a.detail+". Volume this workspace pays for is not going out."
       :a.detail+"."})});
  /* a link request nobody has approved is stalled onboarding, and only the agency
     can chase it. The client cannot approve something they were never told about. */
@@ -6219,25 +6219,25 @@ const SETS=[
  ["profile","My Profile","user","U","Yours, unchanged in either context. Name, phone, time zone, email and password belong to a person, not a place."],
 
  ["users","Users &amp; Teams","company","A + W",
-  "Identity is account level: a person exists once. <b>Membership is per workspace</b>, and that is the new axis. Inside a client this lists only who is a member here. Teams stay an account grouping and do not cross into workspaces."],
+  "Identity is account level: a person exists once. <b>Membership is per workspace</b>, and that is the new axis. Inside a workspace this lists only who is a member here. Teams stay an account grouping and do not cross into workspaces."],
  ["admin","Admin Settings","company","A &rarr; W",
-  "Six of the seven groups become Pattern A: account default, workspace override, agency can lock. Verification on import and AI categorisation spend account credits and default to locked. <b>Security (SSO, authorised domain, MFA) stays account only</b> and is not shown inside a client."],
+  "Six of the seven groups become Pattern A: account default, workspace override, you can lock. Verification on import and AI categorisation spend account credits and default to locked. <b>Security (SSO, authorised domain, MFA) stays account only</b> and is not shown inside a workspace."],
  ["fields","Prospect Fields","company","W",
-  "Per workspace. Today there is one shared set, which the card names as a problem: a field one client needs shows up for every client. A new workspace starts with System fields and can copy the agency's."],
+  "Per workspace. Today there is one shared set, which the card names as a problem: a field one workspace needs shows up for every workspace. A new workspace starts with System fields and can copy the account's."],
  ["pout","Prospect Outcomes","company","A &rarr; W",
-  "The account taxonomy always applies. A workspace may <b>add</b> an outcome, never delete an account one, or the cross-client roll-up breaks."],
+  "The account taxonomy always applies. A workspace may <b>add</b> an outcome, never delete an account one, or the cross-workspace roll-up breaks."],
  ["cout","Call Outcome","company","A &rarr; W","Same rule as prospect outcomes."],
  ["sched","Schedules","company","A &rarr; W",
-  "Account schedules are inherited read-only. A workspace adds its own and sets its own default, because a client in another time zone needs a different sending window."],
+  "Account schedules are inherited read-only. A workspace adds its own and sets its own default, because a workspace in another time zone needs a different sending window."],
  ["ooo","Out of Office","company","A &rarr; W",
-  "Account default for the pause rule; a workspace may override. Cheap, and a client with a long cycle may want a longer pause."],
+  "Account default for the pause rule; a workspace may override. Cheap, and a workspace with a long cycle may want a longer pause."],
  ["safety","Safety Settings","company","A &rarr; W",
   "Stop the sequence for a whole company when one person replies. Prospects are per workspace, so the setting is naturally workspace shaped."],
  ["integ","Integrations","company","W",
-  "<b>CRM connections are per user today</b>, and one person's HubSpot receives every client's prospects. New: a connection is made inside a workspace and fires only for it. The same person in two workspaces connects twice."],
- ["hook","Webhook","company","W","Per workspace, and the payload gains a workspace id. A webhook that fires for every client's events cannot be handed to one client."],
+  "<b>CRM connections are per user today</b>, and one person's HubSpot receives every workspace's prospects. New: a connection is made inside a workspace and fires only for it. The same person in two workspaces connects twice."],
+ ["hook","Webhook","company","W","Per workspace, and the payload gains a workspace id. A webhook that fires for every workspace's events cannot be handed to one workspace."],
  ["api","API Key","company","W only",
-  "<b>No account level key that can act across every workspace.</b> That is a security decision, not a convenience. Existing keys get pinned to the agency workspace."],
+  "<b>No account level key that can act across every workspace.</b> That is a security decision, not a convenience. Existing keys get pinned to your workspace."],
  ["mcp","MCP","company","W","Same reasoning as the API key. The workspace boundary is the first permission gate this page has ever had."],
  ["ctd","Custom Tracking Domain","company","A pool &rarr; W",
   /* 25 Sep 2026: this used to say "Mirrors the mailbox rule", when both were
@@ -6246,12 +6246,12 @@ const SETS=[
      is no longer true, so it is dropped rather than left to mislead. */
   "The account holds the pool; a domain is assigned to exactly one workspace."],
  ["dnc","Do Not Contact List","company","A floor + W",
-  "Already client aware today (All Clients or Specific Client). Global lists are the floor and <b>cannot be removed here</b>; client lists become this workspace's. Suppression gets stricter, never looser."],
- ["dncall","Do Not Call List","company","A floor + W","Same rule as the do-not-contact list, and the item is no longer hidden from agencies."],
+  "Already workspace aware today (All Workspaces or Specific Workspace). Global lists are the floor and <b>cannot be removed here</b>; workspace lists become this workspace's. Suppression gets stricter, never looser."],
+ ["dncall","Do Not Call List","company","A floor + W","Same rule as the do-not-contact list, and the item is no longer hidden."],
  ["wl","Whitelabel","agency","A",
-  "Account level only. Nobody in the market brands per client. <b>Not present inside a client workspace.</b>"],
+  "Account level only. Nobody in the market brands per workspace. <b>Not present inside a workspace.</b>"],
  ["bill","Billing &amp; Subscription","agency","A + W alloc",
-  "One plan, one pool, bought once by the agency. The per workspace cap lives here as Workspace allocation, and covers the agency's own workspace too. <b>Not present inside a client workspace.</b>"],
+  "One plan, one pool, bought once by the account. The per workspace cap lives here as Workspace allocation, and covers your own workspace too. <b>Not present inside a workspace.</b>"],
 ];
 const setById=Object.fromEntries(SETS.map(x=>[x[0],x]));
 
@@ -6276,25 +6276,25 @@ function vSettings(){
 
  const nav='<div class="setnav">'+grp("user","User settings")
   +grp("company",isNormal()?"Company settings":agency?"Company settings":"Workspace settings")
-  +(hidden.length?'<h4>Belongs to the agency</h4>'
+  +(hidden.length?'<h4>Belongs to the account</h4>'
     +hidden.map(x=>'<div class="gone-row"><s>'+x[1]+'</s></div>').join(""):"")
   +'</div>';
 
  const where=sel[3]==="U"?"Your own account"
    :isNormal()?"This account"
-   :sel[2]==="agency"?"The agency account, one copy"
+   :sel[2]==="agency"?"The account, one copy"
    :sel[3]==="W"||sel[3]==="W only"?"This workspace"
-   :"The agency account, then this workspace";
+   :"The account, then this workspace";
  const cando=isNormal()?"Set it here. It is the only copy there is."
    :agency
    ?(sel[2]==="agency"?"Set it here. It is the only copy there is."
-     :sel[3]==="W"||sel[3]==="W only"?"Set the agency workspace's own copy. Each client holds its own."
-     :sel[3]==="A + W"?"Create and remove people here. Membership is set per client, on the client's Members tab."
-     :"Set the account default, and lock it if a client must not override it.")
+     :sel[3]==="W"||sel[3]==="W only"?"Set your workspace's own copy. Each workspace holds its own."
+     :sel[3]==="A + W"?"Create and remove people here. Membership is set per workspace, on the workspace's Members tab."
+     :"Set the account default, and lock it if a workspace must not override it.")
    :(sel[3]==="W"||sel[3]==="W only"?"Set it for "+c.name+" only. No other workspace can see or use it."
-     :sel[3].indexOf("floor")>-1?"Add to the account list. Nothing the agency set can be removed here."
+     :sel[3].indexOf("floor")>-1?"Add to the account list. Nothing the account set can be removed here."
      :sel[3]==="A + W"?"Manage who is a member of "+c.name+". People themselves are created at account level."
-     :"Override the account default for "+c.name+", unless the agency locked it.");
+     :"Override the account default for "+c.name+", unless the account locked it.");
 
  const nCompany=SETS.filter(x=>x[2]!=="user").length;
  const nHere=vis.filter(x=>x[2]!=="user").length;
@@ -6302,9 +6302,9 @@ function vSettings(){
  return `<div class="toolbar">
    <div class="cell-main">${agency?"":av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">Settings</span>
-     <span class="cs">${isNormal()?AGENCY.name:agency?"Agency workspace":asC?c.name+", as the client sees it":c.name+" workspace"}</span>
+     <span class="cs">${isNormal()?AGENCY.name:agency?"Your workspace":asC?c.name+", as its users see it":c.name+" workspace"}</span>
    </span></div>
-   <div class="tools">${agency||asC?"":`<button class="shd-button shd-button--tertiary" data-nav2="clients">Clients</button>`}</div>
+   <div class="tools">${agency||asC?"":`<button class="shd-button shd-button--tertiary" data-nav2="clients">Workspaces</button>`}</div>
   </div>
   <div class="wrap">
    ${agency&&canI("billing")?`<div class="msg m-info">${infoI}<span>Your migration summary is
@@ -6314,8 +6314,8 @@ function vSettings(){
      <button class="linkbtn" data-rollback>Roll back</button></span></div>`:""}
    ${agency?"":`<div class="msg m-info">${infoI}<span>This workspace carries
      <strong>${nHere} of the ${nCompany}</strong> administration items. Whitelabel and Billing
-     &amp; Subscription belong to the agency and are not reachable from
-     here${asC?", and neither is anything else the agency administers":""}.</span></div>`}
+     &amp; Subscription belong to the account and are not reachable from
+     here${asC?", and neither is anything else the account administers":""}.</span></div>`}
    <div class="setwrap">
     ${nav}
     <div class="panel">
@@ -6323,7 +6323,7 @@ function vSettings(){
       <span class="chip c-info">${where}</span></div>
      <div class="inh">
       <div class="k">Where it is set</div><div>${where}</div>
-      <div class="k">${isNormal()?"What you can do":agency?"What the agency can do":"What this workspace can do"}</div><div>${cando}</div>
+      <div class="k">${isNormal()?"What you can do":agency?"What the account can do":"What this workspace can do"}</div><div>${cando}</div>
       ${isNormal()?"":`<div class="k">The rule</div><div>${sel[4]}</div>`}
      </div>
     </div>
@@ -6393,13 +6393,13 @@ function decide(btn,commit){const row=btn.closest("tr,.pri2");
 const agoText=t=>{const m=Math.round((Date.now()-t)/60000); return m<1?"just now":m<60?m+" min ago":Math.round(m/60)+" h ago"};
 function decisionsEmpty(){const d=DECIDED[0];
  return '<div class="c-b dq-empty"><span class="dq-check">'+tickI+'</span><p class="dq-empty-t">Nothing needs you right now</p>'
-  +'<p class="sub" style="margin:0">'+(d?'Last decision '+agoText(d.at)+': '+d.what+(d.freed?'; '+d.freed:''):'Decisions will appear here as clients ask for things.')+'</p></div>'}
+  +'<p class="sub" style="margin:0">'+(d?'Last decision '+agoText(d.at)+': '+d.what+(d.freed?'; '+d.freed:''):'Decisions will appear here as workspaces ask for things.')+'</p></div>'}
 /* 21 Sep 2026, delight pass round 1: the queue's own empty state, in the
    check-illustration style decisionsEmpty() already uses on Home, but with
    the queue's own last-item line and the queue's own first-time copy. */
 function queueEmpty(){const d=DECIDED[0];
  return '<div class="dq-empty"><span class="dq-check">'+tickI+'</span><p class="dq-empty-t">Nothing needs you right now</p>'
-  +'<p class="sub" style="margin:0">'+(d?'Last item: '+d.what+' '+agoText(d.at):'Items appear here as clients ask for things and as sending needs attention.')+'</p></div>'}
+  +'<p class="sub" style="margin:0">'+(d?'Last item: '+d.what+' '+agoText(d.at):'Items appear here as workspaces ask for things and as sending needs attention.')+'</p></div>'}
 /* the consequence a control carries, in the row's own numbers, shown before
    the click rather than after. Same derivation compute() and REQUESTS feed
    into the row's own copy, so the tooltip can never disagree with the row. */
@@ -6444,7 +6444,7 @@ function clientNav(c){
  if(i<0||L.length<2) return "";
  const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
  const suffix=fromOrigin&&ORIGIN.attn?" needing attention":"";
- return `<span class="cnav"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous client, ${p.name}">&#8249;</button><span class="sub tnum">${i+1} of ${L.length}${suffix}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next client, ${n.name}">&#8250;</button></span>`;
+ return `<span class="cnav"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous workspace, ${p.name}">&#8249;</button><span class="sub tnum">${i+1} of ${L.length}${suffix}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next workspace, ${n.name}">&#8250;</button></span>`;
 }
 function queueBack(){
  if(!qFrom) return "";
@@ -6487,20 +6487,20 @@ function queueItems(){
   if(a.kind==="Email account disconnected") add({score:100,sev:"critical",kind:a.kind,client:a.client,mb,
     why:`3 days of sending lost. ${byId[a.client].name} is not receiving the volume they pay for`,age:a.age,act:"Reconnect"});
   else if(a.kind==="Bounce rate rising") add({score:60,sev:"warning",kind:a.kind,client:a.client,mb,
-    why:"Left alone this damages the domain and every client sending from it",age:a.age,act:"Investigate"});
+    why:"Left alone this damages the domain and every workspace sending from it",age:a.age,act:"Investigate"});
   else if(a.kind==="Sequence stalled") add({score:55,sev:"warning",kind:a.kind,client:a.client,
-    why:"A campaign the client is paying for has stopped",age:a.age,act:"Open"});
+    why:"A campaign this workspace pays for has stopped",age:a.age,act:"Open"});
   else if(a.kind==="Prospect overlap"&&myClients().length>1) add({score:10,sev:"info",kind:a.kind,client:null,
-    why:"Two of your clients are contacting the same people",age:a.age,act:"Review",collision:true});
+    why:"Two of your workspaces are contacting the same people",age:a.age,act:"Review",collision:true});
  });
  /* the one event that stops every client at once. Owner and admin see it,
     because they are the ones who can add capacity or move allocation. */
  /* outranks a dead mailbox: one mailbox stops one client, this stops all of them */
  if(grace()&&canI("limits")) add({score:101,sev:"critical",kind:"Payment failed",client:null,pay:true,
-   why:`Failed on ${GRACE.failedOn}. ${GRACE.daysLeft} days before the account pauses. Every client is reading and nothing is sending`,age:"today",act:"Update payment"});
+   why:`Failed on ${GRACE.failedOn}. ${GRACE.daysLeft} days before the account pauses. Every workspace is reading and nothing is sending`,age:"today",act:"Update payment"});
  const ro=canI("limits")?runsOut():null;
  if(ro&&ro.d<PACE_DAYS) add({score:95,sev:"critical",kind:"Plan runs out",client:null,plan:true,
-   why:`${RES[ro.k].label} at this burn is gone ${onDay(ro.d)}. Every client stops with it`,age:"today",act:"Add capacity"});
+   why:`${RES[ro.k].label} at this burn is gone ${onDay(ro.d)}. Every workspace stops with it`,age:"today",act:"Add capacity"});
  REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
    add({score:80,sev:"decision",kind:"Capacity request",client:r.client,
      why:`${byId[r.client].name} is blocked and asked for ${f(r.amount)} more ${RES[r.res].unit}. ${f(m.free)} unallocated`,
@@ -6520,7 +6520,7 @@ function queueItems(){
     indefinitely. Owner-scoped, because only the owner can resolve it.      */
  if(MIG.deferred&&MIG.unassigned>0&&canI("billing"))
    add({score:60,sev:"decision",kind:"Prospect review",client:null,
-     why:`${f(MIG.unassigned)} prospects from the migration are still unassigned, sitting in your agency workspace`,
+     why:`${f(MIG.unassigned)} prospects from the migration are still unassigned, sitting in your workspace`,
      age:"since launch",act:"Review",migreview:true});
  myClients().forEach(c=>{const miss=steps(c).filter(x=>!x[1]).map(x=>x[0].toLowerCase());
   if(miss.length) add({score:20,sev:"info",kind:"Setup incomplete",client:c.id,
@@ -6549,11 +6549,11 @@ function aQueue(Q,filters){
    <td><span class="chip ${pill[q.sev]}">${label[q.sev]}</span></td>
    <td><span style="font-weight:600;color:var(--gray-800)">${q.kind}</span>${q.replied?' <span class="chip c-ok">Replied just now</span>':''}
      <span class="cs" style="display:block;white-space:normal">${q.why}</span></td>
-   <td>${c?`<div class="cell-main">${av(c,24)}<span class="trunc">${c.name}</span></div>`:q.plan||q.pay?'<span class="sub">Every client</span>':'<span class="sub">2 clients</span>'}</td>
+   <td>${c?`<div class="cell-main">${av(c,24)}<span class="trunc">${c.name}</span></div>`:q.plan||q.pay?'<span class="sub">Every workspace</span>':'<span class="sub">2 workspaces</span>'}</td>
    <td><span class="sub">${AGE(q.age)}</span></td>
    <td class="ar colact">${
-     q.req?(canI("limits")?dqTip(`<button class="linkbtn" data-ok="${q.req}">Approve</button>`,reqConsequence(REQUESTS.find(x=>x.id===q.req))):`<span class="sub">Waiting on the agency</span>`)
-     :q.raise?(canI("limits")?dqTip(`<button class="linkbtn" data-raise="${q.raise}">Raise limit</button>`,raiseConsequence(...q.raise.split("|"))):`<span class="sub">Waiting on the agency</span>`)
+     q.req?(canI("limits")?dqTip(`<button class="linkbtn" data-ok="${q.req}">Approve</button>`,reqConsequence(REQUESTS.find(x=>x.id===q.req))):`<span class="sub">Waiting on the account</span>`)
+     :q.raise?(canI("limits")?dqTip(`<button class="linkbtn" data-raise="${q.raise}">Raise limit</button>`,raiseConsequence(...q.raise.split("|"))):`<span class="sub">Waiting on the account</span>`)
      :q.migreview?`<button class="linkbtn" data-migreview>Review</button>`
      :q.collision?`<button class="linkbtn" data-collision>Review</button>`
      :q.reply?`<button class="linkbtn" data-openreply="${q.reply}">Reply</button>`
@@ -6568,7 +6568,7 @@ function aQueue(Q,filters){
  if(!rows&&qFilter==="all") return `<div class="panel">${filters||""}${receiptBar("queue")}${queueEmpty()}</div>`;
  return `<div class="panel">${filters||""}${receiptBar("queue")}
    <div class="tscroll"><table class="organism" style="min-width:1040px">
-    <thead><tr><th></th><th>Type</th><th>What needs doing, and why it matters</th><th>Client</th><th>Age</th><th class="colact"></th></tr></thead>
+    <thead><tr><th></th><th>Type</th><th>What needs doing, and why it matters</th><th>Workspace</th><th>Age</th><th class="colact"></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'}</tbody>
    </table></div></div>`;
 }
@@ -6604,19 +6604,19 @@ function vM1(){
 
   <div class="mig-block" style="padding:0;overflow:hidden">
    <div class="tscroll"><table class="organism migtbl">
-    <thead><tr><th class="mig-tick-h" aria-hidden="true"></th><th>Client</th><th class="ar">Sequences moved</th><th class="ar">Mailboxes moved</th>
+    <thead><tr><th class="mig-tick-h" aria-hidden="true"></th><th>Workspace</th><th class="ar">Sequences moved</th><th class="ar">Mailboxes moved</th>
      <th class="ar">Prospects assigned</th><th class="ar">Monthly send cap</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
    <div class="panel-b" style="border-top:1px solid var(--gray-13)">
     <p class="migsum" style="margin:0">${f(assigned)} prospects were assigned by sequence association${
       MIG.unassigned?` and ${f(MIG.unassigned)} could not be derived, which is ${f(assigned+MIG.unassigned)} in total`
-      :`, which is ${f(assigned+MIG.unassigned)} in total`}. Caps are each client's last 30 days of
+      :`, which is ${f(assigned+MIG.unassigned)} in total`}. Caps are each workspace's last 30 days of
      use plus 25%, so nothing is throttled by the migration.</p></div>
   </div>
 
   ${MIG.unassigned?`<div class="mig-block">
    <h2>${f(MIG.unassigned)} prospects need a decision</h2>
-   <p>They were on no client's sequences, or on two. They are in your agency workspace, where
+   <p>They were on no workspace's sequences, or on two. They are in your workspace, where
    nobody else can see them. Assigning them is the only work launch day asks of you, and it is
    optional.</p>
    <div class="tools">
@@ -6625,18 +6625,18 @@ function vM1(){
   </div>`:""}
 
   ${MIG.flagged.length?`<div class="mig-block migflag">
-   <h2>${MIG.flagged.length} mailbox${MIG.flagged.length===1?"":"es"} sent for more than one client</h2>
+   <h2>${MIG.flagged.length} mailbox${MIG.flagged.length===1?"":"es"} sent for more than one workspace</h2>
    ${/* fix 25 Sep review #15: D13 ended mailboxes as an assignable resource
         (no pool, no assignment, no move), so there is no later "choose an
         owner" step and nowhere left to point one at - Email Accounts on the
         admin panel is Coming soon and never had an owner-picker even before.
         A flagged mailbox has no cross-workspace move under the new model
-        either, so it stays put and each client picks up a mailbox of its own
+        either, so it stays put and each workspace picks up a mailbox of its own
         inside its own workspace instead. */""}
    ${MIG.flagged.map(x=>`<p><strong>${x.mailbox}</strong> was on sequences for
      ${x.clients.map(i=>byId[i]?byId[i].name:i).join(" and ")}. A mailbox belongs to one workspace,
      so it was flagged rather than split; it stays in ${AGENCY.name}'s own workspace, and each
-     client above connects or buys a mailbox of its own inside its workspace whenever it needs one.</p>`).join("")}
+     workspace above connects or buys a mailbox of its own inside its workspace whenever it needs one.</p>`).join("")}
    <p class="mig-note">Nothing stopped sending.</p>
   </div>`:""}
 
@@ -6645,7 +6645,7 @@ function vM1(){
    <p>Full access becomes Workspace Admin, Limited access becomes Workspace Collaborator, No access becomes Workspace Viewer.</p>
    <p>Owners and Admins reach every workspace; Team Members become Members of every workspace until you narrow it.</p>
    <div class="tools">
-    <button class="shd-button shd-button--secondary" data-migaccess>Choose who sees which client</button></div>
+    <button class="shd-button shd-button--secondary" data-migaccess>Choose who sees which workspace</button></div>
   </div>
 
   ${MIG.unassigned?"":`<div class="mig-f">
@@ -6658,12 +6658,12 @@ function vM1(){
 /* ═══ M2 Prospect review ══════════════════════════════════════════════════════
    16 §2.2. Grouped by company, because that is the unit the agency actually
    recognises, and a suggestion appears only where the company's domain matches
-   one a client already has prospects on. Everything else defaults to staying
+   one a workspace already has prospects on. Everything else defaults to staying
    in the agency workspace: a wrong guess puts one client's lead in another
    client's workspace, which is the one failure this launch cannot have.     */
 function vM2(){
  const rows=MIG.companies.map(co=>{
-  const opts=[`<option value="">Keep in agency</option>`]
+  const opts=[`<option value="">Keep in your workspace</option>`]
    .concat(CLIENTS.map(c=>`<option value="${c.id}">${c.name}</option>`)).join("");
   return `<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${co.name}</span>
@@ -6675,9 +6675,9 @@ function vM2(){
  const done=MIG.unassigned<=0;
  return `<div class="mig-wrap"><div class="mig-doc">
   <div class="mig-brand">${logoSVG("logoGradM2")}<span class="brand-t">Saleshandy</span></div>
-  <h1 class="mig-h1">${done?"All placed. Nothing left in the agency workspace.":`${f(MIG.unassigned)} prospects to place`}</h1>
-  <p class="mig-sub">${done?"Every prospect now sits in the client workspace it belongs to. The agency workspace holds none.":`Grouped by company. A suggestion appears only where the company's domain
-  matches one a client already has prospects on. Anything you leave alone stays in your agency
+  <h1 class="mig-h1">${done?"All placed. Nothing left in your workspace.":`${f(MIG.unassigned)} prospects to place`}</h1>
+  <p class="mig-sub">${done?"Every prospect now sits in the workspace it belongs to. Your workspace holds none.":`Grouped by company. A suggestion appears only where the company's domain
+  matches one a workspace already has prospects on. Anything you leave alone stays in your
   workspace, visible to nobody else.`}</p>
   ${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar("m2"))}
   ${done?"":`<div class="mig-block" style="padding:0;overflow:hidden">
@@ -6697,7 +6697,7 @@ function vInvite(){
     than throwing on byId[undefined] and rendering a blank page. J1 reached by
     clicking through always carries a client; only the deep link does not. */
  const c=byId[view.client]||myClients()[0]||CLIENTS[0], role=view.role||"Client, full";
- if(!c) return denied("open an invite before a client exists");
+ if(!c) return denied("open an invite before a workspace exists");
  /* the deep link names no recipient, so fall back to the client's own contact
     rather than rendering an empty field labelled Email. */
  const invEmail=view.email||(c.users&&c.users[0]&&c.users[0][0])||c.email;
@@ -6745,14 +6745,14 @@ function drawerHTML(){
  /* the tile the switcher will show, drawn live as the name is typed: the form
     is making a workspace, and this is the one place that says so before Next.
     23 Sep 2026: the Access step is gone with the graded model it edited; Their
-    role moved in here, right after Client Email, since a role is now the
-    whole of what a new client user gets. */
+    role moved in here, right after First user's email, since a role is now the
+    whole of what a new workspace user gets. */
  const b1=`<span class="nc-eyebrow">This creates</span>${ncPreviewHTML()}
   <p class="sub nc-colcap">Its colour in the switcher and on every row.</p>
   <div class="nc-grid2" style="margin-top:16px">
-   <div class="field"><label class="flabel" for="ncn">Client Name</label><input type="text" id="ncn" value="${nc.name}" placeholder="Alloy &amp; Co."></div>
+   <div class="field"><label class="flabel" for="ncn">Workspace Name</label><input type="text" id="ncn" value="${nc.name}" placeholder="Alloy &amp; Co."></div>
    <div class="field"><label class="flabel" for="ncc">Company</label><input type="text" id="ncc" value="${nc.company}" placeholder="Alloy &amp; Co. Ltd"></div></div>
-  <div class="field"><label class="flabel" for="nce">Client Email</label><input type="email" id="nce" value="${nc.email}" placeholder="marcus@alloyco.com">
+  <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${nc.email}" placeholder="marcus@alloyco.com">
    <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
   <div class="field" style="margin-bottom:0"><label class="flabel" for="ncrole">Their role</label>
    <select id="ncrole" class="inp" style="width:100%">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
@@ -6763,7 +6763,7 @@ function drawerHTML(){
     credits." So the step is named for what it does, each number is labelled a
     limit, the pool is drawn beside it so the cap reads against something, and
     reserving is the one explicit switch that turns a cap into a hold. */
- const whoL=(nc.company||nc.name||"this client").trim();
+ const whoL=(nc.company||nc.name||"this workspace").trim();
  const limRow=k=>{const R=RES[k],m=compute(k),
    sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:ncDefaultCap(k),
    pu=Math.min(100,Math.round(m.used/R.pool*100)), ph=Math.min(100-pu,Math.round(m.held/R.pool*100));
@@ -6774,7 +6774,7 @@ function drawerHTML(){
     <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
  const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage limits for ${whoL}</span>
    <p class="sub" style="margin:0">Each number is the most ${whoL} can draw from your shared pool this cycle. Nothing is set aside
-   for them: the pool stays one pool, and a limit only stops this client going past it. Change any of it later on Limits.</p></div>
+   for them: the pool stays one pool, and a limit only stops this workspace going past it. Change any of it later on Limits.</p></div>
   <div class="nc-lim" id="ncCapsBox">
    <div class="nc-limrow nc-limhd"><span>Resource</span><span>Your pool today</span><span>${nc.bif?"Reserved &amp; limit":"Limit"}</span></div>
    ${RK.map(limRow).join("")}</div>
@@ -6785,17 +6785,17 @@ function drawerHTML(){
      ?"On: each amount is held for "+whoL+" and no other workspace can draw on it, so the reservations must fit inside your pool. Emails and prospects stay caps."
      :"Off: these are caps only. "+whoL+" draws from the shared pool until the pool runs out or a cap is hit. Turn on to hold the amounts for them instead."}</p></div></div>`;
  return `<div class="scrim" id="scrim"></div>
- <aside class="drawer" role="dialog" aria-label="Add Client" style="width:min(720px,calc(100vw - 32px))">
-  <div class="dr-h"><span class="semibold-3">Add Client</span>
+ <aside class="drawer" role="dialog" aria-label="Add a workspace" style="width:min(720px,calc(100vw - 32px))">
+  <div class="dr-h"><span class="semibold-3">Add a workspace</span>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <ol class="dr-steps" aria-label="Steps">${[["Details",1],["Limits",2]].map(([l,n],k)=>
    (k?`<li class="st-line" data-done="${s>n-1?1:0}" aria-hidden="true"></li>`:"")+
    `<li data-on="${s===n?1:0}" data-done="${s>n?1:0}" ${s===n?'aria-current="step"':""}><span class="st-n">${s>n?IC.tick:n}</span>${l}</li>`).join("")}</ol>
   <div class="dr-b">${s===1?b1:b2}</div>
   <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':""}
-    ${s<2?'<button class="linkbtn" id="drSkip" title="Create the client now; the remaining steps wait on its Overview">Finish later</button>':""}</div>
+    ${s<2?'<button class="linkbtn" id="drSkip" title="Create the workspace now; the remaining steps wait on its Overview">Finish later</button>':""}</div>
    <div class="tools">${s<2?'<button class="shd-button shd-button--primary" id="drNext">Next</button>'
-          :'<button class="shd-button shd-button--primary" id="drDone">Add Client</button>'}</div></div>
+          :'<button class="shd-button shd-button--primary" id="drDone">Add a workspace</button>'}</div></div>
  </aside>`;
 }
 /* 18 Sep, delight pass: a new client's default limit is a share that leaves
@@ -6805,10 +6805,10 @@ function drawerHTML(){
 const ncDefaultCap=k=>{const m=compute(k);
  return Math.max(500,Math.floor(m.free/Math.max(2,CLIENTS.length+1)/500)*500)};
 /* 18 Sep, delight pass: the Limits step says in one sentence what the numbers
-   mean for this client and for everyone else, and rewrites as they are typed.
+   mean for this workspace and for everyone else, and rewrites as they are typed.
    Reads the inputs when they are on screen, so it never lags the field. */
 function ncLimSentence(){
- const who=(nc.company||nc.name||"this client").trim(), box=el("ncCapsBox");
+ const who=(nc.company||nc.name||"this workspace").trim(), box=el("ncCapsBox");
  const capOf=k=>{const i=box&&box.querySelector('[data-cap="'+k+'"]');
    if(i) return num(i.value);
    if(nc.caps&&nc.caps[k]!=null) return nc.caps[k];
@@ -6816,7 +6816,7 @@ function ncLimSentence(){
  const sm=compute("sends"), cap=capOf("sends"), over=cap>sm.free;
  if(!nc.bif){
   return over
-   ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} free today</span>, so they would hit the pool before the cap and nothing would stay free for another client.`
+   ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} free today</span>, so they would hit the pool before the cap and nothing would stay free for another workspace.`
    :`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, leaving <b class="tnum">${f(sm.free-cap)}</b> of the ${f(sm.free)} free today for everyone else.`;
  }
  const held=[["lead_finder","Lead Finder"],["verification","verification"],["ai","AI"]].map(([k,l])=>{const m=compute(k),c=capOf(k);return {l,left:m.free-c,free:m.free,c}});
@@ -6848,7 +6848,7 @@ function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL
      <span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span>
      <span class="nc-swdot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.65 6.35A8 8 0 1 0 20 12"/><path d="M20 4v5h-5"/></svg></span>
     </button>
-    <span style="min-width:0;flex:1"><b>${nm||"Your client's workspace"}</b>
+    <span style="min-width:0;flex:1"><b>${nm||"Your workspace"}</b>
      <i>${nm?"New workspace &middot; empty &middot; funded from your pool":"Type a name to see it take shape"}</i></span>
     <span class="chip c-mute" style="flex:none">Owned by you</span></div>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
@@ -6900,7 +6900,7 @@ function renderDrawer(){
  const d=el("drDone");if(d)d.onclick=()=>{cap();create()};
 }
 function create(){
- const name=(nc.name||"New Client").trim(),id="c"+Date.now().toString(36).slice(-4);
+ const name=(nc.name||"New workspace").trim(),id="c"+Date.now().toString(36).slice(-4);
  /* the first entry used to be the agency's own blue, so a first client came out
     the same colour as the account it belongs to, which is the one pair that has
     to be told apart at a glance. */
@@ -6939,7 +6939,7 @@ function create(){
    only changing it is the owner's or admin's. A denied panel where a table
    should be reads as broken, not as scoped. Controls are disabled in place. */
 function readOnly(html,what){
- const note=`<div class="msg m-info" style="margin-bottom:16px">${infoI}<span><strong>Read only.</strong> ${ME().name} is ${/^[aeiou]/i.test(ME().role)?"an":"a"} ${ME().role.toLowerCase()} on this client and cannot ${what}. An owner or admin can.</span></div>`;
+ const note=`<div class="msg m-info" style="margin-bottom:16px">${infoI}<span><strong>Read only.</strong> ${ME().name} is ${/^[aeiou]/i.test(ME().role)?"an":"a"} ${ME().role.toLowerCase()} on this workspace and cannot ${what}. An owner or admin can.</span></div>`;
  return note+html
   .replace(/<button class="sw"(?![^>]*\bdisabled\b)/g,'<button class="sw" disabled')
   .replace(/<(input|select) (?![^>]*\bdisabled\b)/g,'<$1 disabled ')
@@ -6953,7 +6953,7 @@ function readOnly(html,what){
 function denied(what){
  return `<div class="panel"><div class="panel-b" style="text-align:center;padding:40px 20px">
    <div style="font-size:14px;font-weight:600;color:var(--gray-800);margin-bottom:6px">Not available to your role</div>
-   <p class="sub" style="max-width:420px;margin:0 auto">${ME().name} is ${/^[aeiou]/i.test(ME().role)?"an":"a"} ${ME().role.toLowerCase()} on this client and cannot ${what}.
+   <p class="sub" style="max-width:420px;margin:0 auto">${ME().name} is ${/^[aeiou]/i.test(ME().role)?"an":"a"} ${ME().role.toLowerCase()} on this workspace and cannot ${what}.
    An owner or admin can.</p></div></div>`;
 }
 
@@ -6969,15 +6969,15 @@ const SETTINGS=[
  {k:"teamvis",  label:"Allow team members to see prospects of each other", acc:"On", src:"default"},
 ];
 function rSettings(c){
- const pill={default:["srcpill","Account default"],override:["srcpill ovr","Overridden here"],locked:["srcpill lock","Locked by agency"]};
+ const pill={default:["srcpill","Account default"],override:["srcpill ovr","Overridden here"],locked:["srcpill lock","Locked by the account"]};
  return `<div class="msg m-info">${infoI}<span>
-   Every setting has an account default. This client may override it, unless the agency has locked it.</span></div>
+   Every setting has an account default. This workspace may override it, unless the account has locked it.</span></div>
  <div class="panel"><div class="panel-h"><span class="panel-t">Sending and tracking</span>
    <span class="sub">${SETTINGS.filter(x=>x.src==="override").length} overridden, ${SETTINGS.filter(x=>x.src==="locked").length} locked</span></div>
   <div class="panel-b">${SETTINGS.map(x=>`<div class="lockrow">
     <div style="min-width:0">
       <div style="font-size:14px;font-weight:500;color:var(--gray-800)">${x.label}</div>
-      <div class="sub">Account default: ${x.acc}${x.val?` · This client: <strong>${x.val}</strong>`:""}</div>
+      <div class="sub">Account default: ${x.acc}${x.val?` · This workspace: <strong>${x.val}</strong>`:""}</div>
     </div>
     <div class="lockctl">
       <span class="${pill[x.src][0]}">${pill[x.src][1]}</span>
@@ -7054,7 +7054,7 @@ function cLeads(c){
     : `<p class="sub" style="margin:0 0 10px">You can search and save, and ${AGENCY.name} reveals the
        contacts. Revealing spends their credits, so it is theirs to do unless they hand it over.</p>`}
    <p class="sub" style="margin:0">Every lead revealed here belongs to this workspace and appears in
-   no other, including other clients of ${AGENCY.name}.</p>
+   no other, including other workspaces of ${AGENCY.name}.</p>
   </div></div>`;
 }
 function cParked(c,title,note,tail,icon){
@@ -7065,7 +7065,7 @@ function cParked(c,title,note,tail,icon){
 }
 
 /* ═══ client-side Email Warm-up. 54 §3.2/3.3: one TrulyInbox account per
-   agency, so a client user sees only their own workspace's mailboxes, never
+   agency, so a workspace user sees only their own workspace's mailboxes, never
    the TrulyInbox login or the consent screen. Status and figures are held
    here, seeded once per mailbox and mutated by the toggle so a pause/resume
    sticks for the session. */
@@ -7189,9 +7189,9 @@ function cSettings(c){
    <p class="sub" style="margin-top:10px">${AGENCY.name} never sees or holds your password.</p></div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
-   <p class="sub" style="margin-top:10px">Only about this workspace. Nothing about ${AGENCY.name}'s other clients reaches you.</p></div></div>
+   <p class="sub" style="margin-top:10px">Only about this workspace. Nothing about ${AGENCY.name}'s other workspaces reaches you.</p></div></div>
   ${seesC(c,"sequences")?`<div class="panel"><div class="panel-h"><span class="panel-t">Workspace settings</span></div><div class="panel-b" style="padding-top:4px">
-   ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Agency default, add your own"}</span></div>`).join("")}
+   ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Account default, add your own"}</span></div>`).join("")}
    <p class="sub" style="margin-top:10px">Only what the sequences you run need. Everything else about this workspace is ${AGENCY.name}'s to administer.</p></div></div>`:""}
  </div>`;
 }
@@ -7315,12 +7315,12 @@ function ownTmpl(){
  const rows=TEMPLATES.map(t=>`<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${t.name}</span>
      <span class="cs" style="display:block">${t.by}</span></td>
-   ${isNormal()?"":`<td><span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Published to every client":"This workspace only"}</span></td>`}
+   ${isNormal()?"":`<td><span class="chip c-${t.scope==="all"?"info":"mute"}">${t.scope==="all"?"Published to every workspace":"This workspace only"}</span></td>`}
    <td class="ar tnum">${t.seqs}</td>
    <td><span class="sub">${t.edited}</span></td></tr>`).join("");
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">${isNormal()?"Templates":AGENCY.name+"'s template library"}</span>
-   <span class="sub">${TEMPLATES.length} templates${isNormal()?"":" &middot; "+tmplShared().length+" published to client workspaces"}</span></div>
+   <span class="sub">${TEMPLATES.length} templates${isNormal()?"":" &middot; "+tmplShared().length+" published to workspaces"}</span></div>
   <div class="tscroll"><table class="organism" style="min-width:720px">
    <thead><tr><th>Template</th>${isNormal()?"":"<th>Where it appears</th>"}<th class="ar">In sequences</th><th>Last edited</th></tr></thead>
    <tbody>${rows}</tbody></table></div>
@@ -7340,10 +7340,10 @@ function cTmpl(c){
    t.locked?"Locked":"Editable copy",t.locked?"bad":"info",
    t.locked?"Use it as it is. "+AGENCY.name+" maintains it":"Copy it here to change the wording")).join("");
  const ovr=x.overrides.map(o=>{const b=TEMPLATES.find(t=>t.id===o.base);
-   return row(o.name,o.by,o.edited,"Overrides "+(b?b.name:"an agency template"),"warn",
-     "This workspace's wording. The agency library is untouched")}).join("");
+   return row(o.name,o.by,o.edited,"Overrides "+(b?b.name:"an account template"),"warn",
+     "This workspace's wording. The account library is untouched")}).join("");
  const own=x.ownOnly.map(o=>row(o.name,o.by,o.edited,"Written here","ok",
-   "Not in the agency library and not shared with any other client")).join("");
+   "Not in the account library and not shared with any other workspace")).join("");
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">${c.name}'s templates</span>
    <span class="sub">${x.inherited.length} from ${AGENCY.name} &middot; ${x.overrides.length+x.ownOnly.length} belonging to this workspace</span></div>
@@ -7353,7 +7353,7 @@ function cTmpl(c){
   </table></div>
   <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
    Inherited templates are not copies: when ${AGENCY.name} edits one, it changes here too. Nothing in
-   this workspace is visible to any other client, including the wording it has changed.</span></div></div>`;
+   this workspace is visible to any other workspace, including the wording it has changed.</span></div></div>`;
 }
 function cPros(c){
  const P=PROSPECTS[c.id]||[];
@@ -7430,10 +7430,10 @@ const CONSEQ={
     pool, no assignment, no move); the delete row below was already updated
     to say so ("Email accounts" / "Stopped, retained 30 days") and this row
     was the one left behind with the old assign language. */
- disable:[["Client sign-in","Blocked"],["Sequences in flight","Paused"],["Emails scheduled tomorrow","Held, not cancelled"],
+ disable:[["Sign-in","Blocked"],["Sequences in flight","Paused"],["Emails scheduled tomorrow","Held, not cancelled"],
    ["Prospects and history","Retained"],["Email accounts","Stay with the workspace, sending paused"],
    ["Reserved capacity","Released to the pool"],["Integrations and webhooks","Suspended"]],
- delete:[["Client sign-in","Removed"],["Sequences in flight","Stopped, retained 30 days"],["Emails scheduled tomorrow","Cancelled"],
+ delete:[["Sign-in","Removed"],["Sequences in flight","Stopped, retained 30 days"],["Emails scheduled tomorrow","Cancelled"],
    ["Prospects and history","Retained 30 days, then purged"],["Email accounts","Stopped, retained 30 days"],
    ["Consumed credits","Stay on the invoice"],["Reserved capacity","Released to the pool"],["Integrations and webhooks","Deleted"]],
 };
@@ -7536,7 +7536,7 @@ function modalHTML(){
     ${MIG.clients.length} workspaces, and no Home screen, work queue or switcher.</p>
     <div class="conseq">
       <div><span>Your sequences, prospects and mailboxes</span><span>Untouched, as they are now</span></div>
-      <div><span>Client workspaces</span><span>Become client records again</span></div>
+      <div><span>Workspaces</span><span>Become client records again</span></div>
       <div><span>Caps and reservations you have set</span><span>Discarded</span></div>
       <div><span>Client logins</span><span>Keep working, at their old permission level</span></div>
       <div><span>Rolling forward again</span><span>Possible, and re-runs the migration from scratch</span></div>
@@ -7548,16 +7548,16 @@ function modalHTML(){
  }
  if(modal.kind==="collision"){
   return card(`Prospect overlap`,`
-    <p style="font-size:14px;line-height:21px;margin-bottom:14px">Two clients hold the same people. You can see
-    that it is happening and how many, but not who they are or what either client has done with them.</p>
+    <p style="font-size:14px;line-height:21px;margin-bottom:14px">Two workspaces hold the same people. You can see
+    that it is happening and how many, but not who they are or what either workspace has done with them.</p>
     <div class="conseq">
       <div><span>Northwind Logistics</span><span>47 in common</span></div>
       <div><span>Vertex Health</span><span>47 in common</span></div>
       <div><span>Overlapping prospects</span><span>47</span></div>
       <div><span>Activity history</span><span>Not shown</span></div>
     </div>
-    <p class="sub" style="margin-top:14px">Opening either client's prospect list shows only that client's records.
-    Neither client can see that the overlap exists.</p>`,
+    <p class="sub" style="margin-top:14px">Opening either workspace's prospect list shows only that workspace's records.
+    Neither workspace can see that the overlap exists.</p>`,
     `<button class="shd-button shd-button--tertiary" data-mclose>Close</button>`);
  }
  if(modal.kind==="mbmove"){
@@ -7633,19 +7633,19 @@ function modalHTML(){
   return card(`Buy mailboxes`,`
     <p style="font-size:14px;line-height:21px">Mailboxes bought here land in
     <strong>${AGENCY.name}'s pool</strong>, unassigned, and you assign each one to a workspace.
-    That is what makes them yours to take back when a client leaves.</p>
+    That is what makes them yours to take back when a workspace closes.</p>
     <div class="conseq" style="margin-top:14px">
      <div><span>Purchased here</span><span>Yours. Reassign between workspaces whenever you like</span></div>
-     <div><span>Connected by the client, an inbox they already owned</span><span>Theirs. Goes with them if they leave you</span></div>
+     <div><span>Connected by the workspace's user, an inbox they already owned</span><span>Theirs. Goes with them if they leave you</span></div>
     </div>
-    <p class="sub" style="margin-top:14px">A purchased mailbox lands in the workspace you choose, and only the agency can move it.</p>`,
+    <p class="sub" style="margin-top:14px">A purchased mailbox lands in the workspace you choose, and only the account can move it.</p>`,
     `<button class="shd-button shd-button--tertiary" data-mclose>Close</button>`);
  }
  if(modal.kind==="conflict"){
   return card(`Email account already assigned`,`
     <p style="font-size:14px;line-height:21px">
       <strong>${modal.mailbox}</strong> currently serves <strong>${byId[modal.owner].name}</strong>.
-      An email account can serve only one client.</p>
+      An email account can serve only one workspace.</p>
     <p class="sub" style="margin-top:12px">Moving it disconnects and reconnects the mailbox, which loses its
     sending history and resets its warm-up. There is no non-destructive move.</p>`,
     `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
@@ -7658,7 +7658,7 @@ function modalHTML(){
      : `${c.name} stops immediately and can be re-enabled at any time. Nothing is lost.`}</p>
    <div class="conseq">${CONSEQ[isDel?"delete":"disable"].map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join("")}</div>`,
    `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
-    <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete client":"Disable client"}</button>`);
+    <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete workspace":"Disable workspace"}</button>`);
 }
 function card(title,body,foot,cls){
  return `<div class="mscrim" id="mscrim"><div class="modal${cls?" "+cls:""}" role="dialog" aria-label="${title}">
@@ -7744,20 +7744,20 @@ function renderModal(){
    it appears instead of five one-off pages drifting apart. */
 const COMING_SOON={
  queue:{title:"Work queue",
-  promise:"One list of every decision across your clients, ordered by what it costs to ignore.",
-  bullets:["Capacity requests","Disconnected and paused mailboxes","Unread replies grouped by client"],
+  promise:"One list of every decision across your workspaces, ordered by what it costs to ignore.",
+  bullets:["Capacity requests","Disconnected and paused mailboxes","Unread replies grouped by workspace"],
   meanwhile:"Home shows the decisions waiting today",go:"dash"},
  inbox:{title:"Unified Inbox",
-  promise:"Every client's replies in one inbox, each row naming its client, replies sent from that client's mailbox.",
-  bullets:["Every reply from every client, one list","Each row named by its client and sequence","Sent from that client's own mailbox, never yours"],
-  meanwhile:"Open a client workspace and use its Replies",go:"clients"},
+  promise:"Every workspace's replies in one inbox, each row naming its workspace, replies sent from that workspace's mailbox.",
+  bullets:["Every reply from every workspace, one list","Each row named by its workspace and sequence","Sent from that workspace's own mailbox, never yours"],
+  meanwhile:"Open a workspace and use its Replies",go:"clients"},
  task:{title:"Tasks",
-  promise:"Every client's tasks in one list, completed in place.",
-  bullets:["Every open task across your clients, one list","Each row named by its client","Complete it here, without opening that workspace"],
-  meanwhile:"Open a client workspace and use its Tasks",go:"clients"},
+  promise:"Every workspace's tasks in one list, completed in place.",
+  bullets:["Every open task across your workspaces, one list","Each row named by its workspace","Complete it here, without opening that workspace"],
+  meanwhile:"Open a workspace and use its Tasks",go:"clients"},
  mail:{title:"Email Accounts",
-  promise:"Every mailbox across your clients on one screen: health, warm-up, who pays, move between workspaces.",
-  bullets:["Health and warm-up for every mailbox, in one place","Who pays for it, and which workspace it belongs to","Move a mailbox between workspaces when a client changes"],
+  promise:"Every mailbox across your workspaces on one screen: health, warm-up, who pays, move between workspaces.",
+  bullets:["Health and warm-up for every mailbox, in one place","Who pays for it, and which workspace it belongs to","Move a mailbox between workspaces when a workspace closes"],
   meanwhile:"Each workspace's Email Accounts, where mailboxes are bought and connected",go:"clients"},
  tmpl:{title:"Templates",
   promise:"A library you publish once and every workspace inherits.",
@@ -7805,7 +7805,7 @@ function render(){
  const inClient=ctx!=="agency";
  const bn=el("asBanner"); bn.hidden=!(inClient&&asClient);
  if(inClient&&asClient) bn.innerHTML=`<span>Viewing as <strong>${byId[ctx].name}</strong> &middot; this session is logged to their workspace</span>
-   <button id="exitAs">Back to agency view</button>`;
+   <button id="exitAs">Back to account view</button>`;
  const pageEl=el("page"), prevScroll=pageEl.scrollTop;
  pageEl.innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
@@ -7898,7 +7898,7 @@ function wire(){
  /* the email field toggles Send's disabled state live, without a full
     repaint that would steal the caret; the role select changes the
     description below it, which is worth a full repaint since a select has
-    no caret to lose and this is the same pattern the Add Client wizard's
+    no caret to lose and this is the same pattern the Add a workspace wizard's
     own role select already uses. */
  {const e=el("ncuEmail"), btn=el("ncuSend");
   if(e)e.oninput=()=>{NCU.email=e.value; if(btn)btn.disabled=!amValidEmail(NCU.email)}}
@@ -7932,7 +7932,7 @@ function wire(){
  {const b=document.querySelector("[data-estbuy]");if(b)b.onclick=()=>{modal={kind:"estbuy"};renderModal()}}
  /* 25 Sep 2026: rMail's own "Buy mailboxes" button, opened on whichever
     workspace's Email accounts screen it was clicked from (own or a client's,
-    for agency staff only; a client user never sees this button). */
+    for your team only; a workspace user never sees this button). */
  q("[data-buymbx]").forEach(b=>b.onclick=()=>{
    const ws=byId[b.dataset.buymbx];
    modal={kind:"buymbx",wsId:ws.id,step:1,qty:3,
@@ -8037,7 +8037,7 @@ function wire(){
  q("[data-newfor]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.newfor,k=newPick;newOpen=false;newPick=null;
    /* straight into A8 with this client already ticked. It used to open
       drawer{kind:"member"}, which A8 replaced and deleted on 16 Sep, so the
-      dispatcher fell through to the Add Client wizard and the reader landed
+      dispatcher fell through to the Add a workspace wizard and the reader landed
       on its Limits step: they asked to add a person and got a credits screen. */
    if(k==="member"){ctx="agency";amOpen({ws:[id],from:{name:"record",id,tab:"members"}});return}
    ctx=id;asClient=false;inMod=k==="email account"?"accounts":"sequences";openProspect=null;render()});
@@ -8786,21 +8786,21 @@ render();
    "show me" has to be one click and not a hunt through 48 screens.        */
 const TOPICS=[
  {k:"isolate", t:"A client sees only its own workspace",
-  claim:"Hard isolation is the thing we cannot do today. A client logging in reaches its own sequences, prospects and replies, and there is no surface on which another client exists.",
+  claim:"Hard isolation is the thing we cannot do today. A client logging in reaches its own sequences, prospects and replies, and there is no surface on which another workspace exists.",
   ask:"Is this the thing blocking you from letting clients in, or is it something else?",
   watch:"If they say the blocker is trust in the product rather than visibility, the container model is solving the wrong problem.",
   src:"07 objective, 01 §6a",
   go:()=>{solo=false;ctx="nw";asClient=true;cView="sequences";openProspect=null;view={name:"clients"}}},
- {k:"staff", t:"Staff see only the clients they are on",
-  claim:"Assignment is the primitive, not permission. Priya holds three clients, so every cross-client screen she opens is filtered to those three.",
-  ask:"Who on your team should be able to see all clients, and who should not?",
-  watch:"The interview said access is a mix, by role. If they want per-client toggles rather than assignment, that is a different model.",
+ {k:"staff", t:"Staff see only the workspaces they are on",
+  claim:"Assignment is the primitive, not permission. Priya holds three workspaces, so every cross-workspace screen she opens is filtered to those three.",
+  ask:"Who on your team should be able to see all workspaces, and who should not?",
+  watch:"The interview said access is a mix, by role. If they want per-workspace toggles rather than assignment, that is a different model.",
   src:"16 §0.1, 19 §2",
   go:()=>{T_become("priya");solo=false;asClient=false;ctx="agency";view={name:"dash"}}},
  {k:"access", t:"Six fixed roles, not graded per screen",
-  claim:`Not two roles, and not a toggle per screen either. Three on your side (Owner, Admin, Member) and three on the client's (Workspace Admin, Workspace Collaborator, Workspace Viewer). A client that only wants the numbers is a Workspace Viewer and lands on Reports. The product hardcodes exactly this shape for two named accounts today because it cannot express a role per workspace.`,
-  ask:"Take your two most different clients. Does either need something between these three, or does one of the three cover them?",
-  watch:"If every client fits one of the three, the roles are enough on their own. If someone describes a fourth shape, that is real scope this decision left out on purpose.",
+  claim:`Not two roles, and not a toggle per screen either. Three on your side (Owner, Admin, Member) and three inside a workspace (Workspace Admin, Workspace Collaborator, Workspace Viewer). A client that only wants the numbers is a Workspace Viewer and lands on Reports. The product hardcodes exactly this shape for two named accounts today because it cannot express a role per workspace.`,
+  ask:"Take your two most different workspaces. Does either need something between these three, or does one of the three cover them?",
+  watch:"If every workspace fits one of the three, the roles are enough on their own. If someone describes a fourth shape, that is real scope this decision left out on purpose.",
   src:"01 §55, user-details.tsx",
   open:"A role outside the six is not offered, on purpose: today's product cannot even express the two it hardcodes, in user-details.tsx, without naming the account in code.",
   go:()=>{T_become("owner");solo=false;asClient=false;ctx="agency";view={name:"record",id:"bl"};tab="members"}},
@@ -8813,33 +8813,33 @@ const TOPICS=[
     substitution the Home dashboard's own copy already made - see the "used
     to hand off to the Work queue" comment near arrivalLine). */
  {k:"rollup", t:"Replies and tasks still roll up",
-  claim:"Isolation must not cost the agency its own workflow. Home's 'Needs a decision' list already rolls requests and limit hits up across every assigned client, each naming its client. Work queue and Unified Inbox extend the same rollup to every reply and task and are Coming soon.",
-  ask:"You work several clients in a morning. Would you rather one list with a client column, or switch workspace per client?",
+  claim:"Isolation must not cost you your own workflow. Home's 'Needs a decision' list already rolls requests and limit hits up across every assigned workspace, each naming its workspace. Work queue and Unified Inbox extend the same rollup to every reply and task and are Coming soon.",
+  ask:"You work several workspaces in a morning. Would you rather one list with a workspace column, or switch into each workspace instead?",
   watch:"If they want sequences and prospects rolled up too, the work-versus-asset line we drew is wrong.",
   src:"16 §0.1, 20 T3",
   go:()=>{T_become("owner");solo=false;asClient=false;ctx="agency";dashAll=true;view={name:"dash"}}},
  {k:"queue", t:"One queue, ordered by what it costs to ignore",
-  claim:"Across every assigned client, ranked by consequence rather than by arrival. A dead mailbox outranks a reply. Work queue itself is Coming soon; Home's 'Needs a decision' list is where this ranking ships today.",
+  claim:"Across every assigned workspace, ranked by consequence rather than by arrival. A dead mailbox outranks a reply. Work queue itself is Coming soon; Home's 'Needs a decision' list is where this ranking ships today.",
   ask:"What would you check first thing on a Monday, and is it on this list?",
   watch:"Anything they name that is missing is a real gap. Anything here they would not look at is furniture.",
   src:"17, 16 §7",
   go:()=>{solo=false;asClient=false;ctx="agency";dashAll=true;view={name:"dash"}}},
- {k:"caps", t:"One pool, a cap per client",
-  claim:"Credits stay pooled because that is what you bought, and each client gets a ceiling against it. A client at its ceiling asks you, not us.",
-  ask:"Cap each client, reserve a floor for each, or let them draw freely and watch it?",
-  watch:"The interview said cap each client. A second agency saying pool-and-watch means the cap is not the default.",
+ {k:"caps", t:"One pool, a cap per workspace",
+  claim:"Credits stay pooled because that is what you bought, and each workspace gets a ceiling against it. A client at its ceiling asks you, not us.",
+  ask:"Cap each workspace, reserve a floor for each, or let them draw freely and watch it?",
+  watch:"The interview said cap each workspace. A second account with several workspaces saying pool-and-watch means the cap is not the default.",
   src:"07 §5, 19 §2",
-  open:"Which billing model is still Dhruv's call: pooled only, per-client only, or the hybrid built here (one shared pool, an independent budget per client on request, linked clients on their own plan). Hemanshu called it the biggest decision. Separately, verified against the live product on 8 Sep 2026: Account Plan Usage is one pooled quota for the whole account, with no client dimension. The allocation model here works inside that constraint and does not change it.",
+  open:"Which billing model is still Dhruv's call: pooled only, per-workspace only, or the hybrid built here (one shared pool, an independent budget per workspace on request, linked workspaces on their own plan). Hemanshu called it the biggest decision. Separately, verified against the live product on 8 Sep 2026: Account Plan Usage is one pooled quota for the whole account, with no workspace dimension. The allocation model here works inside that constraint and does not change it.",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"credits"};activeRes="lead_finder"}},
- {k:"ask", t:"A client at its limit asks the agency",
-  claim:"The client sees its own allowance and nothing about your plan, your cost or any other client. Running out produces a request to you with an amount and a reason.",
+ {k:"ask", t:"A client at its limit asks you",
+  claim:"The client sees its own allowance and nothing about your plan, your cost or any other workspace. Running out produces a request to you with an amount and a reason.",
   ask:"Do you want your clients able to ask for more, or should that conversation stay off the platform?",
   watch:"If the request should not exist, the client-facing usage screen loses its reason to exist too.",
   src:"16 Flow E, 09 C3",
   go:()=>{solo=false;ctx="al";asClient=true;cView="usage";openProspect=null}},
- {k:"cost", t:"What each client costs to serve",
-  claim:"Mailboxes plus credits, divided by positive replies. No competitor can produce this because none of them meters per client centrally.",
-  ask:"Do you know today what a client costs you, and would you price differently if you did?",
+ {k:"cost", t:"What each workspace costs to serve",
+  claim:"Mailboxes plus credits, divided by positive replies. No competitor can produce this because none of them meters per workspace centrally.",
+  ask:"Do you know today what a workspace costs you, and would you price differently if you did?",
   watch:"If they do not price on cost, this is a nice number rather than a reason to switch.",
   src:"17, 14",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"dash"};cliTab="all"}},
@@ -8848,37 +8848,37 @@ const TOPICS=[
     Left in the session script, updated, rather than removed, because the
     record of what was asked and how it was settled is worth keeping. */
  {k:"estate", t:"Mailboxes are bought per workspace",
-  claim:"A mailbox is bought inside the workspace that uses it, billed to the agency, and belongs to that workspace from the moment it is bought. There is no central pool and no later assignment step; an inbox somebody connected because they already owned it works the same way it always did.",
-  ask:"Decided 25 Sep 2026, founder call: is per-workspace purchase the right default for every agency, or does a larger one still want to buy centrally and hand off later?",
+  claim:"A mailbox is bought inside the workspace that uses it, billed to the account, and belongs to that workspace from the moment it is bought. There is no central pool and no later assignment step; an inbox somebody connected because they already owned it works the same way it always did.",
+  ask:"Decided 25 Sep 2026, founder call: is per-workspace purchase the right default for every account with more than one workspace, or does a larger one still want to buy centrally and hand off later?",
   watch:"Whether a mailbox keeps its warm-up and reputation when it moves between workspaces is still open, for whenever cross-workspace move ships (see Email Accounts, Coming soon).",
   src:"08 §16b, 20 row 4, 25 Sep decision",
-  open:"Whether a mailbox keeps its warm-up and reputation through a cross-workspace move, and whether a client not on its own plan can connect an inbox at all.",
+  open:"Whether a mailbox keeps its warm-up and reputation through a cross-workspace move, and whether a workspace not on its own plan can connect an inbox at all.",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"record",id:"nw"};tab="mailboxes";mailAll=false}},
  {k:"launch", t:"Launch day for an account that already exists",
-  claim:"Nothing moves without you. Existing clients become workspaces, and the only work asked of you is resolving mailboxes used by more than one client.",
+  claim:"Nothing moves without you. Existing clients become workspaces, and the only work asked of you is resolving mailboxes used by more than one workspace.",
   ask:"If this landed on your account on a Tuesday, what would you need to see before touching it?",
   watch:"The interview added a restriction step here. If launch day feels risky the whole migration needs reframing.",
   src:"16 §2, M1 and M2",
   go:()=>{solo=false;asClient=false;ctx="agency";MIG.deferred=false;MIG.reviewed=false;view={name:"m1"}}},
- {k:"agencyown", t:"The agency's own outreach is separate",
-  claim:"Your own campaigns live in their own workspace, peer to a client's, in the same switcher. The master account administers and does nothing else, so no screen has to answer whose work it is before anything else. Your workspace draws on the same pool and carries a cap like any client.",
+ {k:"agencyown", t:"Your own outreach is separate",
+  claim:"Your own campaigns live in their own workspace, peer to a workspace's, in the same switcher. The master account administers and does nothing else, so no screen has to answer whose work it is before anything else. Your workspace draws on the same pool and carries a cap like any workspace.",
   ask:"Do you run outbound for your own new business today? From where, and who works the replies?",
-  watch:"If they want to build a client campaign without leaving the screen they administer from, the separation costs them more than it saves and the picker comes back.",
+  watch:"If they want to build a workspace campaign without leaving the screen they administer from, the separation costs them more than it saves and the picker comes back.",
   src:"20 row 1",
   /* fix 25 Sep review #16: "seq" is not a name render() dispatches on while
      ctx==="agency" (MASTER_MOD has no "seq" key), so this silently fell
      through to vClients() and never showed the agency's own workspace it
      was meant to demonstrate. ctx="own" is how #seq itself routes there. */
   go:()=>{solo=false;asClient=false;ctx="own";inMod="sequences";view={name:"clients"}}},
- {k:"scope", t:"Templates: one library, or one set per client",
-  claim:"Nineteen features placed by three tests, and this is the one row where the test gives an answer we do not believe. Built as Pattern A: you publish a library, a workspace may write its own, and you can lock what you do not want changed. Switch into a client and open Templates to see the other half.",
-  ask:"Templates: one library you publish to every client, or a separate set per client?",
-  watch:"The whole scope matrix has never been put to an agency. This is the row I expect to be argued with, and the only one I am recommending rather than reporting.",
+ {k:"scope", t:"Templates: one library, or one set per workspace",
+  claim:"Nineteen features placed by three tests, and this is the one row where the test gives an answer we do not believe. Built as Pattern A: you publish a library, a workspace may write its own, and you can lock what you do not want changed. Switch into a workspace and open Templates to see the other half.",
+  ask:"Templates: one library you publish to every workspace, or a separate set per workspace?",
+  watch:"The whole scope matrix has never been put to an account with more than one workspace. This is the row I expect to be argued with, and the only one I am recommending rather than reporting.",
   src:"20 §2.1",
-  open:"Three candidate rules. Publish and lock, as built: one library, no drift, and a client that writes its own copy is not blocked. A separate set per client: matches every other asset, and means maintaining the same opener in every workspace by hand. One library, nobody overrides: no drift at all, and wrong for a client that writes its own copy.",
+  open:"Three candidate rules. Publish and lock, as built: one library, no drift, and a workspace that writes its own copy is not blocked. A separate set per workspace: matches every other asset, and means maintaining the same opener in every workspace by hand. One library, nobody overrides: no drift at all, and wrong for a workspace that writes its own copy.",
   go:()=>{solo=false;asClient=false;ctx="agency";view={name:"tmpl"}}},
- {k:"grace", t:"When the agency's card fails",
-  claim:"Clients keep reading, sending pauses, and the paused state names the agency and never the reason. The agency sees the failed payment, the days left, and every client as reading but not sending.",
+ {k:"grace", t:"When the account's card fails",
+  claim:"Workspaces keep reading, sending pauses, and the paused state names the account and never the reason. The account sees the failed payment, the days left, and every workspace as reading but not sending.",
   ask:"If your card failed on a Friday, what should your clients see on Monday morning?",
   watch:"If they want clients to see nothing at all, even the pause, then the pause has to be silent and that is a different promise to the client.",
   src:"29 §4.1, decided 12 Sep",
@@ -9030,7 +9030,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="9c451ad";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="24d6a98";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
