@@ -154,11 +154,24 @@ svg{display:block}
    same way: position:absolute on the icon, top:-2px left:15px. */
 /* collapsed geometry. Group headings must give up their height, not just their
    ink, or the rail scrolls to accommodate labels nobody can read. */
-.sb:not(:hover):not(.is-open) .sb-group{display:none}
+/* item 3 as well: display:none to block was a 38px jump per label at frame
+   one. The label now keeps its box and animates its height to zero, and the
+   negative margin swallows the 8px list gap it would otherwise still hold. */
+.sb:not(:hover):not(.is-open) .sb-group{height:0;padding-top:0;padding-bottom:0;margin-top:-8px}
+/* the open-state rule above resets transition to opacity only for everything
+   it lists, which made the label snap to 38px on open while easing on close */
+.sb:hover .sb-group,.sb.is-open .sb-group{transition:height .3s ease-in-out,padding .3s ease-in-out,margin .3s ease-in-out,opacity .3s ease-in-out}
 .sb:not(:hover):not(.is-open) .sb-brand{justify-content:center}
 .sb:not(:hover):not(.is-open) .sb-brand span{display:none}
-.sb:not(:hover):not(.is-open) .sb-ws{padding:0;background:none}
-.sb:not(:hover):not(.is-open) .ws-btn{padding:0;justify-content:center;gap:0}
+/* 28 Sep 2026, Hitesh, item 3: "wobble" on open and close. Collapsed used to
+   strip all padding and centre the avatar, and both snapped back on the first
+   frame of the 300ms width animation while the text block, still 24px wide,
+   wrapped to two lines. Everything under the switcher dropped 24px, then rose
+   14px at 220ms when the name fitted; on close, the reverse. Now only the
+   horizontal padding changes, it animates with the width, and the text never
+   wraps, so the switcher is the same height collapsed and open. */
+.sb:not(:hover):not(.is-open) .sb-ws{padding:4px 0;background:none}
+.sb:not(:hover):not(.is-open) .ws-btn{padding:8px 0;gap:0}
 /* collapsed, the item is a 32px square with the 20px icon 6px from every edge.
    The label keeps its width even at opacity 0 unless told otherwise, and that
    width pushed the icon off centre inside the active tile. */
@@ -186,19 +199,20 @@ svg{display:block}
 /* the workspace switcher has no equivalent in the real sidebar at all (the real
    header slot holds only the logo); it is this feature's own new furniture per
    09 §2, styled to sit quietly inside the same rail rather than clash with it. */
-.sb-ws{margin:12px 12px 0;border-radius:var(--radius-input);background:var(--gray-19);padding:4px;position:relative}
+.sb-ws{margin:12px 12px 0;border-radius:var(--radius-input);background:var(--gray-19);padding:4px;position:relative;transition:padding .3s ease-in-out,background-color .3s ease-in-out}
 .ws-btn{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:var(--radius-input);padding:8px;
- cursor:pointer;text-align:left;color:var(--gray-17)}
+ cursor:pointer;text-align:left;color:var(--gray-17);transition:padding .3s ease-in-out,gap .3s ease-in-out}
 .ws-btn:hover{background:var(--gray-16)}
 .ws-btn .nm{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ws-btn .avatar{width:30px;height:30px;font-size:11px}
 .ws-btn svg{color:var(--gray-11)}
-.ws-ctx{display:block;font-size:11px;font-weight:500;color:var(--gray-15);margin-top:1px}
+.ws-ctx{display:block;font-size:11px;font-weight:500;color:var(--gray-15);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* group labels are also new: the real rail is one flat list. Grouping earns its
    keep once Home/Work queue/Client Management/Billing exist beside the base
    product's items, which the real rail never has to distinguish. */
 .sb-group{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-11);
- padding:12px 12px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ padding:12px 12px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:38px;line-height:22px;box-sizing:border-box;margin-top:0;
+ transition:height .3s ease-in-out,padding .3s ease-in-out,margin .3s ease-in-out,opacity .3s ease-in-out}
 /* .nav-item .lbl already had this exact safety net (line below); .sb-group did
    not, which is precisely why a multi-word group name ("Across your clients")
    could render as raw clipped characters mid-transition while a short nav
@@ -235,7 +249,7 @@ svg{display:block}
 /* .app-sidebar__footer, deployed: a 1px #e5e7eb divider, then items at the same 8px gap */
 .sb-foot{border-top:1px solid var(--gray-13);padding-top:8px;display:flex;flex-direction:column;gap:8px}
 
-.main{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:57px;transition:margin-left .18s ease-in-out}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:57px;transition:margin-left .3s ease-in-out}
 /* fix 25 Sep review #6: .sb is position:absolute, so expanding it on hover
    (57px to 240px, rule above) used to sit on top of .main's static
    margin-left with no scrim, hiding up to 183px of live content (a KPI
@@ -9010,7 +9024,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="f98fb6c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="cfe2501";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
