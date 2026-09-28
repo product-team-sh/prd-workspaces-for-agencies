@@ -343,24 +343,30 @@ svg{display:block}
 .me{display:flex;align-items:center;gap:8px;border:0;background:none;border-radius:999px;padding:4px 8px 4px 4px;cursor:pointer}
 .me:hover{background:var(--gray-16)}
 .me .avatar{width:30px;height:30px;border-radius:50%;font-size:11px}
-.pop{position:fixed;width:360px;background:var(--gray-1);border-radius:var(--radius-surface);
- box-shadow:var(--shadow-dropdown);z-index:1001;overflow:hidden;border:1px solid var(--gray-13)}
-.pop-s{padding:10px 10px 6px}
-.pop-s input{width:100%;height:32px;border:1px solid var(--gray-13);border-radius:var(--radius-input);background:var(--gray-1);padding:0 12px;font:inherit;font-size:13px;outline:none}
-.pop-l{max-height:min(64vh,520px);overflow:auto;padding:4px 6px 6px}
-.pop-tag--warn{color:var(--orange-12)}.pop-tag--bad{color:var(--red-12)}
-.pop-h{font-size:12px;font-weight:600;color:var(--gray-11);padding:10px 10px 4px;white-space:nowrap}
-.acc-row{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;padding:8px 0}
-.acc-row b{font-size:13px;font-weight:600;color:var(--gray-17);display:block;line-height:1.4}
-.acc-row i{font-style:normal;font-size:12px;color:var(--gray-15);display:block;line-height:1.45}
-.acc-row .sw[disabled]{opacity:.4;cursor:not-allowed}
-.pop-tag{margin-left:auto;font-size:11px;color:var(--gray-11);white-space:nowrap}
-.pop-r{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;border-radius:var(--radius-input);padding:7px 10px;
- cursor:pointer;text-align:left;font:inherit;font-size:13px;color:var(--gray-17)}
+/* workspace switcher popover, 28 Sep 2026 (Hitesh): the design system's
+   dropdown listing. 320 wide, 4px radius, listing shadow 0 4px 24px .08, 36px
+   rows at 14px, 12px group label, Blue 50 hover and current. One list: the
+   account row pinned first, then every workspace the person belongs to. */
+.pop{position:fixed;width:320px;background:var(--gray-1);border-radius:4px;
+ box-shadow:0 4px 24px 0 rgba(0,0,0,.08);z-index:1001;overflow:hidden;border:1px solid var(--gray-13)}
+.pop-s{padding:8px 8px 4px}
+.pop-s input{width:100%;height:32px;border:1px solid var(--gray-23);border-radius:4px;background:var(--gray-1);padding:0 12px;font:inherit;font-size:14px;outline:none}
+.pop-s input:focus{border-color:var(--blue-11);box-shadow:0 0 0 2px var(--blue-13)}
+.pop-l{max-height:min(64vh,520px);overflow:auto;padding:4px 8px 8px}
+.pop-h{font-size:12px;line-height:16px;font-weight:600;color:var(--gray-15);padding:12px 8px 4px;white-space:nowrap}
+.pop-r{display:flex;align-items:center;gap:8px;width:100%;height:36px;border:0;background:none;border-radius:4px;padding:0 8px;
+ cursor:pointer;text-align:left;font:inherit;font-size:14px;color:var(--gray-17)}
 .pop-r:hover,.pop-r[aria-current=true]{background:var(--blue-17)}
-.pop-r .avatar{width:26px;height:26px;font-size:10px}
+.pop-r .avatar{width:24px;height:24px;font-size:10px;flex:none}
 .pop-r .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pop-f{padding:8px 10px 10px;border-top:1px solid var(--gray-16)}
+.pop-r .pop-ico{flex:none;width:24px;height:24px;border-radius:4px;background:var(--gray-16);color:var(--gray-12);display:grid;place-items:center}
+.pop-r .pop-ico svg{width:14px;height:14px}
+.pop-tag{margin-left:auto;font-size:12px;color:var(--gray-15);white-space:nowrap}
+.pop-tag--warn{color:var(--orange-12)}.pop-tag--bad{color:var(--red-12)}
+.pop-cur{margin-left:auto;flex:none;width:16px;height:16px;color:var(--blue-11)}
+.pop-cur svg{width:16px;height:16px}
+.pop-acct{border-bottom:1px solid var(--gray-16);padding-bottom:4px;margin-bottom:0}
+.pop-f{padding:8px;border-top:1px solid var(--gray-16)}
 .ctx-bar{display:none}
 .asbanner{background:var(--gray-17);color:#fff;font-size:13px;padding:8px 24px;display:flex;align-items:center;gap:12px;justify-content:space-between}
 .asbanner button{border:0;border-radius:var(--radius-control);background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:12px;padding:5px 10px;cursor:pointer}
@@ -1563,9 +1569,9 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
       </button>
       <div id="xformLayer"></div>
       <div class="pop" id="pop" hidden>
-        <div class="pop-s" id="popSWrap"><input type="text" id="popQ" placeholder="Search clients" aria-label="Search clients"></div>
+        <div class="pop-s" id="popSWrap"><input type="text" id="popQ" placeholder="Search workspaces" aria-label="Search workspaces"></div>
         <div class="pop-l" id="popL"></div>
-        <div class="pop-f" id="popAddWrap"><button class="shd-button shd-button--secondary shd-button--sm" id="popAdd" style="width:100%">Add Client</button></div>
+        <div class="pop-f" id="popAddWrap"><button class="shd-button shd-button--secondary shd-button--sm" id="popAdd" style="width:100%">Add a workspace</button></div>
       </div>
     </div>
     <div id="navList"></div>
@@ -2708,7 +2714,7 @@ function renderShell(){
    const w=solo?byId[ctx]:c;
    if(!el("wsStatic")) el("sbWs").insertAdjacentHTML("afterbegin",`<div class="ws-btn ws-static" id="wsStatic"><span class="avatar av-tint" id="wsStaticAv"></span><span style="min-width:0;flex:1"><span class="nm" id="wsStaticNm"></span><span class="ws-ctx" id="wsStaticCtx"></span></span></div>`);
    el("wsStaticAv").textContent=initials(w.name); el("wsStaticAv").style.setProperty("--c",w.colour||AGENCY.colour);
-   el("wsStaticNm").textContent=w.name; el("wsStaticCtx").textContent=solo?"Your workspace":"Viewing as the client";
+   el("wsStaticNm").textContent=w.name; el("wsStaticCtx").textContent="Workspace";
  }
  else {const st=el("wsStatic"); if(st) st.remove();
    if(!el("wsBtn")){
@@ -2755,8 +2761,12 @@ function renderShell(){
     tell this one apart from.                                                */
  const norm=isNormal();
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
- if(!asClient&&!solo) el("wsCtx").textContent=norm?"Your workspace":isOwn()?"Own outreach":inC?"Client workspace":"Managing the account";
- el("sbWs").style.boxShadow=inC&&!norm?"inset 3px 0 0 "+c.colour:"none";
+ /* 28 Sep 2026, Hitesh: the second line says which level you are on, in one
+    word, instead of describing the model. */
+ if(!asClient&&!solo) el("wsCtx").textContent=inAgency()&&!norm?"Account":"Workspace";
+ /* 28 Sep 2026: no coloured bar on the switcher inside a workspace; the
+    trigger's own avatar and second line say where you are. */
+ el("sbWs").style.boxShadow="none";
  el("ctxBar").style.setProperty("--ctx",inC&&!norm?c.colour:"transparent");
  el("crumbTail").textContent=solo?(soloMod==="settings"?"Settings":AGY_MOD[soloMod][0])
    :view.name==="settings"?"Settings"
@@ -2773,55 +2783,37 @@ function renderShell(){
  renderRail();
 }
 function renderPop(q=""){
- /* defence in depth: never render the agency or any other client into a
-    popover a client-side viewer could somehow reach, even if the trigger
-    that is supposed to stay inert for them is ever bypassed. */
+ /* defence in depth: never render the account or any other workspace into a
+    popover a workspace-user session could somehow reach. */
  if(asClient){el("popL").innerHTML="";return}
  const t=q.trim().toLowerCase();
- const list=myClients().filter(c=>!t||c.name.toLowerCase().includes(t)||c.company.toLowerCase().includes(t));
- /* three groups, because there are three kinds of place to be: administering
-    the account, doing the agency's own outreach, and working inside a client.
-    Switching has to be one click from any screen, which is why this lives in
-    the sidebar header and not in settings.                                */
- /* fix 25 Sep review #22: D2a - "A Member sees an own-outreach row only if
-    they are a member of the agency's own-outreach workspace, an ordinary
-    membership like any other." This matched on search text alone, with no
-    membership check, so a Member with no "own" in their ws array (Sam:
-    ws:["al","nw"]) still saw and could open it. */
- const ownMatch=(!t||OWN_WS.name.toLowerCase().includes(t)||"own outreach campaigns".includes(t))&&isMember(ME(),"own");
- /* Version C. A normal user has one workspace, so the switcher lists one thing.
-    The master and the house workspace are two contexts in the model, but naming
-    them separately here is the model leaking: it asks someone with no clients to
-    understand a distinction between administering an account and doing their own
-    outreach, when both are just "their workspace". Three group headings and a
-    "No clients found" line are furniture for a structure that does not exist
-    yet. One row, and the way to make a second.                             */
+ /* 28 Sep 2026, Hitesh, D14: one list. The account row is pinned first, with
+    an icon rather than an avatar so it cannot be mistaken for the workspace
+    of the same name. Then "Workspaces": your own first, tagged Yours, the rest
+    alphabetical. The current place carries a check. A right-hand tag appears
+    only when a workspace needs attention. No counts, no roles. */
+ const gridI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
+ const checkI='<span class="pop-cur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
+ const row=(id,lead,name,tag,cur)=>`<button class="pop-r" data-go="${id}" aria-current="${cur}">${lead}<span class="t">${name}</span>${cur?checkI:tag?`<span class="pop-tag${tag.tone?" pop-tag--"+tag.tone:""}">${tag.text}</span>`:""}</button>`;
+ const av=(ini,col)=>`<span class="avatar av-tint" style="--c:${col}">${ini}</span>`;
+ const attention=c=>{const st=lf(c.id).s; if(c.sent===0) return {text:"Not set up"}; if(st.tone==="bad") return {text:"At limit",tone:"bad"}; if(st.tone==="warn") return {text:"Near limit",tone:"warn"}; return null};
  if(isNormal()){
-  el("popL").innerHTML=`<button class="pop-r" data-go="agency" aria-current="true">
-   <span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span>
-   <span class="t">${AGENCY.name}</span>
-   <span class="pop-tag">${OWN_WS.seq} sequences</span></button>`;
+  el("popL").innerHTML=row("agency",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,true);
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{closePop()});
   return}
- el("popL").innerHTML=`<div class="pop-h">${isOwnerOrAdmin()?"Managing the account":"Your clients"}</div>
-  <button class="pop-r" data-go="agency" aria-current="${ctx==="agency"}">
-   <span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span>
-   <span class="t">${AGENCY.name}</span>
-   <span class="pop-tag">${ME().role}</span></button>`
-  +(ownMatch?`<div class="pop-h">${AGENCY.name}'s own outreach</div>
-  <button class="pop-r" data-go="own" aria-current="${ctx==="own"}">
-   <span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span>
-   <span class="t">Own campaigns</span>
-   <span class="pop-tag">${OWN_WS.seq} sequences</span></button>`:"")
-  +`<div class="pop-h">Clients</div>`+
-  (list.length?list.map(c=>`<button class="pop-r" data-go="${c.id}" aria-current="${ctx===c.id}">
-   <span class="avatar av-tint" style="--c:${c.colour}">${initials(c.name)}</span>
-   <span class="t">${c.name}</span>${lf(c.id).s.tone==="ok"?"":`<span class="pop-tag pop-tag--${lf(c.id).s.tone}">${lf(c.id).s.state}</span>`}</button>`).join("")
-   :`<p class="sub" style="padding:8px">No clients found</p>`);
+ const ownMatch=(!t||OWN_WS.name.toLowerCase().includes(t))&&isMember(ME(),"own");
+ const list=myClients().filter(c=>!t||c.name.toLowerCase().includes(t)||c.company.toLowerCase().includes(t))
+   .slice().sort((a,b)=>a.name.localeCompare(b.name));
+ el("popL").innerHTML=(t?"":`<div class="pop-acct">${row("agency",`<span class="pop-ico">${gridI}</span>`,AGENCY.name,{text:"Account"},ctx==="agency")}</div>`)
+  +`<div class="pop-h">Workspaces</div>`
+  +(ownMatch?row("own",av(AGENCY.initials,AGENCY.colour),AGENCY.name,{text:"Yours"},ctx==="own"):"")
+  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,attention(c),ctx===c.id)).join("")
+   :ownMatch?"":`<p class="sub" style="padding:8px">No workspaces found</p>`);
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;
    if(ctx==="own"){inMod="sequences"}
-   else if(ctx!=="agency"){inMod="sequences";view={name:"clients"}}
+   else if(ctx==="agency"){view=homeView()}
+   else {inMod="sequences";view={name:"clients"}}
    closePop();render()});
 }
 const openPop=()=>{popOpen=true;const P=el("pop"),R=el("sbWs").getBoundingClientRect();
@@ -9038,7 +9030,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{sessShow(false)}
 </script>
 <script>
-(function(){var B="8d27955";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="9c451ad";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
