@@ -1842,7 +1842,7 @@ const PEOPLE={
     an account role here (Owner, Admin, Member) and, per client, a client
     role (Workspace Admin, Workspace Collaborator, Workspace Viewer, see CLIENT_ROLES
     below). Nothing about what someone can do is graded per screen any more. */
- owner:{name:"Alex Meridian",initials:"AM",role:"Owner",ws:null},
+ owner:{name:"Alex Meridian",initials:"AM",role:"Owner",email:"alex@meridiangrowth.com",ws:null},
  priya:{name:"Priya Nair",  initials:"PN",role:"Admin",email:"priya@meridiangrowth.com",ws:null},
  sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:["al","nw"]},
 };
@@ -2900,21 +2900,25 @@ const closePop=()=>{popOpen=false;el("pop").hidden=true;el("wsBtn").setAttribute
    PEOPLE entry, "Sign out" is inert (data-flash). Guarded by the me-static
    class above (asClient or solo never gets aria-haspopup or a click handler
    that opens it, mirroring the wsBtn/wsStatic guard already in place). */
+/* the reviewer switch used to live here; Hitesh, 28 Sep 2026 (item 6): the
+   header menu is the product's own (name, email, My Profile, Sign out), and
+   switching the acting person is reviewer scaffolding, so it moved into the
+   validation panel (Ctrl+/). */
+function swapMe(k){
+ if(k===me_)return;
+ me_=k; const mine=ME().ws;
+ if(ctx!=="agency"&&mine&&mine.indexOf(ctx)<0){ctx="agency";view={name:"clients"};asClient=false}
+ if(ctx==="agency"&&view.name==="dash"&&!canI("dashboard")) view={name:"clients"};
+ render(); sessRender();
+}
 function renderMePop(){
- const checkI='<span class="pop-cur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
- const rows=Object.keys(PEOPLE).map(k=>{const p=PEOPLE[k],cur=k===me_;
-  return `<button class="pop-r" data-swap="${k}" aria-current="${cur}" style="height:44px">
-    <span class="avatar av-tint" style="--c:var(--blue-11)">${p.initials}</span>
-    <span class="t"><span style="display:block">${p.name}</span><span class="sub" style="font-size:12px;color:var(--gray-15)">${p.role}</span></span>
-    ${cur?checkI:""}</button>`}).join("");
- el("mePopL").innerHTML=`<div class="pop-h">Switch reviewer</div>${rows}`
-  +`<div class="pop-f"><button class="pop-r" data-flash="Not in this prototype" style="height:32px;color:var(--gray-15)">Sign out</button></div>`;
- el("mePopL").querySelectorAll("[data-swap]").forEach(b=>b.onclick=()=>{
-  closeMePop(); const k=b.dataset.swap; if(k===me_)return;
-  me_=k; const mine=ME().ws;
-  if(ctx!=="agency"&&mine&&mine.indexOf(ctx)<0){ctx="agency";view={name:"clients"};asClient=false}
-  if(ctx==="agency"&&view.name==="dash"&&!canI("dashboard")) view={name:"clients"};
-  render()});
+ const p=ME();
+ el("mePopL").innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--gray-16)">
+   <span class="avatar av-tint" style="--c:var(--blue-11);width:32px;height:32px;font-size:12px">${p.initials}</span>
+   <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</span><span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.email||""}</span></span></div>
+  <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
+  <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
+ el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else flash(b,"Open a workspace's Settings for your profile")});
  el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
 }
 const openMePop=()=>{if(el("meBtn").classList.contains("me-static"))return;
@@ -9354,7 +9358,11 @@ function sessRender(){
    <button class="shd-button shd-button--tertiary shd-button--sm" id="sessDl">Download</button>
    <button class="shd-button shd-button--tertiary shd-button--sm" id="sessClear">Clear session</button>
    <span class="sub">${done} of ${TOPICS.length} recorded &middot; saved in this browser</span>
+  </div>
+  <div class="sess-foot" style="margin-top:8px"><span class="sub" style="color:var(--gray-15)">Reviewing as</span>
+   ${Object.keys(PEOPLE).map(k=>`<button class="shd-button shd-button--sm ${k===me_?"shd-button--primary":"shd-button--tertiary"}" data-sessswap="${k}" ${asClient||solo?"disabled":""}>${PEOPLE[k].name} &middot; ${PEOPLE[k].role}</button>`).join("")}
   </div>`;
+ el("sessMain").querySelectorAll("[data-sessswap]").forEach(b=>b.onclick=()=>swapMe(b.dataset.sessswap));
  el("sessList").querySelectorAll("[data-si]").forEach(b=>b.onclick=()=>sessGo(+b.dataset.si));
  el("sessMain").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{
    const r=b.dataset.r; rec.r=rec.r===r?null:r; sSave(); sessRender()});
@@ -9457,7 +9465,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1d35a77";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="d22c746";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
