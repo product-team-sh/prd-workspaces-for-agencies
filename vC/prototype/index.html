@@ -1788,7 +1788,8 @@ const HANDOVER_MS=900, HANDOVER_MS_REDUCED=400;
 const wsPreviewSub=()=>"New workspace &middot; empty &middot; draws on your plan";
 const wsForTag=forClient=>forClient===false?"Yours":"For a client";
 function clientTileHTML(c){
- return `<div class="nc-prev" style="max-width:380px;margin:0 auto">
+ /* 29 Sep 2026: wide enough for the subtitle on one line, and left-aligned inside the centred beat */
+ return `<div class="nc-prev" style="max-width:460px;margin:0 auto;text-align:left">
     <span class="avatar av-tint" style="--c:${c.colour}">${initials(c.name)}</span>
     <span style="min-width:0;flex:1"><b>${c.name}</b>
      <i>${wsPreviewSub()}</i></span>
@@ -6504,7 +6505,7 @@ function ncAccessSentence(){
    keeps showing the same next-in-line colour it always did, so an untouched
    tile looks exactly as before. */
 function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
- return `<button type="button" class="nc-prev${nm?"":" is-empty"}" id="ncPrev" data-nccol aria-label="Change colour" title="Click to try the next colour"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></button>`}
+ return `<button type="button" class="nc-tile${nm?"":" is-empty"}" id="ncPrev" data-nccol aria-label="Change colour" title="Click to try the next colour"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></button>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
    and the swatch click never scrolls the drawer. Rebinds the swatch's own
    handler each time, since the node it lived on was just replaced. */
@@ -8648,9 +8649,10 @@ render();
 
 /* Add a workspace modal, 29 Sep 2026 (Hitesh's Claude Design screen on the design system) */
 .nc-namerow{display:flex;gap:16px;align-items:flex-end}
-.nc-prev{width:48px;height:48px;padding:0;border:0;background:none;cursor:pointer;flex:none;border-radius:var(--radius-control);line-height:0}
-.nc-prev .avatar{width:48px;height:48px;border-radius:var(--radius-control);font-size:16px;font-weight:600}
-.nc-prev:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+/* .nc-tile, not .nc-prev: the handover's "Workspace ready" card uses .nc-prev and these rules broke it (29 Sep 2026, "fix this") */
+.nc-tile{width:48px;height:48px;padding:0;border:0;background:none;cursor:pointer;flex:none;border-radius:var(--radius-control);line-height:0}
+.nc-tile .avatar{width:48px;height:48px;border-radius:var(--radius-control);font-size:16px;font-weight:600}
+.nc-tile:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
 .nc-fieldhint{margin:6px 0 16px;padding-left:64px}
 .nc-req{color:var(--red-12);font-weight:600}.opt{font-weight:400;color:var(--gray-15)}
 .nc-swatches{display:flex;gap:10px}
@@ -8949,7 +8951,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="ca52279";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="ed78a09";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
