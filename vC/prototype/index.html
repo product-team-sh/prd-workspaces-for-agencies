@@ -1873,7 +1873,10 @@ const PEOPLE={
     below). Nothing about what someone can do is graded per screen any more. */
  owner:{name:"Alex Meridian",initials:"AM",role:"Owner",email:"alex@meridiangrowth.com",ws:null},
  priya:{name:"Priya Nair",  initials:"PN",role:"Admin",email:"priya@meridiangrowth.com",ws:null},
- sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:["al","nw"]},
+ sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:["al","nw"],roles:{nw:"Workspace Collaborator",al:"Workspace Collaborator"}},
+ /* 29 Sep 2026, from the People redesign boards */
+ dev:  {name:"Dev Kapoor",  initials:"DK",role:"Member",email:"dev@meridiangrowth.com",ws:["nw","bl"],roles:{nw:"Workspace Admin",bl:"Workspace Viewer"}},
+ mira: {name:"Mira Chen",   initials:"MC",role:"Member",email:"mira@meridiangrowth.com",ws:["vx"],roles:{vx:"Workspace Collaborator"}},
 };
 const CAN={
  /* `destructive` is delete and unlink, which end a relationship and are the
@@ -3272,7 +3275,7 @@ const AGENCY_ROLES=["Owner","Admin","Member"];
 const CLIENT_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
 /* item 54, 28 Sep 2026: ROLEMAP deleted, unread. It mapped the old four
    staff titles onto the three account roles from before the six-role model. */
-const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"just now",
+const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"just now","Dev Kapoor":"yesterday","Mira Chen":"never",
  "ops@northwind.co":"yesterday","growth@vertexhealth.io":"6 days ago","sales@alloyco.com":"3 days ago",
  "desk@cascade.partners":"never",
  /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
@@ -3281,7 +3284,7 @@ const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"
 /* 21 Sep 2026, delight pass round 6: when an invite went out, keyed by name
    the way LASTSEEN already is, so the People row can say "Invited 21 Sep"
    rather than only "never". */
-let INVITED={};
+let INVITED={"t:mira":"3 days ago"};
 const TODAY_STR="21 Sep";
 /* "just now" or "today" only, per the rule this round works to: an hour-old
    session does not count as someone still at the keyboard. */
@@ -3904,7 +3907,191 @@ function vWorkspacesTab(){
     <td><span class="sub">${last}</span></td>
     <td class="ar">${canI("members")?`<button class="linkbtn" data-invite="${c.id}">Invite</button>`:""}${c.own?"":` <button class="linkbtn" data-manage="${c.id}" style="margin-left:12px">Members &rarr;</button>`}</td></tr>`}).join("")}</tbody></table></div></div>`;
 }
+/* ═══ People, redesigned (29 Sep 2026, Hitesh: "check People screen on canvas, listing screen is
+   designed"). Ported from his PP boards: one list in two sections (your team, client users), a
+   person panel that saves as you change it, an invite that asks who they are first, and a roles
+   sheet. Account role decides reach, workspace role decides power (D4, D5). ═══ */
+let PP={q:"",ws:"all",menu:null,addws:false,removeConfirm:false};
+const PP_WS_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
+const ppShort=r=>String(r||"").replace(/^Workspace /,"");
+const ppName=email=>email.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase());
+const ppAv=(ini,col,size,dashed)=>`<span class="pp-av" style="--c:${col};width:${size}px;height:${size}px;font-size:${Math.round(size*.37)}px${dashed?";background:#fff;border:1.5px dashed var(--gray-11);color:var(--gray-15)":""}">${ini}</span>`;
+const ppWsRole=(p,id)=>(p.roles&&p.roles[id])||"Workspace Collaborator";
+function ppTeam(){
+ return Object.keys(PEOPLE).map(k=>{const P=PEOPLE[k]; const email=P.email||(k+"@"+AGENCY.name.toLowerCase().replace(/[^a-z]/g,"")+".com");
+  const seen=AGE(LASTSEEN[P.name]||LASTSEEN[email]||"unknown");
+  return {k,P,name:P.name,initials:P.initials||initials(P.name),email,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,invited:INVITED["t:"+k]||(seen==="never"?"3 days ago":null),me:k===me_}})
+  .sort((a,b)=>({Owner:0,Admin:1,Member:2}[a.role]-{Owner:0,Admin:1,Member:2}[b.role])||a.name.localeCompare(b.name));
+}
+function ppClients(){
+ const out=[]; CLIENTS.forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
+  out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
+ return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
+}
+const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
+const ppStatus=r=>r.invited?`<span class="pp-st pp-st--inv"><i></i>Invited ${r.invited==="never"?"":r.invited}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
+function ppAccess(r){
+ const all=myClients().concat([]);
+ if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces &middot; Workspace Admin</span>`;
+ if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
+ return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,16)}${byId[id].name.split(" ")[0]} <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span></span>`).join("");
+}
 function vPeople(){
+ if(!canI("members")) return denied("see or manage people");
+ const q=PP.q.trim().toLowerCase(), team=ppTeam().filter(r=>ppMatch(q,r.name,r.email)&&(PP.ws==="all"||r.ws===null||r.ws.indexOf(PP.ws)>-1)),
+       cl=ppClients().filter(r=>ppMatch(q,r.name,r.email,r.c.name)&&(PP.ws==="all"||r.c.id===PP.ws));
+ const nInv=ppTeam().filter(r=>r.invited).length+ppClients().filter(r=>r.invited).length, wsN=new Set(ppClients().map(r=>r.c.id)).size;
+ const cols='grid-template-columns:minmax(0,1.4fr) 120px minmax(0,2fr) 110px 170px 40px';
+ const head=`<div class="pp-head" style="${cols}"><span>Person</span><span>Account role</span><span>Workspace access</span><span>Last active</span><span>Status</span><span></span></div>`;
+ const teamRow=r=>`<div class="pp-row${r.role==="Owner"?"":" is-link"}" style="${cols}" ${r.role==="Owner"?"":`data-ppopen="${r.k}"`}>
+   <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",30,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
+   <span><span class="pp-role${r.role==="Member"?" pp-role--mute":""}">${r.role}</span></span>
+   <span class="pp-access">${ppAccess(r)}</span>
+   <span class="sub">${r.invited?"Never":r.seen}</span>
+   <span class="pp-status">${ppStatus(r)}</span>
+   <span>${r.role==="Owner"?"":'<span class="pp-go">'+chevR+'</span>'}</span></div>`;
+ const clRow=r=>`<div class="pp-row" style="${cols}">
+   <span class="pp-person">${ppAv(r.initials,r.c.colour,30,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
+   <span><span class="sub">Client user</span></span>
+   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,16)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
+   <span class="sub">${r.invited?"Never":r.seen}</span>
+   <span class="pp-status">${ppStatus(r)}</span>
+   <span><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+ const wsOpts=myClients();
+ return `<div class="wrap pp-wrap">${receiptBar("people")}
+  <div class="pp-top"><span class="sub">${ppTeam().length} on your team &middot; ${ppClients().length} client users across ${wsN} workspaces${nInv?` &middot; ${nInv} invite${nInv===1?"":"s"} waiting`:""}</span>
+   <span class="tools"><span class="search" style="width:260px"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z"/><path d="M14.293 14.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414Z"/></svg><input type="text" id="ppQ" placeholder="Find anyone by name or email" value="${PP.q.replace(/"/g,"&quot;")}"></span>
+    <button class="shd-button shd-button--secondary" data-pproles>What each role can do</button>
+    <button class="shd-button shd-button--primary" data-ppinvite="team">Invite people</button></span></div>
+  <section class="pp-sec">
+   <div class="pp-sec-h"><span class="pp-sec-l"><span class="pp-sec-ico">${peopleI}</span><span class="pp-sec-t"><b>Your team <span class="sub">&middot; ${ppTeam().length}</span></b><i>${AGENCY.name} staff. Owner and Admins reach every workspace; a Member reaches only the workspaces listed, in the role set for each.</i></span></span>
+    <span class="tools"><select class="inp pp-wsfilter" id="ppWs" aria-label="Filter by workspace"><option value="all" ${PP.ws==="all"?"selected":""}>Workspace: All</option>${wsOpts.map(c=>`<option value="${c.id}" ${PP.ws===c.id?"selected":""}>${c.name}</option>`).join("")}</select>
+     <button class="shd-button shd-button--sm pp-outline" data-ppinvite="team">+ Invite a teammate</button></span></div>
+   ${head}${team.length?team.map(teamRow).join(""):`<div class="pp-empty">No one on your team matches.</div>`}</section>
+  <section class="pp-sec">
+   <div class="pp-sec-h pp-sec-h--gray"><span class="pp-sec-l"><span class="pp-sec-ico pp-sec-ico--plain">${bldgI}</span><span class="pp-sec-t"><b>Client users <span class="sub">&middot; ${ppClients().length}, in ${wsN} workspaces</span></b><i>People who work at a client. Each logs in to one workspace and never sees ${AGENCY.name}, Billing or another client. Their role there is the whole of what they can do.</i></span></span>
+    <span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-ppinvite="client">+ Add someone at a client</button></span></div>
+   ${head}${cl.length?cl.map(clRow).join(""):`<div class="pp-empty">No client user matches.</div>`}</section></div>`;
+}
+const chevR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+const peopleI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+const bldgI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>';
+/* ── person panel ── */
+function ppPanelHTML(){
+ const k=modal.k, P=PEOPLE[k]; if(!P) return "";
+ const r=ppTeam().find(x=>x.k===k), all=myClients(), inWs=r.ws===null?all:r.ws.map(id=>byId[id]), notIn=r.ws===null?[]:all.filter(c=>r.ws.indexOf(c.id)<0);
+ const roleCard=(role,title,line)=>`<label class="pp-rcard${P.role===role?" is-on":""}"><span><input type="radio" name="ppacct" value="${role}" ${P.role===role?"checked":""} ${P.role==="Owner"?"disabled":""} data-ppacct>${title}</span><i>${line}</i></label>`;
+ const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+P.role+" role":"Since "+(c.created||"the start")+" &middot; "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequences owned"}</i></span>
+   ${r.ws===null?`<span class="sub">Workspace Admin</span>`:`<select class="inp pp-rolesel" data-ppwsrole="${c.id}">${PP_WS_ROLES.map(x=>`<option value="${x}" ${ppWsRole(P,c.id)===x?"selected":""}>${ppShort(x)}</option>`).join("")}</select><button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
+ return `<div class="mscrim" id="mscrim"><aside class="pp-drawer" role="dialog" aria-modal="true" aria-label="${P.name}">
+  <div class="pp-dr-h">${ppAv(r.initials,"#DBEAFE",44)}<span class="pp-dr-t"><b>${P.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i><i>${r.invited?"Invited "+r.invited+" &middot; not signed in yet":"On your team &middot; last active "+r.seen}</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="pp-dr-b">
+   <section><span class="pp-eyebrow">On the ${AGENCY.name} account</span>
+    ${P.role==="Owner"?`<div class="pp-rcard is-on" style="cursor:default"><span>Owner</span><i>Everything, including billing and transferring ownership. Transferred from your own page, never granted here.</i></div>`
+    :`<div class="pp-rgrid" role="radiogroup">${roleCard("Member","Member","Reaches only the workspaces listed below, in the role set for each.")}${roleCard("Admin","Admin","Reaches every workspace as Workspace Admin, plus People and Billing.")}</div>`}</section>
+   <section><div class="pp-sec-row"><span class="pp-eyebrow">Workspace access &middot; ${inWs.length} of ${all.length}</span><button class="linkbtn" data-pproles>What each role can do</button></div>
+    <div class="pp-wslist">${inWs.length?inWs.map(wsRow).join(""):`<div class="pp-empty" style="padding:14px 12px">Not in any workspace yet. Add one below.</div>`}</div>
+    ${r.ws===null?"":`${PP.addws?`<select class="inp" data-ppaddws style="width:100%"><option value="">Choose a workspace</option>${notIn.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select>`:`<button class="shd-button shd-button--sm pp-outline" data-ppaddwsopen ${notIn.length?"":"disabled"}>+ Add to a workspace</button>`}
+    <span class="sub">${notIn.length?`Not in: ${notIn.map(c=>c.name).join(", ")}. ${P.name.split(" ")[0]} cannot see that they exist.`:"In every workspace."}</span>`}</section>
+   <section><span class="pp-eyebrow">Sign-in</span><div class="pp-sec-row"><span class="sub">${r.invited?"No password yet; they set it when they accept.":"Password set by "+P.name.split(" ")[0]+" &middot; two-factor on"}</span>${r.invited?`<button class="linkbtn" data-ppresend="${k}">Resend invite</button>`:`<button class="linkbtn" data-flash="Not in this prototype">Send reset link</button>`}</div></section>
+  </div>
+  <div class="pp-dr-f">${P.role==="Owner"||r.me?`<span class="sub">${r.me?"This is you.":"The Owner cannot be removed."}</span>`
+   :PP.removeConfirm?`<span class="tools"><span class="sub">Remove ${P.name.split(" ")[0]} from the account?</span><button class="shd-button shd-button--danger shd-button--sm" data-ppremovego>Remove</button><button class="shd-button shd-button--tertiary shd-button--sm" data-ppremovecancel>Keep</button></span>`
+   :`<span class="pp-dr-rm"><button class="linkbtn" style="color:var(--red-12)" data-ppremove>Remove ${P.name.split(" ")[0]} from the account</button><i>Their sequences stay in their workspaces, reassigned to you.</i></span>`}<span class="sub">Changes save as you make them</span></div>
+ </aside>${ppToastHTML()}</div>`;
+}
+const ppToastHTML=()=>(RECEIPT&&RECEIPT.scope==="people")?`<div class="pp-toast" role="status">${tickI}<span>${RECEIPT.text}</span>${RECEIPT.undo?'<button class="linkbtn" data-undo>Undo</button>':""}</div>`:"";
+/* ── invite ── */
+let PPI=null;
+const ppiBlank=who=>({who:who||"team",emails:[],draft:"",admin:false,ws:{},clientWs:"",clientRole:"Workspace Collaborator"});
+function ppInviteHTML(){
+ const I=PPI, all=myClients(), picked=all.filter(c=>I.ws[c.id]);
+ const names=I.emails.map(e=>ppName(e).split(" ")[0]), who=names.length?names.slice(0,2).join(" and ")+(names.length>2?" and "+(names.length-2)+" more":""):"They";
+ const preview=I.who==="team"
+   ?(I.admin?`<strong>${who} will be Admin${names.length===1?"":"s"}:</strong> every workspace as Workspace Admin, plus People and Billing.`
+     :picked.length?`<strong>${who} will get</strong> ${picked.map(c=>c.name+" as "+ppShort(I.ws[c.id])).join(", ")}. They will not see ${all.filter(c=>!I.ws[c.id]).map(c=>c.name).join(", ")||"nothing else"}. You can change any of this later from their profile.`
+     :`<strong>${who} will join the account</strong> with no workspace yet. Pick at least one, or they will see nothing.`)
+   :(I.clientWs?`<strong>${who} will sign in to ${byId[I.clientWs].name}</strong> as ${ppShort(I.clientRole)}, and never see ${AGENCY.name}, Billing or another workspace.`:`<strong>Pick the workspace</strong> ${who.toLowerCase()==="they"?"they":who} will live in.`);
+ const wsGrid=I.who==="team"?`<div class="pp-sec-row"><span class="flabel" style="margin:0">Workspace access <span class="opt">&middot; ${picked.length} of ${all.length} picked</span></span><span class="sub">Set all picked to <select class="inp pp-rolesel" data-ppisetall>${PP_WS_ROLES.map(x=>`<option value="${x}">${ppShort(x)}</option>`).join("")}</select></span></div>
+   <div class="pp-igrid${I.admin?" is-off":""}">${all.map(c=>`<label class="pp-irow${I.ws[c.id]?" is-on":""}"><input type="checkbox" data-ppiws="${c.id}" ${I.ws[c.id]?"checked":""} ${I.admin?"disabled":""}>${ppAv(initials(c.name),c.colour,24)}<span class="pp-irow-n">${c.name}${c.id===OWN_WS.id||c.own?' <span class="sub">(your own)</span>':""}</span>${I.ws[c.id]?`<select class="inp pp-rolesel" data-ppiwsrole="${c.id}">${PP_WS_ROLES.map(x=>`<option value="${x}" ${I.ws[c.id]===x?"selected":""}>${ppShort(x)}</option>`).join("")}</select>`:`<span class="sub">No access</span>`}</label>`).join("")}</div>`
+  :`<div class="pp-sec-row"><span class="flabel" style="margin:0">Their workspace</span><span class="sub">One workspace per client user</span></div>
+   <div class="pp-igrid">${all.map(c=>`<label class="pp-irow${I.clientWs===c.id?" is-on":""}"><input type="radio" name="ppicl" data-ppicl="${c.id}" ${I.clientWs===c.id?"checked":""}>${ppAv(initials(c.name),c.colour,24)}<span class="pp-irow-n">${c.name}</span>${I.clientWs===c.id?`<select class="inp pp-rolesel" data-ppiclrole>${PP_WS_ROLES.map(x=>`<option value="${x}" ${I.clientRole===x?"selected":""}>${ppShort(x)}</option>`).join("")}</select>`:""}</label>`).join("")}</div>`;
+ const n=I.emails.length, can=n>0&&(I.who==="team"?(I.admin||picked.length>0):!!I.clientWs);
+ return card("Invite people",`
+  <div class="field"><label class="flabel" for="ppiEmails">Email addresses</label>
+   <div class="pp-emails" data-ppifocus>${I.emails.map(e=>`<span class="pp-echip">${e}<button type="button" data-ppirm="${e}" aria-label="Remove ${e}">&times;</button></span>`).join("")}<input type="text" id="ppiEmails" placeholder="${n?"Add another, then press Enter":"name@company.com, then press Enter"}" value="${I.draft.replace(/"/g,"&quot;")}"></div>
+   <span class="sub">Paste a list if you like. Each person sets their own password.</span></div>
+  <div class="field"><span class="flabel">Who are they?</span>
+   <div class="pp-rgrid" role="radiogroup">
+    <label class="pp-rcard${I.who==="team"?" is-on":""}"><span><input type="radio" name="ppiwho" value="team" ${I.who==="team"?"checked":""} data-ppiwho>On your team</span><i>${AGENCY.name} staff. They join the account and reach the workspaces you pick.</i></label>
+    <label class="pp-rcard${I.who==="client"?" is-on":""}"><span><input type="radio" name="ppiwho" value="client" ${I.who==="client"?"checked":""} data-ppiwho>At a client</span><i>They get one workspace and never see the account or other clients.</i></label></div>
+   ${I.who==="team"?`<label class="pp-check"><input type="checkbox" data-ppiadmin ${I.admin?"checked":""}>Make them Admins <span class="sub">&middot; reaches every workspace as Workspace Admin, plus People and Billing</span></label>`:""}</div>
+  <div class="field">${wsGrid}</div>
+  <div class="msg m-info" style="margin:0">${infoI}<span>${preview}</span></div>`,
+  `<button class="linkbtn" data-pproles style="margin-right:auto">What each role can do</button><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-ppisend ${can?"":"disabled"}>Send ${n||""} invite${n===1?"":"s"}</button>`,"ac");
+}
+/* ── roles sheet ── */
+function ppRolesHTML(){
+ const T=(rows,cols)=>`<table class="organism pp-roletbl"><thead><tr><th></th>${cols.map(c=>`<th class="ar"><b>${c[0]}</b><i>${c[1]}</i></th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td class="ar">${v===1?'<span class="pw y">'+tickI+'</span>':v===0?'<span class="sub">&mdash;</span>':'<span class="sub">'+v+'</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+ return `<div class="mscrim" id="mscrim"><aside class="pp-drawer pp-drawer--wide" role="dialog" aria-modal="true" aria-label="What each role can do">
+  <div class="pp-dr-h"><span class="pp-dr-t"><b style="font-size:18px">What each role can do</b><i>Two questions decide what a person sees: their <b>account role</b> decides which workspaces they reach; their <b>workspace role</b> decides what they can do inside each one.</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="pp-dr-b">
+   <section><span class="pp-eyebrow">1 &middot; On the ${AGENCY.name} account</span>
+    ${T([["Reach every workspace, as Workspace Admin",1,1,"Only the workspaces they are added to"],["Add a workspace, set its caps and limits",1,1,0],["Invite people and change anyone's roles",1,1,0],["Billing, credits and the account-wide Analytics",1,1,0],["Transfer ownership, close the account",1,0,0]],[["Owner","One person"],["Admin","Your senior staff"],["Member","Most of your team"]])}
+    <p class="sub" style="margin:10px 0 0">Client users have no account role at all. They exist inside one workspace and never see this page, Billing, or the other workspaces.</p></section>
+   <section><span class="pp-eyebrow">2 &middot; Inside a workspace</span>
+    ${T([["See sequences, prospects, replies and reports",1,1,1],["Reply to prospects from the inbox",1,1,0],["Create, edit, launch and pause sequences; add prospects and templates",1,1,0],["Connect and buy mailboxes for this workspace",1,0,0],["Add or remove people in this workspace, set their roles",1,0,0],["Workspace settings, delete prospects and sequences",1,0,0]],[["Workspace Admin","Runs the client"],["Collaborator","Does the outreach"],["Viewer","Looks, never touches"]])}
+    <p class="sub" style="margin:10px 0 0">One role per person per workspace. It is the whole of what they can do there (D5). Caps and credits are set by the account, never from inside a workspace.</p></section>
+   <div class="msg m-info" style="margin:0">${infoI}<span><strong>Rule of thumb.</strong> Your staff who run a client: Member + Workspace Admin there. Staff who only send: Member + Collaborator. The client's own people: Viewer, unless they asked to write.</span></div>
+  </div></aside></div>`;
+}
+/* ── actions ── */
+function ppToast(text,undo,what){receipt("people",text,undo,what||text);setTimeout(()=>{if(modal&&modal.kind==="ppperson")renderModal()},8100)}
+function wirePP(L){
+ const rr=()=>{renderModal()};
+ L.querySelectorAll("[data-undo]").forEach(b=>b.onclick=()=>{if(!RECEIPT)return;const u=RECEIPT.undo;clearReceipt();if(u)u();renderModal();render()});
+ L.querySelectorAll("[data-ppacct]").forEach(i=>i.onchange=()=>{const P=PEOPLE[modal.k],was=P.role,wasWs=P.ws; P.role=i.value; if(i.value==="Admin")P.ws=null; else if(P.ws===null)P.ws=[];
+   ppToast(`${P.name.split(" ")[0]} is now ${P.role} on ${AGENCY.name}.`,()=>{P.role=was;P.ws=wasWs;renderModal();render()},`${P.name} made ${P.role}`); rr(); render()});
+ L.querySelectorAll("[data-ppwsrole]").forEach(s=>s.onchange=()=>{const P=PEOPLE[modal.k],id=s.dataset.ppwsrole,was=ppWsRole(P,id); P.roles=P.roles||{}; P.roles[id]=s.value;
+   ppToast(`${P.name.split(" ")[0]} is now ${ppShort(s.value)} in ${byId[id].name}.`,()=>{P.roles[id]=was;renderModal();render()}); rr(); render()});
+ L.querySelectorAll("[data-ppwsremove]").forEach(b=>b.onclick=()=>{const P=PEOPLE[modal.k],id=b.dataset.ppwsremove,i=P.ws.indexOf(id); if(i<0)return; P.ws.splice(i,1);
+   ppToast(`${P.name.split(" ")[0]} removed from ${byId[id].name}.`,()=>{P.ws.splice(i,0,id);renderModal();render()}); rr(); render()});
+ L.querySelectorAll("[data-ppaddwsopen]").forEach(b=>b.onclick=()=>{PP.addws=true;rr();const s=L.querySelector("[data-ppaddws]");if(s)s.focus()});
+ L.querySelectorAll("[data-ppaddws]").forEach(s=>s.onchange=()=>{const P=PEOPLE[modal.k],id=s.value; PP.addws=false; if(!id){rr();return} P.ws.push(id); P.roles=P.roles||{}; P.roles[id]=P.roles[id]||"Workspace Collaborator";
+   ppToast(`${P.name.split(" ")[0]} added to ${byId[id].name} as Collaborator.`,()=>{P.ws.splice(P.ws.indexOf(id),1);renderModal();render()}); rr(); render()});
+ L.querySelectorAll("[data-ppremove]").forEach(b=>b.onclick=()=>{PP.removeConfirm=true;rr()});
+ L.querySelectorAll("[data-ppremovecancel]").forEach(b=>b.onclick=()=>{PP.removeConfirm=false;rr()});
+ L.querySelectorAll("[data-ppremovego]").forEach(b=>b.onclick=()=>{const k=modal.k,P=PEOPLE[k]; delete PEOPLE[k]; PP.removeConfirm=false; modal=null; renderModal();
+   ppToast(`${P.name} removed from the account. Their sequences are reassigned to you.`,()=>{PEOPLE[k]=P;render()},`${P.name} removed from the account`); render()});
+ L.querySelectorAll("[data-ppresend]").forEach(b=>b.onclick=()=>{const k=b.dataset.ppresend,P=PEOPLE[k]; INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now"; ppToast(`Invite resent${P?" to "+P.email:""}.`,null); rr(); render()});
+ L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
+ /* invite */
+ const I=PPI; if(!I) return;
+ const emailsEl=L.querySelector("#ppiEmails");
+ const addEmails=raw=>{raw.split(/[\s,;]+/).map(x=>x.trim()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).forEach(e=>{if(I.emails.indexOf(e)<0)I.emails.push(e)})};
+ if(emailsEl){emailsEl.oninput=()=>{I.draft=emailsEl.value};
+   emailsEl.onkeydown=e=>{if(e.key==="Enter"||e.key===","||e.key===" "){e.preventDefault();addEmails(emailsEl.value);I.draft="";rr();const n=L.querySelector("#ppiEmails");if(n)n.focus()} if(e.key==="Backspace"&&!emailsEl.value&&I.emails.length){I.emails.pop();rr();const n=L.querySelector("#ppiEmails");if(n)n.focus()}};
+   emailsEl.onblur=()=>{if(emailsEl.value.trim()){addEmails(emailsEl.value);I.draft="";setTimeout(rr,0)}};
+   emailsEl.onpaste=e=>{const t=(e.clipboardData||window.clipboardData).getData("text");if(/[\s,;]/.test(t.trim())){e.preventDefault();addEmails(t);I.draft="";rr()}}}
+ L.querySelectorAll("[data-ppifocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#ppiEmails");if(n)n.focus()}});
+ L.querySelectorAll("[data-ppirm]").forEach(b=>b.onclick=()=>{I.emails=I.emails.filter(x=>x!==b.dataset.ppirm);rr()});
+ L.querySelectorAll("[data-ppiwho]").forEach(i=>i.onchange=()=>{I.who=i.value;rr()});
+ L.querySelectorAll("[data-ppiadmin]").forEach(i=>i.onchange=()=>{I.admin=i.checked;rr()});
+ L.querySelectorAll("[data-ppiws]").forEach(i=>i.onchange=()=>{if(i.checked)I.ws[i.dataset.ppiws]=I.ws[i.dataset.ppiws]||"Workspace Collaborator";else delete I.ws[i.dataset.ppiws];rr()});
+ L.querySelectorAll("[data-ppiwsrole]").forEach(s=>s.onchange=()=>{I.ws[s.dataset.ppiwsrole]=s.value;rr()});
+ L.querySelectorAll("[data-ppisetall]").forEach(s=>s.onchange=()=>{Object.keys(I.ws).forEach(id=>I.ws[id]=s.value);rr()});
+ L.querySelectorAll("[data-ppicl]").forEach(i=>i.onchange=()=>{I.clientWs=i.dataset.ppicl;rr()});
+ L.querySelectorAll("[data-ppiclrole]").forEach(s=>s.onchange=()=>{I.clientRole=s.value;rr()});
+ L.querySelectorAll("[data-ppisend]").forEach(b=>b.onclick=()=>{
+   const n=I.emails.length, added=[];
+   if(I.who==="team"){I.emails.forEach(e=>{const k="p"+Date.now().toString(36).slice(-4)+Math.floor(Math.random()*1e3); const nm=ppName(e);
+     PEOPLE[k]={name:nm,initials:initials(nm),role:I.admin?"Admin":"Member",email:e,ws:I.admin?null:Object.keys(I.ws).filter(id=>byId[id]),roles:Object.assign({},I.ws)}; LASTSEEN[nm]="never"; INVITED["t:"+k]="just now"; added.push(k)})}
+   else{const c=byId[I.clientWs]; I.emails.forEach(e=>{c.users=c.users||[]; c.users.push([e,I.clientRole]); LASTSEEN[e]="never"; INVITED["w:"+c.id+"|"+e]="just now"; added.push("w:"+c.id+"|"+e)})}
+   modal=null; PPI=null; renderModal();
+   ppToast(`${n} invite${n===1?"":"s"} sent. ${I.who==="team"?"They join your team when they accept.":"They will sign in to "+byId[I.clientWs].name+" only."}`,()=>{added.forEach(k=>{if(k.indexOf("w:")===0){const [id,e]=k.slice(2).split("|");const c=byId[id];c.users=c.users.filter(u=>u[0]!==e)}else delete PEOPLE[k]});render()},`${n} invite${n===1?"":"s"} sent`); render()});
+}
+
+function vPeopleOld(){
  if(!canI("members")) return denied("see or manage people");
  const users=PEOPLE_TAB!=="clients";
  return `<div class="toolbar">
@@ -7546,6 +7733,9 @@ function modalHTML(){
     the picker, because "why can I not choose Owner" is answered by seeing what
     Owner holds, not by omitting it. Generated from ACCOUNT_POWERS x CAN, the
     same pair the role cards read, so the two can never drift apart. */
+ if(modal.kind==="ppperson") return ppPanelHTML();
+ if(modal.kind==="ppinvite") return ppInviteHTML();
+ if(modal.kind==="pproles") return ppRolesHTML();
  if(modal.kind==="invite") return inviteHTML();
  if(modal.kind==="chrole") return chroleHTML();
  if(modal.kind==="assignws") return assignwsHTML();
@@ -7699,8 +7889,9 @@ function card(title,body,foot,cls){
 function renderModal(){
  const L=el("modalLayer"); if(!modal){L.innerHTML="";return}
  L.innerHTML=modalHTML();
- wirePeopleModal(L);
- L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;INV=null;renderModal()});
+ wirePeopleModal(L); wirePP(L);
+ L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; INV=null; if(!back){PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
+ {const sc=L.querySelector("#mscrim"); if(sc&&modal&&(modal.kind==="ppperson"||modal.kind==="pproles")) sc.onclick=e=>{if(e.target===sc){modal=modal.back||null;PP.addws=false;PP.removeConfirm=false;renderModal()}}}
  L.querySelectorAll("[data-agencyok]").forEach(b=>b.onclick=()=>{
    modal=null;renderModal();
    /* convert the account first, then guide them into adding the client. The
@@ -8443,6 +8634,16 @@ function wire(){
  q("[data-topeople]").forEach(b=>b.onclick=()=>{view={name:"people"};render()});
  q("[data-topeopleclients]").forEach(b=>b.onclick=()=>{PEOPLE_TAB="clients";view={name:"people"};render()});
  q("[data-ptab]").forEach(b=>b.onclick=()=>{PEOPLE_TAB=b.dataset.ptab;peopleMenu=null;render()});
+ /* People v2 */
+ q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select"))return;modal={kind:"ppperson",k:r.dataset.ppopen};PP.addws=false;PP.removeConfirm=false;renderModal()});
+ q("[data-ppinvite]").forEach(b=>b.onclick=()=>{PPI=ppiBlank(b.dataset.ppinvite);modal={kind:"ppinvite"};renderModal();const n=document.querySelector("#ppiEmails");if(n)n.focus()});
+ q("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles"};renderModal()});
+ q("[data-ppresend]").forEach(b=>b.onclick=()=>{const k=b.dataset.ppresend;INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now";ppToast("Invite resent.",null);render()});
+ q("[data-ppcl]").forEach(b=>b.onclick=e=>{e.stopPropagation();PP.menu=PP.menu===b.dataset.ppcl?null:b.dataset.ppcl;render()});
+ q("[data-ppclrole]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [key,role]=b.dataset.ppclrole.split("|");const [id,email]=key.slice(2).split("|");const c=byId[id];const u=c.users.find(x=>x[0]===email);const was=u[1];u[1]=role;PP.menu=null;ppToast(`${ppName(email)} is now ${ppShort(role)} in ${c.name}.`,()=>{u[1]=was;render()});render()});
+ q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
+ {const i=el("ppQ");if(i){i.oninput=()=>{PP.q=i.value;const v=i.value;render();const n=el("ppQ");if(n){n.focus();n.setSelectionRange(v.length,v.length)}}}}
+ {const w=el("ppWs");if(w)w.onchange=()=>{PP.ws=w.value;render()}}
  q("[data-invite]").forEach(b=>b.onclick=()=>openInvite(b.dataset.invite?{lock:b.dataset.invite,role:"Workspace Collaborator"}:{}));
  q("[data-rolecompare]").forEach(b=>b.onclick=()=>{modal={kind:"rolecompare"};renderModal()});
  q("[data-pmenu]").forEach(b=>b.onclick=e=>{e.stopPropagation();peopleMenu=peopleMenu===b.dataset.pmenu?null:b.dataset.pmenu;render()});
@@ -8483,6 +8684,7 @@ document.addEventListener("click",e=>{if(mePopOpen&&!el("mePop").contains(e.targ
 document.addEventListener("click",()=>{if(newOpen){newOpen=false;newPick=null;render()}});
 document.addEventListener("click",()=>{if(recMenu){recMenu=false;render()}});
 document.addEventListener("click",()=>{if(peopleMenu){peopleMenu=null;render()}});
+document.addEventListener("click",()=>{if(PP.menu){PP.menu=null;render()}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(modal){modal=null;renderModal()}else if(drawer){drawer=null;renderDrawer()}else if(popOpen)closePop();else if(mePopOpen)closeMePop()}});
 
 /* an operator is never routed to the dashboard, at boot or on a person switch.
@@ -8683,8 +8885,8 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  /* People, a person (agency key, or a client user's "c:<clientId>|<email>"),
     and a cold Add a person: defect D4, none of the three worked from a hash. */
  if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
- if(k==="person"&&v){view={name:"people"};PEOPLE_TAB="agency";PEOPLE_FLASH=v.indexOf("c:")===0?"w:"+v.slice(2):"t:"+v}
- if(k==="addmember"){view={name:"people"};PEOPLE_TAB="agency";setTimeout(()=>openInvite({}),60)}
+ if(k==="person"&&v){view={name:"people"};if(PEOPLE[v])setTimeout(()=>{modal={kind:"ppperson",k:v};renderModal()},60)}
+ if(k==="addmember"){view={name:"people"};setTimeout(()=>{PPI=ppiBlank("team");modal={kind:"ppinvite"};renderModal()},60)}
  if(k==="client"&&byId[v]) view={name:"record",id:v};
  /* the client's own side, and the create modal, are otherwise several clicks
     in. Coordinator review round 1, 24 Sep: a cold #asclient link lands on the
@@ -8891,6 +9093,90 @@ render();
 .toolbar--notitle{padding-top:16px;padding-bottom:12px}
 .cell-main--sub .cs{font-size:13px;line-height:20px;color:var(--gray-12)}
 .crumb-soon{margin-left:8px;height:20px;font-size:12px;vertical-align:middle}
+
+/* People v2, 29 Sep 2026 */
+.pp-wrap{padding-top:20px;gap:16px}
+.pp-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pp-top .tools{display:flex;align-items:center;gap:8px}
+.pp-top .search{height:32px}
+.pp-sec{background:var(--gray-1);border:1px solid var(--gray-13);border-radius:8px;overflow:visible}
+.pp-sec-h{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border-bottom:1px solid var(--gray-13);border-radius:8px 8px 0 0}
+.pp-sec-h--gray{background:var(--gray-16)}
+.pp-sec-h .tools{display:flex;align-items:center;gap:8px}
+.pp-sec-ico{width:32px;height:32px;border-radius:4px;background:var(--blue-13);color:var(--blue-11);display:inline-flex;align-items:center;justify-content:center;flex:none;margin-right:12px}
+.pp-sec-ico--plain{background:#fff;border:1px solid var(--gray-13);color:var(--gray-12)}
+.pp-sec-ico svg{width:16px;height:16px}
+.pp-sec-t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.pp-sec-t b{font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17)}.pp-sec-t i{font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15)}
+.pp-sec-l{display:flex;align-items:center;min-width:0;flex:1}
+.pp-sec-h .tools{flex:none;white-space:nowrap}
+.pp-sec-h .pp-wsfilter{width:auto}
+.pp-head{display:grid;align-items:center;gap:12px;height:34px;padding:0 16px;background:var(--gray-19);border-bottom:1px solid var(--gray-13);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15)}
+.pp-row{display:grid;align-items:center;gap:12px;min-height:52px;padding:6px 16px;border-bottom:1px solid var(--gray-16);position:relative}
+.pp-row:last-child{border-bottom:0}
+.pp-row.is-link{cursor:pointer}.pp-row.is-link:hover{background:var(--gray-19)}
+.pp-person{display:flex;align-items:center;gap:10px;min-width:0}
+.pp-person>span:last-child{display:flex;flex-direction:column;min-width:0}
+.pp-person b{font-size:13px;font-weight:500;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-person i{font-style:normal;font-size:11px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-av{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--c);color:#fff;font-weight:600;flex:none;box-sizing:border-box}
+.pp-av[style*="#DBEAFE"]{color:var(--blue-20)}
+.pp-role{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:4px;background:var(--blue-13);color:var(--blue-20);font-size:12px;font-weight:500}
+.pp-role--mute{background:var(--gray-16);color:var(--blue-16)}
+.pp-access{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}
+.pp-stack{display:inline-flex}.pp-stack i{width:18px;height:18px;border-radius:999px;border:2px solid #fff;display:inline-block}.pp-stack i+i{margin-left:-6px}
+.pp-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px 0 4px;border-radius:999px;background:#fff;border:1px solid var(--gray-13);font-size:12px;color:var(--gray-17);white-space:nowrap}
+.pp-status{display:flex;align-items:center;gap:8px}
+.pp-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--green-14)}.pp-st i{width:6px;height:6px;border-radius:999px;background:var(--green-16)}
+.pp-st--inv{color:#B45309}.pp-st--inv i{background:#D97706}
+.pp-go{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;color:var(--blue-11)}.pp-go svg{width:16px;height:16px}
+.pp-more{width:28px;height:28px}.pp-more svg{width:16px;height:16px}
+.pp-empty{padding:20px 16px;font-size:13px;color:var(--gray-15)}
+.pp-outline{border:1px solid var(--blue-11)!important;color:var(--blue-11)!important;background:#fff!important;margin-top:0!important}
+.pp-wsfilter{height:28px;padding:0 28px 0 10px;font-size:12px;color:var(--gray-12)}
+.pp-sec .shd-button{margin-top:0}
+/* drawer */
+.pp-drawer{position:fixed;right:0;top:44px;bottom:0;width:432px;background:#fff;box-shadow:-12px 0 32px rgba(17,24,39,.18);display:flex;flex-direction:column;z-index:1100}
+.pp-drawer--wide{width:min(860px,94vw)}
+.pp-dr-h{display:flex;align-items:flex-start;gap:14px;padding:20px 24px 16px;border-bottom:1px solid var(--gray-13)}
+.pp-dr-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.pp-dr-t b{font-size:18px;line-height:24px;font-weight:600;color:var(--gray-17)}.pp-dr-t i{font-style:normal;font-size:12px;line-height:18px;color:var(--gray-15)}
+.pp-dr-b{flex:1;overflow:auto;padding:20px 24px;display:flex;flex-direction:column;gap:24px}
+.pp-dr-b section{display:flex;flex-direction:column;gap:10px}
+.pp-dr-f{padding:14px 24px;border-top:1px solid var(--gray-13);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pp-dr-rm{display:flex;flex-direction:column;gap:1px}.pp-dr-rm i{font-style:normal;font-size:11px;color:var(--gray-15)}
+.pp-eyebrow{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15)}
+.pp-sec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pp-rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pp-rcard{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--gray-23);border-radius:4px;background:#fff;cursor:pointer}
+.pp-rcard.is-on{border:1.5px solid var(--blue-11);background:#F5F8FF}
+.pp-rcard>span{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--gray-17)}.pp-rcard input{margin:0;accent-color:var(--blue-11)}
+.pp-rcard i{font-style:normal;font-size:12px;line-height:16px;color:var(--gray-12)}
+.pp-wslist{border:1px solid var(--gray-13);border-radius:4px;overflow:hidden}
+.pp-wsrow{display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 12px;border-bottom:1px solid var(--gray-16)}.pp-wsrow:last-child{border-bottom:0}
+.pp-wsrow-t{display:flex;flex-direction:column;flex:1;min-width:0}.pp-wsrow-t b{font-size:14px;font-weight:500;color:var(--gray-17)}.pp-wsrow-t i{font-style:normal;font-size:11px;color:var(--gray-15)}
+.pp-rolesel{height:30px;padding:0 26px 0 10px;font-size:13px;width:auto}
+.pp-check{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--blue-16)}.pp-check input{margin:0;accent-color:var(--blue-11)}
+.pp-emails{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:40px;padding:5px 8px;border:1px solid var(--gray-23);border-radius:4px;background:#fff;cursor:text}
+.pp-emails:focus-within{border:1.5px solid var(--blue-11);box-shadow:0 0 0 3px var(--blue-13)}
+.pp-emails input{flex:1;min-width:200px;border:0!important;outline:none;height:26px!important;padding:0!important;background:transparent;font:inherit;font-size:14px}
+.pp-echip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 6px 0 8px;border-radius:999px;background:var(--gray-16);font-size:13px;color:var(--gray-17)}
+.pp-echip button{width:18px;height:18px;border:0;border-radius:999px;background:none;color:var(--gray-15);cursor:pointer;font-size:14px;line-height:1;padding:0}
+.pp-igrid{border:1px solid var(--gray-13);border-radius:4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden}
+.pp-igrid.is-off{opacity:.5;pointer-events:none}
+.pp-irow{display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-bottom:1px solid var(--gray-16);cursor:pointer}
+.pp-irow:nth-child(odd){border-right:1px solid var(--gray-16)}.pp-irow:nth-last-child(-n+2){border-bottom:0}
+.pp-irow.is-on{background:#F5F8FF}.pp-irow input{margin:0;accent-color:var(--blue-11)}
+.pp-irow-n{flex:1;font-size:13px;font-weight:500;color:var(--gray-17);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-irow .pp-rolesel{height:26px;font-size:12px}
+.pp-roletbl th{vertical-align:top}.pp-roletbl th b{display:block;font-size:12px;color:var(--gray-17)}.pp-roletbl th i{display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--gray-15)}
+.pp-roletbl td{font-size:13px}.pp-roletbl td .sub{font-size:12px}
+.pp-dr-t i b{font-size:inherit;font-weight:600;color:var(--gray-17)}
+.pp-wsrow-t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp-wsrow-t i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-wsrow .pp-rolesel{flex:none}
+.modal.ac .modal-f{display:flex;align-items:center;gap:12px}
+.pp-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1101;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--gray-17);color:#fff;border-radius:4px;box-shadow:0 8px 24px rgba(17,24,39,.28);font-size:14px;font-weight:500;white-space:nowrap}
+.pp-toast svg{width:16px;height:16px;color:#34D399}.pp-toast .linkbtn{color:#93C5FD;font-size:14px;font-weight:600}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9172,7 +9458,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7d7aa8e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="0655eed";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
