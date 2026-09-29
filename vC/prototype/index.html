@@ -1568,7 +1568,6 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
         <div class="pop-l" id="popL"></div>
         <div class="pop-f" id="popAddWrap">
           <button class="pop-act pop-act--primary" id="popAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add a workspace</button>
-          <button class="pop-act" id="popManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Manage workspaces</button>
         </div>
       </div>
     </div>
@@ -2856,7 +2855,8 @@ function renderShell(){
    el("wsNm").textContent=inC?c.name:AGENCY.name;
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
- {const canAdd=canI("billing"), canManage=ME().role!=="Member"; el("popAdd").hidden=!canAdd; el("popManage").hidden=!canManage; el("popAddWrap").hidden=!(canAdd||canManage)}
+ /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
+ el("popAddWrap").hidden=!canI("billing");
  /* nothing to search through when there is one workspace and no clients */
  el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
  /* A client with one workspace has nothing to switch to, and must never be
@@ -8355,7 +8355,6 @@ el("meBtn").onclick=e=>{
   mePopOpen?closeMePop():openMePop()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
 el("popQ").oninput=e=>renderPop(e.target.value);
-el("popManage").onclick=()=>{ctx="agency";asClient=false;view={name:"clients"};closePop();render()};
 el("popAdd").onclick=()=>{if(!canI("billing"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
     their own workspace before they have agreed to any of this is the wrong
@@ -8961,7 +8960,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5bd83c0";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="f445095";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
