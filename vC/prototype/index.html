@@ -7850,6 +7850,27 @@ function vComingSoon(key){
 /* 17 Sep 2026, round 7 (44-ui-audit.md P5): a control the product has but this
    prototype does not implement says so when clicked, instead of doing nothing. */
 function flash(b,msg){const s=document.createElement("span");s.className="sub flash";s.textContent=msg;s.style.marginLeft="8px";b.insertAdjacentElement("afterend",s);setTimeout(()=>s.remove(),2400)}
+/* 29 Sep 2026, Hitesh: "we are having the page header twice; in our product we only have this once".
+   The topbar crumb is the page title. After every render, a toolbar title that repeats the crumb is
+   removed (a record header with an avatar and actions is not a repeat and stays); an emptied
+   toolbar goes with it, so tabs and tables sit right under the topbar, as in the product. The
+   designed Coming soon pages lose their own title row and put the chip on the crumb instead. */
+function dedupeTitle(){
+ const ct=el("crumbTail"); if(!ct) return;
+ const page=el("page"); if(!page) return;
+ const cs=page.querySelector(".cs-page");
+ if(cs){const row=cs.querySelector('div[style*="top: 22px"]'); if(row) row.remove();
+   if(!ct.querySelector(".crumb-soon")) ct.insertAdjacentHTML("beforeend",' <span class="chip c-info crumb-soon">Coming soon</span>')}
+ const crumb=ct.textContent.replace(/coming soon/i,"").replace(/\s+/g," ").trim().toLowerCase(); if(!crumb) return;
+ const tb=page.querySelector(".toolbar"); if(!tb) return;
+ const cm=tb.querySelector(".cell-main"); if(!cm||(cm.querySelector(".avatar")&&tb.querySelector(".tools button"))) return;
+ const t=cm.querySelector(".semibold-3"); if(!t) return;
+ const segs=crumb.split(" / "), tt=t.textContent.replace(/\s+/g," ").trim().toLowerCase();
+ if(tt!==crumb&&segs.indexOf(tt)<0) return;
+ t.remove(); const avz=cm.querySelector(".avatar"); if(avz) avz.remove();
+ if(!cm.textContent.trim()) cm.remove(); else cm.classList.add("cell-main--sub");
+ if(!tb.textContent.trim()&&!tb.querySelector("button,input,select")) tb.remove(); else tb.classList.add("toolbar--notitle");
+}
 function render(){
  /* the handover's toolbar line is for this landing only; leaving the
     workspace it named, for any reason, spends it for the rest of the session */
@@ -7909,6 +7930,7 @@ function render(){
  wire();renderThread();
  renderXform();
 }
+const _renderCore=render; render=function(){_renderCore(); dedupeTitle()};
 function wire(){
  const q=s=>document.querySelectorAll(s);
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
@@ -8865,6 +8887,10 @@ render();
  .cs-page>div[aria-hidden="true"][style*="min-width: 820px"]{top:150px!important;transform:scale(.88);transform-origin:top right}
  .cs-page>div[aria-hidden="true"][style*="width: 300px"]{left:700px!important;top:540px!important}
 }
+
+.toolbar--notitle{padding-top:16px;padding-bottom:12px}
+.cell-main--sub .cs{font-size:13px;line-height:20px;color:var(--gray-12)}
+.crumb-soon{margin-left:8px;height:20px;font-size:12px;vertical-align:middle}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9146,7 +9172,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="14bc0ec";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="7d7aa8e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
