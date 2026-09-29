@@ -6161,7 +6161,11 @@ function planChart(compact,H0){
  const R=RES.sends, pool=R.pool, W=640, H=H0||(compact?150:196), L=46, T=22, B=34, Rr=14;
  const px=d=>L+(d-1)/(CYCLE.days-1)*(W-L-Rr);
  const py=v=>H-B-(v/pool)*(H-T-B);
- let run=0; const pts=DAILY.map((v,i)=>{run+=v;return[px(i+1),py(run),run,i+1]});
+ /* item 9, 29 Sep 2026 (Hitesh: "Plan pacing looks dummy"): the line is the
+    account's real emails sent this cycle, the same number the card prints,
+    spread over the elapsed days in DAILY's shape. DAILY is only the shape. */
+ const used=compute("sends").used, shape=DAILY.slice(0,CYCLE.day), shapeSum=shape.reduce((a,v)=>a+v,0)||1, k=used/shapeSum;
+ let run=0; const pts=shape.map((v,i)=>{run+=v*k;return[px(i+1),py(run),Math.round(run),i+1]});
  const last=pts[pts.length-1];
  const line=pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
  const area="M"+px(1).toFixed(1)+","+py(0).toFixed(1)+" L"+line.replace(/ /g," L")
@@ -9463,7 +9467,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="ea8a2c1";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="1820252";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
