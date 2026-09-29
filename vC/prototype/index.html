@@ -207,6 +207,24 @@ svg{display:block}
 .ws-btn .avatar{width:30px;height:30px;font-size:11px}
 .ws-btn svg{color:var(--gray-11)}
 .ws-ctx{display:block;font-size:11px;font-weight:500;color:var(--gray-15);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* switcher placements B to E (29 Sep 2026); A is the rules above */
+.crumb-sep{color:var(--gray-11);margin:0 6px;font-size:13px}
+body[data-swpos=B] #sbWs,body[data-swpos=C] #sbWs,body[data-swpos=E] #sbWs{margin:0;padding:0;background:none;flex:none}
+body[data-swpos=B] .ws-btn,body[data-swpos=C] .ws-btn{height:32px;width:auto;padding:0 10px 0 6px;gap:8px;border:1px solid var(--gray-23);border-radius:4px;background:var(--gray-1)}
+body[data-swpos=B] .ws-btn:hover,body[data-swpos=C] .ws-btn:hover{background:var(--gray-19)}
+body[data-swpos=B] .ws-btn .avatar,body[data-swpos=C] .ws-btn .avatar,body[data-swpos=E] .ws-btn .avatar{width:22px;height:22px;font-size:9px;border-radius:5px}
+body[data-swpos=B] .ws-btn .nm,body[data-swpos=C] .ws-btn .nm,body[data-swpos=E] .ws-btn .nm{font-size:14px;line-height:20px;display:inline}
+body[data-swpos=B] .ws-btn .ws-ctx,body[data-swpos=C] .ws-btn .ws-ctx{display:none}
+body[data-swpos=B] .ws-btn svg,body[data-swpos=C] .ws-btn svg,body[data-swpos=E] .ws-btn svg{opacity:1;width:14px;height:14px}
+body[data-swpos=C] #sbWs{margin-right:8px}
+body[data-swpos=E] .ws-btn{height:32px;width:auto;padding:0 8px 0 0;gap:8px;border:0;background:none;border-radius:4px}
+body[data-swpos=E] .ws-btn:hover{background:var(--gray-16)}
+body[data-swpos=E] .ws-btn>span:nth-child(2){display:flex;align-items:baseline;gap:6px}
+body[data-swpos=E] .ws-btn .ws-ctx{display:inline;font-size:12px;margin:0}
+body[data-swpos=D] #sbWs{margin:0 0 4px}
+/* the static chip in a workspace-user session, in the topbar placements */
+body[data-swpos=B] .ws-static,body[data-swpos=C] .ws-static,body[data-swpos=E] .ws-static{cursor:default}
+body[data-swpos=B] .ws-static:hover,body[data-swpos=C] .ws-static:hover,body[data-swpos=E] .ws-static:hover{background:none}
 /* group labels are also new: the real rail is one flat list. Grouping earns its
    keep once Home/Work queue/Client Management/Billing exist beside the base
    product's items, which the real rail never has to distinguish. */
@@ -1874,6 +1892,27 @@ const CAN={
  Member: {limits:false,billing:false,members:false,destructive:false,disable:false,settings:false,dashboard:false,implicit:false},
 };
 let me_="owner";
+/* 29 Sep 2026, Hitesh: "build 4-5 options" for where the workspace switcher
+   lives, after feedback on its place in the product. Five placements, one
+   switch: A rail under the logo (the original), B topbar left as a boxed
+   dropdown, C topbar right beside the avatar, D rail foot above Settings,
+   E the first crumb of the topbar. #swpos=<letter> picks one and the choice
+   is remembered in this browser; the validation panel has the same control. */
+let SW_POS=(()=>{try{return (localStorage.getItem("swpos")||"A").toUpperCase()}catch(e){return "A"}})();
+const SW_POS_LABEL={A:"Rail, under the logo",B:"Topbar left, boxed",C:"Topbar right",D:"Rail foot",E:"Topbar crumb"};
+function setSwPos(p){SW_POS=SW_POS_LABEL[p]?p:"A";try{localStorage.setItem("swpos",SW_POS)}catch(e){} render(); sessRender()}
+/* the switcher's container (#sbWs, with its popover and the transformation
+   layer inside) is one node that moves; nothing is duplicated */
+function swPark(){const ws=el("sbWs"),brand=document.querySelector(".sb-brand"); if(ws&&brand&&brand.nextElementSibling!==ws) brand.insertAdjacentElement("afterend",ws)}
+function placeSwitcher(){
+ const ws=el("sbWs"); if(!ws) return; document.body.dataset.swpos=SW_POS;
+ const crumb=document.querySelector(".topbar .crumb"), util=document.querySelector(".topbar .util"), foot=document.querySelector(".sb-foot");
+ let sep=el("swSep"); if(sep) sep.remove();
+ if(SW_POS==="B"||SW_POS==="E"){crumb.insertAdjacentElement("afterbegin",ws); ws.insertAdjacentHTML("afterend",'<span id="swSep" class="crumb-sep" aria-hidden="true">/</span>')}
+ else if(SW_POS==="C"){util.insertAdjacentElement("afterbegin",ws)}
+ else if(SW_POS==="D"&&foot){foot.insertAdjacentElement("afterbegin",ws)}
+ else swPark();
+}
 const ME=()=>PEOPLE[me_];
 /* fix 25 Sep review #19: `ws` is an array of ids (see PEOPLE's own comment
    above), but this indexed it like an id-keyed object (w[x.id]) - on a real
@@ -2869,7 +2908,7 @@ function renderShell(){
    :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
- renderRail();
+ swPark(); renderRail(); placeSwitcher();
 }
 function renderPop(q=""){
  /* defence in depth: never render the account or any other workspace into a
@@ -2906,7 +2945,11 @@ function renderPop(q=""){
    closePop();render()});
 }
 const openPop=()=>{popOpen=true;const P=el("pop"),R=el("sbWs").getBoundingClientRect();
- P.style.top=(R.bottom+6)+"px";P.style.left=Math.max(8,R.left)+"px";P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
+ /* opens below the trigger, or above it when the trigger sits in the lower half
+    of the window (placement D, the rail foot), and never past the right edge */
+ const below=R.bottom+6, roomBelow=window.innerHeight-below;
+ if(roomBelow<320&&R.top>roomBelow){P.style.top="auto";P.style.bottom=(window.innerHeight-R.top+6)+"px"} else {P.style.bottom="auto";P.style.top=below+"px"}
+ P.style.left=Math.max(8,Math.min(R.left,window.innerWidth-320-8))+"px";P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
  /* the search box is hidden for a normal user, and focusing a hidden input
     moves focus nowhere useful */
  if(!isNormal())el("popQ").focus()};
@@ -8516,6 +8559,7 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  if(k==="api"){ctx="agency";asClient=false;view={name:"apiint"}}
  /* People, a person (agency key, or a client user's "c:<clientId>|<email>"),
     and a cold Add a person: defect D4, none of the three worked from a hash. */
+ if(k==="swpos"&&v){SW_POS=SW_POS_LABEL[v.toUpperCase()]?v.toUpperCase():"A";try{localStorage.setItem("swpos",SW_POS)}catch(e){}}
  if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
  if(k==="person"&&v){view={name:"people"};PEOPLE_TAB="agency";PEOPLE_FLASH=v.indexOf("c:")===0?"w:"+v.slice(2):"t:"+v}
  if(k==="addmember"){view={name:"people"};PEOPLE_TAB="agency";setTimeout(()=>openInvite({}),60)}
@@ -8780,10 +8824,14 @@ function sessRender(){
    <button class="shd-button shd-button--tertiary shd-button--sm" id="sessClear">Clear session</button>
    <span class="sub">${done} of ${TOPICS.length} recorded &middot; saved in this browser</span>
   </div>
+  <div class="sess-foot" style="margin-top:8px"><span class="sub" style="color:var(--gray-15)">Switcher placement</span>
+   ${Object.keys(SW_POS_LABEL).map(k=>`<button class="shd-button shd-button--sm ${k===SW_POS?"shd-button--primary":"shd-button--tertiary"}" data-swpos="${k}" title="${SW_POS_LABEL[k]}">${k} &middot; ${SW_POS_LABEL[k]}</button>`).join("")}
+  </div>
   <div class="sess-foot" style="margin-top:8px"><span class="sub" style="color:var(--gray-15)">Reviewing as</span>
    ${Object.keys(PEOPLE).map(k=>`<button class="shd-button shd-button--sm ${k===me_?"shd-button--primary":"shd-button--tertiary"}" data-sessswap="${k}" ${asClient||solo?"disabled":""}>${PEOPLE[k].name} &middot; ${PEOPLE[k].role}</button>`).join("")}
   </div>`;
  el("sessMain").querySelectorAll("[data-sessswap]").forEach(b=>b.onclick=()=>swapMe(b.dataset.sessswap));
+ el("sessMain").querySelectorAll("[data-swpos]").forEach(b=>b.onclick=()=>setSwPos(b.dataset.swpos));
  el("sessList").querySelectorAll("[data-si]").forEach(b=>b.onclick=()=>sessGo(+b.dataset.si));
  el("sessMain").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{
    const r=b.dataset.r; rec.r=rec.r===r?null:r; sSave(); sessRender()});
@@ -8886,7 +8934,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c0a5f86";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="b6f5571";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
