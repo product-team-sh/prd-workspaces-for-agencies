@@ -222,6 +222,11 @@ body[data-swpos=E] .ws-btn:hover{background:var(--gray-16)}
 body[data-swpos=E] .ws-btn>span:nth-child(2){display:flex;align-items:baseline;gap:6px}
 body[data-swpos=E] .ws-btn .ws-ctx{display:inline;font-size:12px;margin:0}
 body[data-swpos=D] #sbWs{margin:0 0 4px}
+body[data-swpos=F] #sbWs{margin:4px 0 0;padding:8px 0 0;border-top:1px solid var(--gray-13);border-radius:0;background:none}
+body[data-swpos=F] .ws-btn{background:var(--gray-19);border-radius:4px}
+body[data-swpos=F] .ws-btn:hover{background:var(--gray-16)}
+body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
+.sb:not(:hover):not(.is-open) body[data-swpos=F] #sbWs{padding:8px 0 0}
 /* the static chip in a workspace-user session, in the topbar placements */
 body[data-swpos=B] .ws-static,body[data-swpos=C] .ws-static,body[data-swpos=E] .ws-static{cursor:default}
 body[data-swpos=B] .ws-static:hover,body[data-swpos=C] .ws-static:hover,body[data-swpos=E] .ws-static:hover{background:none}
@@ -1899,7 +1904,7 @@ let me_="owner";
    E the first crumb of the topbar. #swpos=<letter> picks one and the choice
    is remembered in this browser; the validation panel has the same control. */
 let SW_POS=(()=>{try{return (localStorage.getItem("swpos")||"A").toUpperCase()}catch(e){return "A"}})();
-const SW_POS_LABEL={A:"Rail, under the logo",B:"Topbar left, boxed",C:"Topbar right",D:"Rail foot",E:"Topbar crumb"};
+const SW_POS_LABEL={A:"Rail, under the logo",B:"Topbar left, boxed",C:"Topbar right",D:"Rail foot, above Settings",E:"Topbar crumb",F:"Rail bottom, last item"};
 function setSwPos(p){SW_POS=SW_POS_LABEL[p]?p:"A";try{localStorage.setItem("swpos",SW_POS)}catch(e){} render(); sessRender()}
 /* the switcher's container (#sbWs, with its popover and the transformation
    layer inside) is one node that moves; nothing is duplicated */
@@ -1911,6 +1916,10 @@ function placeSwitcher(){
  if(SW_POS==="B"||SW_POS==="E"){crumb.insertAdjacentElement("afterbegin",ws); ws.insertAdjacentHTML("afterend",'<span id="swSep" class="crumb-sep" aria-hidden="true">/</span>')}
  else if(SW_POS==="C"){util.insertAdjacentElement("afterbegin",ws)}
  else if(SW_POS==="D"&&foot){foot.insertAdjacentElement("afterbegin",ws)}
+ /* F, 29 Sep 2026 (Hitesh: "one variation in the side panel's lower area"):
+    the last thing in the rail, under Need support, a full-width tile with a
+    rule above it; the popover opens upward from it. */
+ else if(SW_POS==="F"&&foot){foot.insertAdjacentElement("beforeend",ws)}
  else swPark();
 }
 const ME=()=>PEOPLE[me_];
@@ -8934,7 +8943,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b6f5571";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="507f1ea";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
