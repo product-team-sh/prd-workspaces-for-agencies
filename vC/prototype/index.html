@@ -338,17 +338,18 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
    dropdown listing. 320 wide, 4px radius, listing shadow 0 4px 24px .08, 36px
    rows at 14px, 12px group label, Blue 50 hover and current. One list: the
    account row pinned first, then every workspace the person belongs to. */
-.pop{position:fixed;width:320px;background:var(--gray-1);border-radius:4px;
+.pop{position:fixed;width:280px;background:var(--gray-1);border-radius:4px;
  box-shadow:0 4px 24px 0 rgba(0,0,0,.08);z-index:1001;overflow:hidden;border:1px solid var(--gray-13)}
 .pop-s{padding:8px 8px 4px}
 .pop-s input{width:100%;height:32px;border:1px solid var(--gray-23);border-radius:4px;background:var(--gray-1);padding:0 12px;font:inherit;font-size:14px;outline:none}
 .pop-s input:focus{border-color:var(--blue-11);box-shadow:0 0 0 2px var(--blue-13)}
 .pop-l{max-height:min(64vh,520px);overflow:auto;padding:4px 8px 8px}
-.pop-h{font-size:12px;line-height:16px;font-weight:600;color:var(--gray-15);padding:12px 8px 4px;white-space:nowrap}
-.pop-r{display:flex;align-items:center;gap:8px;width:100%;height:36px;border:0;background:none;border-radius:4px;padding:0 8px;
+.pop-h{font-size:11px;line-height:16px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15);padding:10px 8px 4px;white-space:nowrap}
+.pop-r{display:flex;align-items:center;gap:10px;width:100%;height:40px;border:0;background:none;border-radius:4px;padding:0 8px;
  cursor:pointer;text-align:left;font:inherit;font-size:14px;color:var(--gray-17)}
 .pop-r:hover,.pop-r[aria-current=true]{background:var(--blue-17)}
-.pop-r .avatar{width:24px;height:24px;font-size:10px;flex:none}
+.pop-r .avatar{width:24px;height:24px;font-size:10px;flex:none;border-radius:6px;font-weight:600}
+.pop-r .t{font-weight:500}
 .pop-r .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pop-r .pop-ico{flex:none;width:24px;height:24px;border-radius:4px;background:var(--gray-16);color:var(--gray-12);display:grid;place-items:center}
 .pop-r .pop-ico svg{width:14px;height:14px}
@@ -356,8 +357,12 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .pop-tag--warn{color:var(--orange-12)}.pop-tag--bad{color:var(--red-12)}
 .pop-cur{margin-left:auto;flex:none;width:16px;height:16px;color:var(--blue-11)}
 .pop-cur svg{width:16px;height:16px}
-.pop-acct{border-bottom:1px solid var(--gray-16);padding-bottom:4px;margin-bottom:0}
-.pop-f{padding:8px;border-top:1px solid var(--gray-16)}
+.pop-acct{border-bottom:1px solid var(--gray-13);padding:4px 0}
+.pop-f{padding:4px 8px 8px;border-top:1px solid var(--gray-13)}
+.pop-act{display:flex;align-items:center;gap:10px;width:100%;height:40px;padding:0 8px;border:0;background:none;border-radius:4px;font:inherit;font-size:14px;font-weight:500;color:var(--blue-16);cursor:pointer;text-align:left}
+.pop-act svg{width:18px;height:18px;flex:none;margin:0 3px}
+.pop-act:hover{background:var(--gray-19)}
+.pop-act--primary{color:var(--blue-11)}
 .ctx-bar{display:none}
 .asbanner{background:var(--gray-17);color:#fff;font-size:13px;padding:8px 24px;display:flex;align-items:center;gap:12px;justify-content:space-between}
 .asbanner button{border:0;border-radius:var(--radius-control);background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:12px;padding:5px 10px;cursor:pointer}
@@ -1561,7 +1566,10 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
       <div class="pop" id="pop" hidden>
         <div class="pop-s" id="popSWrap"><input type="text" id="popQ" placeholder="Search workspaces" aria-label="Search workspaces"></div>
         <div class="pop-l" id="popL"></div>
-        <div class="pop-f" id="popAddWrap"><button class="shd-button shd-button--secondary shd-button--sm" id="popAdd" style="width:100%">Add a workspace</button></div>
+        <div class="pop-f" id="popAddWrap">
+          <button class="pop-act pop-act--primary" id="popAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add a workspace</button>
+          <button class="pop-act" id="popManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Manage workspaces</button>
+        </div>
       </div>
     </div>
     <div id="navList"></div>
@@ -2847,7 +2855,8 @@ function renderShell(){
    el("wsAv").style.setProperty("--c",inC?c.colour:AGENCY.colour);
    el("wsNm").textContent=inC?c.name:AGENCY.name;
  }
- el("popAddWrap").hidden=!canI("billing");
+ /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
+ {const canAdd=canI("billing"), canManage=ME().role!=="Member"; el("popAdd").hidden=!canAdd; el("popManage").hidden=!canManage; el("popAddWrap").hidden=!(canAdd||canManage)}
  /* nothing to search through when there is one workspace and no clients */
  el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
  /* A client with one workspace has nothing to switch to, and must never be
@@ -2919,7 +2928,7 @@ function renderPop(q=""){
  const list=myClients().filter(c=>!t||c.name.toLowerCase().includes(t)||c.company.toLowerCase().includes(t))
    .slice().sort((a,b)=>a.name.localeCompare(b.name));
  el("popL").innerHTML=(t?"":`<div class="pop-acct">${row("agency",`<span class="pop-ico">${gridI}</span>`,AGENCY.name,{text:"Account"},ctx==="agency")}</div>`)
-  +`<div class="pop-h">Workspaces</div>`
+  +`<div class="pop-h">Your workspaces</div>`
   +(ownMatch?row("own",av(AGENCY.initials,AGENCY.colour),AGENCY.name,{text:"Yours"},ctx==="own"):"")
   +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,attention(c),ctx===c.id)).join("")
    :ownMatch?"":`<p class="sub" style="padding:8px">No workspaces found</p>`);
@@ -2935,7 +2944,7 @@ const openPop=()=>{popOpen=true;const P=el("pop"),R=el("sbWs").getBoundingClient
     of the window (placement D, the rail foot), and never past the right edge */
  const below=R.bottom+6, roomBelow=window.innerHeight-below;
  if(roomBelow<320&&R.top>roomBelow){P.style.top="auto";P.style.bottom=(window.innerHeight-R.top+6)+"px"} else {P.style.bottom="auto";P.style.top=below+"px"}
- P.style.left=Math.max(8,Math.min(R.left,window.innerWidth-320-8))+"px";P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
+ P.style.left=Math.max(8,Math.min(R.left,window.innerWidth-280-8))+"px";P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
  /* the search box is hidden for a normal user, and focusing a hidden input
     moves focus nowhere useful */
  if(!isNormal())el("popQ").focus()};
@@ -8346,6 +8355,7 @@ el("meBtn").onclick=e=>{
   mePopOpen?closeMePop():openMePop()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
 el("popQ").oninput=e=>renderPop(e.target.value);
+el("popManage").onclick=()=>{ctx="agency";asClient=false;view={name:"clients"};closePop();render()};
 el("popAdd").onclick=()=>{if(!canI("billing"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
     their own workspace before they have agreed to any of this is the wrong
@@ -8951,7 +8961,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="ed78a09";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="5bd83c0";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
