@@ -951,12 +951,14 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .inh>div{padding:12px 24px;border-bottom:1px solid var(--gray-16);font-size:13.5px;line-height:20px}
 .inh>div:nth-last-child(-n+2){border-bottom:none}
 .inh .k{color:var(--gray-15)}
-/* item 60, 28 Sep 2026: .lpath/.lp-t/.lp-d/.lsec*/.lgrid/.lrow/.ltick*/.lt/.ld
-   deleted, unemitted - the same earlier migration design as .step-row above. */
-.scrim{position:fixed;inset:0;background:rgba(17,24,39,.35);z-index:80}
+/* item 60, 28 Sep 2026: .lpath, .lp-t, .lp-d, .lsec-, .lgrid, .lrow, .ltick-, .lt, .ld
+   deleted, unemitted - the same earlier migration design as .step-row above.
+   (29 Sep 2026: this comment used to contain a stray close-comment sequence, which
+   swallowed the .scrim rule below it, so the Add a workspace modal had no backdrop.) */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80} /* modal/Overlay-Background, SD v3 (Hitesh, 29 Sep 2026: "behind screen should be a bit under shadow") */
 /* above the 999 sidebar, or the rail paints over the dialog it is meant to sit
    behind, and clips the dialog's left edge at narrow widths */
-.mscrim{position:fixed;inset:0;background:rgba(17,24,39,.35);z-index:1099}
+.mscrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1099}
 /* Add Client is a centred modal, not a side drawer, because that is what the
    real screen is: `.add-client .modal-content { width: 28.125rem;
    min-height: 26.063rem }`. The three steps stay; only the shell changed, so
@@ -6401,8 +6403,6 @@ function drawerHTML(){
     people are invited from the record's Members tab. */
  const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
- const teamPeople=Object.entries(PEOPLE).filter(([k,p])=>Array.isArray(p.ws));
- const teamLabel=nc.team.length?nc.team.map(k=>PEOPLE[k].name).join(", "):"Select teammates";
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
    <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%"></div></div>
   <p class="sub nc-fieldhint">Usually the company name. Only your team sees it.</p>
@@ -6415,10 +6415,7 @@ function drawerHTML(){
   <div class="field"><label class="flabel" for="ncrole">Their role</label>
    <select id="ncrole" class="inp" style="width:100%">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
    <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
-  <div class="field" style="margin-bottom:0"><span class="flabel" id="ncTeamLab">Give teammates access <span class="opt">(optional)</span></span>
-   <button type="button" class="nc-teambtn${nc.team.length?" has-val":""}" id="ncTeamBtn" aria-expanded="${nc.teamOpen?"true":"false"}" aria-labelledby="ncTeamLab" aria-haspopup="listbox"><span>${teamLabel}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
-   ${nc.teamOpen?`<div class="nc-teamlist" id="ncTeamList" role="listbox" aria-multiselectable="true">${teamPeople.map(([k,p])=>`<label class="nc-teamrow"><input type="checkbox" data-ncteam="${k}" ${nc.team.indexOf(k)>-1?"checked":""}><span class="avatar av-tint" style="--c:#1d4ed8">${p.initials}</span><span><b>${p.name}</b><i>${p.role}${p.ws.length?" &middot; "+p.ws.length+" workspace"+(p.ws.length===1?"":"s"):""}</i></span></label>`).join("")||`<p class="sub" style="padding:8px 12px;margin:0">No Members yet. Owners and Admins already reach every workspace.</p>`}</div>`:""}
-   <p class="sub" style="margin:6px 0 0">Only the teammates you add can open this workspace. Owners and Admins always can.</p></div>
+  <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <div class="msg m-info" style="margin-top:20px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
  /* 18 Sep, Hitesh: "clarity is missing about is this reserved or limit ... we
     are not allocating credits, we are capping use from single client from pool
@@ -6543,9 +6540,6 @@ function renderDrawer(){
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
  L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
- {const t=el("ncTeamBtn");if(t)t.onclick=()=>{cap();nc.teamOpen=!nc.teamOpen;renderDrawer();const b=el("ncTeamBtn");if(b)b.focus()}}
- L.querySelectorAll("[data-ncteam]").forEach(c=>c.onchange=()=>{const k=c.dataset.ncteam;nc.team=nc.team.filter(x=>x!==k);if(c.checked)nc.team.push(k);
-   const t=el("ncTeamBtn");if(t){t.firstElementChild.textContent=nc.team.length?nc.team.map(k=>PEOPLE[k].name).join(", "):"Select teammates";t.classList.toggle("has-val",nc.team.length>0)}});
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
@@ -8960,7 +8954,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f445095";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="1cea9ee";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
