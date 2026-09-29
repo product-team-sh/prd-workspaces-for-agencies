@@ -3155,6 +3155,9 @@ const rcHdrChip=c=>{
  const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
  return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
 let RC_REFUSED=null;
+function rSoon(title,line,c,icon,bullets){
+ return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
+}
 function vRecord(id){
  const c=byId[id];
  /* fix 25 Sep review #18: this route had no membership check at all - a
@@ -3167,7 +3170,8 @@ function vRecord(id){
     through myClients(), which already excludes it for such a Member (fix
     #19); this closes the direct #client=<id> route the same way. */
  if(c&&!isMember(ME(),id)) return denied("open "+c.name);
- const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["mailboxes","Email Accounts"],["settings","Settings"]];
+ /* 29 Sep 2026, Hitesh: "email accounts and settings and client update would be coming soon" */
+ const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["mailboxes","Email Accounts","Soon"],["settings","Settings","Soon"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  /* fix 25 Sep review #7: attention(c)'s "Disabled" chip already exists and was
     only wired into the Clients list and Home rows, never into this toolbar -
@@ -3183,13 +3187,13 @@ function vRecord(id){
   <div class="tools">${clientNav(c)}
    ${att&&att.chip?`<span class="chip ${att.tone}">${att.chip}</span>`:""}
    ${isBif(c.id)?'<span class="chip c-vio">Independent budget</span>':'<span class="chip c-info">Shared pool</span>'}${rcHdrChip(c)}
-   ${viewAsBtn(c,"shd-button shd-button--tertiary")}
+   <button class="shd-button shd-button--tertiary" data-flash="Coming soon">View as client <span class="chip c-mute soonpill">Soon</span></button>
    <button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>${recMenuHTML(c)}</div>
  </div>
  ${receiptBar("client:"+c.id)}
- <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
+ <div class="tabbar">${T.map(([k,l,tag])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}${tag?` <span class="chip c-mute soonpill">${tag}</span>`:""}</button>`).join("")}</div>
  <div class="wrap">${
-  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):rMail(c)}</div>`;
+  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?rSoon("Settings","This workspace's settings live inside the workspace (D13). A read-only view of them here is coming.",c,"settings",["Account defaults and this workspace's overrides, side by side","Locked settings marked as locked","Changed by whom and when"]):tab==="mailboxes"?rSoon("Email accounts","Mailboxes are bought, connected and managed inside the workspace that uses them (D13). A read-only view here is coming.",c,"mail",["Every mailbox of this workspace with health and warm-up","Daily limit and sent today","Who pays for each one"]):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):rMail(c)}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -5160,7 +5164,9 @@ const anVisible=()=>{const mine=anSources();
  if(anWsSel===null) return mine;
  const sel=new Set(anWsSel); return mine.filter(c=>sel.has(c.id))};
 const anWsLabel=()=>anWsSel===null?"All mine":anWsSel.length+" of "+anSources().length;
-const AN_TABS=[["seq","Sequence report"],["mail","Email account report"],["team","Team report"]];
+const AN_TABS=[["seq","Sequence"],["mail","Emails &amp; Domain","New"],["team","Teams"]];
+/* 29 Sep 2026, Hitesh: "check analytics screen, it should look like this" (the product's Analytics, Sequence tab). */
+let anView="prospect", anPct=false, anGran="daily", anCount="relative", anFirst=false;
 /* one small table per tab: [key,label,isNumeric]. Labels first, numerics last,
    in every tab, so the totals row below can colspan the labels generically. */
 const AN_COLS={
@@ -5257,39 +5263,103 @@ function anTotalsRow(cols,rows,N,overrideSums,peopleCount){
  return `<tr class="an-totals"><td colspan="${labels.length}"><strong>${label}</strong></td>`
   +nums.map(c=>{const v=sums[c[0]]; return `<td class="ar tnum"><strong>${v==null?"–":f(v)}</strong></td>`}).join("")+`</tr>`;
 }
+function anSeries(wss){
+ /* thirty days ending today (9 Sep 2026), one point a day, from the same
+    fixtures the table sums: contacted spread over the days with noise, the
+    rest as shares of it. Weekly rolls seven days up. */
+ const days=[], N=30, end=new Date(2026,8,9);
+ const sent=wss.reduce((t,c)=>t+(c.sent||0),0), reply=wss.length?wss.reduce((t,c)=>t+(c.reply||0),0)/wss.length:0,
+       ratio=wss.length?wss.reduce((t,c)=>t+(c.reply?c.pos/c.reply:0.3),0)/wss.length:0.3;
+ const r=rng("anseries:"+wss.map(c=>c.id).join(","));
+ for(let k=N-1;k>=0;k--){const d=new Date(end.getTime()-k*864e5), wk=d.getDay()===0||d.getDay()===6;
+  const contacted=Math.round(sent/N*(wk?0.25:1.05)*(0.7+r()*0.6));
+  const opened=Math.round(contacted*(0.36+r()*0.1)), replies=Math.round(contacted*reply/100*(0.7+r()*0.6));
+  const positive=Math.round(replies*ratio), negative=Math.round(replies*0.18*r()), unsub=Math.round(contacted*0.004*r());
+  days.push({d,label:d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+", 26",contacted,opened,replies,positive,negative,unsub})}
+ if(anGran!=="weekly") return days;
+ const out=[]; for(let k=0;k<days.length;k+=7){const g=days.slice(k,k+7), o={d:g[0].d,label:g[0].label};
+  ["contacted","opened","replies","positive","negative","unsub"].forEach(m=>o[m]=g.reduce((t,x)=>t+x[m],0)); out.push(o)}
+ return out;
+}
+function anChart(pts){
+ const W=1240,H=330,L=64,R=64,T=16,B=48, iw=W-L-R, ih=H-T-B;
+ const maxL=Math.max(1,...pts.map(p=>p.contacted)), maxR=Math.max(1,...pts.map(p=>Math.max(p.opened,p.replies,p.positive,p.negative,p.unsub)));
+ const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(v))), m=v/p; return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p};
+ const yl=nice(maxL), yr=nice(maxR);
+ const x=i=>L+(pts.length>1?i*iw/(pts.length-1):iw/2), yL=v=>T+ih-v/yl*ih, yR=v=>T+ih-v/yr*ih;
+ const line=(key,col,scale,dim)=>{const d=pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+scale(p[key]).toFixed(1)).join(" ");
+   return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" opacity="${dim?.45:1}"/>`+pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${scale(p[key]).toFixed(1)}" r="2.5" fill="${col}" opacity="${dim?.45:1}"/>`).join("")};
+ const grid=[0,1,2,3,4,5].map(k=>{const y=T+ih-k*ih/5; return `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="var(--gray-13)" stroke-dasharray="2 4"/>
+   <text x="${L-12}" y="${y+4}" text-anchor="end" class="an-ax">${f(Math.round(yl*k/5))}</text><text x="${W-R+12}" y="${y+4}" class="an-ax">${f(Math.round(yr*k/5))}</text>`}).join("");
+ const step=Math.max(1,Math.round(pts.length/7));
+ const xl=pts.map((p,i)=>i%step===0?`<text x="${x(i).toFixed(1)}" y="${H-B+24}" text-anchor="middle" class="an-ax">${p.label}</text>`:"").join("");
+ return `<svg class="an-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Contacted and engagement, last 30 days">
+  ${grid}
+  <rect x="${L-30}" y="${T}" width="2" height="${ih}" fill="var(--blue-11)"/><text transform="translate(${L-40},${T+ih/2}) rotate(-90)" text-anchor="middle" class="an-ax">Contacted</text>
+  <rect x="${W-R+28}" y="${T}" width="2" height="${ih/2}" fill="#C026D3"/><rect x="${W-R+28}" y="${T+ih/2}" width="2" height="${ih/2}" fill="#10B981"/><text transform="translate(${W-R+42},${T+ih/2}) rotate(90)" text-anchor="middle" class="an-ax">Engagement</text>
+  ${line("unsub","#F59E0B",yR,true)}${line("negative","#EF4444",yR,true)}${line("positive","#10B981",yR)}${line("replies","#10B981",yR)}${line("opened","#C026D3",yR)}${line("contacted","#3B82F6",yL)}
+  ${xl}</svg>
+  <div class="an-legend">${[["#3B82F6","Contacted"],["#C026D3","Opened"],["#10B981","Replies"],["#10B981","Positive Sentiment"],["#EF4444","Negative Sentiment",1],["#F59E0B","Unsubscribed",1]].map(([c,l,dim])=>`<span${dim?' class="is-dim"':""}><i style="background:${c}"></i>${l}</span>`).join("")}</div>`;
+}
+function anSeqRowsFull(wss){
+ return anSeqRows(wss).map((r,i)=>{const g=rng("anfull:"+r.wsId+":"+i);
+  const clicked=Math.round(r.opened*(0.28+g()*0.14)), unsub=Math.round(r.contacted*0.004*(0.5+g())), notnow=Math.round(r.replied*0.15), dnc=Math.round(r.replied*0.05),
+        negative=Math.round(r.replied*0.18*g()), unc=Math.max(0,r.replied-r.positive-negative-notnow-dnc);
+  const c=byId[r.wsId], q=(c.sequences||[])[i]||{};
+  return Object.assign({},r,{clicked,unsub,notnow,dnc,negative,unc,state:q.state||"Active"})});
+}
 function vAgencyAnalytics(){
- const wss=anVisible(), cols=AN_COLS[anTab], rows=anSorted(anRows(wss)), empty=!rows.length, wsOpts=anSources();
- return `<div class="toolbar">
-   <div class="cell-main"><span style="min-width:0">
-     <span class="semibold-3" style="display:block">Analytics</span>
-     <span class="cs">Across your workspaces</span></span></div>
-   <div class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-anexport>Export</button></div>
-  </div>
-  <div class="tabbar">${AN_TABS.map(([k,l])=>`<button data-antab="${k}" aria-selected="${anTab===k}">${l}</button>`).join("")}</div>
-  <div class="wrap">
-   ${receiptBar("analytics")}
-   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-    <span style="position:relative">
-     <button class="shd-button shd-button--tertiary shd-button--sm" data-anwstoggle aria-expanded="${anWsOpen}">Workspace: ${anWsLabel()} &#8964;</button>
-     ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;left:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
+ const wss=anVisible(), wsOpts=anSources(), pct=(n,d)=>d?Math.round(n/d*100)+"%":"0%";
+ const tabs=`<div class="tabbar an-tabs">${AN_TABS.map(([k,l,tag])=>`<button data-antab="${k}" aria-selected="${anTab===k}">${l}${tag?` <span class="chip c-new">${tag}</span>`:""}</button>`).join("")}</div>`;
+ const dd=(label,icon,attrs)=>`<button class="an-dd" ${attrs}>${icon}<span>${label}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>`;
+ const wsPick=`<span style="position:relative">${dd("Workspaces: "+anWsLabel(),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>',`data-anwstoggle aria-expanded="${anWsOpen}"`)}
+     ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;right:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
        <div class="panel-b" style="padding-bottom:8px;border-bottom:1px solid var(--gray-13)"><button class="linkbtn" data-anwsall>All mine</button></div>
        <div class="panel-b" style="max-height:220px;overflow:auto;padding-top:8px">
         ${wsOpts.map(c=>`<label class="list-row" style="padding:5px 0"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
        </div>
        <div class="panel-b" style="border-top:1px solid var(--gray-13)"><button class="linkbtn" data-anwsdone>Done</button></div>
-      </div>`:""}
-    </span>
-    <span class="chip c-mute">This cycle</span>
-   </div>
-   <div class="panel"><div class="tscroll"><table class="organism" style="min-width:${anTab==="team"?720:900}px">
+      </div>`:""}</span>`;
+ const bar=`<div class="an-bar">${tabs}<div class="tools">${wsPick}
+   ${dd("Last 30 Days",'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>','data-flash="Not in this prototype"')}
+   <span class="an-vsep"></span><button class="linkbtn an-export" data-anexport><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button></div></div>`;
+ if(anTab!=="seq"){
+  const cols=AN_COLS[anTab], rows=anSorted(anRows(wss)), empty=!rows.length;
+  return bar+`<div class="wrap">${receiptBar("analytics")}
+   <div class="panel"><div class="tscroll" style="margin-top:0"><table class="organism" style="min-width:${anTab==="team"?720:900}px">
      <thead><tr>${cols.map(anTh).join("")}</tr></thead>
-     <tbody>${empty
-       ?`<tr><td colspan="${cols.length}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`
-       :rows.map(row=>`<tr>${cols.map(c=>anTd(row,c)).join("")}</tr>`).join("")}
-     </tbody>
+     <tbody>${empty?`<tr><td colspan="${cols.length}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`:rows.map(row=>`<tr>${cols.map(c=>anTd(row,c)).join("")}</tr>`).join("")}</tbody>
      ${empty?"":"<tfoot>"+(anTab==="team"?anTotalsRow(cols,rows,wss.length,anTeamTotals(wss),rows.length):anTotalsRow(cols,rows,wss.length))+"</tfoot>"}
-   </table></div></div>
-  </div>`;
+   </table></div></div></div>`;
+ }
+ const rows=anSeqRowsFull(wss), pts=anSeries(wss);
+ const sum=k=>rows.reduce((t,r)=>t+(r[k]||0),0);
+ const S={prospects:sum("prospects"),contacted:sum("contacted"),opened:sum("opened"),replied:sum("replied"),unsub:sum("unsub"),positive:sum("positive"),negative:sum("negative"),notnow:sum("notnow"),dnc:sum("dnc"),unc:sum("unc")};
+ const neutral=Math.max(0,S.replied-S.positive-S.negative);
+ const seg=(name,opts,cur,attr)=>`<span class="segc" role="group" aria-label="${name}">${opts.map(([k,l,dis])=>`<button type="button" ${attr}="${k}" aria-pressed="${cur===k}" ${dis?"disabled":""}>${l}</button>`).join("")}</span>`;
+ const ctl=`<div class="an-ctl">
+   <span class="an-ctl-l">View by</span>${seg("View by",[["prospect","Prospect"],["email","Email"]],anView,"data-anview")}
+   <span class="an-pct"><span>#</span><button class="sqsw" role="switch" aria-checked="${anPct}" aria-label="Show percentages" data-anpct></button><span>%</span></span>
+   <button class="ubtn" title="Download chart" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>
+   <span class="an-mid">${seg("Granularity",[["daily","Daily"],["weekly","Weekly"],["monthly","Monthly",1],["quarterly","Quarterly",1]],anGran,"data-angran")}</span>
+   <span class="an-ctl-l">Count by</span>${seg("Count by",[["relative","Relative"],["absolute","Absolute"]],anCount,"data-ancount")}
+   <label class="an-first"><input type="checkbox" data-anfirst ${anFirst?"checked":""}>First time event</label></div>`;
+ const tile=(v,l,sub,extra)=>`<div class="an-tile"><span class="an-tile-v tnum">${v}${sub?` <span class="an-tile-p">(${sub})</span>`:""}${extra||""}</span><span class="an-tile-l">${l}</span></div>`;
+ const chev='<button class="ubtn an-chev" data-flash="Not in this prototype" aria-label="Breakdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
+ const tiles=`<div class="an-tiles">
+   <div class="panel an-tiles-a">${tile(f(S.prospects),"Prospect added")}${tile(f(S.contacted),"Total Contacted")}${tile(f(S.opened),"Opened",pct(S.opened,S.contacted))}${tile(f(S.replied),"Replied",pct(S.replied,S.contacted))}${tile(f(S.unsub),"Unsubscribed",pct(S.unsub,S.contacted))}</div>
+   <div class="panel an-tiles-b">${tile(f(S.positive),"Positive sentiment",pct(S.positive,S.replied),chev)}${tile(f(S.negative),"Negative sentiment",pct(S.negative,S.replied),chev)}${tile(f(neutral),"Neutral sentiment",pct(neutral,S.replied),chev)}${tile("$"+f(S.positive*1800),"Deal Value")}</div></div>`;
+ const cols=[["seq","Sequence Name"],["ws","Workspace"],["prospects","Prospects added",1],["contacted","Contacted",1],["opened","Opened",1,1],["clicked","Clicked",1,1],["replied","Replied",1,1],["unsub","Unsubscribed",1,1],["notnow","Not Now",1],["dnc","Do Not Contact",1],["unc","Uncategorized",1]];
+ const th=c=>c[2]?`<th class="ar"><button class="linkbtn" data-ansort="${c[0]}" style="display:inline-flex"><span class="sortable"${anSortState().col===c[0]?' style="color:var(--blue-11)"':""}>${c[1]}${sortI}</span></button></th>`:`<th>${c[1]}</th>`;
+ const td=(r,c)=>{if(c[0]==="seq") return `<td><span class="an-seq"><i class="an-dot ${r.state==="Active"?"on":r.state==="Paused"?"warn":""}"></i>${r.seq}</span></td>`;
+   if(c[0]==="ws") return `<td><span class="sub">${r.ws}</span></td>`;
+   const v=r[c[0]]; const p=c[3]?pct(v,r.contacted):null;
+   return `<td class="ar tnum">${anPct&&p?p:f(v)}${p&&!anPct?` <span class="an-tile-p">(${p})</span>`:""}</td>`};
+ const sorted=anSorted(rows);
+ const table=`<div class="panel"><div class="tscroll" style="margin-top:0"><table class="organism an-table" style="min-width:1320px">
+   <thead><tr>${cols.map(th).join("")}<th class="colact"><button class="ubtn colsel-t" aria-label="Choose columns" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg></button></th></tr></thead>
+   <tbody>${sorted.length?sorted.map(r=>`<tr>${cols.map(c=>td(r,c)).join("")}<td class="colact"></td></tr>`).join(""):`<tr><td colspan="${cols.length+1}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`}</tbody></table></div></div>`;
+ return bar+`<div class="wrap an-wrap">${receiptBar("analytics")}<div class="panel an-chartpanel">${ctl}${anChart(pts)}</div>${tiles}${table}</div>`;
 }
 
 /* ═══ agency-side API & Integrations, the agency's own section. 54 §2.
@@ -7738,19 +7808,29 @@ const COMING_SOON={
   bullets:["An account key that names its workspace on every call","One webhook for every workspace's events, each payload naming its workspace","Every key, connection and webhook across workspaces, in one list"],
   meanwhile:"API & Integrations inside each workspace, exactly as today",go:"clients"},
 };
+/* 29 Sep 2026, Hitesh: "coming soon: good design and UI, for other screens as well".
+   One card for every Coming soon surface: the module's own rail icon in a tinted
+   tile, the chip, the promise, what it will hold, and the one thing to do today. */
+function soonCard(o){
+ const wrap=(vb,d)=>`<svg viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+ const icon=(typeof I==="object"&&Array.isArray(I[o.icon]))?wrap(I[o.icon][0],I[o.icon][1])
+   :o.icon==="settings"?wrap("0 0 24 24",'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>')
+   :wrap("0 0 24 24",'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>');
+ return `<div class="soon"><div class="soon-card">
+   <span class="soon-ico">${icon}</span>
+   <span class="chip c-info">Coming soon</span>
+   <h2 class="soon-t">${o.title}</h2>
+   <p class="soon-p">${o.promise}</p>
+   ${o.bullets&&o.bullets.length?`<ul class="soon-list">${o.bullets.map(b=>`<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>${b}</span></li>`).join("")}</ul>`:""}
+   ${o.meanwhile?`<div class="soon-foot"><span class="sub">Meanwhile</span><button class="shd-button shd-button--secondary shd-button--sm" ${o.attr||""}>${o.meanwhile}</button></div>`:""}
+  </div></div>`;
+}
 function vComingSoon(key){
  const s=COMING_SOON[key]; if(!s) return vClients();
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">${s.title}</span>
     <span class="cs">Coming soon</span></span></div></div>
-  <div class="wrap"><div class="card" style="max-width:640px;margin:32px auto"><div class="c-b">
-    <span class="chip c-info" style="display:inline-block;margin-bottom:12px">Coming soon</span>
-    <p class="semibold-3" style="margin:0 0 12px;font-size:16px;line-height:24px;font-weight:600">${s.promise}</p>
-    <ul style="margin:0 0 16px;padding-left:18px;display:flex;flex-direction:column;gap:6px">
-     ${s.bullets.map(b=>`<li class="sub" style="font-size:13px">${b}</li>`).join("")}</ul>
-    <p class="sub" style="margin:0;padding-top:14px;border-top:1px solid var(--gray-13)">
-     Meanwhile: <button class="linkbtn" data-nav2="${s.go}">${s.meanwhile}</button></p>
-  </div></div></div>`;
+  <div class="wrap">${soonCard({icon:key,title:s.title,promise:s.promise,bullets:s.bullets,meanwhile:s.meanwhile,attr:`data-nav2="${s.go}"`})}</div>`;
 }
 
 /* ═══ render ═══ */
@@ -7904,6 +7984,11 @@ function wire(){
    t.locked=!t.locked; render()});
  /* ═══ agency Analytics: tab, workspace filter, sort, export ═══ */
  q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
+ q("[data-anview]").forEach(b=>b.onclick=()=>{anView=b.dataset.anview;render()});
+ q("[data-angran]").forEach(b=>b.onclick=()=>{if(b.disabled)return;anGran=b.dataset.angran;render()});
+ q("[data-ancount]").forEach(b=>b.onclick=()=>{anCount=b.dataset.ancount;render()});
+ q("[data-anpct]").forEach(b=>b.onclick=e=>{e.stopPropagation();anPct=!anPct;render()});
+ q("[data-anfirst]").forEach(c=>c.onchange=()=>{anFirst=c.checked});
  q("[data-anexport]").forEach(b=>b.onclick=()=>{
    const n=anSorted(anRows(anVisible())).length;
    receipt("analytics",`Export started for ${n} row${n===1?"":"s"}; you will get an email.`,null,`exported analytics, ${n} rows`);
@@ -8673,6 +8758,65 @@ render();
 .nc-teamrow input{margin:0;accent-color:var(--blue-11)}
 .nc-teamrow b{display:block;font-weight:500;color:var(--gray-17)}.nc-teamrow i{display:block;font-style:normal;font-size:12px;color:var(--gray-15)}
 .nc-modal .dr-h{padding:20px 24px 12px}
+
+/* Analytics after the product, 29 Sep 2026 */
+.an-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;border-bottom:1px solid var(--gray-13);background:var(--gray-1)}
+.an-bar .tabbar{border-bottom:0;padding:0}
+.an-bar .tools{display:flex;align-items:center;gap:12px}
+.an-dd{height:32px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--gray-23);border-radius:var(--radius-input);background:#fff;font:inherit;font-size:14px;color:var(--gray-17);cursor:pointer}
+.an-dd svg{width:16px;height:16px;flex:none;color:var(--gray-12)}
+.an-vsep{width:1px;height:24px;background:var(--gray-13)}
+.an-export{font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:8px;color:var(--blue-16)}
+.an-export svg{width:18px;height:18px}
+.an-wrap{padding-top:20px}
+.an-chartpanel{padding:16px 20px 12px}
+.an-ctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.an-ctl-l{font-size:12px;color:var(--gray-15)}
+.an-mid{margin-left:auto;margin-right:auto}
+.segc{display:inline-flex;background:var(--gray-16);border-radius:4px;padding:2px}
+.segc button{height:28px;padding:0 14px;border:0;border-radius:4px;background:none;font:inherit;font-size:13px;font-weight:500;color:var(--gray-15);cursor:pointer}
+.segc button[aria-pressed=true]{background:#fff;color:var(--blue-11);box-shadow:var(--shadow-xs)}
+.segc button:disabled{color:var(--gray-11);cursor:default}
+.an-pct{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-15)}
+.an-first{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--gray-17)}
+.an-first input{margin:0;width:16px;height:16px;accent-color:var(--blue-11)}
+.an-chart{width:100%;height:auto;display:block}
+.an-ax{font-size:11px;fill:var(--gray-15);font-family:inherit}
+.an-legend{display:flex;justify-content:center;gap:28px;padding:10px 0 4px;font-size:12px;color:var(--gray-15)}
+.an-legend span{display:inline-flex;align-items:center;gap:6px}.an-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}.an-legend .is-dim{opacity:.45}
+.an-tiles{display:grid;grid-template-columns:5fr 4fr;gap:16px}
+.an-tiles-a,.an-tiles-b{display:flex}
+.an-tile{flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--gray-13)}
+.an-tile:last-child{border-right:0}
+.an-tile-v{font-size:20px;line-height:24px;font-weight:600;color:var(--gray-17);display:flex;align-items:center;gap:6px}
+.an-tile-p{font-size:12px;font-weight:400;color:var(--gray-15)}
+.an-tile-l{font-size:13px;line-height:18px;color:var(--gray-12)}
+.an-chev{width:24px;height:24px;margin-left:2px}.an-chev svg{width:14px;height:14px}
+.an-seq{display:inline-flex;align-items:center;gap:8px;font-weight:500;color:var(--gray-17)}
+.an-dot{width:6px;height:6px;border-radius:50%;background:var(--gray-11);display:inline-block}.an-dot.on{background:var(--green-16)}.an-dot.warn{background:var(--orange-14)}
+.an-table th{white-space:nowrap}
+.an-table td:first-child{min-width:240px;white-space:nowrap}.an-table td:nth-child(2){white-space:nowrap}
+.an-table th.colact{width:44px}
+.chip.c-new{background:var(--orange-14);border-color:var(--orange-14);color:#fff;height:16px;padding:0 4px;font-size:10px;font-weight:600;border-radius:3px}
+/* record page: type per the design system (heading-3 20/24 for the page title, caption 12/16 under it; line tabs 14px 500, selected 600, 2px rule) */
+.toolbar .cell-main .semibold-3{font-size:20px;line-height:28px}
+.toolbar .cell-main .cs{font-size:12px;line-height:16px;color:var(--gray-15)}
+.tabbar button{font-size:14px;font-weight:500;color:var(--gray-12);padding:18px 0 16px}
+.tabbar button[aria-selected=true]{font-weight:600;border-bottom-width:2px}
+.soonpill{height:18px;padding:0 6px;font-size:11px;margin-left:4px;vertical-align:middle}
+
+/* Coming soon card, shared */
+.soon{display:flex;justify-content:center;padding:24px 0}
+.soon-card{width:min(560px,100%);background:var(--gray-1);border:1px solid var(--gray-13);border-radius:var(--radius-table);box-shadow:var(--shadow-xs);padding:40px 40px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+.soon-ico{width:56px;height:56px;border-radius:12px;background:var(--blue-17);color:var(--blue-11);display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.soon-ico svg{width:26px;height:26px}
+.soon-t{margin:0;font-size:20px;line-height:28px;font-weight:600;color:var(--gray-17)}
+.soon-p{margin:0;font-size:14px;line-height:20px;color:var(--gray-12);max-width:440px}
+.soon-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;max-width:400px}
+.soon-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:20px;color:var(--gray-12)}
+.soon-list svg{width:16px;height:16px;flex:none;color:var(--green-16);margin-top:2px}
+.soon-foot{margin-top:16px;padding-top:20px;border-top:1px solid var(--gray-13);width:100%;display:flex;align-items:center;justify-content:center;gap:12px}
+.soon-foot .shd-button{margin-top:0}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -8954,7 +9098,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1cea9ee";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="acd2d25";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
