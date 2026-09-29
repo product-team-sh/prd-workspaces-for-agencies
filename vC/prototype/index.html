@@ -1060,6 +1060,13 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 /* the 720px wizard: Access in two columns, Limits as a small table */
 .nc-cols{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:24px;align-items:start}
 .nc-limhead{margin-bottom:14px}
+.nc-limtbl{table-layout:fixed}
+.nc-limtbl td{height:auto;padding:10px 12px;white-space:normal}
+.nc-limtbl tr.grouprow td{height:32px;padding:0 12px;font-size:12px;font-weight:600;color:var(--gray-15);background:var(--gray-19);border-right:0}
+.nc-limtbl th:first-child,.nc-limtbl td:first-child{width:200px}
+.nc-limtbl th:last-child,.nc-limtbl td:last-child{width:176px}
+.nc-limtbl .numin input{height:32px;border-radius:4px;width:150px;padding-right:70px}
+.nc-limtbl .nc-pool i{white-space:normal}
 .nc-limsay{margin:10px 2px 0;font-size:12.5px;line-height:18px;color:var(--gray-15)}
 .nc-limsay b{font-weight:600;color:var(--gray-17)}
 .nc-lim{border:1px solid var(--gray-13);border-radius:var(--radius-control);background:var(--gray-1)}
@@ -2109,6 +2116,17 @@ const RES={
   rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:30000,used:6400},cp:{res:0,cap:10000,used:0},own:{res:0,cap:8000,used:5585}}},
  prospects:{label:"Active Prospects",nature:"Storage",unit:"prospects",pool:30000,floors:false,warn:.85,
   rows:{nw:{res:0,cap:10000,used:8900},vx:{res:0,cap:12000,used:7350},al:{res:0,cap:6000,used:5980},bl:{res:0,cap:5000,used:900},cp:{res:0,cap:3000,used:0},own:{res:0,cap:3000,used:2800}}},
+ /* 29 Sep 2026, Hitesh: "all credits and limits should be there". The three the
+    plan also bills for, so every screen that iterates RK (Limits step, the
+    record's Limits tab, Usage, Billing) carries the whole plan. Email
+    accounts count what each workspace has connected; the two credit lines
+    are add-ons in the product and consumables here. */
+ email_accounts:{label:"Email Accounts",nature:"Storage",unit:"accounts",pool:300,floors:false,warn:.85,
+  rows:{nw:{res:0,cap:60,used:54},vx:{res:0,cap:80,used:69},al:{res:0,cap:40,used:31},bl:{res:0,cap:20,used:9},cp:{res:0,cap:10,used:0},own:{res:0,cap:12,used:8}}},
+ dialer:{label:"Dialer Credits",nature:"Consumable",unit:"credits",pool:5000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:1500,used:820},vx:{res:500,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
+ radar:{label:"Inbox Radar Tests",nature:"Consumable",unit:"tests",pool:500,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:120,used:96},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
 };
 const RK=Object.keys(RES);
 /* non-email channel volume per client. Email is not here: it is c.sent, because
@@ -6367,12 +6385,23 @@ function drawerHTML(){
     <span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
      <i><span class="nc-poolused" title="${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} free</b></span></i></span>
     <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
+ /* 29 Sep 2026, Hitesh: UI and functional rework. Every credit and limit the
+    plan holds, in one design-system table, credits (reservable) above caps. */
+ const limTr=k=>{const R=RES[k],m=compute(k),
+   sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:ncDefaultCap(k),
+   pu=Math.min(100,Math.round(m.used/R.pool*100)), ph=Math.min(100-pu,Math.round(m.held/R.pool*100));
+   return `<tr data-capfor="${k}">
+    <td><span style="display:block;font-weight:500;color:var(--gray-17)">${R.label}</span><span class="sub">${R.nature}${nc.bif&&!R.floors?" &middot; cap only":""}</span></td>
+    <td><span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
+     <i><span class="nc-poolused">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} free</b></span></i></span></td>
+    <td class="ar">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</td></tr>`};
+ const credits=RK.filter(k=>RES[k].floors), caps=RK.filter(k=>!RES[k].floors);
+ const grp=t=>`<tr class="grouprow"><td colspan="3">${t}</td></tr>`;
  const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage limits for ${whoL}</span>
-   <p class="sub" style="margin:0">Each number is the most ${whoL} can draw from your shared pool this cycle. Nothing is set aside
-   for them: the pool stays one pool, and a limit only stops this workspace going past it. Change any of it later on Limits.</p></div>
-  <div class="nc-lim" id="ncCapsBox">
-   <div class="nc-limrow nc-limhd"><span>Resource</span><span>Your pool today</span><span>${nc.bif?"Reserved &amp; limit":"Limit"}</span></div>
-   ${RK.map(limRow).join("")}</div>
+   <p class="sub" style="margin:0">Each number is the most ${whoL} can use this cycle from the plan ${AGENCY.name} holds. A limit stops this workspace going past it; nothing is set aside unless you reserve it below. Change any of it later on Limits.</p></div>
+  <div class="panel" id="ncCapsBox"><div class="tscroll"><table class="sqt nc-limtbl" style="min-width:560px">
+   <thead><tr><th>Resource</th><th>Your plan today</th><th class="ar">${nc.bif?"Reserved and limit":"Limit"}</th></tr></thead>
+   <tbody>${grp("Credits"+(nc.bif?" &middot; held for "+whoL:""))}${credits.map(limTr).join("")}${grp("Limits &middot; caps only")}${caps.map(limTr).join("")}</tbody></table></div></div>
   <p class="nc-limsay" id="ncLimSay">${ncLimSentence()}</p>
   <div class="nc-bif${nc.bif?" is-on":""}" id="ncBifRow"><button class="sw" role="switch" aria-checked="${nc.bif}" aria-label="Reserve these amounts"></button>
    <div style="min-width:0"><div style="font-size:14px;font-weight:500;color:var(--gray-17)">Reserve these amounts for ${whoL}</div>
@@ -6395,8 +6424,10 @@ function drawerHTML(){
    room, never the whole free pool: floor(free / max(2, clients + 1)), rounded
    down to 500, at least 500. With no clients the newcomer gets half. One
    function, so the row, the sentence and create() can not disagree. */
-const ncDefaultCap=k=>{const m=compute(k);
- return Math.max(500,Math.floor(m.free/Math.max(2,CLIENTS.length+1)/500)*500)};
+const ncDefaultCap=k=>{const m=compute(k), pool=RES[k].pool, step=pool>=10000?500:pool>=1000?50:5;
+ /* 29 Sep 2026: small pools (Inbox Radar tests, email accounts) round to a
+    step that fits them instead of a flat 500, which exceeded the pool. */
+ return Math.max(step,Math.floor(m.free/Math.max(2,CLIENTS.length+1)/step)*step)};
 /* 18 Sep, delight pass: the Limits step says in one sentence what the numbers
    mean for this workspace and for everyone else, and rewrites as they are typed.
    Reads the inputs when they are on screen, so it never lags the field. */
@@ -6412,10 +6443,10 @@ function ncLimSentence(){
    ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} free today</span>, so they would hit the pool before the cap and nothing would stay free for another workspace.`
    :`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, leaving <b class="tnum">${f(sm.free-cap)}</b> of the ${f(sm.free)} free today for everyone else.`;
  }
- const held=[["lead_finder","Lead Finder"],["verification","verification"],["ai","AI"]].map(([k,l])=>{const m=compute(k),c=capOf(k);return {l,left:m.free-c,free:m.free,c}});
+ const held=RK.filter(k=>RES[k].floors).map(k=>{const m=compute(k),c=capOf(k);return {l:RES[k].label.replace(/ (Credits|Tests)$/,""),left:m.free-c,free:m.free,c}});
  const short=held.filter(h=>h.left<0);
  if(short.length) return `Emails stay a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. <span style="color:var(--orange-12)">The ${short.map(h=>h.l).join(" and ")} hold${short.length>1?"s exceed":" exceeds"} what is free today (${short.map(h=>f(h.c)+" against "+f(h.free)).join(", ")}).</span>`;
- return `Emails stay a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. The credits are held for them; <b class="tnum">${f(held[0].left)}</b> Lead Finder, <b class="tnum">${f(held[1].left)}</b> verification and <b class="tnum">${f(held[2].left)}</b> AI credits stay in the shared pool for everyone else.`;
+ return `Emails stay a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. The credits are held for them; ${held.map(h=>`<b class="tnum">${f(h.left)}</b> ${h.l}`).join(", ")} stay in the plan for everyone else.`;
 }
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
    means, reusing the same slot (id="ncAccSay") so the wizard's live "what they
@@ -8855,7 +8886,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8f21903";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="c0a5f86";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
