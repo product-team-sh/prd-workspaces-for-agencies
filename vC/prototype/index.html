@@ -1812,7 +1812,7 @@ function startHandover(c){
     the wizard, so there is no role to name; the line instead points at where
     people get added. */
  handover={id:c.id,tile:clientTileHTML(c),
-  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"")};
+  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its people from Members when you are ready.")};
  renderXform();
  setTimeout(endHandover,REDUCED()?HANDOVER_MS_REDUCED:HANDOVER_MS);
 }
@@ -2443,7 +2443,7 @@ const DEFAULT_CLIENT_ROLE="Workspace Collaborator";
 /* D14, 28 Sep 2026: the creator says who the workspace is for. Only a
    workspace for a client uses client wording (View as client, the sign-in
    orientation line). Default: a client, the more common case. */
-const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:false,reachedStep3:false,forClient:true});
+const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:false,reachedStep3:false,forClient:true,site:"",team:[],teamOpen:false});
 /* the first entry used to be the agency's own blue, so a first client came out
    the same colour as the account it belongs to, which is the one pair that has
    to be told apart at a glance. Shared by the wizard's preview and create(), so
@@ -6377,23 +6377,28 @@ function drawerHTML(){
     23 Sep 2026: the Access step is gone with the graded model it edited; Their
     role moved in here, right after First user's email, since a role is now the
     whole of what a new workspace user gets. */
- const b1=`<span class="nc-eyebrow">This creates</span>${ncPreviewHTML()}
-  <p class="sub nc-colcap">Its colour in the switcher and on every row.</p>
-  <div class="nc-grid2" style="margin-top:16px">
-   <div class="field"><label class="flabel" for="ncn">Workspace Name</label><input type="text" id="ncn" value="${nc.name}" placeholder="${nc.forClient===false?"Second Brand Co":"Alloy &amp; Co."}"></div>
-   <div class="field"><label class="flabel" for="ncc">Company</label><input type="text" id="ncc" value="${nc.company}" placeholder="${nc.forClient===false?"Second Brand Co Ltd":"Alloy &amp; Co. Ltd"}"></div></div>
-  <div class="field" style="margin-top:16px"><span class="flabel">This workspace is for</span>
-   <div class="choices" role="radiogroup" aria-label="Who this workspace is for">
-    <button type="button" class="choice" role="radio" aria-checked="${nc.forClient?"true":"false"}" data-ncfor="client"><span class="rdo"></span><span><b>A client</b><span class="sub" style="display:block">Someone outside your company. Their people sign in and see only this workspace.</span></span></button>
-    <button type="button" class="choice" role="radio" aria-checked="${nc.forClient?"false":"true"}" data-ncfor="own"><span class="rdo"></span><span><b>My own business</b><span class="sub" style="display:block">Another company you run. The same separation, your own people.</span></span></button>
-   </div></div>
-  ${nc.forClient?`
-  <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${nc.email}" placeholder="marcus@alloyco.com">
-   <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
-  <div class="field" style="margin-bottom:0"><label class="flabel" for="ncrole">Their role</label>
-   <select id="ncrole" class="inp" style="width:100%">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
-   <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>`
-  :`<div class="field" style="margin-bottom:0"><p class="sub nc-hint">${IC.mail}<span>You and your Admins already reach this workspace. Add anyone else from its Members tab.</span></p></div>`}`;
+/* 29 Sep 2026, Hitesh: "Use this screen in prototype": the Create-a-client-
+    workspace modal he made in Claude Design, rebuilt on the design system
+    (560 wide, 4px corners, 32px controls) with the decided vocabulary (D14:
+    workspace, not client). Name with a live colour tile, six swatches,
+    website, teammates, and the line that says where you land next. The
+    Company, "who is this for" and first-user fields are gone; a client's
+    people are invited from the record's Members tab. */
+ const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
+ const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
+ const teamPeople=Object.entries(PEOPLE).filter(([k,p])=>Array.isArray(p.ws));
+ const teamLabel=nc.team.length?nc.team.map(k=>PEOPLE[k].name).join(", "):"Select teammates";
+ const b1=`<div class="nc-namerow">${ncPreviewHTML()}
+   <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%"></div></div>
+  <p class="sub nc-fieldhint">Usually the company name. Only your team sees it.</p>
+  <div class="field"><span class="flabel" id="ncColLab">Workspace colour</span>
+   <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
+  <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
+  <div class="field" style="margin-bottom:0"><span class="flabel" id="ncTeamLab">Give teammates access <span class="opt">(optional)</span></span>
+   <button type="button" class="nc-teambtn${nc.team.length?" has-val":""}" id="ncTeamBtn" aria-expanded="${nc.teamOpen?"true":"false"}" aria-labelledby="ncTeamLab" aria-haspopup="listbox"><span>${teamLabel}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+   ${nc.teamOpen?`<div class="nc-teamlist" id="ncTeamList" role="listbox" aria-multiselectable="true">${teamPeople.map(([k,p])=>`<label class="nc-teamrow"><input type="checkbox" data-ncteam="${k}" ${nc.team.indexOf(k)>-1?"checked":""}><span class="avatar av-tint" style="--c:#1d4ed8">${p.initials}</span><span><b>${p.name}</b><i>${p.role}${p.ws.length?" &middot; "+p.ws.length+" workspace"+(p.ws.length===1?"":"s"):""}</i></span></label>`).join("")||`<p class="sub" style="padding:8px 12px;margin:0">No Members yet. Owners and Admins already reach every workspace.</p>`}</div>`:""}
+   <p class="sub" style="margin:6px 0 0">Only the teammates you add can open this workspace. Owners and Admins always can.</p></div>
+  <div class="msg m-info" style="margin-top:20px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
  /* 18 Sep, Hitesh: "clarity is missing about is this reserved or limit ... we
     are not allocating credits, we are capping use from single client from pool
     credits." So the step is named for what it does, each number is labelled a
@@ -6432,15 +6437,13 @@ function drawerHTML(){
      ?"On: each amount is held for "+whoL+" and no other workspace can draw on it, so the reservations must fit inside your pool. Emails and prospects stay caps."
      :"Off: these are caps only. "+whoL+" draws from the shared pool until the pool runs out or a cap is hit. Turn on to hold the amounts for them instead."}</p></div></div>`;
  return `<div class="scrim" id="scrim"></div>
- <aside class="drawer" role="dialog" aria-label="Add a workspace" style="width:min(720px,calc(100vw - 32px))">
-  <div class="dr-h"><span class="semibold-3">Add a workspace${s===2?' <span class="sub" style="font-weight:400">&middot; Limits</span>':''}</span>
+ <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(${s===2?720:560}px,calc(100vw - 32px))">
+  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace${s===2?' <span class="sub" style="font-weight:400">&middot; Limits</span>':''}</span>
+    ${s===1?'<p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p>':''}</div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <!-- 28 Sep 2026, Hitesh: the two-step stepper is dropped; Next and Back carry the sequence, the header names step 2. -->
   <div class="dr-b">${s===1?b1:b2}</div>
-  <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':""}
-    ${s<2?'<button class="linkbtn" id="drSkip" title="Create the workspace now; the remaining steps wait on its Overview">Finish later</button>':""}</div>
-   <div class="tools">${s<2?'<button class="shd-button shd-button--primary" id="drNext">Next</button>'
-          :'<button class="shd-button shd-button--primary" id="drDone">Add a workspace</button>'}</div></div>
+  <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':'<button class="linkbtn" id="drNext" title="Set this workspace\'s limits before adding it; otherwise it starts on the suggested caps, editable on Limits">Set limits first</button>'}</div>
+   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone">Add a workspace</button></div></div>
  </aside>`;
 }
 /* 18 Sep, delight pass: a new client's default limit is a share that leaves
@@ -6490,29 +6493,24 @@ function ncAccessSentence(){
    keeps showing the same next-in-line colour it always did, so an untouched
    tile looks exactly as before. */
 function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
- return `<div class="nc-prev${nm?"":" is-empty"}" id="ncPrev" aria-live="polite">
-    <button type="button" class="nc-swav" data-nccol aria-label="Change colour">
-     <span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span>
-     <span class="nc-swdot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.65 6.35A8 8 0 1 0 20 12"/><path d="M20 4v5h-5"/></svg></span>
-    </button>
-    <span style="min-width:0;flex:1"><b>${nm||"Your workspace"}</b>
-     <i>${nm?wsPreviewSub():"Type a name to see it take shape"}</i></span>
-    <span class="chip c-mute" style="flex:none">${wsForTag(nc.forClient)}</span></div>`}
+ return `<button type="button" class="nc-prev${nm?"":" is-empty"}" id="ncPrev" data-nccol aria-label="Change colour" title="Click to try the next colour"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></button>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
    and the swatch click never scrolls the drawer. Rebinds the swatch's own
    handler each time, since the node it lived on was just replaced. */
 function paintPrev(){const old=el("ncPrev");if(!old)return;
  const t=document.createElement("div");t.innerHTML=ncPreviewHTML();const node=t.firstElementChild;
  old.replaceWith(node);
- const b=node.querySelector("[data-nccol]");if(b)b.onclick=e=>{e.stopPropagation();cycleColour()}}
+ const b=node.matches("[data-nccol]")?node:node.querySelector("[data-nccol]");if(b)b.onclick=e=>{e.stopPropagation();cycleColour()}}
+function syncSwatches(){const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
+ document.querySelectorAll("[data-ncswatch]").forEach(b=>{const on=b.dataset.ncswatch===col;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false")})}
 function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
- nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev()}
+ nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev();syncSwatches()}
 function renderDrawer(){
  const L=el("layer");if(!drawer){L.innerHTML="";return}
  L.innerHTML=drawerHTML();
  L.querySelectorAll(".sw").forEach(b=>b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true"));
- const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=el("ncrole");
-   if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;
+ const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=el("ncrole"),st=el("ncsite");
+   if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;if(st)nc.site=st.value;
    if(r)nc.role=r.value;
    const capsBox=el("ncCapsBox");
    if(capsBox){nc.caps=nc.caps||{};capsBox.querySelectorAll("[data-cap]").forEach(i=>{nc.caps[i.dataset.cap]=num(i.value)})}
@@ -6522,6 +6520,12 @@ function renderDrawer(){
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
  {const r=el("ncrole");if(r)r.onchange=()=>{cap();renderDrawer()}}
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
+ /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
+ L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
+ {const t=el("ncTeamBtn");if(t)t.onclick=()=>{cap();nc.teamOpen=!nc.teamOpen;renderDrawer();const b=el("ncTeamBtn");if(b)b.focus()}}
+ L.querySelectorAll("[data-ncteam]").forEach(c=>c.onchange=()=>{const k=c.dataset.ncteam;nc.team=nc.team.filter(x=>x!==k);if(c.checked)nc.team.push(k);
+   const t=el("ncTeamBtn");if(t){t.firstElementChild.textContent=nc.team.length?nc.team.map(k=>PEOPLE[k].name).join(", "):"Select teammates";t.classList.toggle("has-val",nc.team.length>0)}});
+ {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
  {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
@@ -6562,8 +6566,10 @@ function create(){
     workspace from the record's own Members tab, once it exists. */
  const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",
-  users:nc.email?[[nc.email,nc.role]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,forClient:nc.forClient!==false};
+  users:nc.email?[[nc.email,nc.role]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,forClient:nc.forClient!==false,site:(nc.site||"").trim()};
  CLIENTS.push(c);byId[id]=c;
+ /* teammates chosen in the modal become members of the new workspace */
+ (nc.team||[]).forEach(k=>{const p=PEOPLE[k];if(p&&Array.isArray(p.ws)&&p.ws.indexOf(id)<0)p.ws.push(id)});
  if(nc.email) LASTSEEN[nc.email]="never";
  RK.forEach(k=>{const m=compute(k);
   const cap=(nc.caps&&nc.caps[k]!=null)?nc.caps[k]:ncDefaultCap(k);
@@ -8628,6 +8634,29 @@ render();
  box-shadow:0 2px 8px rgba(31,41,55,.24)}
 #sessReopen[hidden]{display:none}
 @media(max-width:900px){.sess-body{grid-template-columns:1fr}.sess-list{display:none}}
+
+/* Add a workspace modal, 29 Sep 2026 (Hitesh's Claude Design screen on the design system) */
+.nc-namerow{display:flex;gap:16px;align-items:flex-end}
+.nc-prev{width:48px;height:48px;padding:0;border:0;background:none;cursor:pointer;flex:none;border-radius:var(--radius-control);line-height:0}
+.nc-prev .avatar{width:48px;height:48px;border-radius:var(--radius-control);font-size:16px;font-weight:600}
+.nc-prev:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.nc-fieldhint{margin:6px 0 16px;padding-left:64px}
+.nc-req{color:var(--red-12);font-weight:600}.opt{font-weight:400;color:var(--gray-15)}
+.nc-swatches{display:flex;gap:10px}
+.nc-swatch{width:28px;height:28px;border-radius:50%;background:var(--c);border:2px solid #fff;padding:0;cursor:pointer;box-shadow:0 0 0 1px var(--gray-13)}
+.nc-swatch.is-on{box-shadow:0 0 0 2px var(--blue-11)}
+.nc-swatch:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.nc-teambtn{height:32px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px 0 16px;border:1px solid var(--gray-23);border-radius:var(--radius-input);background:#fff;font:inherit;font-size:14px;color:var(--gray-11);cursor:pointer;text-align:left}
+.nc-teambtn.has-val{color:var(--gray-17)}
+.nc-teambtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nc-teambtn:hover,.nc-teambtn[aria-expanded=true]{border-color:var(--blue-11)}
+.nc-teambtn svg{width:16px;height:16px;flex:none;color:var(--gray-12)}
+.nc-teamlist{margin-top:4px;border:1px solid var(--gray-13);border-radius:var(--radius-input);box-shadow:0 4px 24px rgba(0,0,0,.08);background:#fff;max-height:196px;overflow:auto;padding:4px 0}
+.nc-teamrow{display:flex;align-items:center;gap:10px;padding:6px 12px;cursor:pointer;font-size:13px;line-height:18px}
+.nc-teamrow:hover{background:var(--gray-19)}
+.nc-teamrow input{margin:0;accent-color:var(--blue-11)}
+.nc-teamrow b{display:block;font-weight:500;color:var(--gray-17)}.nc-teamrow i{display:block;font-style:normal;font-size:12px;color:var(--gray-15)}
+.nc-modal .dr-h{padding:20px 24px 12px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -8909,7 +8938,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0859a57";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="34d1c45";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
