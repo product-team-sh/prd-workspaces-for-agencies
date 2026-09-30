@@ -4924,19 +4924,54 @@ function vDash(){
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
      everything under them flows in its own column as before. */
-  +'<div class="dwrap dwrap-top">'
-   +'<div class="dtop-l">'+graceBanner()+(norm&&!setupDone?'':kpiGroup("This cycle",tiles,norm?"":"Outreach by channel",norm?"":touchBar(tch)))+'</div>'
+  /* 30 Sep 2026, Hitesh: "we need the hero element of the home screen to be
+     this metric card". Four cards across the top: Workspaces, Active sequences,
+     Outreach this cycle, Replies this cycle. This cycle and its channel bar go;
+     Plan pacing moves to the top of the right rail. The single-workspace Home
+     keeps its own layout. */
+  +(norm?'<div class="dwrap dwrap-top">'
+   +'<div class="dtop-l">'+graceBanner()+(setupDone?kpiGroup("This cycle",tiles,"",""):'')+'</div>'
    +'<div class="dtop-r">'+railTop+'</div>'
-   +'<div class="dmain">'
-    +(norm?(setupDone?seqCard:setupCard)+addCard:tableCard)
-    /* item 8, 29 Sep 2026, Hitesh: the "Replies by sequence" and "Replies by
-       workspace" cards are removed from Home; the workspaces table already
-       carries replies per row. */
-   +'</div>'
+   +'<div class="dmain">'+(setupDone?seqCard:setupCard)+addCard+'</div>'
    +'<div class="drail">'+railRest+'</div>'
-  +'</div>';
+  +'</div>'
+  :heroCards(mine,tch,rep,items)+'<div class="dwrap dwrap-hero">'
+   +'<div class="dmain">'+graceBanner()+tableCard+'</div>'
+   +'<div class="drail">'+railTop+railRest+'</div>'
+  +'</div>');
 }
 
+/* the Home hero: four metric cards, from Hitesh's design (30 Sep 2026) */
+function heroCards(mine,tch,rep,items){
+ const kf=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"k":f(n);
+ const running=mine.filter(c=>c.sent>0&&!(attention(c)&&attention(c).pin)&&!c.disabled).length,
+       atLimit=mine.filter(c=>lf(c.id).s.tone==="bad").length, fresh=mine.filter(c=>c.sent===0).length;
+ const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
+ const active=seqs.filter(x=>x.q.state==="Active").length, pausedLimit=seqs.filter(x=>x.q.state==="Paused"&&lf(x.c.id).s.tone==="bad").length;
+ const dClients=mine.length-LAST.clients, dTouch=pctDelta(tch.total,LAST.touches), dRep=pctDelta(rep,LAST.replies);
+ const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
+ const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
+ const spark=`<span class="hero-spark" aria-label="Daily outreach, last 14 days">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i===days.length-1?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
+ const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
+ const interested=mine.reduce((t,c)=>t+positives(c),0);
+ const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
+ const chan=[[tch.email,"email"],[tch.li,"LinkedIn"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
+ const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
+ const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+ return `<div class="hero">
+  ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" this month"),
+    `<span class="hero-v">${f(mine.length)}</span>`,
+    `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
+  ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
+    `<span class="hero-v">${f(active)}</span>`,
+    `<span>across ${mine.length} workspaces</span>${pausedLimit?`<span style="color:var(--orange-12)">${pausedLimit} paused by a limit</span>`:""}`)}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Outreach this cycle",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last"),
+    `<span class="hero-vrow"><span class="hero-v">${f(tch.total)}</span>${spark}</span>`,`<span>${chan}</span>`)}
+  ${card("analytics",I('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),"Replies this cycle",pill(dRep,Math.round(Math.abs(dRep))+"% vs last"),
+    `<span class="hero-vrow" style="justify-content:flex-start;align-items:baseline;gap:10px"><span class="hero-v">${f(rep)}</span><span class="hero-rate">${rate}</span></span>`,
+    `<span>${f(interested)} interested</span>${unread.length?`<span style="color:var(--orange-12);font-weight:500">${f(unread.length)} unread, oldest ${oldest} day${oldest===1?"":"s"}</span>`:""}`)}
+ </div>`;
+}
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
 /* ═══ #solo-plain: an ordinary Saleshandy account ═══════════════════════════
    Phase 1 has no path from a plain account to an agency relationship, so this
@@ -8210,6 +8245,7 @@ function wire(){
    t.locked=!t.locked; render()});
  /* ═══ agency Analytics: tab, workspace filter, sort, export ═══ */
  q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
+ q(".hero-card[data-nav]").forEach(b=>b.onclick=()=>{const n=b.dataset.nav;ctx="agency";asClient=false;view={name:n==="analytics"?"analytics":"clients"};render()});
  q("[data-csnotify]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csnotify];receipt("soon",`You will get one email at ${ME().email||"your address"} when ${t?t.title:"this"} is ready. Nothing else.`,null,`asked to be told when ${t?t.title:"it"} is ready`);render()});
  q("[data-csgo]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csgo];if(!t)return;ctx="agency";view={name:t.go==="queue"?"queue":t.go==="dash"?"dash":"clients"};render()});
  q("[data-anview]").forEach(b=>b.onclick=()=>{anView=b.dataset.anview;render()});
@@ -9177,6 +9213,23 @@ render();
 .modal.ac .modal-f{display:flex;align-items:center;gap:12px}
 .pp-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1101;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--gray-17);color:#fff;border-radius:4px;box-shadow:0 8px 24px rgba(17,24,39,.28);font-size:14px;font-weight:500;white-space:nowrap}
 .pp-toast svg{width:16px;height:16px;color:#34D399}.pp-toast .linkbtn{color:#93C5FD;font-size:14px;font-weight:600}
+
+/* Home hero cards, 30 Sep 2026 */
+.hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:4px 24px 0}
+.hero-card{display:flex;flex-direction:column;gap:8px;padding:16px 20px;background:#fff;border:1px solid var(--gray-13);border-radius:8px;text-align:left;font:inherit;color:inherit;cursor:pointer;min-width:0}
+.hero-card:hover{border-color:var(--gray-23);box-shadow:var(--shadow-xs)}
+.hero-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hero-t{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--gray-15)}.hero-t svg{width:16px;height:16px;color:var(--gray-15);flex:none}
+.hero-pill{font-size:11px;font-weight:500;color:var(--green-14);background:var(--green-11);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.hero-pill.is-down{color:var(--red-12);background:var(--red-17)}
+.hero-v{font-size:28px;line-height:32px;font-weight:600;color:var(--gray-17);font-variant-numeric:tabular-nums}
+.hero-vrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.hero-rate{font-size:14px;font-weight:500;color:var(--gray-12)}
+.hero-spark{display:flex;align-items:flex-end;gap:2px;height:28px}.hero-spark i{width:6px;background:var(--blue-12);border-radius:2px 2px 0 0;display:block}
+.hero-f{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}.hero-f>span{white-space:nowrap}
+.hero-dot{display:inline-flex;align-items:center;gap:5px}.hero-dot::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--c)}
+.dwrap-hero{padding-top:20px}.dwrap-hero .dmain,.dwrap-hero .drail{grid-row:1}
+@media (max-width:1199px){.hero{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9458,7 +9511,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0655eed";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="10a902d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
