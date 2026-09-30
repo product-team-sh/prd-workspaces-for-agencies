@@ -681,11 +681,13 @@ td.colact .dq-fore,.pri-a .dq-fore{left:auto;right:0}
 .u-quiet{display:block;font-size:12px;line-height:18px;color:var(--gray-11)}
 .u-sub{display:block;font-size:11px;line-height:16px;color:var(--gray-12);margin-top:1px}
 /* usage, Clients: one row per pool in trouble */
-.qa{display:none;margin:0 0 0 38px;gap:2px}
-.qa button{width:26px;height:24px;border:0;background:none;border-radius:var(--radius-input);color:var(--gray-11);cursor:pointer;display:grid;place-items:center;padding:0}
-.qa button svg{width:14px;height:14px}
+/* 30 Sep 2026, Hitesh: the row shortcuts show by default, as one small grouped control under the name, not on hover */
+.qa{display:inline-flex;margin:6px 0 0 38px;gap:0;border:1px solid var(--gray-13);border-radius:4px;background:#fff;overflow:hidden}
+.qa button{width:30px;height:26px;border:0;border-right:1px solid var(--gray-16);background:none;border-radius:0;color:var(--gray-15);cursor:pointer;display:grid;place-items:center;padding:0}
+.qa button:last-child{border-right:0}
+.qa button svg{width:15px;height:15px}
 .qa button:hover{background:var(--blue-17);color:var(--blue-11)}
-.crow:hover .qa,.crow:focus-within .qa{display:flex}
+
 .crow:hover .cell-main .cs,.crow:focus-within .cell-main .cs{display:none}
 /* toggle: no dedicated geometry token in either source, so the pill itself
    keeps its established size; only colours are sourced (Blue700 on / Gray400 off,
@@ -2738,7 +2740,11 @@ function renderRail(){
   /* item 16, 28 Sep 2026: the staff path (own workspace, or a client entered
      directly) used to never mark Settings current at all - only the asClient
      branch below was checked. */
-  +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||view.name==="apiint"))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
+  /* 30 Sep 2026, Hitesh: "Add settings in our prototype" (the product rail
+     foot: Settings, Submit Feedback, Need support?). The 25 Sep guard that hid
+     Settings from the admin panel is gone; the admin's Settings opens the
+     account-level view (vSettings with inAgency()). */
+  +(`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||view.name==="apiint"))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
@@ -2749,6 +2755,8 @@ function renderRail(){
      /* item 16: clear inMod, or the module just left (Templates, say) keeps
         matching the generic rail cur() check and stays highlighted blue. */
      if(isNormal()) ctx="own";
+     /* 30 Sep 2026: the admin panel's Settings opens on My Profile, the product's own default page. */
+     if(inAgency()) setSel="profile";
      inMod=null;view={name:"settings"};render();return}
    if(n==="agency"){ctx="agency";asClient=false;openProspect=null;openSeq=null;openReply=null;
      view={name:canI("dashboard")&&CLIENTS.length?"dash":"clients"};render();return}
@@ -6242,12 +6250,19 @@ function vSettings(){
  const where=sel[3]==="U"?"Your own account"
    :isNormal()?"This account"
    :sel[2]==="agency"?"The account, one copy"
+   /* 30 Sep 2026: the admin panel's Settings is back (Hitesh). Read from the
+      account, a workspace-shaped item is "each workspace's own", not "this
+      workspace": there is no single workspace to be in up here. */
+   :agency?(sel[3]==="W"||sel[3]==="W only"?"Each workspace, its own copy"
+     :sel[3]==="A + W"?"The account; membership per workspace"
+     :"The account default, then each workspace")
    :sel[3]==="W"||sel[3]==="W only"?"This workspace"
    :"The account, then this workspace";
  const cando=isNormal()?"Set it here. It is the only copy there is."
    :agency
-   ?(sel[2]==="agency"?"Set it here. It is the only copy there is."
-     :sel[3]==="W"||sel[3]==="W only"?"Set your workspace's own copy. Each workspace holds its own."
+   ?(sel[3]==="U"?"Set it here. It is yours, and nothing to override or lock."
+     :sel[2]==="agency"?"Set it here. It is the only copy there is."
+     :sel[3]==="W"||sel[3]==="W only"?"Nothing to set here. Each workspace holds its own copy, set from inside that workspace's Settings."
      :sel[3]==="A + W"?"Create and remove people here. Membership is set per workspace, on the workspace's Members tab."
      :"Set the account default, and lock it if a workspace must not override it.")
    :(sel[3]==="U"?"Set it here. It is yours, not "+c.name+"'s, and nothing to override or lock."
@@ -6262,7 +6277,7 @@ function vSettings(){
  return `<div class="toolbar">
    <div class="cell-main">${agency?"":av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">Settings</span>
-     <span class="cs">${isNormal()?AGENCY.name:agency?"Your workspace":asC?c.name+", as its users see it":c.name+" workspace"}</span>
+     <span class="cs">${isNormal()?AGENCY.name:agency?AGENCY.name+" account, across every workspace":asC?c.name+", as its users see it":c.name+" workspace"}</span>
    </span></div>
    <div class="tools">${agency||asC||ctx==="own"?"":`<button class="shd-button shd-button--tertiary" data-nav2="clients">Workspaces</button>`}</div>
    <!-- item 17, 28 Sep 2026: own is not a client to jump back to a list of; "Back to account" in the rail is the way up from there. -->
@@ -9275,6 +9290,34 @@ render();
 .pace-say{font-size:11px;text-align:right;color:var(--gray-15);white-space:nowrap}.pace-say.warn{color:var(--orange-12)}.pace-say.bad{color:var(--red-12)}.pace-say.ok{color:var(--green-14)}
 /* 30 Sep 2026, Hitesh: every element of the Workspaces table left-aligned */
 .ws-table th,.ws-table td{text-align:left!important}.ws-table th .sortable{justify-content:flex-start!important;flex-direction:row!important}
+
+/* ═══ Table spec, 30 Sep 2026 (Hitesh: "validate the UI of each table: column spacing, alignment,
+   look and feel"). One look for every admin-panel table (.organism): the product's Analytics table.
+   Header 44px on gray-50, 13px semibold gray-500; cells 14px regular gray-800 on a 20px line, 12px
+   by 16px padding, hairline gray-100 between rows, nothing right-aligned, sort icon after its label.
+   The product-module tables (.sqt: Sequences, Members, Limits step) keep the product's own 72px rows. */
+table.organism th{height:44px;padding:0 16px;font-size:13px;font-weight:600;line-height:20px;color:var(--gray-15);background:var(--gray-19);border-top:0;border-bottom:1px solid var(--gray-13);white-space:nowrap;vertical-align:middle;text-align:left}
+table.organism td{padding:12px 16px;font-size:14px;font-weight:400;line-height:20px;color:var(--gray-17);border-bottom:1px solid var(--gray-16);vertical-align:middle}
+table.organism tbody tr:last-child td{border-bottom:0}
+table.organism tfoot td{padding:12px 16px;font-size:13px;font-weight:500;color:var(--gray-12);background:var(--gray-19);border-top:1px solid var(--gray-13)}
+table.organism th.ar,table.organism td.ar,table.organism th.colact,table.organism td.colact{text-align:left}
+table.organism th .sortable,table.organism th.ar .sortable{flex-direction:row;justify-content:flex-start}
+table.organism th .linkbtn{padding:0;line-height:20px;font-size:13px;font-weight:600;color:var(--gray-15)}
+.organism th .linkbtn .sortable[style]{color:var(--blue-11)}
+table.organism td .cell-main{gap:12px}
+table.organism td .cn{font-size:14px;font-weight:500;color:var(--gray-17)}
+table.organism td .cs{font-size:12px;line-height:16px;color:var(--gray-15)}
+table.organism tbody tr:hover{box-shadow:none;background:var(--gray-19)}
+.sqt th{padding:0 16px;color:var(--gray-15)}
+.sqt td{padding:0 16px}
+
+/* audit follow-ups, 30 Sep 2026 */
+.panel:has(> .tscroll > table.organism),.panel:has(> table.organism){border:1px solid var(--gray-16);border-radius:8px;overflow:hidden}
+table.organism td:has(> .shd-button),table.organism td:has(> .tools > .shd-button),table.organism td:has(> .tblacts .shd-button){padding-top:8px;padding-bottom:8px}
+table.organism.an-table th,table.organism.an-table td{padding-left:12px;padding-right:12px}
+table.organism.an-table td:first-child{min-width:200px;padding-left:16px}table.organism.an-table th:first-child{padding-left:16px}
+table.organism.an-table th.colact{width:44px}table.organism.an-table td.colact{width:44px;padding:0}
+table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20px}table.organism.migtbl th{font-size:13px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9556,7 +9599,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="17116ee";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="a44e845";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
