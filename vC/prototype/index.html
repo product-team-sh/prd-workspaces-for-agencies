@@ -1831,8 +1831,15 @@ function renderHandover(L){
   +'<h3>Workspace ready</h3>'
   +'<div style="margin:16px 0">'+handover.tile+'</div>'
   +'<p>'+(handover.roleLine?handover.roleLine+' ':'')+'Nothing sends until you launch a sequence.</p>'
+  +'<div class="xs-acts"><button type="button" class="shd-button shd-button--secondary" data-hoinvite>Invite users</button><button type="button" class="shd-button shd-button--primary" data-hoopen>Open workspace</button></div>'
   +'</div></div></div></div>';
- L.querySelector("[data-hoclick]").onclick=endHandover;
+ /* 30 Sep 2026, Hitesh: the handover waits for a choice instead of ending on a
+    timer. Invite users lands inside the workspace with the Invite user modal
+    open and the workspace locked; Open workspace lands inside it. A click on
+    the backdrop still ends it. */
+ L.querySelector("[data-hoclick]").onclick=e=>{if(e.target.closest("[data-hoinvite],[data-hoopen]"))return; endHandover()};
+ L.querySelector("[data-hoopen]").onclick=endHandover;
+ L.querySelector("[data-hoinvite]").onclick=()=>{const id=handover.id; endHandover(); openInvite({lock:id,role:"Workspace Collaborator"})};
 }
 /* 23 Sep 2026: the handover names the client user's role, not only the
    workspace, since that role is now the whole of what they can do. */
@@ -1842,9 +1849,8 @@ function startHandover(c){
     the wizard, so there is no role to name; the line instead points at where
     people get added. */
  handover={id:c.id,tile:clientTileHTML(c),
-  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its people from Members when you are ready.")};
+  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its people now, or later from its Members tab.")};
  renderXform();
- setTimeout(endHandover,REDUCED()?HANDOVER_MS_REDUCED:HANDOVER_MS);
 }
 function endHandover(){
  if(!handover) return;
@@ -4120,9 +4126,12 @@ function inviteSend(){
    made.push(()=>{delete PEOPLE[key];delete LASTSEEN[nm];delete INVITED["t:"+key]})}
  });
  const n=made.length, where=isWsRole(I.role)?" to "+byId[I.ws[0]].name:"";
- receipt("people",n===1?`Invite sent to ${I.emails[0]}${where} as ${/^[aeiou]/i.test(I.role)?"an":"a"} ${I.role}.`:`${n} invites sent${where}.`,()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
+ /* the receipt shows where the invite was sent from: People and the record use
+    the people scope; inside a workspace (the handover's Invite users) the
+    workspace's own bar. */
+ const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
+ receipt(scope,n===1?`Invite sent to ${I.emails[0]}${where} as ${/^[aeiou]/i.test(I.role)?"an":"a"} ${I.role}.`:`${n} invites sent${where}.`,()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
  PEOPLE_FLASH=null; INV=null; modal=null; renderModal();
- if(view.name!=="record") {view={name:"people"}}
  render();
 }
 function chroleHTML(){
@@ -6732,12 +6741,7 @@ function drawerHTML(){
   <div class="field"><span class="flabel" id="ncColLab">Workspace colour</span>
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
-  <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
-  <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%">
-   <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
-  <div class="field"><label class="flabel" for="ncrole">Their role</label>
-   <select id="ncrole" class="inp" style="width:100%">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
-   <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
+  <!-- 30 Sep 2026, Hitesh: the first user's email and role left step 1; the Workspace ready handover offers Invite users, which opens the one Invite user modal locked to the new workspace. -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <div class="msg m-info" style="margin-top:20px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
  /* 18 Sep, Hitesh: "clarity is missing about is this reserved or limit ... we
@@ -9331,6 +9335,8 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 .inv-row:last-child{border-bottom:0}.inv-row.is-on{background:#F5F8FF}.inv-row input{margin:0;accent-color:var(--blue-11)}
 
 .pp-emails input,.pp-emails input:hover,.pp-emails input:focus{border:0!important;box-shadow:none!important;background:transparent!important;outline:none}
+
+.xs-acts{display:flex;gap:12px;justify-content:center;margin-top:20px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9612,7 +9618,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3997962";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="389693d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
