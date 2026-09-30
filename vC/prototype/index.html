@@ -4602,12 +4602,8 @@ function planCard(norm){
    +'</div></div></div>';
  }
  const sm=compute("sends"), used=sm.used, pool=sm.R.pool, sd=burnDays("sends");
- const early=CYCLE.days-CYCLE.day-Math.floor(sd);
- const creds=RK.filter(k=>RES[k].nature==="Consumable").map((k,i)=>{const m=compute(k),d=burnDays(k);
-  return {l:RES[k].label.replace(" Credits",""),c:["#1D4ED8","#059669","#D97706"][i],
-   v:(d===Infinity?"no burn":d<1?"under a day":Math.round(d)+" days left"),p:m.used/RES[k].pool*100}});
- /* 18 Sep, Hitesh: "represent clients as in that card". The cycle's emails,
-    split by the workspace that sent them, largest first, in each one's colour. */
+ const early=CYCLE.days-CYCLE.day-Math.floor(sd), pct=Math.round(used/pool*100), el=Math.round(elapsed()*100);
+ /* by workspace: the cycle's emails split by the workspace that sent them */
  const byWs=fundedWorkspaces().map(c=>({c,u:cRow("sends",c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
  const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,3), rest=byWs.slice(3);
  const wsBar=byWs.length?'<div class="pace-ws"><span class="sbar" style="height:8px">'
@@ -4616,17 +4612,31 @@ function planCard(norm){
     +(rest.length?'<span><i style="background:var(--gray-23)"></i>+'+rest.length+' other'+(rest.length===1?"":"s")+' <b class="tnum">'+abbr(rest.reduce((a,x)=>a+x.u,0))+'</b></span>':"")
     +'</span></div>':"";
  const tight=sd<CYCLE.days-CYCLE.day;
- return '<div class="card"><div class="c-h"><span class="c-t">Plan pacing</span>'
+ /* 30 Sep 2026, Hitesh: "make Plan pacing bigger and better, with better
+    representation". Every pooled resource, each against the same cycle clock:
+    the bar is what is used, the tick is where the cycle stands today, and the
+    line says whether it lasts. */
+ const rows=RK.map(k=>{const R=RES[k], m=compute(k), u=m.used, p=R.pool, d=burnDays(k), share=u/p, cons=R.nature!=="Storage";
+   const lasts=!cons||d===Infinity||d>=CYCLE.days-CYCLE.day;
+   const tone=share>=1?"bad":!lasts?"warn":share>=R.warn?"warn":"ok";
+   const say=share>=1?"Used up":!cons?f(p-u)+" free":lasts?"Lasts the cycle":"Runs out "+onDay(d);
+   return '<div class="pace-row"><span class="pace-row-l"><b>'+R.label.replace(" Credits","").replace("Monthly Emails Sent","Emails")+'</b><i class="tnum">'+abbr(u)+'/'+abbr(p)+'</i></span>'
+    +'<span class="pace-bar"><i style="width:'+Math.min(100,share*100).toFixed(1)+'%" class="'+tone+'"></i><em style="left:'+el+'%" title="'+el+'% of the cycle gone"></em></span>'
+    +'<span class="pace-say '+tone+'">'+say+'</span></div>'}).join("");
+ return '<div class="card pace-card"><div class="c-h"><span class="c-t">Plan pacing</span>'
   +'<span class="c-a tools" style="gap:10px;white-space:nowrap"><span class="sub">'+CYCLE.month+'</span>'
    +(norm?'':'<button class="linkbtn" data-goalloc="sends">Workspace limits &rarr;</button>')+'</span></div>'
   +'<div class="c-b">'
-  +'<div class="big"><span class="big-v">'+f(used)+'</span>'
-  +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone &middot; '
-   +(tight?'<b style="color:var(--orange-12)">exhausted around '+onDay(sd)+', '+early+' days early.</b> '+dqTip('<button class="linkbtn" data-gobill style="font-size:12px">Add capacity</button>',ADD_CAP_TIP):'on pace to finish inside the plan')+'</span></div>'
-  +wsBar
-  +planChart(true,88)
-  /* the three credit lines moved to Billing; the top row is about this cycle's emails */
-  +'</div></div>';
+  +'<div class="pace-hero"><span class="big"><span class="big-v">'+f(used)+'</span><span class="big-s">of '+f(pool)+' emails &middot; '+pct+'% used by day '+CYCLE.day+' of '+CYCLE.days+' ('+el+'% of the cycle)</span></span>'
+  +'<span class="pace-stat '+(tight?"bad":"ok")+'">'+(tight?'Runs out around <b>'+onDay(sd)+'</b>, '+early+' days early':'On pace to finish the cycle inside the plan')+'</span></div>'
+  +planChart(false,170,430)
+  +'<div class="pace-lgd"><span><i class="ln"></i>Sent so far</span><span><i class="ln dash"></i>Even pace</span></div>'
+  +'<span class="pace-eyebrow">By workspace</span>'+wsBar
+  +'<span class="pace-eyebrow" style="margin-top:16px">Every pooled resource</span>'
+  +'<div class="pace-list">'+rows+'</div>'
+  +'<div class="tools" style="margin-top:14px;justify-content:space-between"><button class="linkbtn" data-gobill>Billing &rarr;</button>'
+    +dqTip('<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>',ADD_CAP_TIP)
+  +'</div></div></div>';
 }
 
 
@@ -4708,7 +4718,7 @@ function arrivalLine(mine,items){
  /* 25 Sep 2026: used to jump to the Work queue; the queue is Coming soon now,
     so this expands the Needs a decision card in place instead, same as its
     own "See all". */
- const decClause=nDec?'<button class="linkbtn" data-dashall="1">'+nDec+' decision'+(nDec===1?"":"s")+' '+(nDec===1?"is":"are")+' waiting</button>':null;
+ const decClause=nDec?'<button class="linkbtn" data-goalloc="sends">'+nDec+' decision'+(nDec===1?"":"s")+' '+(nDec===1?"is":"are")+' waiting</button>':null;
  let repClause=null;
  if(repTop){
   const n=repTop.list.length, oldest=repTop.list.slice().sort((a,b)=>rank(b.age)-rank(a.age))[0].age;
@@ -4897,7 +4907,10 @@ function vDash(){
     :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your workspaces</span></div><div class="c-b">'
      +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
      +'<p class="sub" style="margin:10px 0 0">You can raise a workspace limit. What the account pays is not shown to you.</p></div></div>');
- const railRest=fresh?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
+ /* 30 Sep 2026, Hitesh: the Work queue is phase 2, so the Needs a decision card
+    leaves Home; requests are decided from the Workspaces list banner and the
+    record's Limits tab. Plan pacing takes the whole rail. */
+ const railRest=(fresh||!norm)?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
    +'<span class="c-a">'+(dashAll&&moreN>0?'<button class="linkbtn" data-dashall="0">Show fewer</button>'
      :moreN>0?'<button class="linkbtn" data-dashall="1">See all '+items.length+'</button>':'')+'</span></div>'
    +(norm
@@ -6051,8 +6064,8 @@ function kpi(label,value,delta,compare,invert,abs){
   +'<div class="kpi-c">'+compare+'</div></div>'}
 
 /* ── cumulative sends against the straight-line plan budget ─────────────────── */
-function planChart(compact,H0){
- const R=RES.sends, pool=R.pool, W=640, H=H0||(compact?150:196), L=46, T=22, B=34, Rr=14;
+function planChart(compact,H0,W0){
+ const R=RES.sends, pool=R.pool, W=W0||640, H=H0||(compact?150:196), L=46, T=22, B=34, Rr=14;
  const px=d=>L+(d-1)/(CYCLE.days-1)*(W-L-Rr);
  const py=v=>H-B-(v/pool)*(H-T-B);
  /* item 9, 29 Sep 2026 (Hitesh: "Plan pacing looks dummy"): the line is the
@@ -9228,8 +9241,25 @@ render();
 .hero-spark{display:flex;align-items:flex-end;gap:2px;height:28px}.hero-spark i{width:6px;background:var(--blue-12);border-radius:2px 2px 0 0;display:block}
 .hero-f{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}.hero-f>span{white-space:nowrap}
 .hero-dot{display:inline-flex;align-items:center;gap:5px}.hero-dot::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--c)}
-.dwrap-hero{padding-top:20px}.dwrap-hero .dmain,.dwrap-hero .drail{grid-row:1}
+.dwrap-hero{padding-top:20px;grid-template-columns:minmax(0,2.2fr) minmax(440px,1fr)}.dwrap-hero .dmain,.dwrap-hero .drail{grid-row:1}
 @media (max-width:1199px){.hero{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Plan pacing, the bigger card (30 Sep 2026) */
+.pace-card .c-b{display:flex;flex-direction:column;gap:12px}
+.pace-hero{display:flex;flex-direction:column;gap:6px}
+.pace-hero .big-v{font-size:28px;line-height:32px}
+.pace-stat{font-size:13px;line-height:18px;color:var(--gray-12)}.pace-stat.bad{color:var(--orange-12)}.pace-stat.ok{color:var(--green-14)}
+.pace-card .chart{max-height:none;margin:0}
+.pace-lgd{display:flex;gap:16px;font-size:11px;color:var(--gray-15);margin-top:-4px}
+.pace-lgd span{display:inline-flex;align-items:center;gap:6px}.pace-lgd .ln{width:16px;height:0;border-top:2px solid var(--blue-11)}.pace-lgd .ln.dash{border-top:2px dashed var(--gray-400)}
+.pace-eyebrow{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15)}
+.pace-list{display:flex;flex-direction:column;gap:6px}
+.pace-row{display:grid;grid-template-columns:168px minmax(0,1fr) 96px;align-items:center;gap:10px;min-height:22px}
+.pace-row-l{display:flex;align-items:baseline;gap:6px;min-width:0}.pace-row-l b{font-size:12px;font-weight:500;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pace-row-l i{font-style:normal;font-size:11px;color:var(--gray-15);white-space:nowrap}
+.pace-bar{position:relative;display:block;height:8px;border-radius:4px;background:var(--gray-16);overflow:visible}
+.pace-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--blue-11)}.pace-bar i.warn{background:var(--orange-14)}.pace-bar i.bad{background:var(--red-18)}.pace-bar i.ok{background:var(--green-16)}
+.pace-bar em{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gray-17);border-radius:1px;transform:translateX(-1px)}
+.pace-say{font-size:11px;text-align:right;color:var(--gray-15);white-space:nowrap}.pace-say.warn{color:var(--orange-12)}.pace-say.bad{color:var(--red-12)}.pace-say.ok{color:var(--green-14)}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9511,7 +9541,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="10a902d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="3751b55";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
