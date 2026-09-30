@@ -4865,7 +4865,7 @@ function vDash(){
       for columns that row does not have. */
    +'<thead><tr><th>Workspace</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
       +'<th class="colact"></th></tr></thead>'
-   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>')+'</tbody></table></div>'
+   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
   +'</div>';
@@ -4971,6 +4971,19 @@ function vDash(){
 }
 
 /* the Home hero: four metric cards, from Hitesh's design (30 Sep 2026) */
+/* 30 Sep 2026, Hitesh: "workspaces are not coming here" (Running group, fresh
+   account). An empty group was a bare "Nothing in this group." line with no
+   way on. Each group now says why it is empty and points at the group or
+   action that holds the answer. */
+function homeGroupEmpty(tab,cnt){
+ const E=(t,sub,btn)=>'<tr class="home-empty-row"><td colspan="6"><div class="home-empty"><p class="home-empty-t">'+t+'</p><p class="home-empty-s">'+sub+'</p>'+(btn||"")+'</div></td></tr>';
+ const go=(k,l)=>'<button class="shd-button shd-button--tertiary" data-clitab="'+k+'">'+l+'</button>';
+ if(tab==="run") return E("No workspace is sending yet","A workspace moves here once its first sequence starts sending.",
+   cnt("new")?go("new","See the "+cnt("new")+" new workspace"+(cnt("new")===1?"":"s")):cnt("att")?go("att","See what needs attention"):"");
+ if(tab==="att") return E("Nothing needs attention","Limits reached, disconnected mailboxes and unread replies land here.",go("all","See all workspaces"));
+ if(tab==="new") return E("No new workspaces","Every workspace has started sending.",'<button class="shd-button shd-button--tertiary" data-newws>Add a workspace</button>');
+ return E("No workspaces yet","Add the first one to see it here.",'<button class="shd-button shd-button--primary" data-newws>Add a workspace</button>');
+}
 function heroCards(mine,tch,rep,items){
  const kf=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"k":f(n);
  const running=mine.filter(c=>c.sent>0&&!(attention(c)&&attention(c).pin)&&!c.disabled).length,
@@ -8577,6 +8590,7 @@ function wire(){
  q("[data-dashall]").forEach(b=>b.onclick=()=>{dashAll=b.dataset.dashall==="1";render()});
  q("[data-godash]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"dash"};render()});
  q("[data-clitab]").forEach(b=>b.onclick=()=>{cliTab=b.dataset.clitab;render()});
+ q("[data-newws]").forEach(b=>b.onclick=()=>openAddClient());
  /* launch day. Deferring is a real choice, so it is recorded rather than just
     navigating away: it is what puts the score-60 item in the queue.        */
  q("[data-solonav]").forEach(b=>b.onclick=()=>{soloMod=b.dataset.solonav;render()});
@@ -9318,6 +9332,12 @@ table.organism.an-table th,table.organism.an-table td{padding-left:12px;padding-
 table.organism.an-table td:first-child{min-width:200px;padding-left:16px}table.organism.an-table th:first-child{padding-left:16px}
 table.organism.an-table th.colact{width:44px}table.organism.an-table td.colact{width:44px;padding:0}
 table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20px}table.organism.migtbl th{font-size:13px}
+
+.home-empty-row td{padding:0!important;border-bottom:0!important}.home-empty-row:hover td{background:transparent}
+.home-empty{text-align:center;padding:40px 24px 44px}
+.home-empty-t{margin:0;font-size:14px;font-weight:600;line-height:20px;color:var(--blue-15)}
+.home-empty-s{margin:4px auto 0;font-size:13px;font-weight:400;line-height:20px;color:var(--gray-15);max-width:420px}
+.home-empty .shd-button{margin-top:16px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9599,7 +9619,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a44e845";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="0e26463";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
