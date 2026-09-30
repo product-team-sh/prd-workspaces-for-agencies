@@ -4751,6 +4751,9 @@ function vDash(){
  /* 21 Sep, delight pass round 4: exactly one client, and it has never sent.
     The Clients table becomes that client's own setup, and the zero-value
     tiles below say why they are zero instead of just being zero. */
+ /* 30 Sep 2026, Hitesh: "we should not change the workspaces table on Home when
+    a workspace's setup is pending; in the Status column say Setup pending". The
+    one-workspace setup strip is gone; oneNew now only quiets the deltas. */
  const oneNew=!norm&&mine.length===1&&mine[0].sent===0;
  const arrival=norm?null:arrivalLine(mine,items);
  const rep=mine.reduce((t,c)=>t+repOf(c),0);
@@ -4848,11 +4851,9 @@ function vDash(){
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
-   +(oneNew
-     ?'<thead><tr><th>Workspace</th><th colspan="4">Setup</th><th class="colact"></th></tr></thead>'
-     :'<thead><tr><th>Workspace</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
-      +'<th class="colact"></th></tr></thead>')
-   +'<tbody>'+(oneNew?oneRow:(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>'))+'</tbody></table></div>'
+   +'<thead><tr><th>Workspace</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
+      +'<th class="colact"></th></tr></thead>'
+   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||'<tr><td colspan="6"><span class="sub">Nothing in this group.</span></td></tr>')+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
   +'</div>';
@@ -5969,8 +5970,8 @@ function attention(c){
      why:f(positives(c))+" positive replies from "+f(c.sent)+" sent."};
  /* a brand new client is a lifecycle state, not a decision, so it carries a chip
     but does not jump the queue above a client that is actually running */
- if(c.sent===0) return{rank:9,pin:false,chip:"Not started",tone:"c-mute",
-   why:(4-doneN(c))+" of 4 setup steps remain, so nothing has been sent for them yet."};
+ if(c.sent===0) return{rank:9,pin:false,chip:doneN(c)<4?"Setup pending":"Not started",tone:"c-mute",
+   why:doneN(c)<4?(4-doneN(c))+" of 4 setup steps remain; nothing sends until they are done.":"Set up, nothing sent yet."};
  return null;
 }
 
@@ -9545,7 +9546,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="cb03127";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="2d3905a";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
