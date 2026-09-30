@@ -4080,6 +4080,27 @@ function vPeopleOld(){
 const INV_BLANK=()=>({emails:[],draft:"",role:"Member",ws:[],lock:null,err:""});
 function openInvite(o){INV=Object.assign(INV_BLANK(),o||{}); if(INV.lock){INV.ws=[INV.lock]} modal={kind:"invite"}; renderModal()}
 const isWsRole=r=>CLIENT_ROLES.indexOf(r)>-1;
+/* 30 Sep 2026, Hitesh: "can we improve the design of this" (the invite's native
+   select). A dropdown on the design system's Dropdown: 32px trigger like an
+   input, menu 4px under it, white, 1px gray-200, 4px radius, 0 4px 24px shadow;
+   group rows 10px 700 uppercase gray-400 on gray-100; options 13/20 gray-700 at
+   8px 16px, hover gray-100, selected indigo-100 with a check. Escape or a click
+   outside closes it; the chosen value is written to data-value on the trigger. */
+function ddHTML(id,value,groups,o){
+ o=o||{}; const all=groups.flatMap(g=>g.items), cur=all.find(x=>x.value===value);
+ const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+ const chk='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+ return `<div class="dd${o.disabled?" is-disabled":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
+  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}><span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
+  <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
+}
+function wireDD(L,id,onPick){
+ const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
+ const close=()=>{dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",away,true);document.removeEventListener("keydown",esc,true)};
+ const away=e=>{if(!dd.contains(e.target))close()}, esc=e=>{if(e.key==="Escape"){e.stopPropagation();close();trig.focus()}};
+ trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
+ menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
+}
 function inviteHTML(){
  const I=INV, wsList=fundedWorkspaces();
  const wsRole=isWsRole(I.role), needWs=I.role==="Member"||wsRole;
@@ -4088,11 +4109,10 @@ function inviteHTML(){
  const desc=I.role==="Admin"?"Runs the account day to day: every workspace, People and Billing."
    :I.role==="Member"?"Works only in the workspaces you pick, as Workspace Admin there. Change it per workspace later from their profile."
    :roleSet(I.role).desc+". Signs in to one workspace and never sees the account.";
- const opt=(r,cur)=>`<option value="${r}" ${r===cur?"selected":""}>${r}</option>`;
  const lockName=I.lock&&byId[I.lock]?byId[I.lock].name:"";
  const wsField=!needWs?""
   :wsRole?`<div class="field" style="margin-bottom:0"><label class="flabel" for="invWs">Workspace</label>
-    <select class="inp" id="invWs" style="width:100%" ${I.lock?"disabled":""}>${I.ws.length?"":'<option value="" selected>Pick a workspace</option>'}${wsList.map(c=>`<option value="${c.id}" ${c.id===I.ws[0]?"selected":""}>${c.name}</option>`).join("")}</select>
+    ${ddHTML("invWs",I.ws[0]||"",[{items:wsList.map(c=>({value:c.id,label:c.name,avatar:av(c,20)}))}],{placeholder:"Pick a workspace",disabled:!!I.lock})}
     ${I.lock?`<p class="sub nc-hint" style="margin-top:6px">Inviting into ${lockName}.</p>`:""}</div>`
   :`<div class="field" style="margin-bottom:0"><span class="flabel">Workspaces <span class="opt">&middot; ${I.ws.length} of ${wsList.length} picked</span></span>
     <div class="inv-grid">${wsList.map(c=>`<label class="inv-row${I.ws.indexOf(c.id)>-1?" is-on":""}"><input type="checkbox" name="invws" value="${c.id}" ${I.ws.indexOf(c.id)>-1?"checked":""} ${I.lock&&I.lock!==c.id?"disabled":""}>${av(c,22)}<span>${c.name}</span></label>`).join("")}</div></div>`;
@@ -4101,9 +4121,7 @@ function inviteHTML(){
     <div class="pp-emails" data-invfocus>${chips}<input type="text" id="invEmail" value="${I.draft.replace(/"/g,"&quot;")}" placeholder="${I.emails.length?"Add another, then press Enter":"name@company.com, then press Enter"}"></div>
     <p class="sub nc-hint" style="margin-top:6px">${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:"Each person sets their own password."}</p></div>
    <div class="field"><label class="flabel" for="invRole">Role</label>
-    <select class="inp" id="invRole" style="width:100%">
-     <optgroup label="On your team">${["Admin","Member"].map(r=>opt(r,I.role)).join("")}</optgroup>
-     <optgroup label="At a client, one workspace">${CLIENT_ROLES.map(r=>opt(r,I.role)).join("")}</optgroup></select>
+    ${ddHTML("invRole",I.role,[{label:"On your team",items:["Admin","Member"].map(r=>({value:r,label:r}))},{label:"At a client, one workspace",items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
     <p class="sub nc-hint" style="margin-top:6px">${desc}</p></div>
    ${wsField}`,
   `<button class="linkbtn" data-pproles style="margin-right:auto">What each role can do</button><button class="shd-button shd-button--secondary" data-mclose>Cancel</button>
@@ -4190,8 +4208,8 @@ function wirePeopleModal(L){
   inp.oninput=()=>{INV.draft=inp.value; if(INV.err&&!inp.value.trim()){INV.err="";rerender();L.querySelector("#invEmail").focus()}};
   inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){INV.emails.pop();rerender();L.querySelector("#invEmail").focus()}};
   L.querySelectorAll("[data-invrm]").forEach(b=>b.onclick=()=>{INV.emails=INV.emails.filter(x=>x!==b.dataset.invrm);rerender()});
-  L.querySelector("#invRole").onchange=e=>{const was=INV.role; INV.role=e.target.value; if(isWsRole(INV.role)!==isWsRole(was)) INV.ws=INV.lock?[INV.lock]:[]; rerender()};
-  const wsSel=L.querySelector("#invWs"); if(wsSel) wsSel.onchange=()=>{INV.ws=wsSel.value?[wsSel.value]:[];rerender();const n=L.querySelector("#invRole");if(n)n.blur()};
+  wireDD(L,"invRole",v=>{const was=INV.role; INV.role=v; if(isWsRole(INV.role)!==isWsRole(was)) INV.ws=INV.lock?[INV.lock]:[]; rerender()});
+  wireDD(L,"invWs",v=>{INV.ws=v?[v]:[];rerender()});
  L.querySelectorAll("[data-invfocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#invEmail");if(n)n.focus()}});
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
  L.querySelectorAll("input[name=invws]").forEach(c=>c.onchange=()=>{INV.ws=[...L.querySelectorAll("input[name=invws]:checked")].map(x=>x.value);
@@ -9328,13 +9346,28 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 .crow .cell-main{align-items:center}
 
 /* 30 Sep 2026: Invite user, the one add-user modal (design system S450) */
-.modal.inv{width:min(450px,94vw)}
+.modal.inv{width:min(450px,94vw);overflow:visible}.modal.inv .modal-b{overflow:visible}
 .inv-grid{border:1px solid var(--gray-13);border-radius:4px;overflow:hidden}
 .inv-row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-bottom:1px solid var(--gray-16);font-size:14px;color:var(--gray-17);cursor:pointer}
 .inv-row:last-child{border-bottom:0}.inv-row.is-on{background:#F5F8FF}.inv-row input{margin:0;accent-color:var(--blue-11)}
 
 .pp-emails input,.pp-emails input:hover,.pp-emails input:focus{border:0!important;box-shadow:none!important;background:transparent!important;outline:none}
 
+
+/* design-system Dropdown (30 Sep 2026) */
+.dd{position:relative}
+.dd-trig{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 12px;border:1px solid #d1d5db;border-radius:4px;background:#fff;font:inherit;font-size:13px;line-height:18px;color:#111827;cursor:pointer;text-align:left;transition:border .14s,box-shadow .14s}
+.dd-trig:hover{border-color:#1d4ed8}.dd.is-open .dd-trig,.dd-trig:focus-visible{outline:none;border:1.5px solid #1d4ed8;box-shadow:0 0 0 3px #dbeafe}
+.dd-trig:disabled{background:#f9fafb;color:#6b7280;border-color:#d1d5db;cursor:not-allowed}
+.dd-val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dd-val.is-ph{color:#9ca3af}
+.dd-trig svg{width:16px;height:16px;flex:none;color:#6b7280}
+.dd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;background:#fff;border:1px solid #e5e7eb;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.08);max-height:280px;overflow-y:auto;animation:ddFadeIn .14s ease}
+.dd-menu[hidden]{display:none}
+@keyframes ddFadeIn{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
+.dd-group{padding:8px 16px;background:#f3f4f6;border-bottom:1px solid #e5e7eb;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9ca3af}
+.dd-opt{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;line-height:20px;color:#374151;cursor:pointer;transition:background .1s}
+.dd-opt .dd-lbl{flex:1;min-width:0}.dd-opt .avatar{width:20px;height:20px;font-size:9px;flex:none}.dd-opt:hover{background:#f3f4f6}.dd-opt.is-sel{background:#e0e7ff;color:#4338ca;font-weight:500}
+.dd-opt svg{width:16px;height:16px;flex:none;color:#4338ca}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9616,7 +9649,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="585c9e8";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="b91b91f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
