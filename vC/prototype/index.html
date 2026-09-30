@@ -4965,7 +4965,9 @@ function heroCards(mine,tch,rep,items){
        atLimit=mine.filter(c=>lf(c.id).s.tone==="bad").length, fresh=mine.filter(c=>c.sent===0).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
  const active=seqs.filter(x=>x.q.state==="Active").length, pausedLimit=seqs.filter(x=>x.q.state==="Paused"&&lf(x.c.id).s.tone==="bad").length;
- const dClients=mine.length-LAST.clients, dTouch=pctDelta(tch.total,LAST.touches), dRep=pctDelta(rep,LAST.replies);
+ /* a pill only when there is a real comparison: growth in workspaces, and a
+    cycle with sends behind it. A fresh account shows the numbers alone. */
+ const dClients=mine.length>LAST.clients?mine.length-LAST.clients:null, dTouch=tch.total?pctDelta(tch.total,LAST.touches):null, dRep=rep?pctDelta(rep,LAST.replies):null;
  const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
  const spark=`<span class="hero-spark" aria-label="Daily outreach, last 14 days">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i===days.length-1?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
@@ -9546,7 +9548,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="2d3905a";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="8e7c7a6";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
