@@ -4163,8 +4163,7 @@ function inviteHTML(){
   ok=I.emails.length>0&&(I.admin||picked.length>0);
   body=`<label class="pp-check" style="margin-top:0"><input type="checkbox" data-invadmin ${I.admin?"checked":""}>Make them Admins <span class="sub">&middot; reaches every workspace as Workspace Admin, plus People and Billing</span></label>
    <div class="field">
-    <div class="pp-sec-row"><span class="flabel" style="margin:0">Workspace access <span class="opt">&middot; ${picked.length} of ${wsList.length} picked</span></span>
-     <span class="sub inv-setall">Set all picked to ${ddHTML("invSetAll",roles.length===1?roles[0]:"",[{items:roleItems}],{placeholder:"Role",disabled:I.admin||!picked.length})}</span></div>
+    <div class="pp-sec-row"><span class="flabel" style="margin:0">Workspace access <span class="opt">&middot; ${picked.length} of ${wsList.length} picked</span></span></div>
     <div class="pp-igrid${I.admin?" is-off":""}" style="margin-top:8px">${wsList.map(c=>`<div class="pp-irow${I.ws[c.id]?" is-on":""}"><input type="checkbox" data-invws="${c.id}" ${I.ws[c.id]?"checked":""} ${I.admin?"disabled":""} aria-label="${c.name}">${av(c,24)}<span class="pp-irow-n">${c.name}${c.own?' <span class="sub" style="display:inline">(your own)</span>':""}</span>${I.ws[c.id]?ddHTML("invr_"+c.id,I.ws[c.id],[{items:roleItems}],{}):'<span class="sub">No access</span>'}</div>`).join("")}</div></div>`;
  } else {
   const c=byId[I.clientWs], r=I.clientRole, rs=roleSet(r);
@@ -4281,7 +4280,6 @@ function wirePeopleModal(L){
   L.querySelectorAll("[data-invadmin]").forEach(c=>c.onchange=()=>{INV.admin=c.checked;rerender()});
   L.querySelectorAll("[data-invws]").forEach(c=>c.onchange=()=>{if(c.checked)INV.ws[c.dataset.invws]=INV.ws[c.dataset.invws]||"Workspace Collaborator"; else delete INV.ws[c.dataset.invws]; rerender()});
   fundedWorkspaces().forEach(c=>wireDD(L,"invr_"+c.id,v=>{INV.ws[c.id]=v;rerender()}));
-  wireDD(L,"invSetAll",v=>{Object.keys(INV.ws).forEach(id=>INV.ws[id]=v);rerender()});
   wireDD(L,"invWs",v=>{INV.clientWs=v;INV.guessed=false;rerender()});
   L.querySelectorAll("[data-invrole]").forEach(r=>r.onchange=()=>{INV.clientRole=r.value;rerender()});
  L.querySelectorAll("[data-invfocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#invEmail");if(n)n.focus()}});
@@ -9457,7 +9455,6 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 .inv-role i{margin-left:auto;font-style:normal;font-size:11px;font-weight:400;color:#6b7280}
 .inv-sum{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#f9fafb;border-radius:4px;font-size:13px;line-height:20px;color:#374151}
 .inv-sum svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--blue-11)}.inv-sum strong{font-weight:600;color:#1f2937}
-.inv-setall{display:inline-flex;align-items:center;gap:6px}.inv-setall .dd{width:140px}.inv-setall .dd-trig{height:26px;font-size:12px;padding:0 8px}
 .pp-irow .dd{width:118px;margin-left:auto;flex:none}.pp-irow .dd-trig{height:26px;font-size:12px;padding:0 8px}
 .pp-irow .pp-irow-n{flex:1}
 
@@ -9494,7 +9491,6 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 
 /* 1 Oct 2026, Hitesh: "check the UI issue here": a picked row's role menu was clipped by the grid */
 .pp-igrid{overflow:visible}.pp-irow{position:relative}.pp-irow .dd.is-open{z-index:40}.pp-irow .dd-menu{min-width:150px;right:0;left:auto}
-.inv-setall .dd-menu{min-width:150px;right:0;left:auto}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9776,7 +9772,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6ead6fa";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="3675d1c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
