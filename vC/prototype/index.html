@@ -2343,6 +2343,13 @@ OWN_WS.sent=OWN_WS.sequences.reduce((t,q)=>t+q.sent,0);
    the allocation surfaces and cost to serve. */
 byId.own=OWN_WS;
 const isOwn=()=>ctx==="own";
+/* 1 Oct 2026, Hitesh: "in Workspaces all workspaces should come, including the
+   account's own". The Workspaces list and Home's table list the own workspace
+   first, tagged Yours, for anyone who is a member of it, the same set the
+   switcher and New in a workspace already show. CLIENTS stays as it is, so
+   cost to serve, allocation and the roll-ups are unchanged. */
+const myWorkspaces=()=>(isMember(ME(),"own")?[OWN_WS]:[]).concat(myClients());
+const yoursTag=c=>c.own?' <span class="chip c-mute" style="margin-left:6px;vertical-align:middle">Yours</span>':"";
 /* the own workspace is deliberately not in CLIENTS, so its prospect page is
    grown explicitly rather than by the loop over clients. */
 growProspects(OWN_WS);
@@ -3051,7 +3058,7 @@ function vClients(){
  const COLS=[
   {id:"name",label:"Workspace Name",req:true,sort:true,
    cell:c=>`<td><div class="cell-main">
-     ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>
+     ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>${yoursTag(c)}
      <span class="cs">${c.email}</span></span></div></td>`},
   {id:"seq",label:"Active Sequences",def:false,ar:true,sort:true,
    cell:c=>`<td class="ar tnum">${c.seq}</td>`},
@@ -3076,7 +3083,7 @@ function vClients(){
    cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn" data-manage="${c.id}">Manage</button><button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button></span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
- const all=myClients().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
+ const all=myWorkspaces().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
  const pg=pageOf("clients",all.length,25);
  const rows=all.slice(pg.from,pg.to).map(c=>`<tr>${shown.map(x=>x.cell(c)).join("")}</tr>`).join("")
    ||`<tr><td colspan="${shown.length}"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`;
@@ -3660,7 +3667,11 @@ function cUsage(c){
    <td class="ar colact">${pending
      ?`<span class="sub">Asked ${AGE(pending.when)}${canReq?` &middot; <button class="linkbtn quiet" data-reqwithdraw="${pending.id}">Withdraw</button>`:""}</span>`
      :asking?`<button class="linkbtn quiet" data-reqclose>Cancel</button>`
-     :canReq&&(st.pct>=R.warn||st.room===0)
+     /* 1 Oct 2026, Hitesh: "allow the user to ask for more even if they have not
+        used any capacity; if they know they will need more, the option should
+        always be present". Request more is on every row for anyone who may
+        request; only a Viewer sees the dash. */
+     :canReq
        ?`<button class="linkbtn" data-reqopen="${k}">Request more</button>`
        :'<span class="sub">–</span>'}</td></tr>
   ${asking?`<tr class="confirmrow"><td colspan="5"><div class="inlineconfirm" style="flex-direction:column;align-items:stretch">
@@ -4747,7 +4758,7 @@ function vDash(){
     branches are left rather than stripped: they are the worked design for
     Home-at-one-workspace and are cheap to restore if that reverses. */
  const norm=isNormal();
- const mine=myClients(), owner=canI("billing");
+ const mine=myWorkspaces(), owner=canI("billing");
  /* an account that has not launched anything has nothing to decide, nothing to
     chart and nothing to pace. Showing it a paused sequence and 2,148 sent would
     be the same defect as showing an agency dashboard to someone with no
@@ -4804,8 +4815,10 @@ function vDash(){
  const grpOf=x=>x.c.disabled?"att":x.a&&x.a.pin?"att":x.c.sent>0?"run":"new";
  const cnt=g=>flag.filter(x=>grpOf(x)===g).length;
  const PT=[["all","All",mine.length],["att","Needs attention",cnt("att")],["run","Running",cnt("run")],["new","New",cnt("new")]];
+ /* 1 Oct 2026: the own workspace stays first, as in the switcher; the rest
+    sort by what most needs attention, then by sends. */
  const list=(cliTab==="all"?flag:flag.filter(x=>grpOf(x)===cliTab))
-   .sort((a,b)=>((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent);
+   .sort((a,b)=>(b.c.own?1:0)-(a.c.own?1:0)||((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent);
  const QA=[["sequences","Sequences","M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"],
   ["prospects","Prospects","M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"],
   ["inbox","Inbox","M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"],
@@ -4813,7 +4826,7 @@ function vDash(){
  const crow=({c,a})=>{
   const flash=FLASH_CID===c.id;
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
-   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
+   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'+yoursTag(c)
    /* 30 Sep 2026, Hitesh: "UI is not looking nice and elegant here" (a fresh
       row). The sub-line only shows when there is something to say, and the
       shortcut group sits in the action column with Manage, so a row is one
@@ -6393,8 +6406,12 @@ function reqConsequence(r){const m=compute(r.res);
  return 'Leaves '+f(Math.max(0,m.free-r.amount))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+r.amount)/m.R.pool*100)+'%'}
 /* the exact sentence the agency will read in the Work queue for this ask,
    shown to the client before they send it so nothing surprises them. */
+/* 1 Oct 2026: a request can be sent at any usage, so the sentence names the
+   resource's real state: blocked, close to its limit, or planning ahead. */
+function reqState(k,cid){const m=compute(k),st=rowState(k,cid,m);
+ return st.room===0?'is blocked':st.pct>=m.R.warn?'is at '+Math.round(st.pct*100)+'% of its limit':'is at '+Math.round(st.pct*100)+'%, planning ahead,'}
 function reqQueueLine(c,k,amt){const m=compute(k);
- return c.name+' is blocked and asked for '+f(amt)+' more '+RES[k].unit+'. '+f(m.free)+' unallocated'}
+ return c.name+' '+reqState(k,c.id)+' and asked for '+f(amt)+' more '+RES[k].unit+'. '+f(m.free)+' unallocated'}
 function denyConsequence(r){return byId[r.client].name+' stays at its limit; they are told, not why'}
 function raiseConsequence(k,id){const m=compute(k),step=Math.max(500,Math.round(m.free*0.4/500)*500);
  return 'Leaves '+f(Math.max(0,m.free-step))+' '+m.R.unit+' in the pool; limits total goes to '+Math.round((m.caps+step)/m.R.pool*100)+'%'}
@@ -6491,7 +6508,7 @@ function queueItems(){
    why:`${RES[ro.k].label} at this burn is gone ${onDay(ro.d)}. Every workspace stops with it`,age:"today",act:"Add capacity"});
  REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
    add({score:80,sev:"decision",kind:"Capacity request",client:r.client,
-     why:`${byId[r.client].name} is blocked and asked for ${f(r.amount)} more ${RES[r.res].unit}. ${f(m.free)} unallocated`,
+     why:`${byId[r.client].name} ${reqState(r.res,r.client)} and asked for ${f(r.amount)} more ${RES[r.res].unit}. ${f(m.free)} unallocated`,
      age:r.when,act:"Approve",req:r.id})});
  RK.forEach(k=>{const m=compute(k);
   myClientsForLimits().forEach(c=>{const st=rowState(k,c.id,m);
@@ -9649,7 +9666,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="854ef37";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="1eecebd";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
