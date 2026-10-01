@@ -3160,7 +3160,7 @@ function vClients(){
   <div class="panel"><div class="tscroll"><table class="organism ws-table">
    <thead><tr>${shown.map(x=>x.id==="act"?'<th class="colact"></th>'
      :x.sort?th(x.label,x.ar?1:0):`<th class="${x.ar?'ar':''}">${x.label}</th>`).join("")}</tr></thead>
-   <tbody>${rows}</tbody></table></div>${pager("clients",all.length,25,"clients")}</div>
+   <tbody>${rows}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
  </div>`;
 }
 
@@ -3919,7 +3919,7 @@ function peopleToolbar(opts){
  const roles=["all"].concat(AGENCY_ROLES).concat(CLIENT_ROLES);
  return `<div class="sq-tb"><div class="l">
    <div class="search" style="min-width:220px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="peopleQ" placeholder="Search by name or email" value="${PEOPLE_Q.replace(/"/g,"&quot;")}"></div>
-   <select class="inp" id="peopleRole" style="height:32px;width:200px" aria-label="Filter by role">${roles.map(r=>`<option value="${r}" ${r===PEOPLE_ROLE?"selected":""}>${r==="all"?"All roles":r}</option>`).join("")}</select></div>
+   <div style="width:200px">${ddHTML("peopleRole",PEOPLE_ROLE,[{items:roles.map(r=>({value:r,label:r==="all"?"All roles":r}))}])}</div></div>
    <div class="r"><button class="linkbtn" data-rolecompare>Compare roles</button>${canI("members")?`<button class="shd-button shd-button--primary" data-invite="${opts&&opts.ws?opts.ws:""}">Invite user</button>`:""}</div></div>`;
 }
 function vWorkspacesTab(){
@@ -4024,7 +4024,7 @@ function ppPanelHTML(){
  const r=ppTeam().find(x=>x.k===k), all=myClients(), inWs=r.ws===null?all:r.ws.map(id=>byId[id]), notIn=r.ws===null?[]:all.filter(c=>r.ws.indexOf(c.id)<0);
  const roleCard=(role,title,line)=>`<label class="pp-rcard${P.role===role?" is-on":""}"><span><input type="radio" name="ppacct" value="${role}" ${P.role===role?"checked":""} ${P.role==="Owner"?"disabled":""} data-ppacct>${title}</span><i>${line}</i></label>`;
  const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+P.role+" role":"Since "+(c.created||"the start")+" &middot; "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequences owned"}</i></span>
-   ${r.ws===null?`<span class="sub">Workspace Admin</span>`:`<select class="inp pp-rolesel" data-ppwsrole="${c.id}">${PP_WS_ROLES.map(x=>`<option value="${x}" ${ppWsRole(P,c.id)===x?"selected":""}>${ppShort(x)}</option>`).join("")}</select><button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
+   ${r.ws===null?`<span class="sub">Workspace Admin</span>`:ddHTML("ppwsrole-"+c.id,ppWsRole(P,c.id),[{items:PP_WS_ROLES.map(x=>({value:x,label:ppShort(x)}))}])+`<button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
  return `<div class="mscrim" id="mscrim"><aside class="pp-drawer" role="dialog" aria-modal="true" aria-label="${P.name}">
   <div class="pp-dr-h">${ppAv(r.initials,"#DBEAFE",44)}<span class="pp-dr-t"><b>${P.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i><i>${r.invited?"Invited "+r.invited+" &middot; not signed in yet":"On your team &middot; last active "+r.seen}</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="pp-dr-b">
@@ -4033,7 +4033,7 @@ function ppPanelHTML(){
     :`<div class="pp-rgrid" role="radiogroup">${roleCard("Member","Member","Reaches only the workspaces listed below, in the role set for each.")}${roleCard("Admin","Admin","Reaches every workspace as Workspace Admin, plus People and Billing.")}</div>`}</section>
    <section><div class="pp-sec-row"><span class="pp-eyebrow">Workspace access &middot; ${inWs.length} of ${all.length}</span><button class="linkbtn" data-pproles>What each role can do</button></div>
     <div class="pp-wslist">${inWs.length?inWs.map(wsRow).join(""):`<div class="pp-empty" style="padding:14px 12px">Not in any workspace yet. Add one below.</div>`}</div>
-    ${r.ws===null?"":`${PP.addws?`<select class="inp" data-ppaddws style="width:100%"><option value="">Choose a workspace</option>${notIn.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select>`:`<button class="shd-button shd-button--sm pp-outline" data-ppaddwsopen ${notIn.length?"":"disabled"}>+ Add to a workspace</button>`}
+    ${r.ws===null?"":`${PP.addws?ddHTML("ppaddws","",[{items:notIn.map(c=>({value:c.id,label:c.name}))}],{placeholder:"Choose a workspace",open:true}):`<button class="shd-button shd-button--sm pp-outline" data-ppaddwsopen ${notIn.length?"":"disabled"}>+ Add to a workspace</button>`}
     <span class="sub">${notIn.length?`Not in: ${notIn.map(c=>c.name).join(", ")}. ${P.name.split(" ")[0]} cannot see that they exist.`:"In every workspace."}</span>`}</section>
    <section><span class="pp-eyebrow">Sign-in</span><div class="pp-sec-row"><span class="sub">${r.invited?"No password yet; they set it when they accept.":"Password set by "+P.name.split(" ")[0]+" &middot; two-factor on"}</span>${r.invited?`<button class="linkbtn" data-ppresend="${k}">Resend invite</button>`:`<button class="linkbtn" data-flash="Not in this prototype">Send reset link</button>`}</div></section>
   </div>
@@ -4088,12 +4088,12 @@ function wirePP(L){
  L.querySelectorAll("[data-undo]").forEach(b=>b.onclick=()=>{if(!RECEIPT)return;const u=RECEIPT.undo;clearReceipt();if(u)u();renderModal();render()});
  L.querySelectorAll("[data-ppacct]").forEach(i=>i.onchange=()=>{const P=PEOPLE[modal.k],was=P.role,wasWs=P.ws; P.role=i.value; if(i.value==="Admin")P.ws=null; else if(P.ws===null)P.ws=[];
    ppToast(`${P.name.split(" ")[0]} is now ${P.role} on ${AGENCY.name}.`,()=>{P.role=was;P.ws=wasWs;renderModal();render()},`${P.name} made ${P.role}`); rr(); render()});
- L.querySelectorAll("[data-ppwsrole]").forEach(s=>s.onchange=()=>{const P=PEOPLE[modal.k],id=s.dataset.ppwsrole,was=ppWsRole(P,id); P.roles=P.roles||{}; P.roles[id]=s.value;
-   ppToast(`${P.name.split(" ")[0]} is now ${ppShort(s.value)} in ${byId[id].name}.`,()=>{P.roles[id]=was;renderModal();render()}); rr(); render()});
+ L.querySelectorAll(".dd[id^=ppwsrole-]").forEach(d=>wireDD(L,d.id,v=>{const P=PEOPLE[modal.k],id=d.id.slice(9),was=ppWsRole(P,id); if(v===was)return; P.roles=P.roles||{}; P.roles[id]=v;
+   ppToast(`${P.name.split(" ")[0]} is now ${ppShort(v)} in ${byId[id].name}.`,()=>{P.roles[id]=was;renderModal();render()}); rr(); render()}));
  L.querySelectorAll("[data-ppwsremove]").forEach(b=>b.onclick=()=>{const P=PEOPLE[modal.k],id=b.dataset.ppwsremove,i=P.ws.indexOf(id); if(i<0)return; P.ws.splice(i,1);
    ppToast(`${P.name.split(" ")[0]} removed from ${byId[id].name}.`,()=>{P.ws.splice(i,0,id);renderModal();render()}); rr(); render()});
- L.querySelectorAll("[data-ppaddwsopen]").forEach(b=>b.onclick=()=>{PP.addws=true;rr();const s=L.querySelector("[data-ppaddws]");if(s)s.focus()});
- L.querySelectorAll("[data-ppaddws]").forEach(s=>s.onchange=()=>{const P=PEOPLE[modal.k],id=s.value; PP.addws=false; if(!id){rr();return} P.ws.push(id); P.roles=P.roles||{}; P.roles[id]=P.roles[id]||"Workspace Collaborator";
+ L.querySelectorAll("[data-ppaddwsopen]").forEach(b=>b.onclick=()=>{PP.addws=true;rr();const s=L.querySelector("#ppaddws [data-ddtrig]");if(s)s.focus()});
+ wireDD(L,"ppaddws",id=>{const P=PEOPLE[modal.k]; PP.addws=false; if(!id){rr();return} P.ws.push(id); P.roles=P.roles||{}; P.roles[id]=P.roles[id]||"Workspace Collaborator";
    ppToast(`${P.name.split(" ")[0]} added to ${byId[id].name} as Collaborator.`,()=>{P.ws.splice(P.ws.indexOf(id),1);renderModal();render()}); rr(); render()});
  L.querySelectorAll("[data-ppremove]").forEach(b=>b.onclick=()=>{PP.removeConfirm=true;rr()});
  L.querySelectorAll("[data-ppremovecancel]").forEach(b=>b.onclick=()=>{PP.removeConfirm=false;rr()});
@@ -4155,6 +4155,9 @@ function ddHTML(id,value,groups,o){
 }
 function wireDD(L,id,onPick){
  const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
+ if(dd.classList.contains("is-open")){if(window.__ddAway)document.removeEventListener("mousedown",window.__ddAway,true);
+  const aw=e=>{if(!document.contains(dd)){document.removeEventListener("mousedown",aw,true);window.__ddAway=null;return} if(!dd.contains(e.target)){document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");onPick("")}}; window.__ddAway=aw; document.addEventListener("mousedown",aw,true);
+  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)})}
  const close=()=>{dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",away,true);document.removeEventListener("keydown",esc,true)};
  const away=e=>{if(!dd.contains(e.target))close()}, esc=e=>{if(e.key==="Escape"){e.stopPropagation();close();trig.focus()}};
  trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
@@ -4232,7 +4235,7 @@ function chroleHTML(){
  return card("Change role",`
    <p class="ac-lead" style="margin-bottom:12px"><b>${r.name}</b> ${r.email?`<span class="sub">${r.email}</span>`:""}</p>
    <div class="field" style="margin-bottom:0"><label class="flabel" for="chRole">Role</label>
-    <select class="inp" id="chRole" style="width:100%">${roles.map(x=>`<option value="${x}" ${x===to?"selected":""}>${x}</option>`).join("")}</select>
+    ${ddHTML("chRole",to,[{items:roles.map(x=>({value:x,label:x}))}])}
     <p class="sub nc-hint" style="margin-top:6px">${to==="Admin"?"Runs the account day to day and reaches every workspace.":to==="Member"?"Works only in the workspaces they are assigned to.":roleSet(to).desc+"."}</p></div>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-chroleok ${to===r.role?"disabled":""}>Change role</button>`,"ac");
 }
@@ -4300,7 +4303,7 @@ function wirePeopleModal(L){
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
   const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
   inp.focus();}
- if(k==="chrole"){L.querySelector("#chRole").onchange=e=>{modal.to=e.target.value;rerender()}; const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
+ if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
  if(k==="pconfirm"){L.querySelector("[data-pconfirmok]").onclick=()=>peopleModalOk("pconfirm")}
 }
@@ -5779,10 +5782,8 @@ function apiKeysTab(){
      <div class="field"><label class="flabel" for="apiKeyLabel">Label</label><input type="text" class="inp" id="apiKeyLabel" placeholder="Reporting pull"></div>
      ${wsScope?`<p class="sub" style="margin:0 0 14px">Acts in <strong>${anWsName(wsScope)}</strong> only.</p>`
       :`<div class="field"><label class="flabel" for="apiKeyScope">Scope</label>
-      <select class="inp" id="apiKeyScope" style="width:320px">
-       <option value="agency" ${canAgency?"":"disabled"} title="${canAgency?"":"Only an Owner or Admin can create an account-scoped key"}">Account-wide, acts across workspaces</option>
-       ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
-      </select>
+      <div style="width:320px">${ddHTML("apiKeyScope",canAgency?"agency":(wsOpts[0]?wsOpts[0].id:""),[{items:[{value:"agency",label:"Account-wide, acts across workspaces"}].concat(wsOpts.map(c=>({value:c.id,label:anWsName(c)})))}])}</div>
+      ${canAgency?"":`<p class="sub" style="margin-top:6px">Only an Owner or Admin can create an account-wide key.</p>`}
       <p class="sub" style="margin-top:6px">An account-wide key must name the workspace it acts in on every call; a call without one acts in your own workspace.</p>
       ${canAgency?"":'<p class="sub" style="margin-top:2px">Only an Owner or Admin can create an account-scoped key.</p>'}
      </div>`}
@@ -5842,10 +5843,7 @@ function apiWebhooksTab(){
      <div class="field"><label class="flabel" for="whUrl">URL</label><input type="text" class="inp" id="whUrl" placeholder="https://"></div>
      ${wsScope?`<p class="sub" style="margin:0 0 14px">Fires for <strong>${anWsName(wsScope)}</strong> only.</p>`
       :`<div class="field"><label class="flabel" for="whScope">Scope</label>
-      <select class="inp" id="whScope" style="width:320px">
-       <option value="agency">Account-wide, across every workspace</option>
-       ${wsOpts.map(c=>`<option value="${c.id}">${anWsName(c)}</option>`).join("")}
-      </select></div>`}
+      <div style="width:320px">${ddHTML("whScope","agency",[{items:[{value:"agency",label:"Account-wide, across every workspace"}].concat(wsOpts.map(c=>({value:c.id,label:anWsName(c)})))}])}</div></div>`}
      <div class="field"><label class="flabel">Events</label>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 12px;max-height:200px;overflow:auto;border:1px solid var(--gray-13);border-radius:6px;padding:10px">
        ${WEBHOOK_EVENTS.map(ev=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" data-wheventtog value="${ev}" ${apiWebhookEvSel.indexOf(ev)>-1?"checked":""}>${ev}</label>`).join("")}
@@ -6757,15 +6755,15 @@ function vM2(){
      valid targets here. A client added after launch (Cascade Partners) never
      went through this step, so offering it as a destination would describe
      the migration doing work it never did. */
-  const opts=[`<option value="">Keep in your workspace</option>`]
-   .concat(CLIENTS.filter(c=>MIG.clients.indexOf(c.id)>-1).map(c=>`<option value="${c.id}">${c.name}</option>`)).join("");
+  const opts=[{value:"",label:"Keep in your workspace"}]
+   .concat(CLIENTS.filter(c=>MIG.clients.indexOf(c.id)>-1).map(c=>({value:c.id,label:c.name})));
   return `<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${co.name}</span>
      <span class="cs">${co.domain}</span></td>
    <td class="ar tnum">${f(co.count)}</td>
    <td>${co.suggest?`<span class="sub">Matches ${byId[co.suggest]?byId[co.suggest].name:co.suggest}'s domain</span>`
      :`<span class="sub">No match</span>`}</td>
-   <td><select data-m2pick="${co.name}" aria-label="Workspace for ${co.name}">${opts}</select></td></tr>`}).join("");
+   <td>${ddHTML("m2pick-"+MIG.companies.indexOf(co),"",[{items:opts}])}</td></tr>`}).join("");
  const done=MIG.unassigned<=0;
  return `<div class="mig-wrap"><div class="mig-doc">
   <div class="mig-brand">${logoSVG("logoGradM2")}<span class="brand-t">Saleshandy</span></div>
@@ -6860,7 +6858,7 @@ function drawerHTML(){
   <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%">
    <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
   <div class="field"><label class="flabel" for="ncrole">Their role</label>
-   <select id="ncrole" class="inp" style="width:100%">${CLIENT_ROLES.map(r=>`<option value="${r}" ${r===nc.role?"selected":""}>${r}</option>`).join("")}</select>
+   ${ddHTML("ncrole",nc.role,[{items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
    <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <div class="msg m-info" style="margin-top:20px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
@@ -6977,14 +6975,14 @@ function renderDrawer(){
  L.querySelectorAll(".sw").forEach(b=>b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true"));
  const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=el("ncrole"),st=el("ncsite");
    if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;if(st)nc.site=st.value;
-   if(r)nc.role=r.value;
+   if(r)nc.role=r.dataset.value;
    const capsBox=el("ncCapsBox");
    if(capsBox){nc.caps=nc.caps||{};capsBox.querySelectorAll("[data-cap]").forEach(i=>{nc.caps[i.dataset.cap]=num(i.value)})}
    const bifRow=el("ncBifRow");
    if(bifRow) nc.bif=bifRow.querySelector(".sw").getAttribute("aria-checked")==="true"};
  /* the role select changes both the description under it and the "what they
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
- {const r=el("ncrole");if(r)r.onchange=()=>{cap();renderDrawer()}}
+ wireDD(document,"ncrole",v=>{nc.role=v;cap();renderDrawer()});
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
  L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
@@ -8428,11 +8426,12 @@ function wire(){
  q("[data-apitab]").forEach(b=>b.onclick=()=>{apiTab=b.dataset.apitab;apiKeyFormOpen=false;
    apiWebhookFormOpen=false;apiConnectOpen=null;apiDisconnectConfirm=null;apiKeyRevokeConfirm=null;render()});
  q("[data-apikeynew]").forEach(b=>b.onclick=()=>{apiKeyFormOpen=!apiKeyFormOpen;render()});
+ wireDD(document,"apiKeyScope",()=>{}); wireDD(document,"whScope",()=>{});
  q("[data-apikeycancel]").forEach(b=>b.onclick=()=>{apiKeyFormOpen=false;render()});
  q("[data-apikeysave]").forEach(b=>b.onclick=()=>{
    /* item N2, 28 Sep 2026: no #apiKeyScope select when this was opened from
       inside a workspace (apiKeysTab hid it); the scope is forced to ctx. */
-   const scopeSel=el("apiKeyScope"), label=(el("apiKeyLabel").value||"").trim(), scope=scopeSel?scopeSel.value:ctx;
+   const scopeSel=el("apiKeyScope"), label=(el("apiKeyLabel").value||"").trim(), scope=scopeSel?scopeSel.dataset.value:ctx;
    if(!label) return; if(scope==="agency"&&!isOwnerOrAdmin()) return;
    const k={id:"k"+Date.now().toString(36).slice(-5),label,scope,by:ME().name,created:"just now",used:"Never"};
    API_KEYS.unshift(k); apiKeyFormOpen=false;
@@ -8470,7 +8469,7 @@ function wire(){
  q("[data-webhooksave]").forEach(b=>b.onclick=()=>{
    /* item N2, 28 Sep 2026: no #whScope select when opened from inside a
       workspace (apiWebhooksTab hid it); the scope is forced to ctx. */
-   const scopeSel=el("whScope"), name=(el("whName").value||"").trim(), url=(el("whUrl").value||"").trim(), scope=scopeSel?scopeSel.value:ctx;
+   const scopeSel=el("whScope"), name=(el("whName").value||"").trim(), url=(el("whUrl").value||"").trim(), scope=scopeSel?scopeSel.dataset.value:ctx;
    if(!name||!url||!apiWebhookEvSel.length) return;
    const w={id:"w"+Date.now().toString(36).slice(-5),name,url,scope,events:apiWebhookEvSel.slice(),lastSent:null,status:"on"};
    API_WEBHOOKS.unshift(w); apiWebhookFormOpen=false; apiWebhookEvSel=[];
@@ -8704,8 +8703,8 @@ function wire(){
    ctx="agency";view={name:"people"};render()});
  q("[data-migopen]").forEach(b=>b.onclick=()=>{view={name:"m1"};render()});
  q("[data-rollback]").forEach(b=>b.onclick=()=>{modal={kind:"rollback"};renderModal()});
- q("[data-m2pick]").forEach(sel=>sel.onchange=()=>{
-   const to=sel.value,co=MIG.companies.find(x=>x.name===sel.dataset.m2pick);
+ q(".dd[id^=m2pick-]").forEach(d=>wireDD(document,d.id,to=>{
+   const co=MIG.companies[+d.id.slice(7)];
    if(!to||!byId[to]||!co)return;
    const dest=byId[to],wasReviewed=MIG.reviewed,wasDeferred=MIG.deferred;
    MIG.companies=MIG.companies.filter(x=>x.name!==co.name);
@@ -8715,7 +8714,7 @@ function wire(){
      ()=>{dest.prospects-=co.count;MIG.unassigned+=co.count;MIG.companies.push(co);
        MIG.reviewed=wasReviewed;MIG.deferred=wasDeferred},
      `moved ${co.name} to ${dest.name}`);
-   render()});
+   render()}));
  q("[data-m2done]").forEach(b=>b.onclick=()=>{
    if(MIG.unassigned>0) MIG.deferred=true;
    view={name:canI("dashboard")&&CLIENTS.length?"dash":"clients"};render()});
@@ -8841,7 +8840,7 @@ function wire(){
  q("[data-pmenu]").forEach(b=>b.onclick=e=>{e.stopPropagation();peopleMenu=peopleMenu===b.dataset.pmenu?null:b.dataset.pmenu;render()});
  q("[data-pact]").forEach(b=>b.onclick=e=>{e.stopPropagation();const v=b.dataset.pact,i=v.indexOf("|");peopleAct(v.slice(0,i),v.slice(i+1))});
  {const i=el("peopleQ");if(i){i.oninput=()=>{PEOPLE_Q=i.value;const v=i.value;render();const n=el("peopleQ");if(n){n.focus();n.setSelectionRange(v.length,v.length)}}}}
- {const r=el("peopleRole");if(r)r.onchange=()=>{PEOPLE_ROLE=r.value;render()}}
+ wireDD(document,"peopleRole",v=>{PEOPLE_ROLE=v;render()});
  /* 18 Sep, delight pass: the gap warning opens A8 with the uncovered workspaces already picked.
     It is a gap in the agency's OWN coverage, so it skips the picker straight to that path. */
  q("[data-fixgaps]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:uncovered().map(c=>c.id)}));
@@ -9546,6 +9545,85 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 .toast-t{flex:1;min-width:0}
 .toast-act{border:0;background:none;padding:0 4px;font:inherit;font-size:13px;font-weight:600;color:#1d4ed8;text-decoration:underline;cursor:pointer;flex:none}
 .toast-x{border:0;background:none;padding:0;display:flex;align-items:center;cursor:pointer;opacity:.7;color:var(--t-tx);flex:none}.toast-x:hover{opacity:1}.toast-x svg{width:16px;height:16px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design system alignment audit, 1 Oct 2026 (Hitesh: "perform a complete audit
+   and align all designs, components and every interaction with Saleshandy").
+   Every rule below is a value read from SD (1).html; the audit doc is
+   agency-workspaces/62-design-system-audit.md. Later rules win on purpose.
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* Button: 32px, 6px 16px, 14/20/500, radius 4; icon 20 (16 on small); 0.12s */
+.shd-button{gap:4px;line-height:20px;transition:background .12s ease,color .12s ease,border-color .12s ease}
+.shd-button svg{width:20px;height:20px}
+.shd-button--primary{background:#1d4ed8}.shd-button--primary:hover,.shd-button--primary:focus{background:#1e40af}.shd-button--primary:active{background:#1e3a8a}
+.shd-button--secondary{background:transparent;border:1px solid #1d4ed8;color:#1d4ed8}.shd-button--secondary:hover,.shd-button--secondary:focus{background:#dbeafe}.shd-button--secondary:active{background:#bfdbfe}
+.shd-button--tertiary{background:transparent;border:1px solid #e5e7eb;color:#6b7280}.shd-button--tertiary:hover{background:#f3f4f6}.shd-button--tertiary:active{background:#e5e7eb}
+.shd-button--danger{background:#b91c1c}.shd-button--danger:hover{background:#991b1b}.shd-button--danger:active{background:#7f1d1d}
+.shd-button--sm{height:28px;padding:4px 16px}.shd-button--sm svg{width:16px;height:16px}
+.cs-page .shd-button,.cs-page button.shd-button{height:32px;padding:6px 16px}
+/* Primary Text button: 14/500 #1D4ED8, hover #1E40AF, pressed #1E3A8A; 13px inside dense rows */
+.linkbtn{font-size:14px;font-weight:500;color:#1d4ed8;transition:color .12s ease}.linkbtn:hover{color:#1e40af}.linkbtn:active{color:#1e3a8a}
+table .linkbtn,.pp-row .linkbtn,.pp-status .linkbtn,.inv-sum .linkbtn,.menu .linkbtn,.nc-hint .linkbtn,.sub .linkbtn,.pp-top .linkbtn,.toast .linkbtn,.msg .linkbtn,.dq-receipt .linkbtn{font-size:13px}
+/* Icon button, Gray hover type: icon #6B7280, hover #F3F4F6, pressed #E5E7EB, radius 4 */
+.ubtn{color:#6b7280;border-radius:4px;transition:background .12s,border-color .12s}.ubtn:hover{background:#f3f4f6;color:#6b7280}.ubtn:active{background:#e5e7eb}
+.wsgo{width:28px;height:28px;border-radius:4px}
+/* Input, select, textarea: 32px, 8px 12px, 13px; hover Blue 700; focus 1.5px Blue 700 + 3px Blue 100; disabled Gray 50 */
+input[type=text],input[type=email],input[type=password],input[type=number],select{height:32px;padding:0 12px;font-size:13px;line-height:18px;transition:border .14s,box-shadow .14s}
+textarea{font-size:13px;line-height:20px;transition:border .14s,box-shadow .14s}
+input:not([type=checkbox]):not([type=radio]):hover,select:hover,textarea:hover{border-color:#1d4ed8}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{outline:none;border:1.5px solid #1d4ed8;box-shadow:0 0 0 3px #dbeafe}
+input:disabled,select:disabled,textarea:disabled{background:#f9fafb;color:#6b7280;border-color:#d1d5db;cursor:not-allowed}
+input::placeholder,textarea::placeholder{color:#9ca3af}
+.flabel{font-size:12px;line-height:16px;font-weight:500;color:#374151;margin-bottom:4px}
+.nc-hint,.sub.nc-hint,p.nc-hint{font-size:11px;line-height:16px;color:#6b7280;margin-top:2px}
+.fld-e{font-size:11px;line-height:16px;color:#b91c1c}
+.numin input,.numin input[type=text]{padding-right:82px}
+/* Checkbox and radio, small: 16px, border 1px Gray 400, hover Blue 800, checked 2px Blue 700, disabled 35% */
+input[type=checkbox],input[type=radio]{appearance:none;-webkit-appearance:none;width:16px;height:16px;margin:0;border:1px solid #9ca3af;background:#fff;cursor:pointer;flex:none;display:inline-block;vertical-align:middle;position:relative;box-sizing:border-box;transition:border .14s,background .14s}
+input[type=checkbox]{border-radius:4px}input[type=radio]{border-radius:9999px}
+input[type=checkbox]:hover,input[type=radio]:hover{border-color:#1e40af}
+input[type=checkbox]:checked{background:#1d4ed8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center/60% no-repeat;border:2px solid #1d4ed8}
+input[type=checkbox]:checked:hover{background-color:#1e40af;border-color:#1e40af}input[type=checkbox]:checked:active{background-color:#1e3a8a;border-color:#1e3a8a}
+input[type=radio]:checked{border:2px solid #1d4ed8}input[type=radio]:checked::after{content:"";position:absolute;inset:3px;border-radius:9999px;background:#1d4ed8}
+input[type=radio]:checked:hover{border-color:#1e40af}input[type=radio]:checked:hover::after{background:#1e40af}
+input[type=checkbox]:focus-visible,input[type=radio]:focus-visible{outline:none;box-shadow:0 0 0 3px #dbeafe}
+input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-allowed;background-color:#f3f4f6}
+/* Line tabs: 14/20 500, active 600 Blue 700 with a 2px indicator, default Gray 500, hover Gray 700 with a Gray 300 indicator, gap 24 */
+.pp-tabs{gap:24px}.pp-tabs button{color:#6b7280;transition:color .15s,border-color .15s}.pp-tabs button:hover{color:#374151;border-bottom-color:#d1d5db}.pp-tabs button[aria-selected=true]{color:#1d4ed8;border-bottom-color:#1d4ed8;font-weight:600}
+.tabbar{gap:24px}.tabbar button{color:#6b7280;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}.tabbar button:hover{color:#374151;border-bottom-color:#d1d5db}.tabbar button[aria-selected=true]{color:#1d4ed8;border-bottom-color:#1d4ed8;border-bottom-width:2px;font-weight:600}
+/* Box tabs (the Home groups): item 4px 16px radius 4; default Gray 500; hover Gray 700 on Gray 100; active Blue 700 on white with the 0 4px 24px shadow */
+.pills{display:inline-flex;gap:4px;background:#f9fafb;border-radius:4px}
+.pills button{height:28px;padding:4px 16px;background:transparent;color:#6b7280;border-radius:4px;font-weight:500;transition:background .15s,color .15s}.pills button:hover{background:#f3f4f6;color:#374151}.pills button[aria-pressed=true]{background:#fff;color:#1d4ed8;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.pills .pn{background:#f3f4f6;color:#6b7280;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:600;line-height:16px}.pills button[aria-pressed=true] .pn{background:#eff6ff;color:#1d4ed8}
+/* Modal zones: header and footer 20px 24px with Gray 200 rules, body 20px 24px, button gap 8 */
+.modal .modal-h,.nc-modal .dr-h{padding:20px 24px;border-bottom:1px solid #e5e7eb}
+.modal .modal-b{padding:20px 24px}
+.modal .modal-f,.nc-modal .dr-f{padding:20px 24px;border-top:1px solid #e5e7eb;gap:8px}
+/* Drawer: 432, Gray 900 at 35% overlay, head 70px, footer 20px 24px, slide in 0.26s */
+.pp-drawer{box-shadow:none;border-left:1px solid #e5e7eb;animation:drawerIn .26s ease}@keyframes drawerIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.mscrim:has(> .pp-drawer){background:rgba(17,24,39,.35)}
+.pp-dr-h{padding:20px 24px;min-height:70px}.pp-dr-f{padding:20px 24px;border-top:1px solid #e5e7eb}
+/* Menu: the dropdown listing (radius 4, Gray 200 border, 0 4px 24px shadow, options 8px 16px at 13/20, hover Gray 100) */
+.menu{border-radius:4px;padding:4px 0;border:1px solid #e5e7eb;box-shadow:0 4px 24px rgba(0,0,0,.08);top:calc(100% + 4px)}
+.menu-i{padding:8px 16px;border-radius:0;font-size:13px;line-height:20px;color:#374151}.menu-i:hover{background:#f3f4f6}
+/* Inline banner, page level: 6px 16px, min 28px, gap 10, 12/16/500 Gray 800, 16px icon */
+.msg{padding:6px 16px;min-height:28px;align-items:center;gap:10px;font-size:12px;font-weight:500;line-height:16px;color:#1f2937;border-radius:4px;box-sizing:border-box}
+.msg svg{width:16px;height:16px;flex:none}
+.msg.m-info{background:#eff6ff;border:1px solid #dbeafe}.msg.m-info svg{color:#2563eb}
+.msg.m-bad{background:#fef2f2;border:1px solid #fee2e2}.msg.m-bad svg{color:#b91c1c}
+.msg.m-warn{background:#fffbeb;border:1px solid #fef3c7}.msg.m-warn svg{color:#b45309}
+/* Tooltip, dark: Gray 800, 12/18 Gray 50, 8px, radius 4, 225 wide */
+.dq-fore{background:#1f2937;color:#f9fafb;font-size:12px;line-height:18px;padding:8px;border-radius:4px;max-width:225px;box-shadow:none}
+/* Radio and checkbox cards: 12px 16px, Gray 200; hover Gray 50; selected Blue 200 on Blue 50 with a 2px Blue 100 ring; label 14/500; hint 12/18 Gray 400 */
+.pp-rcard{padding:12px 16px;border:1px solid #e5e7eb;gap:8px;transition:background .14s,border .14s,box-shadow .14s}.pp-rcard:hover{background:#f9fafb}.pp-rcard.is-on{border:1px solid #bfdbfe;background:#eff6ff;box-shadow:0 0 0 2px #dbeafe}
+.pp-rcard>span{font-size:14px;font-weight:500}.pp-rcard i{font-size:12px;line-height:18px;color:#9ca3af}
+/* Multiselect chip: 22px, 0 6px, radius 4, Gray 300, 11/500 Gray 700, × Gray 400 */
+.pp-echip{height:22px;padding:0 6px;gap:4px;border-radius:4px;border:1px solid #d1d5db;background:#fff;font-size:11px;font-weight:500;color:#374151}.pp-echip button{width:14px;height:14px;color:#9ca3af}
+/* Pagination bar: 8px 24px on Gray 50, 14/20 Gray 800, prev and next 24px with a Blue 100 hover */
+.pager{padding:8px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;justify-content:flex-end;gap:20px}.pager .sub{font-size:14px;line-height:20px;color:#1f2937}.pager .tools{gap:16px}
+.pager .shd-button--sm{height:24px;padding:2px 8px;font-size:14px;border:0;background:#fff;color:#1f2937}.pager .shd-button--sm:hover{background:#dbeafe;color:#1d4ed8}.pager .shd-button--sm:disabled{opacity:.35}
+/* Toast: 280 to 480 wide, z 9000, slide up 0.22s */
+.toast{min-width:280px;max-width:480px;animation-duration:.22s}#toastLayer{z-index:9000}@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9827,7 +9905,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="83d4f7c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="d9beff8";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
