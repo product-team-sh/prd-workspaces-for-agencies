@@ -3939,7 +3939,7 @@ function vWorkspacesTab(){
    designed"). Ported from his PP boards: one list in two sections (your team, client users), a
    person panel that saves as you change it, an invite that asks who they are first, and a roles
    sheet. Account role decides reach, workspace role decides power (D4, D5). ═══ */
-let PP={q:"",ws:"all",menu:null,addws:false,removeConfirm:false};
+let PP={q:"",ws:"all",role:"all",tab:"team",menu:null,addws:false,removeConfirm:false};
 const PP_WS_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
 const ppShort=r=>String(r||"").replace(/^Workspace /,"");
 const ppName=email=>email.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase());
@@ -3964,42 +3964,56 @@ function ppAccess(r){
  if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
  return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,16)}${byId[id].name.split(" ")[0]} <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span></span>`).join("");
 }
+/* 1 Oct 2026, Hitesh: "row 16, A variation, for the People listing page" (the
+   canvas board PL-A). One kind of person at a time: tabs Your team, Client
+   users, Invites waiting with counts; a search placeholder per tab; Workspace
+   and Account role filters; one table card; "Showing N of M" under it. */
 function vPeople(){
  if(!canI("members")) return denied("see or manage people");
- const q=PP.q.trim().toLowerCase(), team=ppTeam().filter(r=>ppMatch(q,r.name,r.email)&&(PP.ws==="all"||r.ws===null||r.ws.indexOf(PP.ws)>-1)),
-       cl=ppClients().filter(r=>ppMatch(q,r.name,r.email,r.c.name)&&(PP.ws==="all"||r.c.id===PP.ws));
- const nInv=ppTeam().filter(r=>r.invited).length+ppClients().filter(r=>r.invited).length, wsN=new Set(ppClients().map(r=>r.c.id)).size;
- const cols='grid-template-columns:minmax(0,1.3fr) 120px minmax(0,1.5fr) 130px 240px 48px';
+ const q=PP.q.trim().toLowerCase(), tab=PP.tab;
+ const teamAll=ppTeam(), clAll=ppClients();
+ const inWs=r=>PP.ws==="all"||(r.c?r.c.id===PP.ws:(r.ws===null||r.ws.indexOf(PP.ws)>-1));
+ const team=teamAll.filter(r=>ppMatch(q,r.name,r.email)&&inWs(r)&&(PP.role==="all"||r.role===PP.role));
+ const cl=clAll.filter(r=>ppMatch(q,r.name,r.email,r.c.name)&&inWs(r));
+ const invAll=teamAll.filter(r=>r.invited).concat(clAll.filter(r=>r.invited));
+ const inv=invAll.filter(r=>ppMatch(q,r.name,r.email,r.c?r.c.name:"")&&inWs(r));
+ const rows=tab==="team"?team:tab==="clients"?cl:inv, total=tab==="team"?teamAll.length:tab==="clients"?clAll.length:invAll.length;
+ const cols='grid-template-columns:minmax(0,1.5fr) 130px minmax(0,2fr) 120px 200px 44px';
  const head=`<div class="pp-head" style="${cols}"><span>Person</span><span>Account role</span><span>Workspace access</span><span>Last active</span><span>Status</span><span></span></div>`;
+ const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  const teamRow=r=>`<div class="pp-row${r.role==="Owner"?"":" is-link"}" style="${cols}" ${r.role==="Owner"?"":`data-ppopen="${r.k}"`}>
-   <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",30,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
-   <span><span class="pp-role${r.role==="Member"?" pp-role--mute":""}">${r.role}</span></span>
+   <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
+   <span class="pp-roletxt">${r.role}</span>
    <span class="pp-access">${ppAccess(r)}</span>
-   <span class="sub">${r.invited?"Never":r.seen}</span>
+   <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
-   <span>${r.role==="Owner"?"":'<span class="pp-go">'+chevR+'</span>'}</span></div>`;
+   <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row" style="${cols}">
-   <span class="pp-person">${ppAv(r.initials,r.c.colour,30,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
-   <span><span class="sub">Client user</span></span>
-   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,16)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
-   <span class="sub">${r.invited?"Never":r.seen}</span>
+   <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
+   <span class="pp-roletxt sub">Client user</span>
+   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
+   <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
-   <span><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+ const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
+ const ph=tab==="team"?"Search your team":tab==="clients"?"Search client users":"Search invites";
+ const hint=tab==="team"?"Owner and Admins reach every workspace. Members reach only the ones they are added to."
+   :tab==="clients"?"Each client user signs in to one workspace and never sees "+AGENCY.name+" or another client."
+   :"Resend sends the same link again. Each person sets their own password when they accept.";
+ const empty=tab==="team"?"No one on your team matches.":tab==="clients"?"No client user matches.":(invAll.length?"No invite matches.":"No invites waiting. Everyone has signed in.");
+ const tabBtn=(k,label,n,tone)=>`<button type="button" role="tab" aria-selected="${tab===k}" data-pptab="${k}">${label} <span class="pp-cnt pp-cnt--${tone}">${n}</span></button>`;
  return `<div class="wrap pp-wrap">${receiptBar("people")}
-  <div class="pp-top"><span class="sub">${ppTeam().length} on your team &middot; ${ppClients().length} client users across ${wsN} workspaces${nInv?` &middot; ${nInv} invite${nInv===1?"":"s"} waiting`:""}</span>
-   <span class="tools"><span class="search" style="width:260px"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z"/><path d="M14.293 14.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414l-6-6a1 1 0 0 1 0-1.414Z"/></svg><input type="text" id="ppQ" placeholder="Find anyone by name or email" value="${PP.q.replace(/"/g,"&quot;")}"></span>
-    <button class="shd-button shd-button--secondary" data-pproles>What each role can do</button>
-    <button class="shd-button shd-button--primary" data-invite="">Invite user</button></span></div>
-  <section class="pp-sec">
-   <div class="pp-sec-h"><span class="pp-sec-l"><span class="pp-sec-ico">${peopleI}</span><span class="pp-sec-t"><b>Your team <span class="sub">&middot; ${ppTeam().length}</span></b><i>${AGENCY.name} staff. Owner and Admins reach every workspace; a Member reaches only the workspaces listed, in the role set for each.</i></span></span>
-    <span class="tools"><select class="inp pp-wsfilter" id="ppWs" aria-label="Filter by workspace"><option value="all" ${PP.ws==="all"?"selected":""}>Workspace: All</option>${wsOpts.map(c=>`<option value="${c.id}" ${PP.ws===c.id?"selected":""}>${c.name}</option>`).join("")}</select>
-     </span></div>
-   ${head}${team.length?team.map(teamRow).join(""):`<div class="pp-empty">No one on your team matches.</div>`}</section>
-  <section class="pp-sec">
-   <div class="pp-sec-h pp-sec-h--gray"><span class="pp-sec-l"><span class="pp-sec-ico pp-sec-ico--plain">${bldgI}</span><span class="pp-sec-t"><b>Client users <span class="sub">&middot; ${ppClients().length}, in ${wsN} workspaces</span></b><i>People who work at a client. Each logs in to one workspace and never sees ${AGENCY.name}, Billing or another client. Their role there is the whole of what they can do.</i></span></span>
-    </div>
-   ${head}${cl.length?cl.map(clRow).join(""):`<div class="pp-empty">No client user matches.</div>`}</section></div>`;
+  <div class="pp-top"><span class="sub">Who can open which workspace, and as what &middot; <button class="linkbtn" data-pproles>What each role can do</button></span>
+   <span class="tools"><button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button></span></div>
+  <div class="pp-tabs" role="tablist">${tabBtn("team","Your team",teamAll.length,"blue")}${tabBtn("clients","Client users",clAll.length,"gray")}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
+  <div class="pp-bar"><span class="pp-filters">
+    <span class="search" style="width:260px">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
+    ${ddHTML("ppWs",PP.ws,[{items:[{value:"all",label:"Workspace: All"}].concat(wsOpts.map(c=>({value:c.id,label:c.name,avatar:av(c,18)})))}],{})}
+    ${tab==="team"?ddHTML("ppRole",PP.role,[{items:[{value:"all",label:"Account role: All"},{value:"Owner",label:"Owner"},{value:"Admin",label:"Admin"},{value:"Member",label:"Member"}]}],{}):""}</span>
+   <span class="sub">${hint}</span></div>
+  <section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${empty}</div>`}</section>
+  <span class="sub pp-foot">Showing ${rows.length} of ${total} ${tab==="team"?"on your team":tab==="clients"?"client users":"invites"}</span></div>`;
 }
 const chevR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
 const peopleI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
@@ -8806,7 +8820,9 @@ function wire(){
  q("[data-ppclrole]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [key,role]=b.dataset.ppclrole.split("|");const [id,email]=key.slice(2).split("|");const c=byId[id];const u=c.users.find(x=>x[0]===email);const was=u[1];u[1]=role;PP.menu=null;ppToast(`${ppName(email)} is now ${ppShort(role)} in ${c.name}.`,()=>{u[1]=was;render()});render()});
  q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
  {const i=el("ppQ");if(i){i.oninput=()=>{PP.q=i.value;const v=i.value;render();const n=el("ppQ");if(n){n.focus();n.setSelectionRange(v.length,v.length)}}}}
- {const w=el("ppWs");if(w)w.onchange=()=>{PP.ws=w.value;render()}}
+ wireDD(document,"ppWs",v=>{PP.ws=v;render()});
+ wireDD(document,"ppRole",v=>{PP.role=v;render()});
+ q("[data-pptab]").forEach(b=>b.onclick=()=>{PP.tab=b.dataset.pptab;PP.menu=null;render()});
  q("[data-invite]").forEach(b=>b.onclick=()=>openInvite(b.dataset.invite?{lock:b.dataset.invite,role:"Workspace Collaborator"}:{}));
  q("[data-rolecompare]").forEach(b=>b.onclick=()=>{modal={kind:"rolecompare"};renderModal()});
  q("[data-pmenu]").forEach(b=>b.onclick=e=>{e.stopPropagation();peopleMenu=peopleMenu===b.dataset.pmenu?null:b.dataset.pmenu;render()});
@@ -9491,6 +9507,23 @@ table.organism.migtbl th,table.organism.migtbl td{font-size:14px;line-height:20p
 
 /* 1 Oct 2026, Hitesh: "check the UI issue here": a picked row's role menu was clipped by the grid */
 .pp-igrid{overflow:visible}.pp-irow{position:relative}.pp-irow .dd.is-open{z-index:40}.pp-irow .dd-menu{min-width:150px;right:0;left:auto}
+
+/* People, option A (1 Oct 2026): tabs, filters, one table card */
+.pp-tabs{display:flex;gap:28px;margin-top:4px;border-bottom:1px solid #e5e7eb}
+.pp-tabs button{display:flex;align-items:center;gap:8px;height:44px;padding:0 2px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#4b5563;cursor:pointer}
+.pp-tabs button[aria-selected=true]{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.pp-cnt{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;font-size:12px;font-weight:500}
+.pp-cnt--blue{background:#dbeafe;color:#1e40af}.pp-cnt--gray{background:#f3f4f6;color:#4b5563}.pp-cnt--amber{background:#ffedd5;color:#b45309}
+.pp-tabs button[aria-selected=false] .pp-cnt--blue{background:#f3f4f6;color:#4b5563}
+.pp-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 16px}
+.pp-filters{display:flex;align-items:center;gap:8px}.pp-filters .dd{width:auto;min-width:150px}.pp-filters .dd-trig{font-size:13px;font-weight:500;color:#374151}.pp-filters .dd-menu{min-width:220px}
+.pp-roletxt{font-size:13px;color:var(--gray-17)}.pp-roletxt.sub{color:var(--gray-15)}
+.pp-seen{font-size:13px;color:#4b5563}.pp-seen.is-never{color:#9ca3af}
+.pp-status{font-size:13px}.pp-st{font-size:13px}.pp-st+.linkbtn{font-size:12px}
+.pp-end{display:flex;justify-content:flex-end;position:relative}.pp-kebab{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;color:#9ca3af}.pp-kebab svg{width:16px;height:16px}
+.pp-row{min-height:56px;padding:0 20px}.pp-head{height:40px;padding:0 20px;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;color:#6b7280}
+.pp-foot{display:block;margin-top:14px;color:#9ca3af}
+.pp-wrap .pp-top .sub .linkbtn{font-weight:500}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9772,7 +9805,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="41b1c7e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="bfe31a2";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
