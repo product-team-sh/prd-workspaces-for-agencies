@@ -1932,7 +1932,7 @@ const ME=()=>PEOPLE[me_];
    every client out, everywhere myClients() is read (switcher, #clients,
    Analytics' "All mine", Home, cost/median, API workspace options...). Same
    array-membership test isMember() already uses correctly, a few lines down. */
-const myClients=()=>{const w=ME().ws;return w?CLIENTS.filter(x=>w.indexOf(x.id)>-1):CLIENTS};
+const myClients=()=>{const w=ME().ws;return CLIENTS.filter(x=>!x.deletedOn&&(!w||w.indexOf(x.id)>-1))};
 const canI=k=>CAN[ME().role][k];
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
@@ -1963,6 +1963,7 @@ const CLIENTS=[
 CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
 
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
+let ACTIVITY=[];
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
    A prototype stops being believed at the first count that disagrees with the
@@ -2340,6 +2341,11 @@ OWN_WS.sent=OWN_WS.sequences.reduce((t,q)=>t+q.sent,0);
    deliberately absent from CLIENTS, which is what keeps it out of the roll-ups,
    the allocation surfaces and cost to serve. */
 byId.own=OWN_WS;
+/* 2 Oct 2026 (S2): the activity each workspace was born with, oldest last */
+CLIENTS.concat([OWN_WS]).forEach(c=>{
+ if(c.limitsReviewed&&!c.own) ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Limits reviewed"});
+ (c.users||[]).forEach(u=>ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:`Invited ${u[0]} as ${u[1]}`}));
+ ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Workspace created"})});
 const isOwn=()=>ctx==="own";
 /* 1 Oct 2026, Hitesh: "in Workspaces all workspaces should come, including the
    account's own". The Workspaces list and Home's table list the own workspace
@@ -2512,8 +2518,9 @@ function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
  return{pct,room,draw,state:s,tone:t}}
 const isBif=i=>funded(byId[i]||{})&&RK.filter(k=>RES[k].floors).every(k=>{const r=RES[k].rows[i];return r&&r.cap>0&&r.res>=r.cap});
 const setBif=(i,on)=>RK.filter(k=>RES[k].floors).forEach(k=>{const r=RES[k].rows[i];if(r)r.res=on?r.cap:0});
-const steps=c=>[["Workspace created",true],["Workspace user invited",c.users.length>0],
- ["Email accounts connected",c.mailboxes.length>0],["Limits set",!!c.limitsReviewed]];
+/* 2 Oct 2026 (S2, doc 65 §6): the step names match what the action was */
+const steps=c=>[["Workspace created",true],["First user invited",c.users.length>0],
+ ["Email account connected",c.mailboxes.length>0],["Limits reviewed",!!c.limitsReviewed]];
 const doneN=c=>steps(c).filter(x=>x[1]).length;
 const lf=i=>{const m=compute("lead_finder");return{r:RES.lead_finder.rows[i]||{res:0,cap:0,used:0},s:rowState("lead_finder",i,m)}};
 
@@ -3169,8 +3176,9 @@ function vClients(){
    assertions find them whether the menu is open or not. */
 function recMenuHTML(c){
  const items=[];
- if(canI("disable")) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Stops sending and signs its users out. Reversible.</span></button>`);
- if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Soft delete. Restorable for 30 days, then purged.</span></button>`);
+ /* 2 Oct 2026 (S2, doc 65 §6): plain words, the product's own consequence */
+ if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its users out. You can enable it again.</span></button>`);
+ if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Removes it for everyone. You can restore it within 30 days.</span></button>`);
  if(!items.length) return "";
  return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions" style="padding:6px 10px;font-weight:700;letter-spacing:1px">&middot;&middot;&middot;</button>
   <div class="menu" role="menu" ${recMenu?"":"hidden"} style="width:280px;padding:6px">${items.join("")}</div></span>`;
@@ -3183,7 +3191,7 @@ const rcHdrChip=c=>{
  if(!at.length&&!rq.length) return "";
  const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
  return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
-let RC_REFUSED=null;
+let RC_REFUSED=null, PREVIEW=false;
 function rSoon(title,line,c,icon,bullets){
  return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
 }
@@ -3199,30 +3207,31 @@ function vRecord(id){
     through myClients(), which already excludes it for such a Member (fix
     #19); this closes the direct #client=<id> route the same way. */
  if(c&&!isMember(ME(),id)) return denied("open "+c.name);
- /* 29 Sep 2026, Hitesh: "email accounts and settings and client update would be coming soon" */
- const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["mailboxes","Email Accounts","Soon"],["settings","Settings","Soon"]];
+ /* 2 Oct 2026 (S2, doc 65, canvas rows 06 to 08): an administration page.
+    Tabs Overview, Members, Limits, Activity; the two Soon tabs are gone (no
+    promises on a page that administers). Header line "company · email", or
+    "Your workspace · email" on the own one. One chip only when something
+    waits: a request, or Disabled. Disabled swaps Open workspace for Enable;
+    deleted shows a bar with Restore and nothing else to act on. */
+ const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["activity","Activity"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
- /* fix 25 Sep review #7: attention(c)'s "Disabled" chip already exists and was
-    only wired into the Clients list and Home rows, never into this toolbar -
-    so the record page itself never reflected a state change without a manual
-    re-navigation. */
- const att=attention(c);
+ const dead=!!c.deletedOn, off=!!c.disabled;
  return `
- <div class="toolbar">
+ <div class="toolbar${off||dead?" rc-off":""}"${dead?" data-keeptitle":""}>
   <div class="cell-main">
    <button class="linkbtn" id="backList">Workspaces</button><span class="sep">/</span>
    ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
-   <span class="cs">${c.company} · ${c.email}</span></span></div>
+   <span class="cs">${c.own?"Your workspace":c.company} · ${c.email}</span></span></div>
   <div class="tools">${clientNav(c)}
-   ${att&&att.chip?`<span class="chip ${att.tone}">${att.chip}</span>`:""}
-   ${rcHdrChip(c)}
-   ${viewAsBtn(c,"shd-button shd-button--tertiary")}
-   <button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>${recMenuHTML(c)}</div>
+   ${off?`<span class="chip c-mute">Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}</span>`:dead?"":rcHdrChip(c)}
+   ${dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
+   <button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`}${dead?"":recMenuHTML(c)}</div>
  </div>
+ ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
- <div class="tabbar">${T.map(([k,l,tag])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}${tag?` <span class="chip c-mute soonpill">${tag}</span>`:""}</button>`).join("")}</div>
+ <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${
-  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):tab==="settings"?rSoon("Settings","This workspace's settings live inside the workspace. A read-only view of them here is coming.",c,"settings",["Account defaults and this workspace's overrides, side by side","Locked settings marked as locked","Changed by whom and when"]):tab==="mailboxes"?rSoon("Email accounts","Mailboxes are bought, connected and managed inside the workspace that uses them. A read-only view here is coming.",c,"mail",["Every mailbox of this workspace with health and warm-up","Daily limit and sent today","Who pays for each one"]):tab==="settings"?(canI("settings")?rSettings(c):readOnly(rSettings(c),"change settings")):rMail(c)}</div>`;
+  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):rActivity(c)}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -3247,45 +3256,79 @@ const rcStepDate=(c,i)=>{const d=(c.setupDates||[])[i]; if(d) return d;
  const d2=new Date(t+[0,2,5,8][i]*864e5); return d2.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d2.getMonth()]};
 function rcSetup(c,S,done){
  if(done<S.length) return `<div class="rc-setup" role="list" aria-label="Setup"><span class="rc-setup-t">Setup &middot; ${done} of ${S.length}</span>${S.map(([t,ok],i)=>`
-   <span class="rc-step${ok?" is-on":""}" role="listitem"><span class="tick ${ok?"on":""}">${ok?"✓":""}</span><span>${t}${ok?`<i>${rcStepDate(c,i)}</i>`:""}</span>${ok?"":`<button class="linkbtn" data-tab="${t.includes("user")?"members":t.includes("Email")?"mailboxes":"limits"}">Set up</button>`}</span>`).join("")}</div>`;
+   <span class="rc-step${ok?" is-on":""}" role="listitem"><span class="tick ${ok?"on":""}">${ok?"✓":""}</span><span>${t}${ok?`<i>${rcStepDate(c,i)}</i>`:""}</span>${ok?"":t.includes("Email")?`<button class="linkbtn" data-goto="${c.id}|accounts">Set up</button>`:`<button class="linkbtn" data-tab="${t.includes("user")?"members":"limits"}">Set up</button>`}</span>`).join("")}</div>`;
+ /* 2 Oct 2026 (S2): gone at 4 of 4, nothing takes its place */
+ return "";
  if(RC_LIVE_SEEN[c.id]) return "";
  return `<div class="rc-live" role="status">${tickI}<span><b>${c.name.split(" ")[0]}</b> is live since ${rcStepDate(c,S.length-1)}. Every setup step is done.</span>
   <button class="ubtn dq-x" data-rclivex="${c.id}" aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`;
 }
+/* ═══ Overview, 2 Oct 2026 (S2, doc 65 direction B, canvas row 06 B) ════════
+   The record is an administration page, not an analytics page. Its Overview
+   stops repeating numbers Home and Analytics already show (the five tiles, the
+   14-day chart, the activity list) and answers the four things an owner comes
+   here to do: finish setup, see and change who has access, see and change
+   limits, open or stop the workspace. Setup line until 4 of 4; the workspace's
+   Home row as a strip (wsCells, so the two never disagree); three cards. */
+function recStrip(c){
+ const fresh=c.sent===0, cells=wsCells(c);
+ const head=c.disabled?`Frozen since ${c.disabledOn||TODAY_D}, when the workspace was disabled.`:fresh?"Numbers start with the first send.":periodText();
+ const cell=x=>`<div class="rs-cell"><span class="rs-l">${x.l}</span><span class="rs-v tnum">${x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||"")}</span><span class="rs-s${x.cls?" "+x.cls:""}">${x.line||"&nbsp;"}</span></div>`;
+ return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
+  <div class="rs-row">${cells.map(cell).join("")}<div class="rs-cell rs-usage"><span class="rs-l">Usage</span>${usageBrief(c)}</div></div></div>`;
+}
+const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue"};
+const colourName=h=>COLOUR_NAMES[String(h||"").toUpperCase()]||"Custom";
+const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:"–");
+let REC_EDIT=null;   /* the client whose Details card is being edited in place */
+function recAccessRows(c){
+ const rows=[];
+ (c.users||[]).forEach(u=>rows.push({ini:initials(u[0].split("@")[0]),col:c.colour,name:ppName(u[0]),sub:u[0],role:u[1],kind:"client"}));
+ Object.keys(PEOPLE).forEach(k=>{const P=PEOPLE[k]; if(P.role==="Member"&&!(P.ws&&P.ws.indexOf(c.id)>-1)) return;
+  rows.push({ini:P.initials||initials(P.name),col:AGENCY.colour,name:P.name,sub:P.role,role:P.role==="Member"?ppShort(ppWsRole(P,c.id))+" here":"Workspace Admin",kind:"team"})});
+ return rows;
+}
+function recAccessCard(c,ro){
+ const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU;
+ const line=c.own?"Your team only":nU?`${nU} workspace user${nU===1?"":"s"} &middot; ${nT} from ${AGENCY.name}`:`No workspace user yet &middot; ${nT} from ${AGENCY.name}`;
+ const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span>${r.name}</span><span class="cs">${r.sub}</span></span><span class="rc-prole">${r.role}</span></div>`;
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members &rarr;</button>${!ro&&!c.own&&canI("members")?`<button class="shd-button shd-button--secondary shd-button--sm" data-invite="${c.id}">Invite</button>`:""}</span></div>
+  <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.map(row).join("")}</div></div>`;
+}
+function recLimitsCard(c,ro){
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
+  return `<div class="rc-lrow"><div class="rc-lhead"><span>${R.label}</span><span class="sub${s.tone==="bad"?" is-bad":""}">${f(r.used)} of ${f(r.cap)}</span></div><div class="rc-lbar"><span style="width:${p}%;background:${barCol(s.tone)}"></span></div></div>`}).join("");
+ const rq=REQUESTS.find(q=>q.client===c.id);
+ const req=rq&&!ro?`<div class="rc-req"><span><b>Asked for ${f(rq.amount)} more ${RES[rq.res].unit}</b> &middot; ${AGE(rq.when)}</span><button class="linkbtn" data-tab="limits">Review</button></div>`:"";
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows||'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
+}
+function recDetailsCard(c,ro){
+ const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
+ if(REC_EDIT===c.id&&!ro){
+  const inp=(id,v,label)=>`<dt><label for="${id}">${label}</label></dt><dd><input type="text" id="${id}" value="${String(v||"").replace(/"/g,"&quot;")}" aria-label="${label}"></dd>`;
+  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span></div><div class="panel-b"><dl class="dl rc-dl">
+   ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.company,"Company")}${inp("rdEmail",c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
+   <dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl>
+   <div class="rc-dact"><button class="shd-button shd-button--primary shd-button--sm" data-rdsave="${c.id}">Save</button><button class="shd-button shd-button--tertiary shd-button--sm" data-rdcancel>Cancel</button></div></div></div>`;
+ }
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span>${ro||!canI("members")?"":`<span class="c-a"><button class="linkbtn" data-rdedit="${c.id}">Edit</button></span>`}</div>
+  <div class="panel-b"><dl class="dl rc-dl"><dt>Company</dt><dd>${c.own?AGENCY.name:c.company}</dd><dt>Email</dt><dd>${c.email}</dd><dt>Website</dt><dd>${siteOf(c)}</dd><dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl></div></div>`;
+}
 function rOverview(c){
- const S=steps(c),done=doneN(c);
- /* 17 Sep 2026, round 2 (44-ui-audit.md P2, P1): the Usage card repeated the
-    Limits tab one click away, so it became one line in Details, worded from the
-    same rowState the tables use. The chart subtitle explained the product to
-    the reviewer and went. */
- const st=RK.map(k=>RES[k].rows[c.id]?rowState(k,c.id,compute(k)):null).filter(Boolean);
- const bad=st.filter(s=>s.tone==="bad").length, warn=st.filter(s=>s.tone==="warn").length;
- const usage=(bad?`<span style="color:var(--red-12)">${bad} of ${st.length} pools at a limit</span>`
-    :warn?`<span style="color:var(--orange-12)">${warn} of ${st.length} pools near a limit</span>`
-    :`All ${st.length} pools fine`)+` &middot; <button class="linkbtn" data-tab="limits">Manage limits</button>`;
- return `
- ${rcSetup(c,S,done)}
- <div class="panel"><div class="stats">
-  <div class="stat"><span class="stat-l">Total Email Sent</span><span class="stat-v">${f(c.sent)}</span></div>
-  <div class="stat"><span class="stat-l">Reply Rate</span><span class="stat-v">${c.reply?c.reply.toFixed(1)+"%":"–"}</span></div>
-  <div class="stat"><span class="stat-l">Positive Reply</span><span class="stat-v">${c.pos?c.pos.toFixed(1)+"%":"–"}</span></div>
-  <div class="stat"><span class="stat-l">Active Sequences</span><span class="stat-v">${c.seq}</span></div>
-  <div class="stat"><span class="stat-l">Total Prospects</span><span class="stat-v">${f(c.prospects)}</span></div>
- </div></div>
- <div class="panel"><div class="panel-h"><span class="panel-t">Last 14 days</span>
-   <span class="sub">Sent and replies, per day</span>${chartLegend()}</div>
-  <div class="panel-b" style="padding-top:4px">${c.sent?reportChart(c):'<p class="sub" style="margin:8px 0">Nothing has been sent from this workspace yet.</p>'}</div></div>
- <div class="grid">
-  <div class="panel"><div class="panel-h"><span class="panel-t">Last activity</span></div>
-   <div class="panel-b" style="padding-top:4px;padding-bottom:4px">${activityList(c)}</div></div>
-  <div class="panel"><div class="panel-h"><span class="panel-t">Details</span></div>
-   <div class="panel-b"><dl class="dl">
-    <dt>Company</dt><dd>${c.company}</dd><dt>Workspace email</dt><dd>${c.email}</dd>
-    <dt>Workspace users</dt><dd>${c.users.length?c.users.length+" &middot; "+Object.entries(c.users.reduce((m,u)=>{m[u[1]]=(m[u[1]]||0)+1;return m},{})).map(([r,n])=>n+" "+r).join(", "):"None yet"}</dd><dt>Created on</dt><dd>${c.created}</dd>
-    <dt>Your team</dt><dd>${staffOf(c).length?staffOf(c).map(s=>s.name).join(", "):"Owner and Admin only"}</dd>
-    <dt>Email accounts</dt><dd>${c.mailboxes.length}</dd>
-    <dt>Usage</dt><dd>${usage}</dd></dl></div></div>
- </div>`;
+ const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
+ return `${ro||c.own?"":rcSetup(c,S,done)}${recStrip(c)}<div class="rc-cards">${recAccessCard(c,ro)}${recLimitsCard(c,ro)}${recDetailsCard(c,ro)}</div>`;
+}
+/* ═══ Activity, 2 Oct 2026 (S2): fed only by events the workspaces feature
+   itself writes (created, invited, role changed, limit changed, request
+   approved or declined, disabled or enabled, previewed as client, deleted or
+   restored). No engagement here: sending and replies are Analytics' job. */
+function logAct(cid,text){ACTIVITY.unshift({client:cid,who:ME().name,when:"just now",text,at:Date.now()})}
+function rActivity(c){
+ const rows=ACTIVITY.filter(a=>a.client===c.id).map(a=>({who:a.who,when:a.when,text:a.text,at:a.at||0}));
+ REQUESTS.filter(q=>q.client===c.id).forEach(q=>rows.push({who:c.name,when:AGE(q.when),text:`Asked for ${f(q.amount)} more ${RES[q.res].unit}`,at:1}));
+ rows.sort((a,b)=>(b.at||0)-(a.at||0));
+ return `<div class="panel"><div class="panel-h"><span class="panel-t">Activity</span><span class="sub">What your team changed on this workspace. Sending and replies are in Analytics.</span></div>
+  <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(a=>`<div class="list-row rc-act"><span style="min-width:0"><b>${a.who}</b> &middot; ${a.text}</span><span class="sub" style="flex:none;margin-left:12px">${a.when}</span></div>`).join(""):'<p class="sub" style="margin:8px 0">Nothing yet.</p>'}</div></div>`;
 }
 /* ═══ A4 Access, and A2's Add member drawer ═══════════════════════════════════
    09 §A4: one table shape for both groups, because a workspace has members and
@@ -3600,15 +3643,35 @@ const sentEnd=n=>/[.!?]$/.test(n)?n:n+".";
    one a role away from everything they can do, and the agency people who
    reach this workspace, Owner and Admin always present, Members who are on
    it, and an Add picker for the Members who are not. */
+let RC_DDMAP={};
 function rMembers(c){
- /* People revamp, 29 Sep 2026: the same table as People, filtered to this
-    workspace, and the same Invite modal with the workspace preselected. */
- const rows=peopleRows().filter(r=>r.kind==="wsuser"?r.c===c:(r.ws===null||r.ws.indexOf(c.id)>-1));
- const nU=rows.filter(r=>r.kind==="wsuser").length, nT=rows.filter(r=>r.kind==="team").length;
- return `<div class="panel-h" style="padding:0 0 12px"><span class="panel-t">Members of ${c.name}</span>
-   <span class="sub">${nU} workspace user${nU===1?"":"s"} &middot; ${nT} from ${AGENCY.name}</span>
-   <span class="tools" style="margin-left:auto"><button class="linkbtn" data-nav="people">All people &rarr;</button>${canI("members")?`<button class="shd-button shd-button--primary shd-button--sm" data-invite="${c.id}">Invite user</button>`:""}</span></div>
-  ${receiptBar("people")}${usersTable(rows,{compact:true})}`;
+ /* 2 Oct 2026 (S2, doc 65, canvas row 07): everyone who can open this
+    workspace, in two groups. Workspace users (the client's people) with the
+    role as a dropdown changed in place, last sign-in, status with Resend, a
+    row menu. Your team: Owner and Admins read only (every workspace); Members
+    with their role here, changeable in place. Invite opens Invite people with
+    this workspace locked. Disabled or deleted: read only. */
+ RC_DDMAP={};
+ const ro=!!(c.disabled||c.deletedOn), canEdit=canI("members")&&!ro;
+ const q=PEOPLE_Q.trim().toLowerCase(), hit=r=>!q||(r.name+" "+r.email+" "+r.role).toLowerCase().indexOf(q)>-1;
+ const rows=peopleRows();
+ const users=rows.filter(r=>r.kind==="wsuser"&&r.c===c).filter(hit);
+ const team=rows.filter(r=>r.kind==="team"&&(r.ws===null||r.ws.indexOf(c.id)>-1)).filter(hit);
+ const stat=r=>r.status==="Active"?`<span class="rc-dot ok"></span>Active`:r.status==="Invited"?`<span class="rc-dot warn"></span>Invited ${AGE(INVITED[r.key]||"3 days ago")}${canEdit?` &nbsp;<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="rc-dot mute"></span>Inactive`;
+ const person=r=>`<td><div class="cell-main"><span class="pp-av" style="--c:${r.kind==="team"?AGENCY.colour:r.colour};width:28px;height:28px;font-size:10px">${r.initials}</span><span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${r.name}${r.key==="t:"+me_?' <span class="sub">(you)</span>':""}</span><span class="cs">${r.kind==="team"?r.role:r.email}</span></span></div></td>`;
+ const kebab=r=>`<td class="ar" style="position:relative;overflow:visible">${canEdit?`<button class="sq-kebab" aria-haspopup="menu" aria-expanded="${peopleMenu===r.key}" data-pmenu="${r.key}" aria-label="Actions for ${r.name}">&#8942;</button>${peopleMenu===r.key?peopleMenuHTML(r):""}`:""}</td>`;
+ let n=0;
+ const roleDD=(pfx,key,val)=>{if(!canEdit) return `<span>${ppShort(val)}</span>`; const id=pfx+(n++); RC_DDMAP[id]={key,c:c.id};
+  return `<div class="rc-dd">${ddHTML(id,val,[{items:CLIENT_ROLES.map(x=>({value:x,label:ppShort(x)}))}])}</div>`};
+ const urow=r=>`<tr data-prow="${r.key}">${person(r)}<td>${roleDD("rcrole",r.key,r.role)}</td><td><span class="sub">${r.seen}</span></td><td><span class="rc-stat">${stat(r)}</span></td>${kebab(r)}</tr>`;
+ const trow=r=>{const P=PEOPLE[r.key.slice(2)], fixed=r.role!=="Member";
+  return `<tr data-prow="${r.key}">${person(r)}<td>${fixed?`<span>Workspace Admin, every workspace</span>`:roleDD("rcwsrole",r.key,ppWsRole(P,c.id))}</td><td><span class="sub">${r.seen}</span></td><td><span class="rc-stat">${stat(r)}</span></td>${fixed?"<td></td>":kebab(r)}</tr>`};
+ const table=(head,body,empty)=>`<div class="tscroll"><table class="sqt rc-mtbl" style="min-width:760px"><thead><tr><th>Person</th><th>${head}</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>${body||`<tr><td colspan="5" style="height:52px"><span class="sub">${empty}</span></td></tr>`}</tbody></table></div>`;
+ return `<div class="rc-mtb"><div class="search" style="min-width:240px">${srchI}<input type="text" id="peopleQ" placeholder="Search people" value="${PEOPLE_Q.replace(/"/g,"&quot;")}"></div>
+   <span class="sub">Owner and Admins reach every workspace. Members and workspace users reach only this one.</span>
+   ${canEdit&&!c.own?`<button class="shd-button shd-button--primary" data-invite="${c.id}">Invite</button>`:""}</div>
+  ${c.own?"":`<div class="panel rc-group"><div class="panel-h"><span class="panel-t">Workspace users</span><span class="sub">${users.length} &middot; the client's people, this workspace only</span></div>${table("Role in this workspace",users.map(urow).join(""),q?"No one matches.":"No one invited yet.")}</div>`}
+  <div class="panel rc-group"><div class="panel-h"><span class="panel-t">Your team</span><span class="sub">${team.length} from ${AGENCY.name}</span>${canEdit?`<span class="c-a"><button class="linkbtn" data-addteam="${c.id}">Add a teammate</button></span>`:""}</div>${table("Role here",team.map(trow).join(""),"No one matches.")}</div>`;
 }
 
 /* ═══ A8 Add a member ═════════════════════════════════════════════════════════
@@ -3746,24 +3809,31 @@ function rcLimSentence(c){
 }
 function rLimits(c){
  const bif=isBif(c.id);
+ /* 2 Oct 2026 (S2, doc 65, canvas row 07): each number saves as you leave it,
+    with its own toast and Undo; no draft bar. A pending request sits above the
+    table with Approve and Decline. Disabled or deleted: read only. */
+ const ro=!!(c.disabled||c.deletedOn), dis=ro?" disabled":"";
+ const rq=REQUESTS.find(q=>q.client===c.id);
+ const reqBar=rq&&!ro?`<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${RES[rq.res].unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${f(compute(rq.res).free)} available in the plan</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}">Approve ${f(rq.amount)} more</button></span>`:""}</div>`:"";
  const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id],s=rowState(k,c.id,m),p=Math.min(100,Math.round(s.pct*100));
   return `<tr id="rlim-${k}" class="${FOCUS_LIM===k?"is-focus":""}"><td><span style="font-weight:500">${R.label}</span></td>
-   <td class="ar">${R.floors?numIn(dval(k,c.id,"res"),R.unit,`data-lim="${k}" data-fld="res" aria-label="Reserved"`):noIn}</td>
-   <td class="ar">${numIn(dval(k,c.id,"cap"),R.unit,`data-lim="${k}" data-fld="cap" aria-label="Limit"`)}</td>
+   <td class="ar">${R.floors?numIn(dval(k,c.id,"res"),R.unit,`data-lim="${k}" data-fld="res" aria-label="Reserved"${dis}`):noIn}</td>
+   <td class="ar">${numIn(dval(k,c.id,"cap"),R.unit,`data-lim="${k}" data-fld="cap" aria-label="Limit"${dis}`)}</td>
    <td class="ar tnum">${f(r.used)}</td>
    <td>${meter(p,s.tone,s.state)}</td>
    <td class="ar tnum">${f(s.draw)}</td></tr>`}).join("");
  return `
  <!-- 30 Sep 2026, Hitesh: "remove manage independent budget option". The Budget panel with its
       independent-budget switch is gone from the Limits tab; every workspace draws from the shared pool. -->
- <div class="panel"><div class="panel-h"><span class="panel-t">Limits</span>
-   <button class="shd-button shd-button--tertiary shd-button--sm" id="toCredits">All workspaces</button></div>
+ ${reqBar}<div class="panel"><div class="panel-h"><span class="panel-t">Limits</span>
+   <span class="sub">${ro?"Read only while the workspace is "+(c.deletedOn?"deleted":"disabled")+".":"Each number saves as you leave it. Undo from the toast."}</span>
+   <span class="c-a"><button class="linkbtn" id="toCredits">All workspaces &rarr;</button></span></div>
   <div class="tscroll"><table class="organism" style="min-width:800px" id="rcLimTable">
    <thead><tr><th>Resource</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
     <th>Usage</th><th class="ar">Available</th></tr></thead>
    <tbody>${rows}</tbody></table></div>
   <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)}</p></div>
-  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}${draftBar({id:c.id})}</div>`;
+  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
 }
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
    actually reads on this screen: they are not auditing addresses, they are
@@ -3870,7 +3940,7 @@ function peopleRows(){
  const t=Object.keys(PEOPLE).map(k=>{const P=PEOPLE[k];
   const seen=AGE(LASTSEEN[P.name]||"unknown"), status=DISABLED["t:"+k]?"Inactive":seen==="never"?"Invited":"Active";
   return {key:"t:"+k,kind:"team",name:P.name,email:P.email||"",initials:P.initials,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,status,colour:"var(--blue-11)"}});
- const w=[]; CLIENTS.forEach(c=>(c.users||[]).forEach(u=>{const email=u[0], seen=AGE(LASTSEEN[email]||"unknown"), key="w:"+c.id+"|"+email;
+ const w=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0], seen=AGE(LASTSEEN[email]||"unknown"), key="w:"+c.id+"|"+email;
   w.push({key,kind:"wsuser",name:email.split("@")[0].replace(/^./,x=>x.toUpperCase()),email,initials:initials(email.split("@")[0]),role:u[1],ws:[c.id],seen,status:DISABLED[key]?"Inactive":seen==="never"?"Invited":"Active",colour:c.colour,c})}));
  const order={Owner:0,Admin:1,Member:2};
  t.sort((a,b)=>order[a.role]-order[b.role]||a.name.localeCompare(b.name));
@@ -3949,7 +4019,7 @@ function ppTeam(){
   .sort((a,b)=>({Owner:0,Admin:1,Member:2}[a.role]-{Owner:0,Admin:1,Member:2}[b.role])||a.name.localeCompare(b.name));
 }
 function ppClients(){
- const out=[]; CLIENTS.forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
+ const out=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
   out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
  return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
 }
@@ -4901,23 +4971,15 @@ function vDash(){
     to stop (Usage), go (Open). The four shortcuts sit under the name, on hover.
     No Status column: the cells that can go red say what is wrong. */
  const crow=({c,a})=>{
-  const flash=FLASH_CID===c.id, M=hm(c), fresh=c.sent===0;
-  const D=v=>v==null?"":'<span class="dlt'+(v<0?' is-down':v>0?' is-up':'')+'">'+(v>0?'+':'')+v+'%</span>';
-  const pts=(c.reply&&c.prev)?+(c.reply-c.prev).toFixed(1):null;
-  const Dp=pts==null?"":'<span class="dlt'+(pts<0?' is-down':pts>0?' is-up':'')+'">'+(pts===0?'&plusmn;0':(pts>0?'+':'')+pts+' pts')+'</span>';
-  const num=(v,d,line,cls)=>'<td><span class="tnum stackv">'+(v==null?'<span class="is-none">&ndash;</span>':f(v)+(d||""))+'</span>'+(line?'<span class="cs stackb'+(cls?' '+cls:'')+'">'+line+'</span>':'')+'</td>';
+  const flash=FLASH_CID===c.id, fresh=c.sent===0;
+  const num=x=>'<td><span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'')+'</td>';
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
    +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
    +'<span class="ws-sub">'+yoursTag(c)+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
-   +num(c.mbx,"",fresh&&!c.mbx?"none yet":M.disc?M.disc+" disconnected":M.paused?M.paused+" paused":"all sending",M.disc?"is-bad":M.paused?"is-warn":"")
-   +num(c.seq,"",M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,M.sysPaused?"is-bad":"")
-   +num(fresh?null:M.pa,D(M.pad),"")
-   +num(fresh?null:c.sent,D(M.sd),fresh?"":"bounce "+M.bounce.toFixed(1)+"%",M.bounce>=3?"is-bad":"")
-   +num(fresh?null:repOf(c),Dp,fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate")
-   +num(fresh?null:M.leads,D(M.ld),fresh?"":f(M.leads)+" credits")
+   +wsCells(c).map(num).join("")
    +'<td>'+usageBrief(c)+'</td>'
    +'<td class="ar colact">'+(fresh||c.disabled?'':'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</td></tr>'};
@@ -6126,6 +6188,28 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
   leads:m.leads!=null?m.leads:(L.r.used||0),ld:m.ld!=null?m.ld:null,last:m.last||"today",
   disc:(c.mailboxes||[]).filter(x=>x[1]==="Disconnected").length,paused:m.mpaused||0,
   sysPaused:m.sysp!=null?m.sysp:(L.s.tone==="bad"?Math.max(1,pz):0)}}
+/* 2 Oct 2026 (S2, doc 65 §5): the six counted cells of a workspace, in the
+   owner's question order, built once so Home's row and the record's strip can
+   never disagree. Same definitions as PRD §8.2. */
+function wsCells(c){
+ const M=hm(c), fresh=c.sent===0;
+ const D=v=>v==null?"":'<span class="dlt'+(v<0?' is-down':v>0?' is-up':'')+'">'+(v>0?'+':'')+v+'%</span>';
+ const pts=(c.reply&&c.prev)?+(c.reply-c.prev).toFixed(1):null;
+ const Dp=pts==null?"":'<span class="dlt'+(pts<0?' is-down':pts>0?' is-up':'')+'">'+(pts===0?'&plusmn;0':(pts>0?'+':'')+pts+' pts')+'</span>';
+ return [
+  /* a disabled workspace says so in the two cells that stopped: nothing is
+     sending and every sequence is paused (Home has no Status column, B3) */
+  {l:"Email accounts",v:c.mbx,d:"",line:c.disabled?"not sending, disabled":fresh&&!c.mbx?"none yet":M.disc?M.disc+" disconnected":M.paused?M.paused+" paused":"all sending",cls:c.disabled||M.disc?"is-bad":M.paused?"is-warn":""},
+  {l:"Active sequences",v:c.seq,d:"",line:c.disabled?"all paused, disabled":M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,cls:c.disabled||M.sysPaused?"is-bad":""},
+  {l:"Prospects added",v:fresh?null:M.pa,d:D(M.pad),line:"",cls:""},
+  {l:"Emails sent",v:fresh?null:c.sent,d:D(M.sd),line:fresh?"":"bounce "+M.bounce.toFixed(1)+"%",cls:M.bounce>=3?"is-bad":""},
+  {l:"Replies",v:fresh?null:repOf(c),d:Dp,line:fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate",cls:""},
+  {l:"Leads revealed",v:fresh?null:M.leads,d:D(M.ld),line:fresh?"":f(M.leads)+" credits",cls:""}];
+}
+const MONTHS_L=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const periodText=()=>{const mi=MONTHS_L.indexOf(CYCLE.month.split(" ")[0]),cur=MONTHS_L[mi].slice(0,3),prev=MONTHS_L[(mi+11)%12].slice(0,3);
+ return MONTHS_L[mi]+' so far, 1 to '+CYCLE.day+' '+cur+'. Changes are compared with 1 to '+CYCLE.day+' '+prev+'.'};
+const TODAY_D=CYCLE.day+" "+CYCLE.month.slice(0,3);
 /* cumulative daily sends, days 1..9 of the cycle, summing to the 124,600 in RES */
 const DAILY=[4200,6800,9500,12800,15600,17200,18400,19100,21000];
 
@@ -8062,13 +8146,14 @@ function modalHTML(){
     The live purchase flow is modal.kind==="buymbx" above, which buys
     straight into a workspace and never produces an assignment conflict. */
  const isDel=modal.kind==="delete";
+ /* 2 Oct 2026 (S2, doc 65 §6, canvas row 07): the product's own consequence in
+    plain words, the dangerous button red, Undo on the toast. */
  return card(`${isDel?"Delete":"Disable"} ${c.name}?`,`
-   <p style="font-size:14px;line-height:21px">${isDel
-     ? `This is a 30-day soft delete. ${c.name} can be restored until 9 Oct 2026, after which the data is purged.`
-     : `${c.name} stops immediately and can be re-enabled at any time. Nothing is lost.`}</p>
-   <div class="conseq">${CONSEQ[isDel?"delete":"disable"].map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join("")}</div>`,
-   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>
-    <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete workspace":"Disable workspace"}</button>`);
+   <p style="font-size:14px;line-height:21px;margin:0">${isDel
+     ? `Its sequences, prospects, email accounts and users are removed for everyone. You can restore it within 30 days; after that it is gone.`
+     : `Every sequence pauses and its users are signed out. Your team can still open the record. You can enable it again any time.`}</p>`,
+   `<button class="shd-button shd-button--tertiary" data-mclose>${isDel?"Keep":"Keep running"}</button>
+    <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete workspace":"Disable"}</button>`,"modal--450");
 }
 function card(title,body,foot,cls){
  return `<div class="mscrim" id="mscrim"><div class="modal${cls?" "+cls:""}" role="dialog" aria-label="${title}">
@@ -8129,23 +8214,30 @@ function renderModal(){
      modal=null;renderModal();render();return;
    }
    if(modal.kind==="rollback"){modal=null;renderModal();render();return}
-   if(modal.kind==="delete"){const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
-     delete byId[id];
-     RK.forEach(k=>delete RES[k].rows[id]);
-     REQUESTS=REQUESTS.filter(r=>r.client!==id);
-     view={name:"clients"};
-     /* item 36, 28 Sep 2026: the Add a workspace confirmation promises "you can
-        undo this at any time" - deleting the only other workspace is that undo,
-        so it has to actually return the account to the single-workspace state,
-        not just remove the one row. render()'s own !hasAgency() guard then
-        takes ctx back to "own" on this same pass. */
-     if(!CLIENTS.length) resetToNormal();}
-   else {byId[id].disabled=true;
+   if(modal.kind==="delete"){const c=byId[id], live=CLIENTS.filter(x=>!x.deletedOn&&x.id!==id);
+     if(!live.length){
+      /* item 36, 28 Sep 2026: the Add a workspace confirmation promises "you can
+         undo this at any time" - deleting the only other workspace is that undo,
+         so it has to actually return the account to the single-workspace state,
+         not just remove the one row. render()'s own !hasAgency() guard then
+         takes ctx back to "own" on this same pass. */
+      const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
+      delete byId[id]; RK.forEach(k=>delete RES[k].rows[id]); REQUESTS=REQUESTS.filter(r=>r.client!==id);
+      view={name:"clients"}; resetToNormal();}
+     else {
+      /* 2 Oct 2026 (S2, canvas row 08): a soft delete. The workspace leaves
+         every list and the switcher but keeps its record, with a bar that
+         restores it, for 30 days. */
+      c.deletedOn=TODAY_D; c.deletedBy=ME().name.split(" ")[0]; c.disabled=false; RC_REFUSED=null; tab="overview";
+      receipt("client:"+id,`${c.name} deleted. You can restore it for 30 days.`,()=>{delete c.deletedOn;delete c.deletedBy;render()},`deleted ${c.name}`);
+      logAct(id,"Workspace deleted");}}
+   else {byId[id].disabled=true; byId[id].disabledBy=ME().name.split(" ")[0]; byId[id].disabledOn=TODAY_D;
      /* fix 25 Sep review #7: confirming Disable wrote the state but left the
         record page pixel-identical, no receipt, no status chip, matching
         Buy mailboxes' pattern (a receipt call plus an Undo) instead. */
-     receipt("client:"+id,`${byId[id].name} disabled. Sending is stopped; nothing is lost.`,
-       ()=>{byId[id].disabled=false;render()},`disabled ${byId[id].name}`);}
+     receipt("client:"+id,`${byId[id].name} disabled. Every sequence is paused.`,
+       ()=>{byId[id].disabled=false;render()},`disabled ${byId[id].name}`);
+     logAct(id,"Workspace disabled");}
    modal=null;renderModal();render();
  };
  el("mscrim").onclick=e=>{if(e.target.id==="mscrim"){modal=null;renderModal()}};
@@ -8243,7 +8335,7 @@ function dedupeTitle(){
  if(cs){const row=cs.querySelector('div[style*="top: 22px"]'); if(row) row.remove();
    if(!ct.querySelector(".crumb-soon")) ct.insertAdjacentHTML("beforeend",' <span class="chip c-info crumb-soon">Coming soon</span>')}
  const crumb=ct.textContent.replace(/coming soon/i,"").replace(/\s+/g," ").trim().toLowerCase(); if(!crumb) return;
- const tb=page.querySelector(".toolbar"); if(!tb) return;
+ const tb=page.querySelector(".toolbar"); if(!tb||tb.hasAttribute("data-keeptitle")) return;
  const cm=tb.querySelector(".cell-main"); if(!cm||(cm.querySelector(".avatar")&&tb.querySelector(".tools button"))) return;
  const t=cm.querySelector(".semibold-3"); if(!t) return;
  const segs=crumb.split(" / "), tt=t.textContent.replace(/\s+/g," ").trim().toLowerCase();
@@ -8274,8 +8366,10 @@ function render(){
  renderShell();
  const inClient=ctx!=="agency";
  const bn=el("asBanner"); bn.hidden=!(inClient&&asClient);
- if(inClient&&asClient) bn.innerHTML=`<span>Viewing as <strong>${byId[ctx].name}</strong> &middot; this session is logged to their workspace</span>
+ /* 2 Oct 2026 (S2, canvas row 07): a preview, not a session */
+ if(inClient&&asClient) bn.innerHTML=`<span>Viewing <strong>${byId[ctx].name}</strong> as its users see it. Nothing you do here is sent, and this preview is noted on the workspace.</span>
    <button id="exitAs">Back to account view</button>`;
+ document.querySelector(".app").classList.toggle("is-preview",!!(inClient&&asClient&&PREVIEW));
  const pageEl=el("page"), prevScroll=pageEl.scrollTop;
  pageEl.innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
@@ -8622,7 +8716,30 @@ function wire(){
    receipt("client:"+r.client,"Sent from your workspace. "+AGENCY.name+" can see this thread too.",
      ()=>{r.replied=was;r.repliedIn=wasIn;render()});
    render()});
- q("[data-asclient]").forEach(b=>b.onclick=()=>{ctx=b.dataset.asclient;asClient=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;render()});
+ q("[data-asclient]").forEach(b=>b.onclick=()=>{ctx=b.dataset.asclient;asClient=true;PREVIEW=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;
+   logAct(ctx,"Previewed the workspace as its users see it");render()});
+ /* 2 Oct 2026 (S2): the record's own states and cards */
+ q("[data-enable]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.enable]; if(!c||!canI("disable")) return; c.disabled=false;
+   receipt("client:"+c.id,`${c.name} enabled. Sequences resume where they paused.`,()=>{c.disabled=true;render()},`enabled ${c.name}`); logAct(c.id,"Workspace enabled"); render()});
+ q("[data-restore]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.restore]; if(!c||!canI("destructive")) return; const on=c.deletedOn,by=c.deletedBy; delete c.deletedOn; delete c.deletedBy;
+   receipt("client:"+c.id,`${c.name} restored. Everything is as it was.`,()=>{c.deletedOn=on;c.deletedBy=by;render()},`restored ${c.name}`); logAct(c.id,"Workspace restored"); render()});
+ q("[data-goanalytics]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"analytics"};render()});
+ q("[data-addteam]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:{[b.dataset.addteam]:"Workspace Collaborator"}}));
+ q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;render();const i=el("rdName");if(i)i.focus()});
+ q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;render()});
+ q("[data-rdsave]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.rdsave]; if(!c) return;
+   const was={name:c.name,company:c.company,email:c.email,site:c.site};
+   const v=id=>(el(id)&&el(id).value.trim())||"";
+   const em=v("rdEmail"); if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash(el("rdEmail"),"That is not an email address");return}
+   c.name=v("rdName")||c.name; c.company=v("rdCompany")||c.company; if(em) c.email=em; const st=v("rdSite"); if(st) c.site=st;
+   REC_EDIT=null;
+   receipt("client:"+c.id,`Details saved for ${c.name}.`,()=>{Object.assign(c,was);render()},`edited ${c.name}'s details`); logAct(c.id,"Details edited"); render()});
+ Object.keys(RC_DDMAP).forEach(id=>wireDD(document,id,v=>{const m=RC_DDMAP[id], c=byId[m.c], r=rowByKey(m.key); if(!c||!r) return;
+   if(id.indexOf("rcwsrole")===0){const P=PEOPLE[m.key.slice(2)], was=ppWsRole(P,c.id); if(v===was) return; P.roles=P.roles||{}; P.roles[c.id]=v;
+     receipt("client:"+c.id,`${P.name.split(" ")[0]} is now ${ppShort(v)} in ${c.name}.`,()=>{P.roles[c.id]=was},`changed ${P.name}'s role`); logAct(c.id,`${P.name} changed to ${v} here`)}
+   else {const u=r.c.users.find(x=>x[0]===r.email); if(!u) return; const was=u[1]; if(v===was) return; u[1]=v;
+     receipt("client:"+c.id,`${r.email} is now ${ppShort(v)} in ${c.name}.`,()=>{u[1]=was},`changed ${r.email}'s role`); logAct(c.id,`${r.email} changed to ${v}`)}
+   render()}));
  q("[data-disable]").forEach(b=>b.onclick=()=>{modal={kind:"disable",client:b.dataset.disable};renderModal()});
  q("[data-delete]").forEach(b=>b.onclick=()=>{modal={kind:"delete",client:b.dataset.delete};renderModal()});
  q("[data-collision]").forEach(b=>b.onclick=()=>{modal={kind:"collision"};renderModal()});
@@ -8674,7 +8791,7 @@ function wire(){
    REQUESTS=REQUESTS.filter(x=>x.id!==rid);
    receipt("client:"+r.client,`Withdrawn. ${AGENCY.name} no longer sees this request.`,()=>{REQUESTS.push(r);render()});
    render()});
- const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;render()};
+ const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;PREVIEW=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
    if(canI("billing")){ctx="agency";view={name:"credits"};billTab="alloc"}
@@ -8777,7 +8894,17 @@ function wire(){
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
  q("input[data-cid]").forEach(i=>i.onchange=()=>{DRAFT[dkey(activeRes,i.dataset.cid,i.dataset.fld)]=num(i.value);render()});
- q("input[data-lim]").forEach(i=>i.onchange=()=>{DRAFT[dkey(i.dataset.lim,view.id,i.dataset.fld)]=num(i.value);render()});
+ q("input[data-lim]").forEach(i=>i.onchange=()=>{const k=i.dataset.lim, fld=i.dataset.fld, v=num(i.value);
+   if(view.name!=="record"){DRAFT[dkey(k,view.id,fld)]=v;render();return}
+   /* 2 Oct 2026 (S2): on the record each number saves as you leave it */
+   const c=byId[view.id], R=RES[k], r=R.rows[view.id], was=r[fld]; if(!c||!r||v===was){render();return}
+   if(fld==="res"&&R.floors){const tot=Object.keys(R.rows).reduce((t,id)=>t+(id===view.id?v:R.rows[id].res),0);
+     if(tot>R.pool){RC_REFUSED={id:view.id,k,text:`Not saved. Reserved ${R.label.toLowerCase()} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. Reduce it by ${f(tot-R.pool)} or add capacity.`};render();return}}
+   RC_REFUSED=null; r[fld]=v;
+   const stops=fld==="cap"&&v<r.used, what=fld==="res"?"reservation":"limit";
+   receipt("client:"+c.id,`${c.name}'s ${R.label.toLowerCase()} ${what} is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":""}`,()=>{r[fld]=was},`changed ${c.name}'s ${R.label.toLowerCase()} ${what}`);
+   logAct(c.id,`${R.label} ${what} changed from ${f(was)} to ${f(v)}`);
+   render()});
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
  q("[data-dapply]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.dapply.split("|");
    /* a save that would reserve more than the plan holds is refused, and the
@@ -8804,12 +8931,14 @@ function wire(){
  q("[data-ok]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.ok); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+   logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
    receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
      ()=>{R.rows[r.client].cap-=r.amount; REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+   logAct(c.id,`Declined the request for ${f(r.amount)} more ${R.unit}`);
    receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
      ()=>{REQUESTS.push(r)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Declined &middot; ${c.name} &middot; limit stays ${f(R.rows[r.client].cap)}`)})};
@@ -9671,6 +9800,52 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .chip.c-new{background:var(--blue-13);color:var(--blue-11);border-color:var(--blue-13)}
 .ob-video .mock i{background:var(--c,#fff)}
 .ob-video{align-items:flex-start;padding:28px 24px}.ob-video .play{left:24px;top:auto;bottom:24px;transform:none}.ob-video b{position:relative;z-index:1;max-width:200px}
+
+/* ═══ S2 record build, 2 Oct 2026 (doc 65, canvas rows 06 to 08) ═══ */
+.rec-strip{margin-bottom:20px;border:1px solid var(--gray-16);border-radius:8px;overflow:hidden;box-shadow:none}
+.rs-head{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;border-bottom:1px solid var(--gray-16);font-size:12px;line-height:16px;color:var(--gray-15)}
+.rs-head .linkbtn{font-size:12px}
+.rs-row{display:flex}
+.rs-cell{flex:1 1 0;min-width:0;padding:16px 16px;display:flex;flex-direction:column}
+.rs-cell+.rs-cell{border-left:1px solid #f3f4f6}
+.rs-l{font-size:12px;line-height:16px;font-weight:500;color:var(--gray-15);white-space:nowrap}
+.rs-v{font-size:20px;line-height:28px;font-weight:600;color:var(--gray-17);margin-top:4px;white-space:nowrap}
+.rs-v .is-none{color:var(--gray-12)}
+.rs-s{font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px;white-space:nowrap}
+.rs-s.is-bad{color:var(--red-18)}.rs-s.is-warn{color:var(--orange-12)}
+.rs-usage .u-head{display:block;font-size:16px;line-height:28px;font-weight:600;margin-top:4px;white-space:nowrap}
+.rs-usage .u-sub{display:block;font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px;white-space:nowrap}
+.rs-usage .u-quiet{display:block;font-size:14px;line-height:28px;font-weight:600;color:var(--gray-17);margin-top:4px;white-space:nowrap}
+.rc-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:1180px){.rc-cards{grid-template-columns:1fr}}
+.rc-card .panel-h{display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
+.rc-card .panel-b{padding:8px 20px 16px}
+.rc-prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+.rc-prow:last-child{border-bottom:0}
+.rc-pname{flex:1 1 0;min-width:0}.rc-pname>span:first-child{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-prole{font-size:12px;color:var(--gray-15);white-space:nowrap}
+.rc-lrow{padding:8px 0;border-bottom:1px solid #f3f4f6}.rc-lrow:last-of-type{border-bottom:0}
+.rc-lhead{display:flex;justify-content:space-between;font-size:13px;line-height:18px}.rc-lhead>span:first-child{font-weight:500}
+.rc-lhead .sub.is-bad{color:var(--red-18)}
+.rc-lbar{height:4px;background:#f3f4f6;border-radius:2px;margin-top:6px;overflow:hidden}.rc-lbar>span{display:block;height:4px}
+.rc-req{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding:8px 12px;border-radius:4px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:18px}
+.rc-dl{grid-template-columns:140px 1fr;row-gap:10px;font-size:14px;align-items:center}.rc-dl input{width:100%;box-sizing:border-box}
+.rc-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:4px}
+.rc-dact{display:flex;gap:8px;margin-top:12px}
+.rc-deleted{display:flex;align-items:center;gap:10px;margin:0 24px 16px;padding:10px 14px;border-radius:4px;background:#fef2f2;border:1px solid #fecaca;font-size:13px;line-height:18px;color:#1f2937}
+.rc-deleted>svg{width:16px;height:16px;flex:none;color:#b91c1c}.rc-deleted .shd-button{margin-left:auto}
+.toolbar.rc-off .semibold-3,.toolbar.rc-off .avatar{opacity:.6}
+.rc-mtb{display:flex;align-items:center;gap:16px;margin-bottom:16px}.rc-mtb .shd-button{margin-left:auto}
+.rc-group{margin-bottom:20px}.rc-group .panel-h{display:flex;align-items:center;gap:12px}
+.rc-group .tscroll{overflow:visible}
+.rc-dd{max-width:200px}.rc-dd .dd{min-width:170px}
+.rc-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}.rc-dot.ok{background:var(--green-14)}.rc-dot.warn{background:#d97706}.rc-dot.mute{background:#9ca3af}
+.rc-stat{font-size:13px;white-space:nowrap}
+.rc-reqbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:10px 16px;border-radius:4px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:18px}
+.rc-reqbar .tools{display:flex;gap:8px;flex:none}
+.rc-act b{font-weight:600}
+.modal--450{width:450px}
+.is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9952,7 +10127,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3c672e4";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="325780f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
