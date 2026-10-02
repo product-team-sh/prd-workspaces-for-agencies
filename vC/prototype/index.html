@@ -8451,6 +8451,30 @@ function dedupeTitle(){
  if(cm.textContent.trim()) cm.classList.add("cell-main--sub");
  if(!tb.textContent.trim()&&!tb.querySelector("button,input,select")) tb.remove(); else tb.classList.add("toolbar--notitle");
 }
+/* ═══ Loading skeletons, 2 Oct 2026 (Hitesh: "I hope we have implemented skeleton
+   for each screen"; doc 68 X-1). A navigation paints the screen's own shapes in
+   Gray 100 (dropdown/Listing-Background-Loading) for a moment, then the screen
+   fades in. No spinner, no blank page. A tab switch inside a screen is instant;
+   reduced motion skips the skeleton. The prototype has no network, so the
+   moment is 200ms: long enough to see the state, short enough not to wait. */
+let lastNavKey=null, SKEL_TIMER=null, SKEL_FORCE=false;
+const sk=(w,h,x)=>`<span class="sk" style="width:${w};height:${h}px;${x||""}"></span>`;
+const skRow=(cells)=>`<div class="sk-row">${cells.map(w=>sk(w,14)).join("")}</div>`;
+function skeletonFor(){
+ const toolbar=(l,r)=>`<div class="sk-toolbar"><div class="sk-l">${l}</div><div class="sk-r">${r}</div></div>`;
+ const card=(h)=>`<div class="sk-card" style="height:${h}px">${sk("40%",12)}${sk("30%",28,"margin-top:10px")}${sk("55%",12,"margin-top:10px")}</div>`;
+ const table=(n,cols)=>`<div class="sk-table"><div class="sk-head">${cols.map(w=>sk(w,12)).join("")}</div>${Array.from({length:n},()=>skRow(cols)).join("")}</div>`;
+ const inClient=ctx!=="agency";
+ if(inClient) return `<div class="sk-page">${toolbar(`<span class="sk sk-av"></span><span>${sk("160px",18)}${sk("120px",12,"margin-top:6px")}</span>`,sk("120px",32))}${toolbar(`${sk("260px",32)}${sk("150px",32)}${sk("150px",32)}`,`${sk("130px",32)}${sk("150px",32)}`)}${table(7,["26%","14%","8%","10%","10%","10%","10%","12%"])}</div>`;
+ const v=view.name;
+ if(v==="dash") return `<div class="sk-page">${toolbar(sk("320px",14),`${sk("170px",32)}${sk("150px",32)}`)}<div class="sk-cards">${card(126)}${card(126)}${card(126)}</div>${table(6,["22%","10%","14%","10%","12%","12%","12%","8%"])}</div>`;
+ if(v==="record"||v==="person") return `<div class="sk-page">${toolbar(`${sk("90px",14)}<span class="sk sk-av"></span><span>${sk("200px",22)}${sk("240px",12,"margin-top:6px")}</span>`,`${sk("140px",32)}${sk("150px",32)}${sk("32px",32)}`)}<div class="sk-tabs">${sk("70px",14)}${sk("70px",14)}${sk("50px",14)}${sk("60px",14)}</div><div class="sk-strip">${Array.from({length:6},()=>`<div>${sk("60%",12)}${sk("40%",24,"margin-top:8px")}${sk("50%",11,"margin-top:8px")}</div>`).join("")}</div><div class="sk-cards">${card(320)}${card(320)}${card(220)}</div></div>`;
+ if(v==="people"||v==="addmember") return `<div class="sk-page">${toolbar(sk("320px",14),sk("130px",36))}<div class="sk-tabs">${sk("80px",14)}${sk("80px",14)}${sk("90px",14)}${sk("110px",14)}</div>${toolbar(`${sk("260px",32)}${sk("150px",32)}`,sk("360px",12))}${table(8,["24%","10%","12%","28%","10%","12%"])}</div>`;
+ if(v==="credits") return `<div class="sk-page sk-bill"><div class="sk-nav">${Array.from({length:8},(_,i)=>sk(i%3===0?"50%":"80%",12,"margin:10px 0")).join("")}</div><div class="sk-main">${card(170)}${card(230)}${card(260)}</div></div>`;
+ if(v==="analytics") return `<div class="sk-page">${toolbar(`${sk("80px",14)}${sk("120px",14)}${sk("60px",14)}`,`${sk("200px",32)}${sk("150px",32)}${sk("90px",32)}`)}<div class="sk-card" style="height:420px">${sk("100%",360,"margin-top:30px")}</div><div class="sk-cards">${card(90)}${card(90)}${card(90)}${card(90)}</div>${table(4,["26%","14%","10%","10%","10%","10%","10%"])}</div>`;
+ if(v==="clients") return `<div class="sk-page">${toolbar(sk("280px",32),`${sk("32px",32)}${sk("130px",32)}${sk("150px",32)}`)}${table(6,["26%","12%","14%","12%","16%","12%","8%"])}</div>`;
+ return `<div class="sk-page">${toolbar(sk("240px",22),"")}<div class="sk-card" style="height:120px">${sk("70%",14)}${sk("50%",14,"margin-top:10px")}${sk("60%",14,"margin-top:10px")}</div>${table(5,["30%","20%","20%","20%"])}</div>`;
+}
 function render(){
  /* the handover's toolbar line is for this landing only; leaving the
     workspace it named, for any reason, spends it for the rest of the session */
@@ -8477,6 +8501,14 @@ function render(){
    <button id="exitAs">Back to account view</button>`;
  document.querySelector(".app").classList.toggle("is-preview",!!(inClient&&asClient&&PREVIEW));
  const pageEl=el("page"), prevScroll=pageEl.scrollTop;
+ const navKey=ctx+"|"+view.name+"|"+(view.id||"")+"|"+(inMod||"")+"|"+(asClient?1:0)+"|"+(cView||"")+"|"+(solo?1:0);
+ if(!SKEL_FORCE&&navKey!==lastNavKey&&!REDUCED()&&!modal&&!drawer&&view.name!=="m1"&&view.name!=="m2"){
+   lastNavKey=navKey; clearTimeout(SKEL_TIMER);
+   pageEl.classList.remove("pg-in"); pageEl.innerHTML=skeletonFor(); pageEl.scrollTop=0;
+   SKEL_TIMER=setTimeout(()=>{SKEL_FORCE=true;try{render()}finally{SKEL_FORCE=false} pageEl.classList.add("pg-in"); setTimeout(()=>pageEl.classList.remove("pg-in"),260)},200);
+   renderThread(); return;
+ }
+ lastNavKey=navKey;
  pageEl.innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
   /* 25 Sep 2026: Work queue, Unified Inbox, Tasks, Email Accounts and Templates
@@ -9999,6 +10031,25 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* the drawer always sits above its scrim, which now covers the rail and topbar (2 Oct 2026) */
 #layer .drawer,#layer .scrim+.drawer,.drawer.nc-modal{z-index:1100}
 .nc-rolewrap{animation:ncRoleIn .18s ease-out}@keyframes ncRoleIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ═══ skeletons (2 Oct 2026) ═══ */
+.sk{display:inline-block;border-radius:4px;background:linear-gradient(90deg,#F3F4F6 25%,#E9EBEE 37%,#F3F4F6 63%);background-size:400% 100%;animation:skSh 1.2s ease-in-out infinite;vertical-align:middle;max-width:100%}
+@keyframes skSh{0%{background-position:100% 0}100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.sk-page{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+.sk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}.sk-l,.sk-r{display:flex;align-items:center;gap:10px}.sk-l>span:not(.sk){display:flex;flex-direction:column;gap:0}
+.sk-av{width:28px;height:28px;border-radius:50%;flex:none}
+.sk-tabs{display:flex;gap:24px;padding-bottom:14px;border-bottom:1px solid var(--gray-16)}
+.sk-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.sk-card{background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start}
+.sk-strip{display:flex;background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px}.sk-strip>div{flex:1 1 0;padding:16px;display:flex;flex-direction:column;align-items:flex-start}.sk-strip>div+div{border-left:1px solid #f3f4f6}
+.sk-table{background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px;overflow:hidden}
+.sk-head{display:flex;gap:16px;padding:14px 16px;background:var(--gray-19);border-bottom:1px solid var(--gray-16)}
+.sk-row{display:flex;gap:16px;padding:21px 16px;border-bottom:1px solid var(--gray-16)}.sk-row:last-child{border-bottom:0}
+.sk-head .sk,.sk-row .sk{flex:none}
+.sk-bill{flex-direction:row;align-items:flex-start}.sk-nav{width:240px;flex:none;background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column}.sk-main{flex:1;display:flex;flex-direction:column;gap:16px}
+.page.pg-in>*{animation:pgIn .2s ease-out}@keyframes pgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.page.pg-in>*{animation:none}}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10280,7 +10331,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9607d32";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="7a74f16";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
