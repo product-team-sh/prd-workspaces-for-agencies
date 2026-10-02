@@ -6856,17 +6856,18 @@ function drawerHTML(){
    ${ddHTML("ncrole",nc.role,[{items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
    <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
-  ${ncUsageHTML()}
-  <div class="msg m-info" style="margin-top:16px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
+  <div class="msg m-info" style="margin-top:20px">${infoI}<span>Next: how much of your plan this workspace can use. You will be switched into it right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
+ /* 2 Oct 2026, Hitesh: "split in 2 steps, that way we keep mental separation for our user". Step 2 is the share block from board row 03. */
+ const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span></div>${ncUsageHTML()}`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
-  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
-    <p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p></div>
+  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace${s===2?' <span class="sub" style="font-weight:400">&middot; Usage</span>':''}</span>
+    ${s===1?'<p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p>':'<p class="sub" style="margin:4px 0 0">How much of your plan this workspace can use. Change it anytime on Limits.</p>'}</div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <div class="dr-b">${b1}</div>
+  <div class="dr-b">${s===1?b1:b2}</div>
   <!-- 29 Sep 2026, Hitesh: "limits screen is not coming while adding workspace": Limits is the second step of the flow again, not a side link. -->
-  <div class="dr-f"><div></div>
-   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone">Add a workspace</button></div></div>
+  <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':'<span class="sub">Step 1 of 2 &middot; Usage next</span>'}</div>
+   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button>${s<2?'<button class="shd-button shd-button--primary" id="drNext">Next</button>':'<button class="shd-button shd-button--primary" id="drDone">Add a workspace</button>'}</div></div>
  </aside>`;
 }
 /* 18 Sep, delight pass: a new client's default limit is a share that leaves
@@ -6980,6 +6981,8 @@ function renderDrawer(){
     Next is the only way to keep refining; Skip is the one-click way out at any point,
     and whatever was not visited gets the same default the drawer would have shown. */
  const sk=el("drSkip");if(sk)sk.onclick=()=>{cap();create()};
+ const n=el("drNext");if(n)n.onclick=()=>{cap();drawer.step=2;renderDrawer()};
+ const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step=1;renderDrawer()};
  const d=el("drDone");if(d)d.onclick=()=>{cap();
    /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
    const bad=RK.filter(k=>RES[k].floors&&nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
@@ -9602,7 +9605,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-limsay.is-err span{color:#b91c1c!important}
 .numin input.is-err,.numin input.is-err:focus,.numin input.is-err:hover{border:1.5px solid #b91c1c!important;box-shadow:0 0 0 3px #fee2e2!important}
 /* 2 Oct 2026: Add a workspace, the share block (board row 03, C2) */
-.nc-usage{border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px;display:flex;flex-direction:column;gap:8px}
+.nc-usage{display:flex;flex-direction:column;gap:8px}
 .nc-urow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.nc-upct{font-size:14px;font-weight:600;color:#1f2937;white-space:nowrap}
 #ncShare{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:linear-gradient(to right,#1d4ed8 0 var(--p),#e5e7eb var(--p) 100%);outline:none;margin:6px 0;padding:0;border:0;box-shadow:none}
 #ncShare::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #1d4ed8;box-shadow:0 1px 3px rgba(0,0,0,.15);cursor:pointer}
@@ -9895,7 +9898,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="92d1afb";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="5c90edc";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
