@@ -2157,27 +2157,26 @@ const fundedClients=()=>myClients().filter(funded);
 const fundedWorkspaces=()=>canI("limits")?fundedClients().concat([OWN_WS]):fundedClients();
 CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c)});
 /* sends and prospects pool sizes are the real figures from a Scale account */
+/* 2 Oct 2026, Hitesh, checked against saleshandy.com/pricing: a plan meters
+   Emails sent / month and Lead Finder credits / month (both renew), Email
+   verification credits and AI credits (one-time balances, topped up when
+   bought) and the Dialer and Inbox placement add-ons (purchased balances).
+   Prospect storage, email accounts, users and teams are Unlimited on every
+   plan, active prospects Unlimited on Scale, so none of them is a limit an
+   agency can share out; the old Active Prospects and Email Accounts rows are
+   gone. Numbers are the Scale plan's. */
 const RES={
- lead_finder:{label:"Lead Finder Credits",nature:"Consumable",unit:"credits",pool:50000,floors:true,warn:.8,
-  rows:{nw:{res:10000,cap:15000,used:9240},vx:{res:0,cap:20000,used:18600},al:{res:0,cap:8000,used:8000},bl:{res:6000,cap:6000,used:1150},cp:{res:0,cap:6000,used:0},own:{res:0,cap:3000,used:1420}}},
- verification:{label:"Email Verification Credits",nature:"Consumable",unit:"credits",pool:25000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:8000,used:3120},vx:{res:4000,cap:9000,used:4480},al:{res:0,cap:5000,used:1990},bl:{res:3000,cap:3000,used:620},cp:{res:0,cap:2000,used:0},own:{res:0,cap:2000,used:640}}},
- ai:{label:"AI Credits",nature:"Consumable",unit:"credits",pool:10000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:3000,used:2610},vx:{res:0,cap:4000,used:1240},al:{res:0,cap:2000,used:1880},bl:{res:1500,cap:1500,used:240},cp:{res:0,cap:800,used:0},own:{res:0,cap:1000,used:310}}},
- sends:{label:"Monthly Emails Sent",nature:"Throughput",unit:"emails",pool:150000,floors:false,warn:.8,
+ sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:200000,floors:false,warn:.8,
   rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:30000,used:6400},cp:{res:0,cap:10000,used:0},own:{res:0,cap:8000,used:5585}}},
- prospects:{label:"Active Prospects",nature:"Storage",unit:"prospects",pool:30000,floors:false,warn:.85,
-  rows:{nw:{res:0,cap:10000,used:8900},vx:{res:0,cap:12000,used:7350},al:{res:0,cap:6000,used:5980},bl:{res:0,cap:5000,used:900},cp:{res:0,cap:3000,used:0},own:{res:0,cap:3000,used:2800}}},
- /* 29 Sep 2026, Hitesh: "all credits and limits should be there". The three the
-    plan also bills for, so every screen that iterates RK (Limits step, the
-    record's Limits tab, Usage, Billing) carries the whole plan. Email
-    accounts count what each workspace has connected; the two credit lines
-    are add-ons in the product and consumables here. */
- email_accounts:{label:"Email Accounts",nature:"Storage",unit:"accounts",pool:300,floors:false,warn:.85,
-  rows:{nw:{res:0,cap:60,used:54},vx:{res:0,cap:80,used:69},al:{res:0,cap:40,used:31},bl:{res:0,cap:20,used:9},cp:{res:0,cap:10,used:0},own:{res:0,cap:12,used:8}}},
- dialer:{label:"Dialer Credits",nature:"Consumable",unit:"credits",pool:5000,floors:true,warn:.8,
+ lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:8000,floors:true,warn:.8,
+  rows:{nw:{res:1600,cap:2400,used:1478},vx:{res:0,cap:3200,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:960,cap:960,used:184},cp:{res:0,cap:960,used:0},own:{res:0,cap:480,used:227}}},
+ verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:5000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:1600,used:624},vx:{res:800,cap:1800,used:896},al:{res:0,cap:1000,used:398},bl:{res:600,cap:600,used:124},cp:{res:0,cap:400,used:0},own:{res:0,cap:400,used:128}}},
+ ai:{label:"AI credits",short:"AI credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:1000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:400,used:124},al:{res:0,cap:200,used:188},bl:{res:150,cap:150,used:24},cp:{res:0,cap:80,used:0},own:{res:0,cap:100,used:31}}},
+ dialer:{label:"Dialer credits",short:"Dialer credits",nature:"Add-on balance",kind:"balance",addon:true,unit:"credits",pool:5000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:1500,used:820},vx:{res:500,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
- radar:{label:"Inbox Radar Tests",nature:"Consumable",unit:"tests",pool:500,floors:true,warn:.8,
+ radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:500,floors:true,warn:.8,
   rows:{nw:{res:0,cap:120,used:96},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
 };
 const RK=Object.keys(RES);
@@ -2270,8 +2269,8 @@ const PROSPECTS={
 };
 CLIENTS.forEach(growProspects);
 let REQUESTS=[
- {id:"r1",client:"al",res:"lead_finder",amount:4000,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
- {id:"r2",client:"nw",res:"prospects",amount:2500,note:"Q4 list is bigger than the limit allows.",when:"Yesterday"},
+ {id:"r1",client:"al",res:"lead_finder",amount:640,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
+ {id:"r2",client:"nw",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
 ];
 
 /* agency cost of goods, so cost per positive reply can be computed.
@@ -2483,7 +2482,7 @@ const DEFAULT_CLIENT_ROLE="Workspace Collaborator";
 /* D14, 28 Sep 2026: the creator says who the workspace is for. Only a
    workspace for a client uses client wording (View as client, the sign-in
    orientation line). Default: a client, the more common case. */
-const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:true,reachedStep3:false,forClient:true,site:"",team:[],teamOpen:false});
+const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:true,reachedStep3:true,forClient:true,site:"",team:[],teamOpen:false,share:null,custom:{},open:false,err:null});
 /* the first entry used to be the agency's own blue, so a first client came out
    the same colour as the account it belongs to, which is the one pair that has
    to be told apart at a glance. Shared by the wizard's preview and create(), so
@@ -2529,7 +2528,7 @@ const lf=i=>{const m=compute("lead_finder");return{r:RES.lead_finder.rows[i]||{r
    (room 0), the shared pool is drained by other clients (draw 0), or it is
    simply near. Linked and pending clients have no rows at all, which is not
    zero usage, and the callers say so in words instead of drawing an empty bar. */
-const USAGE_SHORT={lead_finder:"Leads",verification:"Verify",ai:"AI",sends:"Sends",prospects:"Prospects",email_accounts:"Accounts",dialer:"Dialer",radar:"Radar"};
+const USAGE_SHORT={lead_finder:"Lead Finder",verification:"Verification",ai:"AI",sends:"Emails",dialer:"Dialer",radar:"Placement"};
 const USAGE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--gray-23)",info:"var(--gray-23)"};
 const USAGE_RANK={bad:0,warn:1,ok:2,info:3};
 const usageOf=c=>RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return null;
@@ -3660,7 +3659,7 @@ function cUsage(c){
      <span class="cs" style="display:block">${st.room===0
        ?"Paused until "+AGENCY.name+" raises it"
        :st.pct>=R.warn?f(st.room)+" left"+(R.nature==="Storage"?"":" this month")
-       :R.nature==="Storage"?"No renewal, this is a ceiling":"Renews on 1 October"}</span></td>
+       :R.kind==="balance"?"A balance; refills when you buy more":"Renews on 1 October"}</span></td>
    <td class="ar tnum">${f(r.used)}</td>
    <td class="ar tnum">${f(r.cap)}</td>
    <td>${meter(p,tone,state)}</td>
@@ -4398,7 +4397,7 @@ function vPlatform(){
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Account Plan Usage</span><span class="sub">Email quota resets on ${PLAN.resets}</span>
     <span class="c-a"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button></span></div>
-   <div class="panel-b ub-grid">${poolBar("sends",{title:"Monthly Emails sent"})}${poolBar("prospects")}</div>
+   <div class="panel-b ub-grid">${poolBar("sends",{title:"Emails sent this month"})}${poolBar("verification",{title:"Email verification credits"})}</div>
   </div>
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Total Lead Finder Credits</span>
@@ -4530,7 +4529,7 @@ function blReceipt(k,before,prev,cid){
  /* 21 Sep 2026, delight pass round 3: a save scoped to one client's Limits tab
     (cid set) speaks about that client rather than the shared pool. */
  if(freed>0) text+=" "+f(freed)+" "+R.unit+" freed"+(near?"; "+near.c.name+(near.s.room===0?" is at its limit":" is near its limit")+" and could use them.":cid?"":" for the shared pool.");
- else if(freed<0) text+=" "+f(-freed)+" "+R.unit+(cid?" now held for "+byId[cid].name:" more of the pool is now spoken for.");
+ else if(freed<0) text+=" "+f(-freed)+" "+R.unit+(cid?" now reserved for "+byId[cid].name:" more of the pool is now spoken for.");
  clearTimeout(blrTimer);
  BLR={text,k,id:cid||"",undo:()=>{prev.forEach(([xk,xid,fld,v])=>{RES[xk].rows[xid][fld]=v})},
    act:freed>0&&near?{label:"Raise "+first(near.c.name)+"'s limit",cid:near.c.id}:null};
@@ -4563,7 +4562,7 @@ function vCredits(){
  const reqs=REQUESTS.length?REQUESTS.map(q=>{const c=byId[q.client],QR=RES[q.res],qm=compute(q.res),ok=qm.free>=q.amount;
   return `<div class="req"><div class="req-h">
    <div><div style="font-size:14px;font-weight:600;color:var(--gray-800)">${c.name}</div>
-    <span class="sub">${QR.label} · +${f(q.amount)} ${QR.unit} · ${AGE(q.when)}</span></div>
+    <span class="sub">${QR.short.charAt(0).toUpperCase()+QR.short.slice(1)} · +${f(q.amount)} ${QR.unit} · ${AGE(q.when)}</span></div>
    <span class="chip c-${ok?"ok":"bad"}">${ok?f(qm.free)+" unallocated":"Not enough unallocated"}</span></div>
    <p class="sub" style="margin-bottom:10px">“${q.note}”</p>
    <div class="tools"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${q.id}">Approve</button>
@@ -4803,7 +4802,7 @@ function arrivalLine(mine,items){
  let limClause=null;
  if(lim){
   const k=RK.find(kk=>RES[kk].rows[lim.c.id]&&rowState(kk,lim.c.id,compute(kk)).room===0);
-  const label=RES[k].label.replace(" Credits","").replace("Monthly Emails Sent","sending");
+  const label=k==="sends"?"sending":RES[k].short;
   limClause='<button class="linkbtn" data-manage="'+lim.c.id+'">'+lim.c.name+'</button> hit its '+label+' limit '+AGE(atLimitSince(lim.c,k));
  }
  /* 25 Sep 2026: used to jump to the Work queue; the queue is Coming soon now,
@@ -6065,7 +6064,7 @@ function attention(c){
  const m=medianCPP(), cp=costPer(c);
  const lim=funded(c)?RK.map(k=>({k,st:rowState(k,c.id,compute(k))})).filter(x=>x.st.room===0):[];
  if(lim.length) return{rank:0,pin:true,chip:"At limit since "+atLimitSince(c,lim[0].k),tone:"c-bad",
-   why:RES[lim[0].k].label+" is exhausted. Sending and sourcing stop until you raise it."};
+   why:RES[lim[0].k].short.charAt(0).toUpperCase()+RES[lim[0].k].short.slice(1)+" ran out. Sending and sourcing stop until you raise the limit."};
  /* a quarter down and at least a point down. Without the floor a move from
     1.2 to 0.8 flags, and at forty clients a third of the book is "Falling". */
  if(c.prev&&c.reply&&c.reply<c.prev*0.75&&c.prev-c.reply>=1) return{rank:1,pin:true,chip:"Falling",tone:"c-warn",
@@ -6846,88 +6845,70 @@ function drawerHTML(){
  const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
    <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%"></div></div>
-  <p class="sub nc-fieldhint">Usually the company name. Only your team sees it.</p>
+  <p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>
   <div class="field"><span class="flabel" id="ncColLab">Profile icon colour</span>
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
   <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
-  <div class="field"><label class="flabel" for="nce">First user's email</label><input type="email" id="nce" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%">
-   <p class="sub nc-hint">${IC.mail}<span>They receive an invitation and set their own password. ${AGENCY.name} never holds it.</span></p></div>
+  <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%">
+   <p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p></div>
   <div class="field"><label class="flabel" for="ncrole">Their role</label>
    ${ddHTML("ncrole",nc.role,[{items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
    <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
-  <div class="msg m-info" style="margin-top:20px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
- /* 18 Sep, Hitesh: "clarity is missing about is this reserved or limit ... we
-    are not allocating credits, we are capping use from single client from pool
-    credits." So the step is named for what it does, each number is labelled a
-    limit, the pool is drawn beside it so the cap reads against something, and
-    reserving is the one explicit switch that turns a cap into a hold. */
- const whoL=(nc.company||nc.name||"this workspace").trim();
- const limRow=k=>{const R=RES[k],m=compute(k),
-   sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:ncDefaultCap(k),
-   pu=Math.min(100,Math.round(m.used/R.pool*100)), ph=Math.min(100-pu,Math.round(m.held/R.pool*100));
-   return `<div class="nc-limrow" data-capfor="${k}">
-    <span class="nc-limlab"><b>${R.label}</b><i>${R.nature}</i></span>
-    <span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
-     <i><span class="nc-poolused" title="${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} available</b></span></i></span>
-    <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
- /* 29 Sep 2026, Hitesh: UI and functional rework. Every credit and limit the
-    plan holds, in one design-system table, credits (reservable) above caps. */
- const limTr=k=>{const R=RES[k],m=compute(k),
-   sug=nc.caps&&nc.caps[k]!=null?nc.caps[k]:ncDefaultCap(k),
-   pu=Math.min(100,Math.round(m.used/R.pool*100)), ph=Math.min(100-pu,Math.round(m.held/R.pool*100));
-   return `<tr data-capfor="${k}">
-    <td><span style="display:block;font-weight:500;color:var(--gray-17)">${R.label}</span><span class="sub">${R.nature}</span></td>
-    <td><span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
-     <i><span class="nc-poolused">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} available</b></span></i></span></td>
-    <td class="ar">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</td></tr>`};
- const credits=RK.filter(k=>RES[k].floors), caps=RK.filter(k=>!RES[k].floors);
- const grp=t=>`<tr class="grouprow"><td colspan="3">${t}</td></tr>`;
- const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage limits for ${whoL}</span>
-   <p class="sub" style="margin:0">How much ${whoL} can use this cycle from your plan. Credits are held for them; emails, prospects and accounts are caps. Change it anytime on Limits.</p></div>
-  <div class="panel" id="ncCapsBox"><div class="tscroll"><table class="sqt nc-limtbl" style="min-width:560px">
-   <thead><tr><th>Resource</th><th>Your plan today</th><th class="ar">Limit</th></tr></thead>
-   <tbody>${grp("Credits &middot; held for "+whoL)}${credits.map(limTr).join("")}${grp("Limits &middot; caps only")}${caps.map(limTr).join("")}</tbody></table></div></div>
-  <p class="nc-limsay" id="ncLimSay">${ncLimSentence()}</p>`;
+  ${ncUsageHTML()}
+  <div class="msg m-info" style="margin-top:16px">${infoI}<span>You will be switched into this workspace right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
  return `<div class="scrim" id="scrim"></div>
- <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(${s===2?720:560}px,calc(100vw - 32px))">
-  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace${s===2?' <span class="sub" style="font-weight:400">&middot; Limits</span>':''}</span>
-    ${s===1?'<p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p>':''}</div>
+ <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
+  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
+    <p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p></div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <div class="dr-b">${s===1?b1:b2}</div>
+  <div class="dr-b">${b1}</div>
   <!-- 29 Sep 2026, Hitesh: "limits screen is not coming while adding workspace": Limits is the second step of the flow again, not a side link. -->
-  <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':'<span class="sub">Step 1 of 2 &middot; Limits next</span>'}</div>
-   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button>${s<2?'<button class="shd-button shd-button--primary" id="drNext">Next</button>':'<button class="shd-button shd-button--primary" id="drDone">Add a workspace</button>'}</div></div>
+  <div class="dr-f"><div></div>
+   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone">Add a workspace</button></div></div>
  </aside>`;
 }
 /* 18 Sep, delight pass: a new client's default limit is a share that leaves
    room, never the whole free pool: floor(free / max(2, clients + 1)), rounded
    down to 500, at least 500. With no clients the newcomer gets half. One
    function, so the row, the sentence and create() can not disagree. */
-const ncDefaultCap=k=>{const m=compute(k), pool=RES[k].pool, step=pool>=10000?500:pool>=1000?50:5;
- /* 29 Sep 2026: small pools (Inbox Radar tests, email accounts) round to a
-    step that fits them instead of a flat 500, which exceeded the pool. */
- return Math.max(step,Math.floor(m.free/Math.max(2,CLIENTS.length+1)/step)*step)};
-/* 18 Sep, delight pass: the Limits step says in one sentence what the numbers
-   mean for this workspace and for everyone else, and rewrites as they are typed.
-   Reads the inputs when they are on screen, so it never lags the field. */
-function ncLimSentence(){
- const who=(nc.company||nc.name||"this workspace").trim(), box=el("ncCapsBox");
- const capOf=k=>{const i=box&&box.querySelector('[data-cap="'+k+'"]');
-   if(i) return num(i.value);
-   if(nc.caps&&nc.caps[k]!=null) return nc.caps[k];
-   const m=compute(k); return ncDefaultCap(k)};
- const sm=compute("sends"), cap=capOf("sends"), over=cap>sm.free;
- if(!nc.bif){
-  return over
-   ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} available today</span>, so they would hit the pool before the cap and nothing would stay available for another workspace.`
-   :`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, leaving <b class="tnum">${f(sm.free-cap)}</b> of the ${f(sm.free)} available today for everyone else.`;
- }
- const held=RK.filter(k=>RES[k].floors).map(k=>{const m=compute(k),c=capOf(k);return {l:RES[k].label.replace(/ (Credits|Tests)$/,""),left:m.free-c,free:m.free,c}});
- const short=held.filter(h=>h.left<0);
- if(short.length) return `Emails are a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. <span style="color:var(--orange-12)">The ${short.map(h=>h.l).join(" and ")} hold${short.length>1?"s exceed":" exceeds"} what is free today (${short.map(h=>f(h.c)+" against "+f(h.free)).join(", ")}).</span>`;
- return `Emails are a cap: <b>${who}</b> can send up to <b class="tnum">${f(cap)}</b>. The credits are held for them; ${held.map(h=>`<b class="tnum">${f(h.left)}</b> ${h.l}`).join(", ")} stay in the plan for everyone else.`;
+/* 2 Oct 2026, Hitesh (board row 03, C2): a new workspace gets one share of the
+   plan, 10% by default, moved with a slider; every resource follows the share
+   until its own number is typed over. The share is of the PLAN, not of what is
+   available, so it means the same thing for every workspace; the slider's top
+   is the largest share whose reservations still fit what is available today. */
+const NC_SHARE_DEFAULT=10;
+const ncStep=k=>{const p=RES[k].pool;return p>=100000?500:p>=5000?50:p>=1000?10:5};
+function ncShareMax(){let mx=100;RK.filter(k=>RES[k].floors).forEach(k=>{const m=compute(k);mx=Math.min(mx,Math.floor(m.free/RES[k].pool*100))});return Math.max(1,mx)}
+function ncTightest(){let b=null;RK.filter(k=>RES[k].floors).forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
+function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share==null?NC_SHARE_DEFAULT:nc.share))}
+function ncDerived(k){const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)}
+function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
+const ncDefaultCap=ncDerived;
+const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
+function ncUsageHTML(){
+ const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
+ const tile=(k,l)=>`<div class="nc-share-tile"><b data-tile="${k}">${f(ncCapFor(k))}</b><span>${l}</span></div>`;
+ const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
+ return `<div class="nc-usage" id="ncUsage">
+  <div class="nc-urow"><label class="flabel" for="ncShare" style="margin:0">How much of your plan ${who} can use each cycle</label><span class="nc-upct" id="ncPct">${custom?"Custom":share+"%"}</span></div>
+  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%" aria-label="Share of your plan">
+  <div class="nc-ucap"><span>1%</span><span>Up to ${mx}% today. ${ncTightest()} run out first.</span></div>
+  <div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits a month")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
+  <div class="nc-uline"><span class="sub">Emails are a monthly limit. Credits are reserved for ${who} from your balance.</span><button type="button" class="linkbtn" id="ncEdit">${nc.open?"Hide":"Edit each resource"}</button></div>
+  ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it.</span><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button></div>${RK.map(row).join("")}</div>`:""}
+  ${nc.err?`<p class="nc-limsay is-err" id="ncUerr"><span>${nc.err}</span></p>`:""}
+ </div>`;
+}
+/* repaints only the values, so the slider keeps the drag and a row keeps its caret */
+function ncPaintUsage(){
+ const mx=ncShareMax(), share=ncShare(), custom=ncIsCustom();
+ const sl=el("ncShare"); if(sl){sl.style.setProperty("--p",(mx>1?Math.round((share-1)/(mx-1)*100):100)+"%")}
+ const pct=el("ncPct"); if(pct)pct.textContent=custom?"Custom":share+"%";
+ document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
+ document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",!!(nc.custom&&nc.custom[k]!=null))});
+ const rs=el("ncReset"); if(rs){rs.style.display=custom?"":"none";rs.textContent="Reset to "+share+"%"}
 }
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
    means, reusing the same slot (id="ncAccSay") so the wizard's live "what they
@@ -6967,8 +6948,6 @@ function renderDrawer(){
  const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=el("ncrole"),st=el("ncsite");
    if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;if(st)nc.site=st.value;
    if(r)nc.role=r.dataset.value;
-   const capsBox=el("ncCapsBox");
-   if(capsBox){nc.caps=nc.caps||{};capsBox.querySelectorAll("[data-cap]").forEach(i=>{nc.caps[i.dataset.cap]=num(i.value)})}
    nc.bif=true};
  /* the role select changes both the description under it and the "what they
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
@@ -6979,7 +6958,7 @@ function renderDrawer(){
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
- {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
+ {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="How much of your plan "+who+" can use each cycle";const ln=document.querySelector(".nc-uline .sub");if(ln)ln.textContent="Emails are a monthly limit. Credits are reserved for "+who+" from your balance."}}
  /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
     then paintPrev() rebinds it on every repaint after */
  L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
@@ -6990,21 +6969,22 @@ function renderDrawer(){
  {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value;const p=el("ncAccSay");if(p)p.innerHTML=ncAccessSentence()}}
  /* the reserve switch changes what the column means, so the step repaints */
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
- L.querySelectorAll("[data-cap]").forEach(i=>i.oninput=()=>{const p=el("ncLimSay");if(p)p.innerHTML=ncLimSentence()});
+ /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
+ {const sl=el("ncShare");if(sl)sl.oninput=()=>{nc.share=+sl.value;nc.custom={};nc.err=null;const e=el("ncUerr");if(e)e.remove();ncPaintUsage()}}
+ {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
+ {const b=el("ncReset");if(b)b.onclick=()=>{cap();nc.custom={};nc.err=null;renderDrawer()}}
+ L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>i.oninput=()=>{nc.custom=nc.custom||{};nc.custom[i.dataset.cap]=num(i.value);i.classList.remove("is-err");ncPaintUsage()});
  el("scrim").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
  el("drX").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
  /* Skip always finishes now, on any step. 16 §4: "Create is live from step 1."
     Next is the only way to keep refining; Skip is the one-click way out at any point,
     and whatever was not visited gets the same default the drawer would have shown. */
- const n=el("drNext");if(n)n.onclick=()=>{cap();drawer.step++;if(drawer.step===2)nc.reachedStep3=true;renderDrawer()};
- const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step--;renderDrawer()};
  const sk=el("drSkip");if(sk)sk.onclick=()=>{cap();create()};
  const d=el("drDone");if(d)d.onclick=()=>{cap();
-   /* 2 Oct 2026: credits are held at the entered amount, so an amount above what is free today is refused here, naming both numbers (PRD FL-6). */
-   const box=el("ncCapsBox"); let bad=0;
-   RK.filter(k=>RES[k].floors).forEach(k=>{const i=box&&box.querySelector('[data-cap="'+k+'"]'); if(!i)return; const m=compute(k), v=num(i.value); const over=v>m.free; i.classList.toggle("is-err",over); if(over)bad++});
-   const say=el("ncLimSay"); if(say){say.innerHTML=ncLimSentence();say.classList.toggle("is-err",bad>0)}
-   if(bad){const first=box.querySelector("input.is-err"); if(first)first.focus(); return}
+   /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
+   const bad=RK.filter(k=>RES[k].floors&&nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
+   if(bad.length){nc.open=true;nc.err=bad.map(k=>`${RES[k].label.replace(/ \/ month$/,"")} exceeds what is available today (${f(nc.custom[k])} against ${f(compute(k).free)})`).join("; ")+".";renderDrawer();
+     bad.forEach(k=>{const i=document.querySelector('#ncUsage [data-cap="'+k+'"]');if(i)i.classList.add("is-err")}); const first=document.querySelector("#ncUsage input.is-err"); if(first)first.focus(); return}
    create()};
 }
 function create(){
@@ -7027,8 +7007,7 @@ function create(){
  /* teammates chosen in the modal become members of the new workspace */
  (nc.team||[]).forEach(k=>{const p=PEOPLE[k];if(p&&Array.isArray(p.ws)&&p.ws.indexOf(id)<0)p.ws.push(id)});
  if(nc.email) LASTSEEN[nc.email]="never";
- RK.forEach(k=>{const m=compute(k);
-  const cap=(nc.caps&&nc.caps[k]!=null)?nc.caps[k]:ncDefaultCap(k);
+ RK.forEach(k=>{const cap=ncCapFor(k);
   RES[k].rows[id]={res:RES[k].floors?cap:0,cap,used:0}});
  nc=NC_INIT();
  drawer=null;renderDrawer();
@@ -7950,9 +7929,9 @@ function modalHTML(){
  if(modal.kind==="request"){
   const R=RES[modal.res],r=R.rows[modal.client],m=compute(modal.res);
   const suggested=Math.max(500,Math.round(r.cap*0.5/500)*500);
-  return card(`Ask ${AGENCY.name} for more ${R.label}`,`
+  return card(`Ask ${AGENCY.name} for more ${R.short}`,`
     <p style="font-size:14px;line-height:21px;margin:0 0 14px">You have used <strong>${f(r.used)}</strong>
-    of the <strong>${f(r.cap)}</strong> ${AGENCY.name} allocated to this workspace${R.nature==="Storage"?"":" for September"}.</p>
+    of the <strong>${f(r.cap)}</strong> ${AGENCY.name} allocated to this workspace${R.kind==="monthly"?" for September":""}.</p>
     <div style="margin-bottom:14px">
       <label class="fld" for="reqAmt">How much more do you need?</label>
       ${numIn(suggested,R.unit,`id="reqAmt" style="width:160px"`)}
@@ -9022,8 +9001,8 @@ function scaleTo(n){
      draws made half the book "Falling" and the flag meaningless */
   c.reply=+(2+r()*7).toFixed(1); c.prev=+(c.reply*(0.7+0.8*r())).toFixed(1);
   SEND_DOMAINS[id]=[slug+".com",slug+"-go.com",slug+"-reach.com"]; SEQ_SETS[id]=[];
-  RK.forEach(k=>{const cap=k==="sends"?Math.round(sent*1.2/500)*500
-    :k==="prospects"?Math.round(c.prospects*1.3/500)*500:500*(1+Math.floor(r()*4));
+  RK.forEach(k=>{const st=ncStep(k),cap=k==="sends"?Math.round(sent*1.2/500)*500
+    :Math.max(st,Math.round(RES[k].pool*0.015*(1+r())/st)*st);
     RES[k].rows[id]={res:0,cap,used:Math.min(cap,Math.round(cap*(0.2+r()*0.75)))}});
   growMailboxes(c); growSequences(c);
   CLIENTS.push(c); byId[id]=c;
@@ -9622,6 +9601,19 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* 2 Oct 2026: credit amounts above the free pool are refused on Add */
 .nc-limsay.is-err span{color:#b91c1c!important}
 .numin input.is-err,.numin input.is-err:focus,.numin input.is-err:hover{border:1.5px solid #b91c1c!important;box-shadow:0 0 0 3px #fee2e2!important}
+/* 2 Oct 2026: Add a workspace, the share block (board row 03, C2) */
+.nc-usage{border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px;display:flex;flex-direction:column;gap:8px}
+.nc-urow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.nc-upct{font-size:14px;font-weight:600;color:#1f2937;white-space:nowrap}
+#ncShare{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:linear-gradient(to right,#1d4ed8 0 var(--p),#e5e7eb var(--p) 100%);outline:none;margin:6px 0;padding:0;border:0;box-shadow:none}
+#ncShare::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #1d4ed8;box-shadow:0 1px 3px rgba(0,0,0,.15);cursor:pointer}
+#ncShare::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #1d4ed8;box-shadow:0 1px 3px rgba(0,0,0,.15);cursor:pointer}
+#ncShare:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px #dbeafe}
+.nc-ucap{display:flex;justify-content:space-between;font-size:11px;line-height:16px;color:#6b7280}
+.nc-share-tiles{display:flex;gap:8px;margin-top:4px}.nc-share-tile{flex:1 1 0;min-width:0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:4px}.nc-share-tile b{display:block;font-size:16px;line-height:22px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}.nc-share-tile span{display:block;font-size:11px;line-height:16px;color:#6b7280}
+.nc-uline{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.nc-uline .linkbtn{white-space:nowrap;font-size:13px}
+.nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
+.nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
+.nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9903,7 +9895,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="19fe7d0";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="92d1afb";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
