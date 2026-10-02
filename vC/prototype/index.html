@@ -2170,19 +2170,30 @@ CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c)});
    gone. Numbers are the Scale plan's. */
 const RES={
  sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:200000,floors:false,warn:.8,
-  rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:30000,used:6400},cp:{res:0,cap:10000,used:0},own:{res:0,cap:8000,used:5585}}},
+  rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},own:{res:0,cap:8000,used:5585}}},
  lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:8000,floors:true,warn:.8,
-  rows:{nw:{res:1600,cap:2400,used:1478},vx:{res:0,cap:3200,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:960,cap:960,used:184},cp:{res:0,cap:960,used:0},own:{res:0,cap:480,used:227}}},
+  rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3000,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},own:{res:0,cap:240,used:227}}},
  verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1600,used:624},vx:{res:800,cap:1800,used:896},al:{res:0,cap:1000,used:398},bl:{res:600,cap:600,used:124},cp:{res:0,cap:400,used:0},own:{res:0,cap:400,used:128}}},
+  rows:{nw:{res:0,cap:1000,used:624},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:128}}},
  ai:{label:"AI credits",short:"AI credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:1000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:400,used:124},al:{res:0,cap:200,used:188},bl:{res:150,cap:150,used:24},cp:{res:0,cap:80,used:0},own:{res:0,cap:100,used:31}}},
+  rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:150,used:124},al:{res:0,cap:200,used:188},bl:{res:0,cap:50,used:24},cp:{res:0,cap:20,used:0},own:{res:0,cap:60,used:31}}},
  dialer:{label:"Dialer credits",short:"Dialer credits",nature:"Add-on balance",kind:"balance",addon:true,unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1500,used:820},vx:{res:500,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
+  rows:{nw:{res:0,cap:1500,used:820},vx:{res:0,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
  radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:500,floors:true,warn:.8,
   rows:{nw:{res:0,cap:120,used:96},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
 };
 const RK=Object.keys(RES);
+/* 2 Oct 2026, Hitesh (phase 1, doc 66 §6): limits are fixed numbers. For a credit
+   the reservation always equals the limit, so there is no Reserved column anywhere;
+   limits never total more than the plan, refused at the edit rather than warned
+   about afterwards. `step` is the unit a limit moves by. */
+RK.forEach(k=>{RES[k].step=RES[k].pool>=100000?500:RES[k].pool>=5000?50:RES[k].pool>=1000?10:5;
+ if(RES[k].floors) Object.values(RES[k].rows).forEach(r=>{r.res=r.cap})});
+const syncRes=(k,r)=>{if(RES[k].floors) r.res=r.cap};
+const allocOf=k=>Object.values(RES[k].rows).reduce((t,r)=>t+r.cap,0);
+/* the share each workspace started with, as a readout on its Limits tab */
+const SHARE0={nw:25,vx:30,al:12,bl:10,cp:3,own:4};
+const CYC_END=()=>CYCLE.days+" "+CYCLE.month.slice(0,3);
 /* non-email channel volume per client. Email is not here: it is c.sent, because
    only email draws on a plan allowance and so already lives on the client. These
    three draw on nothing, which is exactly why they were invisible on a tile and
@@ -2521,6 +2532,26 @@ function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
  return{pct,room,draw,state:s,tone:t}}
 const isBif=i=>funded(byId[i]||{})&&RK.filter(k=>RES[k].floors).every(k=>{const r=RES[k].rows[i];return r&&r.cap>0&&r.res>=r.cap});
 const setBif=(i,on)=>RK.filter(k=>RES[k].floors).forEach(k=>{const r=RES[k].rows[i];if(r)r.res=on?r.cap:0});
+/* 2 Oct 2026 (S3): the one way a limit changes. Refuses a total above the plan,
+   naming both numbers; saves at once with a toast and Undo; writes Activity. */
+function setLimit(k,id,v,why){
+ const c=byId[id], R=RES[k], r=R.rows[id]; if(!c||!r) return false;
+ v=Math.max(0,Math.round(v)); const was=r.cap; if(v===was) return true;
+ const tot=allocOf(k)-was+v;
+ if(tot>R.pool){RC_REFUSED={id,k,text:`Not saved. Limits for ${R.label.toLowerCase()} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. Reduce by ${f(tot-R.pool)}, lower another workspace, or add capacity.`}; return false}
+ RC_REFUSED=null; r.cap=v; r.custom=true; syncRes(k,r);
+ const stops=v<r.used, pc=paceOf(k,id);
+ receipt("client:"+id,`${c.name}'s ${R.label.toLowerCase()} limit is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":pc&&pc.hits&&v>was?" At this pace it lasts until "+pc.when+".":""} ${f(compute(k).free)} ${R.unit} stay available in the plan.`,
+   ()=>{r.cap=was;syncRes(k,r);render()},`changed ${c.name}'s ${R.label.toLowerCase()} limit`);
+ logAct(id,`${R.label} limit changed from ${f(was)} to ${f(v)}${why?" ("+why+")":""}`);
+ return true;
+}
+/* 2 Oct 2026 (doc 66 §7): pace = used ÷ day of cycle × days in cycle; the run-out
+   day follows. Nothing is projected before day 3 of a cycle. */
+function paceOf(k,id){const r=RES[k].rows[id]; if(!r||CYCLE.day<3||!r.used) return null;
+ const perDay=r.used/CYCLE.day, proj=Math.round(perDay*CYCLE.days), left=r.cap-r.used;
+ const dayHit=left<=0?CYCLE.day:CYCLE.day+left/perDay, hits=dayHit<=CYCLE.days, d=Math.min(CYCLE.days,Math.ceil(dayHit));
+ return {proj,hits,atLimit:left<=0,soon:left<=0||(hits&&dayHit-CYCLE.day<=3),when:d+" "+CYCLE.month.slice(0,3)}}
 /* 2 Oct 2026 (S2, doc 65 §6): the step names match what the action was */
 const steps=c=>[["Workspace created",true],["First user invited",c.users.length>0],
  ["Email account connected",c.mailboxes.length>0],["Limits reviewed",!!c.limitsReviewed]];
@@ -3808,7 +3839,7 @@ function draftBar(scope){
 function rcLimSentence(c){
  const R=RES.sends, r=R.rows[c.id]; if(!r) return "";
  const box=el("rcLimTable");
- const val=fld=>{const i=box&&box.querySelector(`input[data-lim="sends"][data-fld="${fld}"]`); return i?num(i.value):dval("sends",c.id,fld)};
+ const val=fld=>{const i=box&&box.querySelector(`input[data-lim="sends"][data-fld="${fld}"]`); return i?num(i.value):RES.sends.rows[c.id][fld]};
  const m=compute("sends"), cap=val("cap"), first=c.name.split(" ")[0];
  const heldOthers=m.held-Math.max(0,r.res-r.used), room=Math.max(0,cap-r.used);
  const avail=Math.max(0,R.pool-m.used-heldOthers), left=avail-room;
@@ -3818,31 +3849,37 @@ function rcLimSentence(c){
   :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay available for everyone else.`;
 }
 function rLimits(c){
- const bif=isBif(c.id);
- /* 2 Oct 2026 (S2, doc 65, canvas row 07): each number saves as you leave it,
-    with its own toast and Undo; no draft bar. A pending request sits above the
-    table with Approve and Decline. Disabled or deleted: read only. */
- const ro=!!(c.disabled||c.deletedOn), dis=ro?" disabled":"";
+ /* 2 Oct 2026 (S3, doc 66, canvas row 09b D2b): a decision screen. The request is
+    decided on top. Each row answers, in reading order: how much of the limit is
+    used, when it runs out at the current pace, what kind of number it is, and the
+    limit itself, with − and + and give-more chips on the row you are on. No
+    Reserved column: a credit's reservation equals its limit. The share the
+    workspace started with stays as one readout line. Each number saves as you
+    leave it; a limit above what the plan has is refused with both numbers. */
+ const ro=!!(c.disabled||c.deletedOn), dis=ro?" disabled":"", canEdit=canI("limits")&&!ro;
  const rq=REQUESTS.find(q=>q.client===c.id);
- const reqBar=rq&&!ro?`<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${RES[rq.res].unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${f(compute(rq.res).free)} available in the plan</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}">Approve ${f(rq.amount)} more</button></span>`:""}</div>`:"";
- const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id],s=rowState(k,c.id,m),p=Math.min(100,Math.round(s.pct*100));
-  return `<tr id="rlim-${k}" class="${FOCUS_LIM===k?"is-focus":""}"><td><span style="font-weight:500">${R.label}</span></td>
-   <td class="ar">${R.floors?numIn(dval(k,c.id,"res"),R.unit,`data-lim="${k}" data-fld="res" aria-label="Reserved"${dis}`):noIn}</td>
-   <td class="ar">${numIn(dval(k,c.id,"cap"),R.unit,`data-lim="${k}" data-fld="cap" aria-label="Limit"${dis}`)}</td>
-   <td class="ar tnum">${f(r.used)}</td>
-   <td>${meter(p,s.tone,s.state)}</td>
-   <td class="ar tnum">${f(s.draw)}</td></tr>`}).join("");
+ const reqBar=(()=>{if(!rq||ro) return ""; const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
+  return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`})();
+ const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
+ const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace is this cycle so far, projected to ${CYC_END()}</span></div>`;
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), st=rowState(k,c.id,m), p=Math.min(100,Math.round(st.pct*100)), pc=paceOf(k,c.id);
+  const usedCol=st.tone==="bad"?"var(--red-18)":st.tone==="warn"?"var(--orange-12)":"var(--gray-17)";
+  const paceLine=pc?`<span class="sub lm-pace">${pc.atLimit?`<b class="is-bad">at the limit</b>`:`on pace for ${f(pc.proj)} this cycle &middot; <b class="${pc.soon?"is-bad":pc.hits?"is-warn":""}">${pc.hits?(k==="sends"?"hits the limit around ":"runs out around ")+pc.when:"lasts the cycle"}</b>`}</span>`:`<span class="sub lm-pace">&nbsp;</span>`;
+  const kind=k==="sends"?"Monthly limit":"Reserved for "+first;
+  const asked=rq&&rq.res===k?rq.amount:null, st10=R.step*10, st100=R.step*100;
+  const chips=canEdit?`<span class="lm-chips">${[st10,asked||st100].map(x=>`<button class="lm-chip" data-rlgive="${k}|${x}">+${f(x)}${x===asked?" asked":""}</button>`).join("")}</span>`:"";
+  const ctl=`<span class="lm-ctl">${canEdit?`<button class="lm-step" data-rlstep="${k}|-1" aria-label="${f(R.step)} less">&minus;</button>`:""}${numIn(r.cap,R.unit,`data-lim="${k}" data-fld="cap" aria-label="${R.label} limit"${dis}`)}${canEdit?`<button class="lm-step" data-rlstep="${k}|1" aria-label="${f(R.step)} more">+</button>`:""}</span>`;
+  return `<div class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
+   <span class="lm-name"><b>${R.label}</b><span class="sub">${kind} &middot; ${f(m.free)} available in the plan</span></span>
+   <span class="lm-use"><span class="sub"><b class="tnum" style="color:${usedCol}">${f(r.used)}</b> used of ${f(r.cap)}</span><span class="lm-bar"><span style="width:${p}%;background:${barCol(st.tone)}"></span></span>${paceLine}</span>
+   <span class="lm-right">${chips}${ctl}</span></div>`}).join("");
  return `
- <!-- 30 Sep 2026, Hitesh: "remove manage independent budget option". The Budget panel with its
-      independent-budget switch is gone from the Limits tab; every workspace draws from the shared pool. -->
- ${reqBar}<div class="panel"><div class="panel-h"><span class="panel-t">Limits</span>
+ ${reqBar}<div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
    <span class="sub">${ro?"Read only while the workspace is "+(c.deletedOn?"deleted":"disabled")+".":"Each number saves as you leave it. Undo from the toast."}</span>
    <span class="c-a"><button class="linkbtn" id="toCredits">All workspaces &rarr;</button></span></div>
-  <div class="tscroll"><table class="organism" style="min-width:800px" id="rcLimTable">
-   <thead><tr><th>Resource</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
-    <th>Usage</th><th class="ar">Available</th></tr></thead>
-   <tbody>${rows}</tbody></table></div>
-  <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)}</p></div>
+  ${shareLine}
+  <div class="lm-rows" id="rcLimTable">${rows}</div>
+  <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p></div>
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
 }
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
@@ -4623,32 +4660,29 @@ const blReceiptBar=()=>BLR?`<div class="dq-receipt bl-receipt" role="status"><sp
   <button class="linkbtn" data-blundo>Undo</button>
   <button class="ubtn dq-x" data-blrx aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`:"";
 function vCredits(){
- const m=compute(activeRes),R=m.R,pc=n=>n/R.pool*100,A=[];
- if(!m.ok)A.push(`<div class="msg m-bad">${warnI}<span>Reserved amounts total ${f(m.reserved)}, more than the ${f(R.pool)} in your plan. Reduce a reservation by ${f(m.reserved-R.pool)} or add capacity.</span></div>`);
- if(m.ok&&m.oversub>1)A.push(`<div class="msg m-warn">${warnI}<span>Limits total ${Math.round(m.oversub*100)}% of your plan. Workspaces without a reservation may run out once the pool is used up. ${f(m.free)} ${R.unit} unallocated.</span></div>`);
- const st=m.ids.filter(i=>rowState(activeRes,i,m).state==="Pool exhausted");
- if(st.length)A.push(`<div class="msg m-bad">${warnI}<span>${st.map(i=>byId[i].name).join(", ")} cannot use the remaining limit because the pool is empty.</span></div>`);
- const rows=fundedWorkspaces().map(c=>{const r=R.rows[c.id],s=rowState(activeRes,c.id,m),p=Math.min(100,Math.round(s.pct*100));
-  /* the house workspace sits in this table because it draws on the same pool,
-     and it has to be labelled or it reads as the agency itself rather than as
-     one of the workspaces under it. Its name opens the workspace, not a client
-     record, because it has no client record to open. */
+ /* 2 Oct 2026 (S3, doc 66, canvas row 09b D1 as the Billing page): one resource at a
+    time, the plan as one bar split by workspace, the rows with one number each. A
+    limit above what the plan has is refused at the edit; nothing is warned about
+    after the fact. The reservation equals the limit, so Reserved is gone. */
+ const m=compute(activeRes),R=m.R,pc=n=>n/R.pool*100, alloc=allocOf(activeRes), avail=R.pool-alloc;
+ const ws=fundedWorkspaces().filter(c=>R.rows[c.id]);
+ const segs=ws.map(c=>{const r=R.rows[c.id]; return `<span class="al-seg" title="${c.name}: ${f(r.used)} used of ${f(r.cap)}" style="width:${pc(r.cap)}%"><i style="width:${r.cap?Math.min(100,Math.round(r.used/r.cap*100)):0}%;background:${c.colour}"></i><b style="background:${c.colour}"></b></span>`}).join("");
+ const legend=ws.map(c=>`<span class="al-leg"><i style="background:${c.colour}"></i>${c.name} <span class="sub">${f(R.rows[c.id].cap)}</span></span>`).join("")+`<span class="al-leg"><i style="background:var(--gray-16)"></i>Available <span class="sub">${f(avail)}</span></span>`;
+ const rows=ws.map(c=>{const r=R.rows[c.id],st=rowState(activeRes,c.id,m),p=Math.min(100,Math.round(st.pct*100)), pcx=paceOf(activeRes,c.id);
   return `<tr><td><div class="cell-main">${av(c)}<span style="min-width:0">
-    ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`
-           :`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
+    ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
     <span class="cs">${c.own?"Your own outreach workspace":c.email}</span></span></div></td>
-   <td class="ar">${R.floors?numIn(dval(activeRes,c.id,"res"),R.unit,`data-cid="${c.id}" data-fld="res" aria-label="Reserved for ${c.name}"`):noIn}</td>
-   <td class="ar">${numIn(dval(activeRes,c.id,"cap"),R.unit,`data-cid="${c.id}" data-fld="cap" aria-label="Limit for ${c.name}"`)}</td>
+   <td class="ar">${numIn(r.cap,R.unit,`data-cid="${c.id}" data-fld="cap" aria-label="Limit for ${c.name}"${canI("limits")?"":" disabled"}`)}</td>
    <td class="ar tnum">${f(r.used)}</td>
-   <td>${meter(p,s.tone,s.state)}</td>
-   <td class="ar tnum">${f(s.draw)}</td></tr>`}).join("");
+   <td>${meter(p,st.tone,st.state)}${pcx&&pcx.hits&&!pcx.atLimit?`<span class="sub" style="display:block;margin-top:2px;color:${pcx.soon?"var(--red-18)":"var(--orange-12)"}">${(activeRes==="sends"?"hits the limit around ":"runs out around ")+pcx.when}</span>`:""}</td>
+   <td class="ar tnum">${f(Math.max(0,r.cap-r.used))}</td></tr>`}).join("");
  const reqs=REQUESTS.length?REQUESTS.map(q=>{const c=byId[q.client],QR=RES[q.res],qm=compute(q.res),ok=qm.free>=q.amount;
   return `<div class="req"><div class="req-h">
    <div><div style="font-size:14px;font-weight:600;color:var(--gray-800)">${c.name}</div>
     <span class="sub">${QR.short.charAt(0).toUpperCase()+QR.short.slice(1)} · +${f(q.amount)} ${QR.unit} · ${AGE(q.when)}</span></div>
-   <span class="chip c-${ok?"ok":"bad"}">${ok?f(qm.free)+" unallocated":"Not enough unallocated"}</span></div>
+   <span class="chip c-${ok?"ok":"bad"}">${ok?f(qm.free)+" available":"Only "+f(qm.free)+" available"}</span></div>
    <p class="sub" style="margin-bottom:10px">“${q.note}”</p>
-   <div class="tools"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${q.id}">Approve</button>
+   <div class="tools"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${q.id}"${ok?"":" disabled"}>Approve</button>
     <button class="shd-button shd-button--tertiary shd-button--sm" data-no="${q.id}">Decline</button></div></div>`}).join("")
   :'<span class="sub">No pending requests.</span>';
  return `
@@ -4656,31 +4690,27 @@ function vCredits(){
  <div class="wrap">
   ${BLR&&!BLR.id&&BLR.k===activeRes?blReceiptBar():""}
   <div class="panel">
-   <div class="panel-h"><span class="panel-t">${R.label}</span></div>
+   <div class="panel-h"><span class="panel-t">${R.label}</span><span class="sub">Limits never total more than your plan. Each number saves as you leave it.</span></div>
    <div class="stats">
     <div class="stat"><span class="stat-l">In your plan</span><span class="stat-v">${f(R.pool)}</span></div>
-    <div class="stat"><span class="stat-l"><span class="swatch" style="background:#059669"></span>Used</span><span class="stat-v">${f(m.used)}</span></div>
-    <div class="stat"><span class="stat-l"><span class="swatch" style="background:#3B82F6"></span>Held</span><span class="stat-v">${f(m.held)}</span></div>
-    <div class="stat"><span class="stat-l"><span class="swatch" style="background:#F3F4F6;border:1px solid #E5E7EB"></span>Free to draw</span><span class="stat-v">${f(m.free)}</span></div>
-    <div class="stat"><span class="stat-l">Limits total</span><span class="stat-v" style="color:${m.oversub>1?"#B45309":"#047857"}">${Math.round(m.oversub*100)}%</span></div>
+    <div class="stat"><span class="stat-l">Given to workspaces</span><span class="stat-v">${f(alloc)}</span></div>
+    <div class="stat"><span class="stat-l">Used so far</span><span class="stat-v">${f(m.used)}</span></div>
+    <div class="stat"><span class="stat-l">Available to give</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
    </div>
-   <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:12px">
-    <div class="stack"><span style="width:${pc(m.used)}%;background:#059669"></span>
-     <span style="width:${pc(m.held)}%;background:#3B82F6"></span>
-     <span style="width:${pc(m.free)}%;background:#F3F4F6"></span></div>
-    ${A.join("")}
+   <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:10px">
+    <div class="al-bar">${segs}</div>
+    <div class="al-legend">${legend}</div>
+    ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill>add capacity</button>.</span></div>`:""}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
-    <thead><tr><th>Workspace</th><th class="ar">Reserved</th><th class="ar">Limit</th><th class="ar">Used</th>
-     <th>Usage</th><th class="ar">Available</th></tr></thead>
+    <thead><tr><th>Workspace</th><th class="ar">Limit</th><th class="ar">Used</th><th>Usage</th><th class="ar">Left</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td style="font-weight:600">Total</td>
-     <td class="ar tnum" style="font-weight:600;color:${m.ok?"var(--ink)":"#B91C1C"}">${R.floors?f(m.reserved):"–"}</td>
-     <td class="ar tnum" style="font-weight:600">${f(m.caps)}</td>
+     <td class="ar tnum" style="font-weight:600">${f(alloc)}</td>
      <td class="ar tnum" style="font-weight:600">${f(m.used)}</td>
      <td><span class="sub">${f(R.pool)} ${R.unit} in your plan</span></td>
-     <td class="ar tnum" style="font-weight:600">${f(m.free)}</td></tr></tfoot></table></div>
-  ${RC_REFUSED&&RC_REFUSED.k===activeRes?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${draftBar({k:activeRes})}
+     <td class="ar tnum" style="font-weight:600">${f(Math.max(0,alloc-m.used))}</td></tr></tfoot></table></div>
+  ${RC_REFUSED&&RC_REFUSED.k===activeRes?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}
   </div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Capacity requests</span>
    <span class="sub">${REQUESTS.length} pending</span></div><div class="panel-b">${reqs}</div></div>
@@ -7007,8 +7037,8 @@ function drawerHTML(){
    is the largest share whose reservations still fit what is available today. */
 const NC_SHARE_DEFAULT=10;
 const ncStep=k=>{const p=RES[k].pool;return p>=100000?500:p>=5000?50:p>=1000?10:5};
-function ncShareMax(){let mx=100;RK.filter(k=>RES[k].floors).forEach(k=>{const m=compute(k);mx=Math.min(mx,Math.floor(m.free/RES[k].pool*100))});return Math.max(1,mx)}
-function ncTightest(){let b=null;RK.filter(k=>RES[k].floors).forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
+function ncShareMax(){let mx=100;RK.forEach(k=>{const m=compute(k);mx=Math.min(mx,Math.floor(m.free/RES[k].pool*100))});return Math.max(1,mx)}
+function ncTightest(){let b=null;RK.forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
 function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share==null?NC_SHARE_DEFAULT:nc.share))}
 function ncDerived(k){const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)}
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
@@ -7117,7 +7147,7 @@ function renderDrawer(){
  const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step=1;renderDrawer()};
  const d=el("drDone");if(d)d.onclick=()=>{cap();
    /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
-   const bad=RK.filter(k=>RES[k].floors&&nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
+   const bad=RK.filter(k=>nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
    if(bad.length){nc.open=true;nc.err=bad.map(k=>`${RES[k].label.replace(/ \/ month$/,"")} exceeds what is available today (${f(nc.custom[k])} against ${f(compute(k).free)})`).join("; ")+".";renderDrawer();
      bad.forEach(k=>{const i=document.querySelector('#ncUsage [data-cap="'+k+'"]');if(i)i.classList.add("is-err")}); const first=document.querySelector("#ncUsage input.is-err"); if(first)first.focus(); return}
    create()};
@@ -7144,6 +7174,7 @@ function create(){
  if(nc.email) LASTSEEN[nc.email]="never";
  RK.forEach(k=>{const cap=ncCapFor(k);
   RES[k].rows[id]={res:RES[k].floors?cap:0,cap,used:0}});
+ c.share=ncShare();
  nc=NC_INIT();
  drawer=null;renderDrawer();
  /* Version C: the first client is the moment the account becomes a workspace
@@ -7999,6 +8030,26 @@ function modalHTML(){
     is the one people actually want to know, so it is given equal weight, and
     the fact that it is reversible is stated rather than left to be discovered
     (23 §3.2: deleting the only client returns the account to where it was).  */
+ if(modal.kind==="share"){
+  const sc=c, cur=modal.share!=null?modal.share:(SHARE0[sc.id]||sc.share||NC_SHARE_DEFAULT);
+  const capAt=(k,sh)=>{const st=RES[k].step; return Math.max(RES[k].rows[sc.id].used,Math.max(st,Math.floor(RES[k].pool*sh/100/st)*st))};
+  let mn=1, mx=100;
+  RK.forEach(k=>{const R=RES[k], r=R.rows[sc.id]; if(!r) return;
+   mn=Math.max(mn,Math.ceil(r.used/R.pool*100));
+   mx=Math.min(mx,Math.floor((R.pool-(allocOf(k)-r.cap))/R.pool*100))});
+  mx=Math.max(mn,mx); const sh=Math.max(mn,Math.min(mx,cur));
+  const tiles=["sends","lead_finder","verification","ai"].map(k=>`<div class="nc-share-tile"><b data-shtile="${k}">${f(capAt(k,sh))}</b><span>${k==="sends"?"emails a month":RES[k].label.replace(/ \/ month$/,"").toLowerCase()}</span></div>`).join("");
+  const tight=(()=>{let b=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const v=(R.pool-(allocOf(k)-r.cap))/R.pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""})();
+  return card(`Change ${sc.name.split(" ")[0]}'s share of your plan`,`
+   <div class="nc-usage" id="shUsage">
+    <div class="nc-urow"><label class="flabel" for="shShare" style="margin:0">How much of your plan ${sc.name.split(" ")[0]} can use each cycle</label><span class="nc-upct" id="shPct">${sh}%</span></div>
+    <input type="range" id="shShare" min="${mn}" max="${mx}" step="1" value="${sh}" style="--p:${mx>mn?Math.round((sh-mn)/(mx-mn)*100):100}%" aria-label="Share of your plan">
+    <div class="nc-ucap"><span>At least ${mn}% today: nothing goes below what is already used.</span><span>Up to ${mx}% today. ${tight} runs out first.</span></div>
+    <div class="nc-share-tiles">${tiles}</div>
+    <p class="sub" style="margin:10px 0 0">Every limit follows the share, except the ones you typed yourself. Credits are reserved for ${sc.name.split(" ")[0]} at these amounts.</p>
+   </div>`,
+   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-mconfirm>Apply ${sh}%</button>`,"modal--560");
+ }
  if(modal.kind==="agencyconfirm"){
   const O=AGENCY_OWN;
   /* One sentence, the picture, one undo line. The picture carries the model:
@@ -8235,6 +8286,12 @@ function renderModal(){
      modal=null;renderModal();render();return;
    }
    if(modal.kind==="rollback"){modal=null;renderModal();render();return}
+   if(modal.kind==="share"){const sc=byId[id], sl=L.querySelector("#shShare"), sh=sl?+sl.value:NC_SHARE_DEFAULT, prev=[];
+     RK.forEach(k=>{const R=RES[k], r=R.rows[id]; if(!r||r.custom) return; const st=R.step, v=Math.max(r.used,Math.max(st,Math.floor(R.pool*sh/100/st)*st)); if(v!==r.cap){prev.push([k,r.cap]); r.cap=v; syncRes(k,r)}});
+     sc.share=sh; SHARE0[id]=sh; RC_REFUSED=null;
+     receipt("client:"+id,`${sc.name} now has ${sh}% of your plan; ${prev.length} limit${prev.length===1?"":"s"} changed.`,()=>{prev.forEach(([k,v])=>{RES[k].rows[id].cap=v;syncRes(k,RES[k].rows[id])});render()},`changed ${sc.name}'s share`);
+     logAct(id,`Share of the plan set to ${sh}%`);
+     modal=null;renderModal();render();return}
    if(modal.kind==="delete"){const c=byId[id], live=CLIENTS.filter(x=>!x.deletedOn&&x.id!==id);
      if(!live.length){
       /* item 36, 28 Sep 2026: the Add a workspace confirmation promises "you can
@@ -8262,6 +8319,11 @@ function renderModal(){
    modal=null;renderModal();render();
  };
  el("mscrim").onclick=e=>{if(e.target.id==="mscrim"){modal=null;renderModal()}};
+ {const sl=L.querySelector("#shShare"); if(sl) sl.oninput=()=>{const sh=+sl.value, id=modal.client, mn=+sl.min, mx=+sl.max;
+   sl.style.setProperty("--p",(mx>mn?Math.round((sh-mn)/(mx-mn)*100):100)+"%");
+   const p=L.querySelector("#shPct"); if(p) p.textContent=sh+"%";
+   L.querySelectorAll("[data-shtile]").forEach(b=>{const k=b.dataset.shtile,R=RES[k],st=R.step; b.textContent=f(Math.max(R.rows[id].used,Math.max(st,Math.floor(R.pool*sh/100/st)*st)))});
+   const okb=L.querySelector("[data-mconfirm]"); if(okb) okb.textContent="Apply "+sh+"%"}}
 }
 
 /* ═══ Coming soon ═══════════════════════════════════════════════════════════
@@ -8769,9 +8831,9 @@ function wire(){
  q("[data-raise]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.raise.split("|");
    const m=compute(k), step=Math.max(500,Math.round(m.free*0.4/500)*500);
    FLASH_CID=(!REDUCED()&&view.name==="dash")?id:null;
-   decide(b,()=>{RES[k].rows[id].cap+=step;
+   decide(b,()=>{RES[k].rows[id].cap+=step; syncRes(k,RES[k].rows[id]);
     receipt("queue",`Raised. ${byId[id].name} can use ${f(RES[k].rows[id].cap)} ${RES[k].unit}, ${f(compute(k).free)} left in the pool.`,
-      ()=>{RES[k].rows[id].cap-=step}, `raised ${byId[id].name}'s ${RES[k].label.toLowerCase()} limit by ${f(step)}`,
+      ()=>{RES[k].rows[id].cap-=step; syncRes(k,RES[k].rows[id])}, `raised ${byId[id].name}'s ${RES[k].label.toLowerCase()} limit by ${f(step)}`,
       `Raised &middot; ${byId[id].name} &middot; ${f(compute(k).free)} ${RES[k].unit} left`)})});
  /* Decided 14 Sep 2026, Hitesh: replying from a roll-up must not throw the
     operator into the client's workspace and back. The thread opens in place,
@@ -8916,18 +8978,12 @@ function wire(){
  q("[data-gobill]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
- q("input[data-cid]").forEach(i=>i.onchange=()=>{DRAFT[dkey(activeRes,i.dataset.cid,i.dataset.fld)]=num(i.value);render()});
- q("input[data-lim]").forEach(i=>i.onchange=()=>{const k=i.dataset.lim, fld=i.dataset.fld, v=num(i.value);
-   if(view.name!=="record"){DRAFT[dkey(k,view.id,fld)]=v;render();return}
-   /* 2 Oct 2026 (S2): on the record each number saves as you leave it */
-   const c=byId[view.id], R=RES[k], r=R.rows[view.id], was=r[fld]; if(!c||!r||v===was){render();return}
-   if(fld==="res"&&R.floors){const tot=Object.keys(R.rows).reduce((t,id)=>t+(id===view.id?v:R.rows[id].res),0);
-     if(tot>R.pool){RC_REFUSED={id:view.id,k,text:`Not saved. Reserved ${R.label.toLowerCase()} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. Reduce it by ${f(tot-R.pool)} or add capacity.`};render();return}}
-   RC_REFUSED=null; r[fld]=v;
-   const stops=fld==="cap"&&v<r.used, what=fld==="res"?"reservation":"limit";
-   receipt("client:"+c.id,`${c.name}'s ${R.label.toLowerCase()} ${what} is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":""}`,()=>{r[fld]=was},`changed ${c.name}'s ${R.label.toLowerCase()} ${what}`);
-   logAct(c.id,`${R.label} ${what} changed from ${f(was)} to ${f(v)}`);
-   render()});
+ q("input[data-cid]").forEach(i=>i.onchange=()=>{setLimit(activeRes,i.dataset.cid,num(i.value)); render()});
+ q("input[data-lim]").forEach(i=>i.onchange=()=>{const k=i.dataset.lim; if(view.name!=="record"){DRAFT[dkey(k,view.id,"cap")]=num(i.value);render();return}
+   setLimit(k,view.id,num(i.value)); render()});
+ q("[data-rlstep]").forEach(b=>b.onclick=()=>{const [k,d]=b.dataset.rlstep.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+RES[k].step*(+d)); render()});
+ q("[data-rlgive]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlgive.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+(+n)); render()});
+ q("[data-share]").forEach(b=>b.onclick=()=>{modal={kind:"share",client:b.dataset.share,share:null};renderModal()});
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
  q("[data-dapply]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.dapply.split("|");
    /* a save that would reserve more than the plan holds is refused, and the
@@ -8953,10 +9009,11 @@ function wire(){
  const bs=el("bifSw");if(bs)bs.onclick=()=>{setBif(view.id,bs.getAttribute("aria-checked")!=="true");render()};
  q("[data-ok]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.ok); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
-  decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+  if(compute(r.res).free<r.amount){RC_REFUSED={id:r.client,k:r.res,text:`Not approved. Only ${f(compute(r.res).free)} ${RES[r.res].unit} are available in the plan. Lower another workspace or add capacity.`};render();return}
+  decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
    receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
-     ()=>{R.rows[r.client].cap-=r.amount; REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
+     ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
@@ -9872,6 +9929,33 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .pp-type{font-size:13px;color:var(--gray-15)}
 .rc-swatches{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc-swatches .nc-swatch{width:22px;height:22px}.rc-swname{margin-left:4px}
 .rc-grp{margin-bottom:24px}.rc-grp-h{display:flex;align-items:center;gap:12px;padding:0 4px 10px}.rc-grp-h b{font-size:14px;font-weight:600;color:var(--gray-17)}.rc-mtbl .pp-row:last-child{border-bottom:0}.pp-st--off{color:#6b7280}.pp-st--off i{background:#9ca3af}
+
+/* ═══ S3 Limits build, 2 Oct 2026 (doc 66, canvas row 09b D2b; Billing as D1) ═══ */
+.lm-share{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;border-bottom:1px solid var(--gray-16);background:var(--gray-19);font-size:13px;color:var(--gray-15)}
+.lm-share b{font-weight:600;color:var(--gray-17)}.lm-share .linkbtn{font-size:13px;margin-left:4px}
+.lm-rows{padding:0 24px}
+.lm-row{display:grid;grid-template-columns:minmax(0,1fr) 320px 470px;align-items:center;gap:16px;padding:10px 0;border-top:1px solid var(--gray-16);margin:0 -24px;padding-left:24px;padding-right:24px;transition:background .12s}
+.lm-row:first-child{border-top:0}
+.lm-row:hover,.lm-row:focus-within,.lm-row.is-focus{background:var(--gray-19)}
+.lm-name{display:flex;flex-direction:column;gap:2px}.lm-name b{font-size:13px;font-weight:500;color:var(--gray-17)}
+.lm-use{display:flex;flex-direction:column;gap:5px}
+.lm-bar{display:block;width:200px;height:4px;background:var(--gray-16);border-radius:2px;overflow:hidden}.lm-bar>span{display:block;height:4px}
+.lm-pace b{font-weight:500}.lm-pace b.is-bad{color:var(--red-18)}.lm-pace b.is-warn{color:var(--orange-12)}
+.lm-right{display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.lm-ctl{display:inline-flex;align-items:center;gap:6px}
+.lm-step{width:32px;height:32px;border:1px solid var(--gray-23);border-radius:4px;background:#fff;color:var(--gray-15);font:inherit;font-size:16px;line-height:1;cursor:pointer;opacity:0;transition:opacity .15s}
+.lm-step:hover{border-color:var(--blue-11);color:var(--blue-11)}
+.lm-chips{display:flex;gap:6px;opacity:0;transition:opacity .15s}
+.lm-chip{height:24px;padding:0 10px;border-radius:999px;border:1px solid var(--gray-23);background:#fff;color:var(--gray-12);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
+.lm-chip:hover{border-color:var(--blue-11);color:var(--blue-11);background:var(--blue-17)}
+.lm-row:hover .lm-step,.lm-row:focus-within .lm-step,.lm-row.is-focus .lm-step,.lm-row:hover .lm-chips,.lm-row:focus-within .lm-chips,.lm-row.is-focus .lm-chips{opacity:1}
+.lm-ctl .numin input{width:150px}
+.modal--560{width:560px}
+.al-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--gray-16)}
+.al-seg{position:relative;display:block;height:14px;background:#fff;border-right:2px solid #fff;box-sizing:border-box}
+.al-seg b{position:absolute;inset:0;opacity:.28}.al-seg i{position:absolute;left:0;top:0;bottom:0;display:block;opacity:.9}
+.al-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--gray-15)}
+.al-leg{display:inline-flex;align-items:center;gap:6px}.al-leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10153,7 +10237,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="677cf0c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="2d00dda";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
