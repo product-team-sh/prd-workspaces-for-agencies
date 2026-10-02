@@ -3744,8 +3744,8 @@ function rcLimSentence(c){
  const avail=Math.max(0,R.pool-m.used-heldOthers), left=avail-room;
  if(cap<r.used) return `<b>${first}</b> has already sent <b class="tnum">${f(r.used)}</b> emails this cycle, more than a limit of ${f(cap)}; sending stops the moment this is applied.`;
  return left<0
-  ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the pool can still give</span>, so they would hit the pool before the limit and nothing would stay free for anyone else.`
-  :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay free for everyone else.`;
+  ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the pool can still give</span>, so they would hit the pool before the limit and nothing would stay available for anyone else.`
+  :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay available for everyone else.`;
 }
 function rLimits(c){
  const bif=isBif(c.id);
@@ -4380,7 +4380,7 @@ function poolBar(k,opts){
    ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for workspaces"></span>`:""}</div>
   ${agency?blWsBar(k):""}
   <div class="ub-f"><span class="sub">${f(R.pool-m.used)} (${100-p}%) remaining${m.held?", "+f(m.held)+" of it reserved for workspaces":""}</span>
-   ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> free to draw</span>
+   ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> available to draw</span>
      <button class="linkbtn" data-goalloc="${k}">Workspace limits &rarr;</button></span>`:""}</div></div>`;
 }
 function vPlatform(){
@@ -4441,7 +4441,7 @@ function vEmailBilling(){
     billing report of what every workspace bought, not a purchase entry; each
     row's "Email accounts" link is where that changes. */
  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">Email accounts</span><span class="sub">Connected accounts are free; accounts bought through Saleshandy bill monthly, itemised by workspace</span></div>
+   <div class="panel-h"><span class="panel-t">Email accounts</span><span class="sub">Connected accounts cost nothing; accounts bought through Saleshandy bill monthly, itemised by workspace</span></div>
    <div class="stats">
     <div class="stat"><span class="stat-l">Connected</span><span class="stat-v">${total}</span></div>
     <div class="stat"><span class="stat-l">Bought through Saleshandy</span><span class="stat-v">${bought}</span></div>
@@ -4709,7 +4709,7 @@ function planCard(norm){
  const rows=RK.map(k=>{const R=RES[k], m=compute(k), u=m.used, p=R.pool, d=burnDays(k), share=u/p, cons=R.nature!=="Storage";
    const lasts=!cons||d===Infinity||d>=CYCLE.days-CYCLE.day;
    const tone=share>=1?"bad":!lasts?"warn":share>=R.warn?"warn":"ok";
-   const say=share>=1?"Used up":!cons?f(p-u)+" free":lasts?"Lasts the cycle":"Runs out "+onDay(d);
+   const say=share>=1?"Used up":!cons?f(p-u)+" available":lasts?"Lasts the cycle":"Runs out "+onDay(d);
    return '<div class="pace-row"><span class="pace-row-l"><b>'+R.label.replace(" Credits","").replace("Monthly Emails Sent","Emails")+'</b><i class="tnum">'+abbr(u)+'/'+abbr(p)+'</i></span>'
     +'<span class="pace-bar"><i style="width:'+Math.min(100,share*100).toFixed(1)+'%" class="'+tone+'"></i><em style="left:'+el+'%" title="'+el+'% of the cycle gone"></em></span>'
     +'<span class="pace-say '+tone+'">'+say+'</span></div>'}).join("");
@@ -6870,7 +6870,7 @@ function drawerHTML(){
    return `<div class="nc-limrow" data-capfor="${k}">
     <span class="nc-limlab"><b>${R.label}</b><i>${R.nature}</i></span>
     <span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
-     <i><span class="nc-poolused" title="${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} free</b></span></i></span>
+     <i><span class="nc-poolused" title="${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} available</b></span></i></span>
     <span class="nc-limin">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</span></div>`};
  /* 29 Sep 2026, Hitesh: UI and functional rework. Every credit and limit the
     plan holds, in one design-system table, credits (reservable) above caps. */
@@ -6880,7 +6880,7 @@ function drawerHTML(){
    return `<tr data-capfor="${k}">
     <td><span style="display:block;font-weight:500;color:var(--gray-17)">${R.label}</span><span class="sub">${R.nature}</span></td>
     <td><span class="nc-pool"><span class="nc-poolbar"><span style="width:${pu}%"></span><span style="width:${ph}%"></span></span>
-     <i><span class="nc-poolused">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} free</b></span></i></span></td>
+     <i><span class="nc-poolused">${f(m.used)} used${m.held?", "+f(m.held)+" reserved":""} of ${f(R.pool)}</span><span class="nc-poolfree">&middot; <b>${f(m.free)} available</b></span></i></span></td>
     <td class="ar">${numIn(sug,R.unit,`data-cap="${k}" aria-label="${R.label} limit"`)}</td></tr>`};
  const credits=RK.filter(k=>RES[k].floors), caps=RK.filter(k=>!RES[k].floors);
  const grp=t=>`<tr class="grouprow"><td colspan="3">${t}</td></tr>`;
@@ -6921,8 +6921,8 @@ function ncLimSentence(){
  const sm=compute("sends"), cap=capOf("sends"), over=cap>sm.free;
  if(!nc.bif){
   return over
-   ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} free today</span>, so they would hit the pool before the cap and nothing would stay free for another workspace.`
-   :`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, leaving <b class="tnum">${f(sm.free-cap)}</b> of the ${f(sm.free)} free today for everyone else.`;
+   ?`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">more than the ${f(sm.free)} available today</span>, so they would hit the pool before the cap and nothing would stay available for another workspace.`
+   :`<b>${who}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, leaving <b class="tnum">${f(sm.free-cap)}</b> of the ${f(sm.free)} available today for everyone else.`;
  }
  const held=RK.filter(k=>RES[k].floors).map(k=>{const m=compute(k),c=capOf(k);return {l:RES[k].label.replace(/ (Credits|Tests)$/,""),left:m.free-c,free:m.free,c}});
  const short=held.filter(h=>h.left<0);
@@ -7207,7 +7207,7 @@ function cLeads(c){
  const canReq=canC(c,"request");
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">Lead Finder</span>
-   <span class="sub">Search is free. Revealing a lead spends ${AGENCY.name}'s credits</span>
+   <span class="sub">Searching costs nothing. Revealing a lead spends ${AGENCY.name}'s credits</span>
    <span class="c-a"><span class="chip c-${may?st.tone:"mute"}">${may
      ?(left?f(left)+" reveals left this month":"No reveals left")
      :"Search only"}</span></span></div>
@@ -9903,7 +9903,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="12816de";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="19fe7d0";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
