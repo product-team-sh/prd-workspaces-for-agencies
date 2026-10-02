@@ -972,7 +972,7 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
    deleted, unemitted - the same earlier migration design as .step-row above.
    (29 Sep 2026: this comment used to contain a stray close-comment sequence, which
    swallowed the .scrim rule below it, so the Add a workspace modal had no backdrop.) */
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80} /* modal/Overlay-Background, SD v3 (Hitesh, 29 Sep 2026: "behind screen should be a bit under shadow") */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1099} /* modal/Overlay-Background, SD v3 (Hitesh, 29 Sep 2026: "behind screen should be a bit under shadow") */
 /* above the 999 sidebar, or the rail paints over the dialog it is meant to sit
    behind, and clips the dialog's left edge at narrow widths */
 .mscrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1099}
@@ -981,7 +981,7 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
    min-height: 26.063rem }`. The three steps stay; only the shell changed, so
    the most-used create path looks like the rest of the product. Body scrolls
    inside a capped height rather than the page growing.                      */
-.drawer{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+.drawer{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1100;
  width:min(450px,calc(100vw - 32px));min-height:417px;max-height:calc(100vh - 64px);
  background:var(--gray-1);z-index:90;display:flex;flex-direction:column;
  box-shadow:var(--shadow-lg);border-radius:var(--radius-control);overflow:hidden}
@@ -3497,6 +3497,20 @@ const CLIENT_ROLE_DEFS={
    wizTail:"sees everything in the workspace and can change nothing."},
 };
 const roleSet=role=>CLIENT_ROLE_DEFS[role]||CLIENT_ROLE_DEFS["Workspace Viewer"];
+/* 2 Oct 2026, Hitesh (canvas row 12, B): the description lives in the control.
+   One line per workspace role, the same line in the radio list (a form field) and
+   in the dropdown (a role in a row), written from CLIENT_ROLE_DEFS and §8.5. */
+const WS_ROLE_LINE={
+ "Workspace Admin":"Runs the workspace: edits sequences, adds prospects and templates, exports, reveals leads against the limit.",
+ "Workspace Collaborator":`Does the outreach: reads everything, replies, connects their own email accounts. Changing what goes out stays with ${AGENCY.name}.`,
+ "Workspace Viewer":"Looks only: sees every screen and the allowance, changes nothing.",
+};
+const roleLine=r=>WS_ROLE_LINE[r]||"";
+const roleItems=()=>CLIENT_ROLES.map(x=>({value:x,label:x,desc:roleLine(x)}));
+/* the radio list: a role as one field of a form (Add a workspace, Invite people) */
+function roleRadios(name,value,attr){
+ return `<div class="role-list" role="radiogroup">${CLIENT_ROLES.map(x=>`<label class="role-opt${x===value?" is-on":""}"><input type="radio" name="${name}" value="${x}" ${x===value?"checked":""} ${attr||""}><span><b>${x}</b><i>${roleLine(x)}</i></span></label>`).join("")}</div>`;
+}
 
 /* ═══ people: account role vs workspace membership ═══
    Two questions that look like one and are not. What may you do to the BUSINESS
@@ -3708,7 +3722,7 @@ function rMembers(c){
  const more=r=>`<span class="pp-end">${canEdit&&r.role!=="Owner"?`<button class="ubtn pp-more" aria-haspopup="menu" aria-expanded="${peopleMenu===r.key}" data-pmenu="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${peopleMenu===r.key?peopleMenuHTML(r):""}`:""}</span>`;
  let n=0;
  const roleDD=(pfx,key,val)=>{if(!canEdit) return `<span class="pp-roletxt">${ppShort(val)}</span>`; const id=pfx+(n++); RC_DDMAP[id]={key,c:c.id};
-  return `<div class="rc-dd">${ddHTML(id,val,[{items:CLIENT_ROLES.map(x=>({value:x,label:ppShort(x)}))}])}</div>`};
+  return `<div class="rc-dd">${ddHTML(id,val,[{items:CLIENT_ROLES.map(x=>({value:x,label:ppShort(x),desc:roleLine(x)}))}])}</div>`};
  const urow=r=>`<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${roleDD("rcrole",r.key,r.role)}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`;
  const trow=r=>{const P=PEOPLE[r.key.slice(2)], fixed=r.role!=="Member";
   return `<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${fixed?`<span class="pp-roletxt">Workspace Admin <span class="sub">&middot; every workspace</span></span>`:roleDD("rcwsrole",r.key,ppWsRole(P,c.id))}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`};
@@ -4147,7 +4161,7 @@ function ppPanelHTML(){
  const r=ppTeam().find(x=>x.k===k), all=myClients(), inWs=r.ws===null?all:r.ws.map(id=>byId[id]), notIn=r.ws===null?[]:all.filter(c=>r.ws.indexOf(c.id)<0);
  const roleCard=(role,title,line)=>`<label class="pp-rcard${P.role===role?" is-on":""}"><span><input type="radio" name="ppacct" value="${role}" ${P.role===role?"checked":""} ${P.role==="Owner"?"disabled":""} data-ppacct>${title}</span><i>${line}</i></label>`;
  const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+P.role+" role":"Since "+(c.created||"the start")+" &middot; "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequences owned"}</i></span>
-   ${r.ws===null?`<span class="sub">Workspace Admin</span>`:ddHTML("ppwsrole-"+c.id,ppWsRole(P,c.id),[{items:PP_WS_ROLES.map(x=>({value:x,label:ppShort(x)}))}])+`<button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
+   ${r.ws===null?`<span class="sub">Workspace Admin</span>`:ddHTML("ppwsrole-"+c.id,ppWsRole(P,c.id),[{items:PP_WS_ROLES.map(x=>({value:x,label:ppShort(x),desc:roleLine(x)}))}])+`<button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
  return `<div class="mscrim" id="mscrim"><aside class="pp-drawer" role="dialog" aria-modal="true" aria-label="${P.name}">
   <div class="pp-dr-h">${ppAv(r.initials,"#DBEAFE",44)}<span class="pp-dr-t"><b>${P.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i><i>${r.invited?"Invited "+r.invited+" &middot; not signed in yet":"On your team &middot; last active "+r.seen}</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="pp-dr-b">
@@ -4274,7 +4288,7 @@ function ddHTML(id,value,groups,o){
  const chk='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
  return `<div class="dd${o.disabled?" is-disabled":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
   <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}><span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
-  <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
+  <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.desc}</span>`:x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
 }
 function wireDD(L,id,onPick){
  const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
@@ -4315,7 +4329,7 @@ function inviteHTML(){
     ${ddHTML("invWs",I.clientWs,[{items:wsList.filter(x=>!x.own).map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a workspace",disabled:!!I.lock})}
     <span class="sub nc-hint" style="margin-top:6px">${I.lock?"Inviting into "+lockName+".":I.guessed&&c?"Guessed from the email domain. Change it if we got it wrong.":"The one workspace this person signs in to."}</span></div>
    <div class="field"><span class="flabel">Role in that workspace</span>
-    <div class="inv-roles" role="radiogroup">${CLIENT_ROLES.map(x=>`<label class="inv-role${x===r?" is-on":""}"><input type="radio" name="invrole" value="${x}" ${x===r?"checked":""} data-invrole><span>${x==="Workspace Admin"?x:invShort(x)}</span><i>${INV_ROLE_HINT[x]}</i></label>`).join("")}</div></div>
+    ${roleRadios("invrole",r,"data-invrole")}</div>
   </div>`;
  }
  return card("Invite people",`
@@ -4358,7 +4372,7 @@ function chroleHTML(){
  return card("Change role",`
    <p class="ac-lead" style="margin-bottom:12px"><b>${r.name}</b> ${r.email?`<span class="sub">${r.email}</span>`:""}</p>
    <div class="field" style="margin-bottom:0"><label class="flabel" for="chRole">Role</label>
-    ${ddHTML("chRole",to,[{items:roles.map(x=>({value:x,label:x}))}])}
+    ${ddHTML("chRole",to,[{items:roles.map(x=>({value:x,label:x,desc:r.kind==="team"?ROLE_WHAT[x]:roleLine(x)}))}])}
     <p class="sub nc-hint" style="margin-top:6px">${to==="Admin"?"Runs the account day to day and reaches every workspace.":to==="Member"?"Works only in the workspaces they are assigned to.":roleSet(to).desc+"."}</p></div>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-chroleok ${to===r.role?"disabled":""}>Change role</button>`,"ac");
 }
@@ -7012,9 +7026,8 @@ function drawerHTML(){
   <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
   <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" class="${nc.emailErr?"is-err":""}" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%" aria-invalid="${nc.emailErr?"true":"false"}">
    ${nc.emailErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.emailErr}</span></p>`:`<p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p>`}</div>
-  <div class="field"><label class="flabel" for="ncrole">Their role</label>
-   ${ddHTML("ncrole",nc.role,[{items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
-   <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
+  <div class="field"><div class="pp-sec-row"><span class="flabel" id="ncRoleLab" style="margin:0">Their role</span><button type="button" class="linkbtn" data-pproles style="font-size:12px">What each role can do</button></div>
+   <div id="ncrole" aria-labelledby="ncRoleLab" style="margin-top:8px">${roleRadios("ncrole",nc.role,"data-ncrole")}</div></div>
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <div class="msg m-info" style="margin-top:20px">${infoI}<span>Next: how much of your plan this workspace can use. You will be switched into it right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
  /* 2 Oct 2026, Hitesh: "split in 2 steps, that way we keep mental separation for our user". Step 2 is the share block from board row 03. */
@@ -7102,17 +7115,19 @@ function syncSwatches(){const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PA
  document.querySelectorAll("[data-ncswatch]").forEach(b=>{const on=b.dataset.ncswatch===col;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false")})}
 function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
  nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev();syncSwatches()}
+function shellInert(){const on=!!(drawer||modal);["sb","page","topbar"].forEach(k=>{const e=document.querySelector(k==="sb"?".sb":k==="page"?"#page":".topbar");if(e){if(on)e.setAttribute("inert","");else e.removeAttribute("inert")}})}
 function renderDrawer(){
- const L=el("layer");if(!drawer){L.innerHTML="";return}
+ const L=el("layer");shellInert();if(!drawer){L.innerHTML="";return}
  L.innerHTML=drawerHTML();
  L.querySelectorAll(".sw").forEach(b=>b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true"));
- const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=el("ncrole"),st=el("ncsite");
+ const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=document.querySelector("[data-ncrole]:checked"),st=el("ncsite");
    if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;if(st)nc.site=st.value;
-   if(r)nc.role=r.dataset.value;
+   if(r)nc.role=r.value;
    nc.bif=true};
  /* the role select changes both the description under it and the "what they
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
- wireDD(document,"ncrole",v=>{nc.role=v;cap();renderDrawer()});
+ document.querySelectorAll("[data-ncrole]").forEach(r=>r.onchange=()=>{nc.role=r.value;document.querySelectorAll("#ncrole .role-opt").forEach(l=>l.classList.toggle("is-on",l.querySelector("input").checked))});
+ document.querySelectorAll("#ncrole ~ * [data-pproles], .dr-b [data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:null};renderModal()});
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
  L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
@@ -7127,7 +7142,7 @@ function renderDrawer(){
     rather than waiting for cap() to run on the next step. */
  /* the email typed here is also who ncAccessSentence names as the subject;
     only that one paragraph repaints, so the field keeps its caret */
- {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value;const p=el("ncAccSay");if(p)p.innerHTML=ncAccessSentence()}}
+ {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value}}
  /* the reserve switch changes what the column means, so the step repaints */
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
  /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
@@ -8238,7 +8253,7 @@ function card(title,body,foot,cls){
    <div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`;
 }
 function renderModal(){
- const L=el("modalLayer"); if(!modal){L.innerHTML="";renderToast();return}
+ const L=el("modalLayer"); shellInert(); if(!modal){L.innerHTML="";renderToast();return}
  L.innerHTML=modalHTML();
  wirePeopleModal(L); wirePP(L); renderToast();
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; if(!back){INV=null;PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
@@ -9962,6 +9977,23 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .al-seg b{position:absolute;inset:0;opacity:.28}.al-seg i{position:absolute;left:0;top:0;bottom:0;display:block;opacity:.9}
 .al-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--gray-15)}
 .al-leg{display:inline-flex;align-items:center;gap:6px}.al-leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* ═══ role descriptions in the control, 2 Oct 2026 (canvas row 12, B) ═══ */
+.role-list{display:flex;flex-direction:column;gap:6px}
+.role-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--gray-23);border-radius:4px;background:#fff;cursor:pointer;transition:border-color .12s,background .12s}
+.role-opt:hover{border-color:var(--gray-11)}
+.role-opt.is-on{border:1.5px solid var(--blue-11);background:#eff6ff;padding:9.5px 11.5px}
+.role-opt input{width:16px;height:16px;margin:1px 0 0;accent-color:var(--blue-11)}
+.role-opt>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.role-opt b{font-size:13px;line-height:18px;font-weight:500;color:var(--gray-17)}
+.role-opt i{font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15)}
+.dd-opt:has(.dd-desc){align-items:flex-start;padding:10px 16px}
+.dd-l{display:block;font-size:13px;line-height:18px}
+.dd-desc{display:block;font-size:12px;line-height:16px;color:#6b7280;font-weight:400;white-space:normal;margin-top:2px}
+.dd-opt.is-sel .dd-desc{color:#4338ca;opacity:.8}
+.rc-dd .dd-menu,.pp-wsrow .dd-menu{width:320px}
+/* the drawer always sits above its scrim, which now covers the rail and topbar (2 Oct 2026) */
+#layer .drawer,#layer .scrim+.drawer,.drawer.nc-modal{z-index:1100}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10243,7 +10275,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e172521";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="858f01c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
