@@ -2521,12 +2521,17 @@ const meter=(p,tone,state,suffix)=>'<div class="meter"><div class="track"><span 
 /* ═══ model ═══ */
 function compute(k){const R=RES[k],ids=Object.keys(R.rows);let used=0,res=0,held=0,caps=0;
  ids.forEach(i=>{const r=R.rows[i];used+=r.used;res+=r.res;caps+=r.cap;held+=Math.max(0,r.res-r.used)});
- return{R,ids,used,reserved:res,held,caps,free:Math.max(0,R.pool-used-held),oversub:caps/R.pool,ok:res<=R.pool}}
+ /* 2 Oct 2026, Hitesh ("proper 10% is not applied for all limits"): with limits
+    that never total more than the plan, what is available is the plan minus every
+    limit already given, the same number on creation, the record and Billing. It
+    used to be the plan minus use, which read as a different ceiling per screen. */
+ return{R,ids,used,reserved:res,held,caps,free:Math.max(0,R.pool-caps),oversub:caps/R.pool,ok:caps<=R.pool}}
 function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
  /* no row means the agency does not fund this workspace, not that it sits at zero */
  if(!r) return{pct:0,room:Infinity,draw:Infinity,state:"Own plan",tone:"info",unfunded:true};
  const pct=r.cap>0?r.used/r.cap:1;
- const room=Math.max(0,r.cap-r.used),floor=Math.max(0,r.res-r.used),draw=Math.min(room,floor+m.free);
+ /* a limit is always backed by the plan, so what a workspace can still use is its own room */
+ const room=Math.max(0,r.cap-r.used),floor=Math.max(0,r.res-r.used),draw=room;
  let s,t;if(room===0){s=R.nature==="Storage"?"Imports blocked":"At limit";t="bad"}
  else if(draw===0){s="Pool exhausted";t="bad"}else if(pct>=R.warn){s="Near limit";t="warn"}else{s="Active";t="ok"}
  return{pct,room,draw,state:s,tone:t}}
@@ -3841,11 +3846,10 @@ function rcLimSentence(c){
  const box=el("rcLimTable");
  const val=fld=>{const i=box&&box.querySelector(`input[data-lim="sends"][data-fld="${fld}"]`); return i?num(i.value):RES.sends.rows[c.id][fld]};
  const m=compute("sends"), cap=val("cap"), first=c.name.split(" ")[0];
- const heldOthers=m.held-Math.max(0,r.res-r.used), room=Math.max(0,cap-r.used);
- const avail=Math.max(0,R.pool-m.used-heldOthers), left=avail-room;
+ const left=R.pool-(m.caps-r.cap)-cap;
  if(cap<r.used) return `<b>${first}</b> has already sent <b class="tnum">${f(r.used)}</b> emails this cycle, more than a limit of ${f(cap)}; sending stops the moment this is applied.`;
  return left<0
-  ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the pool can still give</span>, so they would hit the pool before the limit and nothing would stay available for anyone else.`
+  ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the plan can give</span>; that number will not save.`
   :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay available for everyone else.`;
 }
 function rLimits(c){
@@ -9813,6 +9817,8 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .modal .modal-h,.nc-modal .dr-h{padding:20px 24px;border-bottom:1px solid #e5e7eb}
 .modal .modal-b{padding:20px 24px}
 .modal .modal-f,.nc-modal .dr-f{padding:20px 24px;border-top:1px solid #e5e7eb;gap:8px}
+/* 2 Oct 2026, Hitesh: the footer's buttons sit on the same 24px edges as the body, Back flush left, Next flush right */
+.nc-modal .dr-f{margin:0;height:auto}
 /* Drawer: 432, Gray 900 at 35% overlay, head 70px, footer 20px 24px, slide in 0.26s */
 .pp-drawer{box-shadow:none;border-left:1px solid #e5e7eb;animation:drawerIn .26s ease}@keyframes drawerIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
 .mscrim:has(> .pp-drawer){background:rgba(17,24,39,.35)}
@@ -10237,7 +10243,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="2d00dda";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="e172521";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
