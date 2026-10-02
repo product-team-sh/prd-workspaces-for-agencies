@@ -3280,10 +3280,10 @@ function recStrip(c){
  return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
   <div class="rs-row">${cells.map(cell).join("")}</div></div>`;
 }
-const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue"};
+const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
 const colourName=h=>COLOUR_NAMES[String(h||"").toUpperCase()]||"Custom";
 const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:"–");
-let REC_EDIT=null;   /* the client whose Details card is being edited in place */
+let REC_EDIT=null, REC_COL=null;   /* the client whose Details card is being edited in place, and the colour picked while editing */
 function recAccessRows(c){
  const rows=[];
  (c.users||[]).forEach(u=>rows.push({ini:initials(u[0].split("@")[0]),col:c.colour,name:ppName(u[0]),sub:u[0],role:u[1],kind:"client"}));
@@ -3310,8 +3310,9 @@ function recDetailsCard(c,ro){
  if(REC_EDIT===c.id&&!ro){
   const inp=(id,v,label)=>`<dt><label for="${id}">${label}</label></dt><dd><input type="text" id="${id}" value="${String(v||"").replace(/"/g,"&quot;")}" aria-label="${label}"></dd>`;
   return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span></div><div class="panel-b"><dl class="dl rc-dl">
-   ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.company,"Company")}${inp("rdEmail",c.email==="–"?"":c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
-   <dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl>
+   ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.own?AGENCY.name:c.company,"Company")}${inp("rdEmail",c.email==="–"?"":c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
+   <dt>Created on</dt><dd>${c.created}</dd><dt><span id="rdColLab">Profile icon colour</span></dt><dd><div class="nc-swatches rc-swatches" role="group" aria-labelledby="rdColLab">${(()=>{const cur=(REC_COL||c.colour).toUpperCase(), pal=CLIENT_PAL.map(x=>x.toUpperCase()); if(pal.indexOf(cur)<0) pal.unshift(cur);
+     return pal.map(x=>`<button type="button" class="nc-swatch${x===cur?" is-on":""}" data-rdswatch="${x}" style="--c:${x}" aria-label="${colourName(x)}" aria-pressed="${x===cur?"true":"false"}"></button>`).join("")})()}<span class="sub rc-swname" id="rdColName">${colourName(REC_COL||c.colour)}</span></div></dd></dl>
    <div class="rc-dact"><button class="shd-button shd-button--primary shd-button--sm" data-rdsave="${c.id}">Save</button><button class="shd-button shd-button--tertiary shd-button--sm" data-rdcancel>Cancel</button></div></div></div>`;
  }
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span>${ro||!canI("members")?"":`<span class="c-a"><button class="linkbtn" data-rdedit="${c.id}">Edit</button></span>`}</div>
@@ -8739,14 +8740,16 @@ function wire(){
    receipt("client:"+c.id,`${c.name} restored. Everything is as it was.`,()=>{c.deletedOn=on;c.deletedBy=by;render()},`restored ${c.name}`); logAct(c.id,"Workspace restored"); render()});
  q("[data-goanalytics]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"analytics"};render()});
  q("[data-addteam]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:{[b.dataset.addteam]:"Workspace Collaborator"}}));
- q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;render();const i=el("rdName");if(i)i.focus()});
- q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;render()});
+ q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;REC_COL=null;render();const i=el("rdName");if(i)i.focus()});
+ q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;REC_COL=null;render()});
+ /* the swatch repaints itself, not the card, so typed fields keep their text */
+ q("[data-rdswatch]").forEach(b=>b.onclick=()=>{REC_COL=b.dataset.rdswatch; q("[data-rdswatch]").forEach(x=>{const on=x===b;x.classList.toggle("is-on",on);x.setAttribute("aria-pressed",on?"true":"false")}); const n=el("rdColName"); if(n) n.textContent=colourName(REC_COL)});
  q("[data-rdsave]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.rdsave]; if(!c) return;
-   const was={name:c.name,company:c.company,email:c.email,site:c.site};
+   const was={name:c.name,company:c.company,email:c.email,site:c.site,colour:c.colour};
    const v=id=>(el(id)&&el(id).value.trim())||"";
    const em=v("rdEmail"); if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash(el("rdEmail"),"That is not an email address");return}
-   c.name=v("rdName")||c.name; c.company=v("rdCompany")||c.company; if(em) c.email=em; const st=v("rdSite"); if(st) c.site=st;
-   REC_EDIT=null;
+   c.name=v("rdName")||c.name; c.company=v("rdCompany")||c.company; if(em) c.email=em; const st=v("rdSite"); if(st) c.site=st; if(REC_COL) c.colour=REC_COL;
+   REC_EDIT=null; REC_COL=null;
    receipt("client:"+c.id,`Details saved for ${c.name}.`,()=>{Object.assign(c,was);render()},`edited ${c.name}'s details`); logAct(c.id,"Details edited"); render()});
  Object.keys(RC_DDMAP).forEach(id=>wireDD(document,id,v=>{const m=RC_DDMAP[id], c=byId[m.c], r=rowByKey(m.key); if(!c||!r) return;
    if(id.indexOf("rcwsrole")===0){const P=PEOPLE[m.key.slice(2)], was=ppWsRole(P,c.id); if(v===was) return; P.roles=P.roles||{}; P.roles[c.id]=v;
@@ -9861,6 +9864,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .modal--450{width:450px}
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}
 .pp-type{font-size:13px;color:var(--gray-15)}
+.rc-swatches{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc-swatches .nc-swatch{width:22px;height:22px}.rc-swname{margin-left:4px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10142,7 +10146,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="93d51d0";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="f7dae99";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
