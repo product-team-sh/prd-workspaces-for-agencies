@@ -975,7 +975,7 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1099} /* modal/Overlay-Background, SD v3 (Hitesh, 29 Sep 2026: "behind screen should be a bit under shadow") */
 /* above the 999 sidebar, or the rail paints over the dialog it is meant to sit
    behind, and clips the dialog's left edge at narrow widths */
-.mscrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1099}
+.mscrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200} /* above the drawer (1100): a modal opened from inside Add a workspace sits on top of it (Hitesh, 2 Oct 2026) */
 /* Add Client is a centred modal, not a side drawer, because that is what the
    real screen is: `.add-client .modal-content { width: 28.125rem;
    min-height: 26.063rem }`. The three steps stay; only the shell changed, so
@@ -3508,6 +3508,7 @@ const WS_ROLE_LINE={
 const roleLine=r=>WS_ROLE_LINE[r]||"";
 const roleItems=()=>CLIENT_ROLES.map(x=>({value:x,label:x,desc:roleLine(x)}));
 /* the radio list: a role as one field of a form (Add a workspace, Invite people) */
+const validEmail=v=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v||"").trim());
 function roleRadios(name,value,attr){
  return `<div class="role-list" role="radiogroup">${CLIENT_ROLES.map(x=>`<label class="role-opt${x===value?" is-on":""}"><input type="radio" name="${name}" value="${x}" ${x===value?"checked":""} ${attr||""}><span><b>${x}</b><i>${roleLine(x)}</i></span></label>`).join("")}</div>`;
 }
@@ -7026,7 +7027,8 @@ function drawerHTML(){
   <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
   <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" class="${nc.emailErr?"is-err":""}" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%" aria-invalid="${nc.emailErr?"true":"false"}">
    ${nc.emailErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.emailErr}</span></p>`:`<p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p>`}</div>
-  <div class="field"><div class="pp-sec-row"><span class="flabel" id="ncRoleLab" style="margin:0">Their role</span><button type="button" class="linkbtn" data-pproles style="font-size:12px">What each role can do</button></div>
+  <!-- 2 Oct 2026, Hitesh: the role appears once there is a valid email to give it to -->
+  <div class="field nc-rolewrap" id="ncRoleWrap" ${validEmail(nc.email)?"":"hidden"}><div class="pp-sec-row"><span class="flabel" id="ncRoleLab" style="margin:0">Their role</span><button type="button" class="linkbtn" data-pproles style="font-size:12px">What each role can do</button></div>
    <div id="ncrole" aria-labelledby="ncRoleLab" style="margin-top:8px">${roleRadios("ncrole",nc.role,"data-ncrole")}</div></div>
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <div class="msg m-info" style="margin-top:20px">${infoI}<span>Next: how much of your plan this workspace can use. You will be switched into it right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
@@ -7115,7 +7117,9 @@ function syncSwatches(){const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PA
  document.querySelectorAll("[data-ncswatch]").forEach(b=>{const on=b.dataset.ncswatch===col;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false")})}
 function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
  nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev();syncSwatches()}
-function shellInert(){const on=!!(drawer||modal);["sb","page","topbar"].forEach(k=>{const e=document.querySelector(k==="sb"?".sb":k==="page"?"#page":".topbar");if(e){if(on)e.setAttribute("inert","");else e.removeAttribute("inert")}})}
+function shellInert(){const on=!!(drawer||modal);["sb","page","topbar"].forEach(k=>{const e=document.querySelector(k==="sb"?".sb":k==="page"?"#page":".topbar");if(e){if(on)e.setAttribute("inert","");else e.removeAttribute("inert")}});
+ /* a modal over the drawer (the roles sheet from "What each role can do") makes the drawer inert too */
+ const L=document.getElementById("layer"); if(L){if(drawer&&modal)L.setAttribute("inert","");else L.removeAttribute("inert")}}
 function renderDrawer(){
  const L=el("layer");shellInert();if(!drawer){L.innerHTML="";return}
  L.innerHTML=drawerHTML();
@@ -7142,7 +7146,7 @@ function renderDrawer(){
     rather than waiting for cap() to run on the next step. */
  /* the email typed here is also who ncAccessSentence names as the subject;
     only that one paragraph repaints, so the field keeps its caret */
- {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value}}
+ {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value;const w=el("ncRoleWrap");if(w)w.hidden=!validEmail(e.value)}}
  /* the reserve switch changes what the column means, so the step repaints */
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
  /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
@@ -9600,7 +9604,7 @@ render();
 .pp-wsrow-t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp-wsrow-t i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pp-wsrow .pp-rolesel{flex:none}
 .modal.ac .modal-f{display:flex;align-items:center;gap:12px}
-.pp-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1101;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--gray-17);color:#fff;border-radius:4px;box-shadow:0 8px 24px rgba(17,24,39,.28);font-size:14px;font-weight:500;white-space:nowrap}
+.pp-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1201;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--gray-17);color:#fff;border-radius:4px;box-shadow:0 8px 24px rgba(17,24,39,.28);font-size:14px;font-weight:500;white-space:nowrap}
 .pp-toast svg{width:16px;height:16px;color:#34D399}.pp-toast .linkbtn{color:#93C5FD;font-size:14px;font-weight:600}
 
 /* Home hero cards, 30 Sep 2026 */
@@ -9994,6 +9998,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .rc-dd .dd-menu,.pp-wsrow .dd-menu{width:320px}
 /* the drawer always sits above its scrim, which now covers the rail and topbar (2 Oct 2026) */
 #layer .drawer,#layer .scrim+.drawer,.drawer.nc-modal{z-index:1100}
+.nc-rolewrap{animation:ncRoleIn .18s ease-out}@keyframes ncRoleIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10275,7 +10280,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="858f01c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="9607d32";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
