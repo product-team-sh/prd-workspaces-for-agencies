@@ -3661,21 +3661,27 @@ function rMembers(c){
  const rows=peopleRows();
  const users=rows.filter(r=>r.kind==="wsuser"&&r.c===c).filter(hit);
  const team=rows.filter(r=>r.kind==="team"&&(r.ws===null||r.ws.indexOf(c.id)>-1)).filter(hit);
- const stat=r=>r.status==="Active"?`<span class="rc-dot ok"></span>Active`:r.status==="Invited"?`<span class="rc-dot warn"></span>Invited ${AGE(INVITED[r.key]||"3 days ago")}${canEdit?` &nbsp;<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="rc-dot mute"></span>Inactive`;
- const person=r=>`<td><div class="cell-main"><span class="pp-av" style="--c:${r.kind==="team"?AGENCY.colour:r.colour};width:28px;height:28px;font-size:10px">${r.initials}</span><span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${r.name}${r.key==="t:"+me_?' <span class="sub">(you)</span>':""}</span><span class="cs">${r.kind==="team"?r.role:r.email}</span></span></div></td>`;
- const kebab=r=>`<td class="ar" style="position:relative;overflow:visible">${canEdit?`<button class="sq-kebab" aria-haspopup="menu" aria-expanded="${peopleMenu===r.key}" data-pmenu="${r.key}" aria-label="Actions for ${r.name}">&#8942;</button>${peopleMenu===r.key?peopleMenuHTML(r):""}`:""}</td>`;
+ /* 2 Oct 2026, Hitesh: "this screen looks like not part of our product". The
+    two groups are the People screen's own row grid now, not a bordered table,
+    and every row that can change carries the People row menu. */
+ const stat=r=>r.status==="Active"?`<span class="pp-st"><i></i>Active</span>`:r.status==="Invited"?`<span class="pp-st pp-st--inv"><i></i>Invited ${AGE(INVITED[r.key]||"3 days ago")}</span>${canEdit?`<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="pp-st pp-st--off"><i></i>Inactive</span>`;
+ const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+ const cols='grid-template-columns:minmax(0,1.6fr) 240px 140px 200px 44px';
+ const head=lab=>`<div class="pp-head" style="${cols}"><span>Person</span><span>${lab}</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
+ const person=r=>`<span class="pp-person">${ppAv(r.initials,r.kind==="team"?(r.role==="Owner"?"#1D4ED8":"#DBEAFE"):r.colour,32,r.status==="Invited")}<span><b>${r.name}${r.key==="t:"+me_?' <span class="sub">(you)</span>':""}</b><i>${r.kind==="team"?r.role:r.email}</i></span></span>`;
+ const more=r=>`<span class="pp-end">${canEdit&&r.role!=="Owner"?`<button class="ubtn pp-more" aria-haspopup="menu" aria-expanded="${peopleMenu===r.key}" data-pmenu="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${peopleMenu===r.key?peopleMenuHTML(r):""}`:""}</span>`;
  let n=0;
- const roleDD=(pfx,key,val)=>{if(!canEdit) return `<span>${ppShort(val)}</span>`; const id=pfx+(n++); RC_DDMAP[id]={key,c:c.id};
+ const roleDD=(pfx,key,val)=>{if(!canEdit) return `<span class="pp-roletxt">${ppShort(val)}</span>`; const id=pfx+(n++); RC_DDMAP[id]={key,c:c.id};
   return `<div class="rc-dd">${ddHTML(id,val,[{items:CLIENT_ROLES.map(x=>({value:x,label:ppShort(x)}))}])}</div>`};
- const urow=r=>`<tr data-prow="${r.key}">${person(r)}<td>${roleDD("rcrole",r.key,r.role)}</td><td><span class="sub">${r.seen}</span></td><td><span class="rc-stat">${stat(r)}</span></td>${kebab(r)}</tr>`;
+ const urow=r=>`<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${roleDD("rcrole",r.key,r.role)}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`;
  const trow=r=>{const P=PEOPLE[r.key.slice(2)], fixed=r.role!=="Member";
-  return `<tr data-prow="${r.key}">${person(r)}<td>${fixed?`<span>Workspace Admin, every workspace</span>`:roleDD("rcwsrole",r.key,ppWsRole(P,c.id))}</td><td><span class="sub">${r.seen}</span></td><td><span class="rc-stat">${stat(r)}</span></td>${fixed?"<td></td>":kebab(r)}</tr>`};
- const table=(head,body,empty)=>`<div class="tscroll"><table class="sqt rc-mtbl" style="min-width:760px"><thead><tr><th>Person</th><th>${head}</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>${body||`<tr><td colspan="5" style="height:52px"><span class="sub">${empty}</span></td></tr>`}</tbody></table></div>`;
+  return `<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${fixed?`<span class="pp-roletxt">Workspace Admin <span class="sub">&middot; every workspace</span></span>`:roleDD("rcwsrole",r.key,ppWsRole(P,c.id))}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`};
+ const group=(title,sub,act,lab,body,empty)=>`<div class="rc-grp"><div class="rc-grp-h"><b>${title}</b><span class="sub">${sub}</span>${act?`<span class="c-a">${act}</span>`:""}</div><section class="pp-sec rc-mtbl">${head(lab)}${body||`<div class="pp-empty">${empty}</div>`}</section></div>`;
  return `<div class="rc-mtb"><div class="search" style="min-width:240px">${srchI}<input type="text" id="peopleQ" placeholder="Search people" value="${PEOPLE_Q.replace(/"/g,"&quot;")}"></div>
    <span class="sub">Owner and Admins reach every workspace. Members and workspace users reach only this one.</span>
    ${canEdit&&!c.own?`<button class="shd-button shd-button--primary" data-invite="${c.id}">Invite</button>`:""}</div>
-  ${c.own?"":`<div class="panel rc-group"><div class="panel-h"><span class="panel-t">Workspace users</span><span class="sub">${users.length} &middot; the client's people, this workspace only</span></div>${table("Role in this workspace",users.map(urow).join(""),q?"No one matches.":"No one invited yet.")}</div>`}
-  <div class="panel rc-group"><div class="panel-h"><span class="panel-t">Your team</span><span class="sub">${team.length} from ${AGENCY.name}</span>${canEdit?`<span class="c-a"><button class="linkbtn" data-addteam="${c.id}">Add a teammate</button></span>`:""}</div>${table("Role here",team.map(trow).join(""),"No one matches.")}</div>`;
+  ${c.own?"":group("Workspace users",`${users.length} &middot; the client's people, this workspace only`,"","Role in this workspace",users.map(urow).join(""),q?"No one matches.":"No one invited yet.")}
+  ${group("Your team",`${team.length} from ${AGENCY.name}`,canEdit?`<button class="linkbtn" data-addteam="${c.id}">Add a teammate</button>`:"","Role here",team.map(trow).join(""),"No one matches.")}`;
 }
 
 /* ═══ A8 Add a member ═════════════════════════════════════════════════════════
@@ -9865,6 +9871,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}
 .pp-type{font-size:13px;color:var(--gray-15)}
 .rc-swatches{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc-swatches .nc-swatch{width:22px;height:22px}.rc-swname{margin-left:4px}
+.rc-grp{margin-bottom:24px}.rc-grp-h{display:flex;align-items:center;gap:12px;padding:0 4px 10px}.rc-grp-h b{font-size:14px;font-weight:600;color:var(--gray-17)}.rc-mtbl .pp-row:last-child{border-bottom:0}.pp-st--off{color:#6b7280}.pp-st--off i{background:#9ca3af}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10146,7 +10153,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f7dae99";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="677cf0c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
