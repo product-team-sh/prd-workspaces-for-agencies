@@ -5937,26 +5937,43 @@ function clientSetupBlock(c){
   +'</div></div></div>';
 }
 function onboardBlock(){
- /* Matched to the live Sequences page, 28 Sep 2026: the checklist on the left
-    with its progress bar and Skip Onboarding, the "Create New Sequence" panel
-    and video on the right. Our entry point, the "Add a workspace" line, sits
-    under the checklist (N4: an optional prompt, never a counted step). */
- const done=setupDone?4:1, steps=SETUP_STEPS, pct=Math.round(done/steps.length*100);
- const tick='<svg viewBox="0 0 24 24" fill="none" stroke="var(--green-16)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="var(--green-16)" stroke="none"/><path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff"/></svg>';
- const ic={seq:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h7"/></svg>',
+ /* 2 Oct 2026, Hitesh: "make changes to the starting point like this" (his
+    board). The first step is the workspace; the four product steps are locked
+    until it exists, because prospects, email accounts and sequences live inside
+    a workspace. The right panel sells the one step that is open. */
+ const first=ME().name.split(" ")[0];
+ const ic={ws:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>',
+   seq:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h7"/></svg>',
    crm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M17 11h4M19 9v4"/></svg>',
    mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
-   launch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>'};
- const icons=[ic.seq,ic.crm,ic.mail,ic.launch];
+   launch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>',
+   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+   tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'};
+ const later=[["Generate AI Sequence",ic.seq],["Add Prospects",ic.crm],["Add Email Account",ic.mail],["Launch Sequence",ic.launch]];
  return '<div class="ob"><div class="ob-l">'
-  +'<div class="ob-h"><b>Welcome, '+ME().name.split(" ")[0]+'! Let\u2019s build your outreach</b><button class="linkbtn" data-skiponboard style="color:var(--gray-15);font-weight:400">Skip Onboarding</button></div>'
-  +'<div class="ob-bar"><i><b style="width:'+pct+'%"></b></i><span class="sub">'+done+'/'+steps.length+' steps completed</span></div>'
-  +'<div class="ob-steps">'+steps.map(function(x,i){var ok=i<done,cur=i===done;
-     return '<div class="ob-step'+(ok?' is-done':'')+(cur?' is-cur':'')+'"><span>'+(ok?tick:'<span style="color:var(--gray-15);display:inline-flex">'+icons[i]+'</span>')+'<span>'+x[0]+'</span></span>'
-       +(ok?'':'<button class="linkbtn" data-nav2n="'+x[1]+'">'+x[0]+' <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg></button>')+'</div>'}).join("")+'</div>'
-  +'<p class="ob-entry">Running outreach for more than one business, or for clients? Give each its own workspace: its own sequences, prospects and mailboxes, separate from yours and from each other. <button class="linkbtn" id="dashAdd">Add a workspace &rarr;</button></p>'
-  +'</div><div class="ob-r"><div><h3>Create New Sequence</h3><p>Effortlessly automate and personalize your sequences with multiple follow-ups. Engage prospects effectively and drive better results.</p></div>'
-  +'<div class="ob-video" role="img" aria-label="How to create your first sequence, video"><b>How To Create Your First Sequence</b><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="mock"><i></i><i style="width:60%"></i><i></i><i style="width:40%"></i><i></i><i style="width:70%"></i></span></div></div></div>';
+  +'<div class="ob-h"><b>Welcome, '+first+'! Let’s set up your agency’s outreach</b><button class="linkbtn" data-skiponboard style="color:var(--gray-15);font-weight:400">Skip Onboarding</button></div>'
+  +'<div class="ob-bar"><i><b style="width:0%"></b></i><span class="sub">0/5 steps completed</span></div>'
+  +'<div class="ob-steps">'
+  +'<div class="ob-step is-cur"><span><span style="color:var(--blue-11);display:inline-flex">'+ic.ws+'</span><span>Create a workspace</span><span class="chip c-new chip--sm">NEW</span></span>'
+   +'<button class="linkbtn" data-obadd>Create workspace <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg></button></div>'
+  +'<div class="ob-then">Then, inside your workspace</div>'
+  +later.map(([l,icon])=>'<div class="ob-step is-locked"><span><span style="display:inline-flex">'+icon+'</span><span>'+l+'</span></span><span class="ob-after">'+ic.lock+'After step 1</span></div>').join("")
+  +'</div>'
+  +'<div class="ob-why">'+infoI+'<span><b>Why first?</b> Prospects, email accounts and sequences always live inside a workspace. Create one for your client, then finish the steps inside it.</span></div>'
+  +'</div><div class="ob-r"><div>'
+  +'<span class="chip c-info chip--sm" style="margin-bottom:12px">New for agencies</span>'
+  +'<h3>Create your first client workspace</h3>'
+  +'<p>A workspace is a separate space for each client you manage. Set one up per client so their outreach stays organised and private.</p>'
+  +'<ul class="ob-points">'
+   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>Separate data</b>: prospects, sequences, email accounts and reports stay in their own workspace</span></li>'
+   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>One-click switching</b>: jump between clients from the switcher at the foot of the rail</span></li>'
+   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>Scoped access</b>: add teammates only to the clients they handle</span></li>'
+  +'</ul>'
+  +'<div class="tools" style="margin-top:20px"><button class="shd-button shd-button--primary" data-obadd>'+ic.plus+'Create workspace</button><button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Learn more</button></div>'
+  +'</div>'
+  +'<div class="ob-video" role="img" aria-label="How to set up client workspaces, video"><b>How To Set Up Client Workspaces</b><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="mock"><i style="--c:#0f766e"></i><i style="width:60%;--c:#2563eb"></i><i style="--c:#c2410c"></i></span></div>'
+  +'</div></div>';
 }
 
 /* ═══ Home, the agency's landing screen ═══════════════════════════════════════
@@ -8672,6 +8689,7 @@ function wire(){
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
  q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="alloc";activeRes=b.dataset.goalloc;render()});
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
+ q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
  /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
     Work queue (Coming soon); it expands the same card, and "Show fewer"
     (dashAll=0) collapses it back. */
@@ -9641,6 +9659,18 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .dlt{margin-left:6px;font-size:12px;font-weight:500;color:var(--gray-12);white-space:nowrap}.dlt.is-up{color:var(--green-16)}.dlt.is-down{color:var(--red-18)}
 .stackb.is-bad{color:var(--red-18)}.stackb.is-warn{color:var(--orange-12)}
 .ws-sub .yours{margin-left:0!important;flex:none}
+/* 2 Oct 2026: the starting point, per Hitesh's board */
+.ob-step.is-locked{color:var(--gray-15);background:#fff}.ob-step.is-locked>span:first-child{color:var(--gray-15);font-weight:500}
+.ob-after{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-11);white-space:nowrap}.ob-after svg{width:12px;height:12px}
+.ob-then{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-15);margin:6px 0 0}
+.ob-why{display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:12px 14px;border-radius:4px;background:#fff;border:1px solid var(--gray-13);font-size:12px;line-height:16px;color:var(--gray-15)}.ob-why svg{width:16px;height:16px;flex:none;color:var(--blue-11)}.ob-why b{color:var(--gray-17);font-weight:600}
+.ob-r h3{font-size:20px;line-height:28px}.ob-r p{font-size:13px;line-height:20px}
+.ob-points{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}.ob-points li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:20px;color:var(--gray-15)}.ob-points b{color:var(--gray-17);font-weight:600}
+.ob-tick{width:16px;height:16px;flex:none;margin-top:2px;color:var(--green-16)}.ob-tick svg{width:16px;height:16px}
+.ob-r .shd-button svg{width:16px;height:16px}
+.chip.c-new{background:var(--blue-13);color:var(--blue-11);border-color:var(--blue-13)}
+.ob-video .mock i{background:var(--c,#fff)}
+.ob-video .play{left:28px;top:auto;bottom:28px;transform:none}.ob-video b{position:relative;z-index:1}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9922,7 +9952,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="bcb77e6";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="08ffdb7";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
