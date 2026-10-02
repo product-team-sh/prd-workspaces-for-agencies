@@ -258,8 +258,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 /* 18 Sep QA: Status stole width from the name and usage columns on Home, so
    "Northwind Logistics" and "89% Prospects" wrapped. */
 .crow td:first-child{min-width:230px}
-.crow td:nth-child(5){min-width:160px}
-.crow td:nth-child(2){width:36%}
+
 /* .app-sidebar__footer, deployed: a 1px #e5e7eb divider, then items at the same 8px gap */
 .sb-foot{border-top:1px solid var(--gray-13);padding-top:8px;display:flex;flex-direction:column;gap:8px;
  /* the foot, tile included, stays pinned at the bottom while the long product rail scrolls above it (inside a workspace the rail runs 973px at 900 tall, so the tile sat below the fold once the rail opened) */
@@ -692,7 +691,7 @@ td.colact .dq-fore,.pri-a .dq-fore{left:auto;right:0}
 .qa button svg{width:15px;height:15px}
 .qa button:hover{background:var(--blue-17);color:var(--blue-11)}
 
-.crow:hover .cell-main .cs,.crow:focus-within .cell-main .cs{display:none}
+
 /* toggle: no dedicated geometry token in either source, so the pill itself
    keeps its established size; only colours are sourced (Blue700 on / Gray400 off,
    the checkBox,Radio & Toggle/secondary/Default token, not Gray300) */
@@ -2348,7 +2347,7 @@ const isOwn=()=>ctx==="own";
    switcher and New in a workspace already show. CLIENTS stays as it is, so
    cost to serve, allocation and the roll-ups are unchanged. */
 const myWorkspaces=()=>(isMember(ME(),"own")?[OWN_WS]:[]).concat(myClients());
-const yoursTag=c=>c.own?' <span class="chip c-mute chip--sm" style="margin-left:6px;vertical-align:middle">Yours</span>':"";
+const yoursTag=c=>c.own?' <span class="chip c-mute chip--sm yours" style="margin-left:6px;vertical-align:middle">Yours</span>':"";
 /* the own workspace is deliberately not in CLIENTS, so its prospect page is
    grown explicitly rather than by the loop over clients. */
 growProspects(OWN_WS);
@@ -2533,14 +2532,15 @@ const USAGE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--gray-23)"
 const USAGE_RANK={bad:0,warn:1,ok:2,info:3};
 const usageOf=c=>RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return null;
   const s=rowState(k,c.id,compute(k));
-  return {k,short:USAGE_SHORT[k],pct:r.cap>0?r.used/r.cap:0,used:r.used,cap:r.cap,
+  return {k,short:USAGE_SHORT[k],long:RES[k].short,pct:r.cap>0?r.used/r.cap:0,used:r.used,cap:r.cap,
     room:s.room,draw:s.draw,tone:s.tone,state:s.state,storage:RES[k].nature==="Storage"}})
  .filter(Boolean).sort((a,b)=>USAGE_RANK[a.tone]-USAGE_RANK[b.tone]||b.pct-a.pct);
 /* a spent pool never renders as a percentage: 100% and 99.7% round to the same
    thing and only one of them has stopped the client */
 const usageNum=x=>x.room===0?(x.storage?"full":"out"):x.draw===0?"pool":Math.round(x.pct*100)+"%";
-const usageHead=x=>x.room===0?(x.storage?"Full: ":"Out: ")+x.short
-  :x.draw===0?"Pool: "+x.short:Math.round(x.pct*100)+"% "+x.short;
+/* 2 Oct 2026 (board B3): the resource's full name, the state after it */
+const usageHead=x=>{const L=x.long||x.short, Lc=L.charAt(0).toUpperCase()+L.slice(1);
+  return x.room===0?Lc+" out":x.draw===0?Lc+", pool empty":Math.round(x.pct*100)+"% "+L};
 const usageNone=c=>'<span class="sub">No usage yet</span>';
 /* 17 Sep 2026, round 3 (44-ui-audit.md P3): Home and Clients said different
    things about the same client, and the Clients word meant only Lead Finder
@@ -2574,9 +2574,9 @@ const usageTip=u=>u.map(y=>RES[y.k].label+' '+f(y.used)+' of '+f(y.cap)+', '+Mat
    CSS it alone emitted deleted. Removed hover card, 21 Sep round 6; usageTip
    above (an aria-label, not a hover card) replaced what it did. */
 function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
- if(u.every(x=>x.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
+ if(u.every(x=>x.used===0)) return '<span class="u-quiet">nothing used yet</span>';
  const bad=u.filter(x=>x.tone!=="ok"&&x.tone!=="info");
- if(!bad.length) return '<span class="u-quiet" aria-label="'+usageTip(u)+'">All '+u.length+' healthy</span>';
+ if(!bad.length) return '<span class="u-quiet" aria-label="'+usageTip(u)+'">all healthy</span>';
  const rest=bad.length-1;
  return '<span class="u-head" aria-label="'+usageTip(u)+'" style="color:'+USAGE_COL[u[0].tone]+'">'+usageHead(u[0])+'</span>'
   +'<span class="u-sub">'+(rest?rest+' other'+(rest>1?'s':'')+' near a limit'
@@ -3069,8 +3069,6 @@ function vClients(){
    cell:c=>`<td class="ar tnum">${f(c.sent)}</td>`},
   {id:"reply",label:"Reply Rate",ar:true,sort:true,
    cell:c=>`<td class="ar tnum">${c.reply?c.reply.toFixed(1)+"%":"–"}</td>`},
-  {id:"pos",label:"Positive Reply",ar:true,sort:true,
-   cell:c=>`<td class="ar tnum">${c.pos?c.pos.toFixed(1)+"%":"–"}</td>`},
   {id:"usage",label:"Usage",
    /* was a Lead Finder meter, which reported one pool of five and so named the
       wrong emergency whenever a different pool was the binding one */
@@ -4331,7 +4329,7 @@ let BLR=null, blrTimer=null;
 /* the default column set is the one that fits 1152px of content area at a
    1440px viewport, measured rather than guessed. Budget, Active Sequences and
    Total Prospects are the three the selector adds back.                    */
-let cliCols=["mbx","sent","reply","pos","usage","status"];
+let cliCols=["mbx","sent","reply","usage","status"];
 let colOpen=false, colDraft=null, colQ="";
 
 /* 18 Sep, Hitesh: "this screen will be upgraded version of what we have
@@ -4894,33 +4892,32 @@ function vDash(){
   ["prospects","Prospects","M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"],
   ["inbox","Inbox","M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"],
   ["accounts","Email accounts","M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"]];
+ /* 2 Oct 2026, Hitesh (board B3): the row is read in the order of the owner's
+    questions. Can it send (Email accounts), is it running (Active sequences), is
+    it fed (Prospects added), is it sending (Emails sent, bounce under it), is it
+    working (Replies, rate under it), what it costs (Leads revealed), is it about
+    to stop (Usage), go (Open). The four shortcuts sit under the name, on hover.
+    No Status column: the cells that can go red say what is wrong. */
  const crow=({c,a})=>{
-  const flash=FLASH_CID===c.id;
-  return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
-   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'+yoursTag(c)
-   /* 30 Sep 2026, Hitesh: "UI is not looking nice and elegant here" (a fresh
-      row). The sub-line only shows when there is something to say, and the
-      shortcut group sits in the action column with Manage, so a row is one
-      line tall whatever its state. */
-   +(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span></div>'
-   +'</td>'
-   +'<td>'+statusCell(c)
-   +(a?'<span class="reason">'+a.why+'</span>':"")+'</td>'
-   +'<td class="ar"><span class="tnum stackv" title="'+chanTitle(c)+'">'+(outreachOf(c)?abbr(outreachOf(c)):'<span class="is-none">–</span>')+'</span>'
-     +(outreachOf(c)?'<span class="cs stackb">'+chanRow(c).length+(chanRow(c).length===1?" channel":" channels")+'</span>':"")+'</td>'
-   +'<td class="ar"><span class="tnum stackv">'+(repOf(c)?f(repOf(c)):'<span class="is-none">–</span>')+'</span>'
-     +(c.reply?'<span class="cs stackb">'+c.reply.toFixed(1)+'%</span>':"")+'</td>'
-   +'<td>'+usageBrief(c)+'</td>'
-   /* 18 Sep, founder feedback via Hitesh: the name goes to Manage, so entering
-      the workspace needs its own door. The same arrow the Update quick action
-      uses, top right of the row. */
-   +'<td class="ar colact"><span class="tblacts">'
+  const flash=FLASH_CID===c.id, M=hm(c), fresh=c.sent===0;
+  const D=v=>v==null?"":'<span class="dlt'+(v<0?' is-down':v>0?' is-up':'')+'">'+(v>0?'+':'')+v+'%</span>';
+  const pts=(c.reply&&c.prev)?+(c.reply-c.prev).toFixed(1):null;
+  const Dp=pts==null?"":'<span class="dlt'+(pts<0?' is-down':pts>0?' is-up':'')+'">'+(pts===0?'&plusmn;0':(pts>0?'+':'')+pts+' pts')+'</span>';
+  const num=(v,d,line,cls)=>'<td><span class="tnum stackv">'+(v==null?'<span class="is-none">&ndash;</span>':f(v)+(d||""))+'</span>'+(line?'<span class="cs stackb'+(cls?' '+cls:'')+'">'+line+'</span>':'')+'</td>';
+  return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
+   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
+   +'<span class="ws-sub">'+yoursTag(c)+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
-   +'<button class="linkbtn" data-manage="'+c.id+'">Manage</button>'
-   +'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
-      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>'
-   +'</span></td></tr>'};
+   +'</span></div></td>'
+   +num(c.mbx,"",fresh&&!c.mbx?"none yet":M.disc?M.disc+" disconnected":M.paused?M.paused+" paused":"all sending",M.disc?"is-bad":M.paused?"is-warn":"")
+   +num(c.seq,"",M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,M.sysPaused?"is-bad":"")
+   +num(fresh?null:M.pa,D(M.pad),"")
+   +num(fresh?null:c.sent,D(M.sd),fresh?"":"bounce "+M.bounce.toFixed(1)+"%",M.bounce>=3?"is-bad":"")
+   +num(fresh?null:repOf(c),Dp,fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate")
+   +num(fresh?null:M.leads,D(M.ld),fresh?"":f(M.leads)+" credits")
+   +'<td>'+usageBrief(c)+'</td>'
+   +'<td class="ar colact">'+(fresh||c.disabled?'<span class="sub is-none">Open</span>':'<button class="linkbtn" data-enter="'+c.id+'" aria-label="Open '+c.name+'\'s workspace">Open</button>')+'</td></tr>'};
 
  /* 21 Sep, delight pass round 4: one client, never sent. The row that would
     otherwise be a single blank line becomes that client's own setup, reusing
@@ -4936,19 +4933,19 @@ function vDash(){
    return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
-     +'<td colspan="4">'+setupHtml+'</td>'
+     +'<td colspan="7">'+setupHtml+'</td>'
      +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<div class="pills" style="padding:0;margin-left:6px">'+PT.map(([k,l,n])=>'<button data-clitab="'+k+'" aria-pressed="'+(cliTab===k)+'">'+l+'<span class="pn">'+n+'</span></button>').join("")+'</div>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
-  +'<div class="tscroll"><table class="organism" style="min-width:760px">'
+  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1100px;width:100%;table-layout:fixed">'
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
-   +'<thead><tr><th>Workspace</th><th>Status</th><th class="ar">Outreach</th><th class="ar">Replies</th><th>Usage</th>'
-      +'<th class="colact"></th></tr></thead>'
+   +'<thead><tr><th style="width:230px">Workspace</th><th style="width:112px">Email accounts</th><th style="width:170px">Active sequences</th><th style="width:118px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:128px">Replies</th><th style="width:124px">Leads revealed</th><th style="width:150px">Usage</th>'
+      +'<th class="colact" style="width:70px"></th></tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
@@ -5025,7 +5022,6 @@ function vDash(){
     header gains the button permanently once a client exists.               */
  return '<div class="toolbar dash-toolbar" style="position:relative">'
   +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
-  +(arrival?'<span class="sub dash-arrival">'+arrival+'</span>':'')
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">'
@@ -5073,7 +5069,7 @@ function heroCards(mine,tch,rep,items){
  const running=mine.filter(c=>c.sent>0&&!(attention(c)&&attention(c).pin)&&!c.disabled).length,
        atLimit=mine.filter(c=>lf(c.id).s.tone==="bad").length, fresh=mine.filter(c=>c.sent===0).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
- const active=seqs.filter(x=>x.q.state==="Active").length, pausedLimit=seqs.filter(x=>x.q.state==="Paused"&&lf(x.c.id).s.tone==="bad").length;
+ const active=seqs.filter(x=>x.q.state==="Active").length, sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
  /* a pill only when there is a real comparison: growth in workspaces, and a
     cycle with sends behind it. A fresh account shows the numbers alone. */
  const dClients=mine.length>LAST.clients?mine.length-LAST.clients:null, dTouch=tch.total?pctDelta(tch.total,LAST.touches):null, dRep=rep?pctDelta(rep,LAST.replies):null;
@@ -5083,7 +5079,7 @@ function heroCards(mine,tch,rep,items){
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
- const chan=[[tch.email,"email"],[tch.li,"LinkedIn"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
+ const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
@@ -5092,12 +5088,9 @@ function heroCards(mine,tch,rep,items){
     `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
-    `<span>across ${mine.length} workspaces</span>${pausedLimit?`<span style="color:var(--orange-12)">${pausedLimit} paused by a limit</span>`:""}`)}
+    `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
   ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Outreach this cycle",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last"),
     `<span class="hero-vrow"><span class="hero-v">${f(tch.total)}</span>${spark}</span>`,`<span>${chan}</span>`)}
-  ${card("analytics",I('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),"Replies this cycle",pill(dRep,Math.round(Math.abs(dRep))+"% vs last"),
-    `<span class="hero-vrow" style="justify-content:flex-start;align-items:baseline;gap:10px"><span class="hero-v">${f(rep)}</span><span class="hero-rate">${rate}</span></span>`,
-    `<span>${f(interested)} interested</span>${unread.length?`<span style="color:var(--orange-12);font-weight:500">${f(unread.length)} unread, oldest ${oldest} day${oldest===1?"":"s"}</span>`:""}`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -6099,6 +6092,19 @@ function attention(c){
 /* last cycle, for the comparison line on each tile */
 let LAST={clients:4, sent:98400, touches:133400, replies:6900};
 const DASH_ROWS=8;   /* the dashboard ranks; the full list lives in Clients */
+/* 2 Oct 2026, Hitesh (board row 04, B3): the Home table shows counted numbers only.
+   Per workspace this cycle: prospects added, emails sent and its delta, bounce
+   rate, leads revealed; plus the mailbox and sequence states the system keeps. */
+const HOME_METRICS={own:{pa:420,pad:6,sd:8,bounce:0.8,leads:312,ld:5,last:"2 hours ago"},
+ nw:{pa:2150,pad:9,sd:11,bounce:0.9,leads:1478,ld:3,last:"1 hour ago"},
+ vx:{pa:2900,pad:4,sd:2,bounce:1.1,leads:2976,ld:9,last:"20 minutes ago",mpaused:2},
+ al:{pa:1250,pad:-18,sd:-14,bounce:1.4,leads:1280,ld:-30,last:"yesterday",sysp:2},
+ bl:{pa:180,pad:-25,sd:-20,bounce:4.2,leads:96,ld:-12,last:"3 days ago"},cp:{}};
+function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).filter(q=>q.state==="Paused").length;
+ return{pa:m.pa!=null?m.pa:Math.round(c.prospects*0.14/10)*10,pad:m.pad!=null?m.pad:null,sd:m.sd!=null?m.sd:null,bounce:m.bounce!=null?m.bounce:1.0,
+  leads:m.leads!=null?m.leads:(L.r.used||0),ld:m.ld!=null?m.ld:null,last:m.last||"today",
+  disc:(c.mailboxes||[]).filter(x=>x[1]==="Disconnected").length,paused:m.mpaused||0,
+  sysPaused:m.sysp!=null?m.sysp:(L.s.tone==="bad"?Math.max(1,pz):0)}}
 /* cumulative daily sends, days 1..9 of the cycle, summing to the 124,600 in RES */
 const DAILY=[4200,6800,9500,12800,15600,17200,18400,19100,21000];
 
@@ -9617,6 +9623,16 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
 .nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
 .nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
+/* 2 Oct 2026: Home table per board B3 */
+.hero{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cell-main--ws{align-items:flex-start}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ws-sub{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}.ws-sub .cs{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.home-tbl .qa{visibility:hidden;margin-top:6px;align-self:flex-start}.home-tbl .crow:hover .qa,.home-tbl .crow:focus-within .qa{visibility:visible}
+.home-tbl .qa button{width:28px;height:24px}.home-tbl .qa button svg{width:13px;height:13px}
+.home-tbl td{vertical-align:top;box-sizing:border-box}.home-tbl th{box-sizing:border-box}.home-tbl .crow td:first-child{min-width:0}
+.dlt{margin-left:6px;font-size:12px;font-weight:500;color:var(--gray-12);white-space:nowrap}.dlt.is-up{color:var(--green-16)}.dlt.is-down{color:var(--red-18)}
+.stackb.is-bad{color:var(--red-18)}.stackb.is-warn{color:var(--orange-12)}
+.ws-sub .yours{margin-left:0!important;flex:none}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -9898,7 +9914,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b40809e";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="7f01a1b";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
