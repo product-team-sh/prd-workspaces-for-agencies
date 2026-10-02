@@ -3221,7 +3221,7 @@ function vRecord(id){
   <div class="cell-main">
    <button class="linkbtn" id="backList">Workspaces</button><span class="sep">/</span>
    ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
-   <span class="cs">${c.own?"Your workspace":c.company} · ${c.email}</span></span></div>
+   <span class="cs">${c.own?"Your workspace":c.company}${c.email&&c.email!=="–"?" · "+c.email:""}</span></span></div>
   <div class="tools">${clientNav(c)}
    ${off?`<span class="chip c-mute">Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}</span>`:dead?"":rcHdrChip(c)}
    ${dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
@@ -3275,7 +3275,7 @@ function recStrip(c){
  const head=c.disabled?`Frozen since ${c.disabledOn||TODAY_D}, when the workspace was disabled.`:fresh?"Numbers start with the first send.":periodText();
  const cell=x=>`<div class="rs-cell"><span class="rs-l">${x.l}</span><span class="rs-v tnum">${x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||"")}</span><span class="rs-s${x.cls?" "+x.cls:""}">${x.line||"&nbsp;"}</span></div>`;
  return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
-  <div class="rs-row">${cells.map(cell).join("")}<div class="rs-cell rs-usage"><span class="rs-l">Usage</span>${usageBrief(c)}</div></div></div>`;
+  <div class="rs-row">${cells.map(cell).join("")}</div></div>`;
 }
 const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue"};
 const colourName=h=>COLOUR_NAMES[String(h||"").toUpperCase()]||"Custom";
@@ -3307,12 +3307,12 @@ function recDetailsCard(c,ro){
  if(REC_EDIT===c.id&&!ro){
   const inp=(id,v,label)=>`<dt><label for="${id}">${label}</label></dt><dd><input type="text" id="${id}" value="${String(v||"").replace(/"/g,"&quot;")}" aria-label="${label}"></dd>`;
   return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span></div><div class="panel-b"><dl class="dl rc-dl">
-   ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.company,"Company")}${inp("rdEmail",c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
+   ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.company,"Company")}${inp("rdEmail",c.email==="–"?"":c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
    <dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl>
    <div class="rc-dact"><button class="shd-button shd-button--primary shd-button--sm" data-rdsave="${c.id}">Save</button><button class="shd-button shd-button--tertiary shd-button--sm" data-rdcancel>Cancel</button></div></div></div>`;
  }
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span>${ro||!canI("members")?"":`<span class="c-a"><button class="linkbtn" data-rdedit="${c.id}">Edit</button></span>`}</div>
-  <div class="panel-b"><dl class="dl rc-dl"><dt>Company</dt><dd>${c.own?AGENCY.name:c.company}</dd><dt>Email</dt><dd>${c.email}</dd><dt>Website</dt><dd>${siteOf(c)}</dd><dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl></div></div>`;
+  <div class="panel-b"><dl class="dl rc-dl"><dt>Company</dt><dd>${c.own?AGENCY.name:c.company}</dd><dt>Email</dt><dd>${c.email&&c.email!=="–"?c.email:'<span class="sub">None yet</span>'}</dd><dt>Website</dt><dd>${siteOf(c)}</dd><dt>Created on</dt><dd>${c.created}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl></div></div>`;
 }
 function rOverview(c){
  const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
@@ -4006,7 +4006,8 @@ function vWorkspacesTab(){
    designed"). Ported from his PP boards: one list in two sections (your team, client users), a
    person panel that saves as you change it, an invite that asks who they are first, and a roles
    sheet. Account role decides reach, workspace role decides power (D4, D5). ═══ */
-let PP={q:"",ws:"all",role:"all",tab:"team",menu:null,addws:false,removeConfirm:false};
+/* 2 Oct 2026, Hitesh: "one more screen which says All users with 1 more column for type". All users is the first tab and the landing. */
+let PP={q:"",ws:"all",role:"all",tab:"all",menu:null,addws:false,removeConfirm:false};
 const PP_WS_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
 const ppShort=r=>String(r||"").replace(/^Workspace /,"");
 const ppName=email=>email.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase());
@@ -4044,43 +4045,47 @@ function vPeople(){
  const cl=clAll.filter(r=>ppMatch(q,r.name,r.email,r.c.name)&&inWs(r));
  const invAll=teamAll.filter(r=>r.invited).concat(clAll.filter(r=>r.invited));
  const inv=invAll.filter(r=>ppMatch(q,r.name,r.email,r.c?r.c.name:"")&&inWs(r));
- const rows=tab==="team"?team:tab==="clients"?cl:inv, total=tab==="team"?teamAll.length:tab==="clients"?clAll.length:invAll.length;
- const cols='grid-template-columns:minmax(0,1.5fr) 130px minmax(0,2fr) 120px 200px 44px';
- const head=`<div class="pp-head" style="${cols}"><span>Person</span><span>Account role</span><span>Workspace access</span><span>Last active</span><span>Status</span><span></span></div>`;
+ const all=tab==="all";
+ const rows=all?team.concat(cl):tab==="team"?team:tab==="clients"?cl:inv, total=all?teamAll.length+clAll.length:tab==="team"?teamAll.length:tab==="clients"?clAll.length:invAll.length;
+ /* All users carries one more column, Type (Your team or Client user); its Role column then holds the account role for the team and the workspace role for a client user */
+ const cols=all?'grid-template-columns:minmax(0,1.5fr) 110px 150px minmax(0,2fr) 120px 200px 44px':'grid-template-columns:minmax(0,1.5fr) 130px minmax(0,2fr) 120px 200px 44px';
+ const typeCell=t=>all?`<span class="pp-type">${t}</span>`:"";
+ const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Account role</span>"}<span>Workspace access</span><span>Last active</span><span>Status</span><span></span></div>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  const teamRow=r=>`<div class="pp-row${r.role==="Owner"?"":" is-link"}" style="${cols}" ${r.role==="Owner"?"":`data-ppopen="${r.k}"`}>
    <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
-   <span class="pp-roletxt">${r.role}</span>
+   ${typeCell("Your team")}<span class="pp-roletxt">${r.role}</span>
    <span class="pp-access">${ppAccess(r)}</span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row" style="${cols}">
    <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
-   <span class="pp-roletxt sub">Client user</span>
+   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?r.role:"Client user"}</span>
    <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
- const ph=tab==="team"?"Search your team":tab==="clients"?"Search client users":"Search invites";
- const hint=tab==="team"?"Owner and Admins reach every workspace. Members reach only the ones they are added to."
+ const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":"Search invites";
+ const hint=all?"Everyone who can sign in: your team, and each client's users in their own workspace."
+   :tab==="team"?"Owner and Admins reach every workspace. Members reach only the ones they are added to."
    :tab==="clients"?"Each client user signs in to one workspace and never sees "+AGENCY.name+" or another client."
    :"Resend sends the same link again. Each person sets their own password when they accept.";
- const empty=tab==="team"?"No one on your team matches.":tab==="clients"?"No client user matches.":(invAll.length?"No invite matches.":"No invites waiting. Everyone has signed in.");
+ const empty=all?"No one matches.":tab==="team"?"No one on your team matches.":tab==="clients"?"No client user matches.":(invAll.length?"No invite matches.":"No invites waiting. Everyone has signed in.");
  const tabBtn=(k,label,n,tone)=>`<button type="button" role="tab" aria-selected="${tab===k}" data-pptab="${k}">${label} <span class="pp-cnt pp-cnt--${tone}">${n}</span></button>`;
  return `<div class="wrap pp-wrap">${receiptBar("people")}
   <div class="pp-top"><span class="sub">Who can open which workspace, and as what &middot; <button class="linkbtn" data-pproles>What each role can do</button></span>
    <span class="tools"><button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button></span></div>
-  <div class="pp-tabs" role="tablist">${tabBtn("team","Your team",teamAll.length,"blue")}${tabBtn("clients","Client users",clAll.length,"gray")}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
+  <div class="pp-tabs" role="tablist">${tabBtn("all","All users",teamAll.length+clAll.length,"blue")}${tabBtn("team","Your team",teamAll.length,"gray")}${tabBtn("clients","Client users",clAll.length,"gray")}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
   <div class="pp-bar"><span class="pp-filters">
     <span class="search" style="width:260px">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
     ${ddHTML("ppWs",PP.ws,[{items:[{value:"all",label:"Workspace: All"}].concat(wsOpts.map(c=>({value:c.id,label:c.name,avatar:av(c,18)})))}],{})}
     ${tab==="team"?ddHTML("ppRole",PP.role,[{items:[{value:"all",label:"Account role: All"},{value:"Owner",label:"Owner"},{value:"Admin",label:"Admin"},{value:"Member",label:"Member"}]}],{}):""}</span>
    <span class="sub">${hint}</span></div>
   <section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${empty}</div>`}</section>
-  <span class="sub pp-foot">Showing ${rows.length} of ${total} ${tab==="team"?"on your team":tab==="clients"?"client users":"invites"}</span></div>`;
+  <span class="sub pp-foot">Showing ${rows.length} of ${total} ${all?"users":tab==="team"?"on your team":tab==="clients"?"client users":"invites"}</span></div>`;
 }
 const chevR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
 const peopleI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
@@ -6955,14 +6960,14 @@ function drawerHTML(){
  const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
-   <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%"></div></div>
-  <p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>
+   <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${nc.nameErr?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${nc.nameErr?"true":"false"}"></div></div>
+  ${nc.nameErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.nameErr}</span></p>`:`<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>`}
   <div class="field"><span class="flabel" id="ncColLab">Profile icon colour</span>
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
   <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
-  <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%">
-   <p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p></div>
+  <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" class="${nc.emailErr?"is-err":""}" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%" aria-invalid="${nc.emailErr?"true":"false"}">
+   ${nc.emailErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.emailErr}</span></p>`:`<p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p>`}</div>
   <div class="field"><label class="flabel" for="ncrole">Their role</label>
    ${ddHTML("ncrole",nc.role,[{items:CLIENT_ROLES.map(r=>({value:r,label:r}))}])}
    <p class="nc-limsay" id="ncAccSay" style="margin-top:8px">${ncAccessSentence()}</p></div>
@@ -7092,7 +7097,13 @@ function renderDrawer(){
     Next is the only way to keep refining; Skip is the one-click way out at any point,
     and whatever was not visited gets the same default the drawer would have shown. */
  const sk=el("drSkip");if(sk)sk.onclick=()=>{cap();create()};
- const n=el("drNext");if(n)n.onclick=()=>{cap();drawer.step=2;renderDrawer()};
+ const n=el("drNext");if(n)n.onclick=()=>{cap();
+   /* 2 Oct 2026, Hitesh: a workspace landed as "New workspace · –". The name is
+      marked required and is now enforced; an email, if typed, must be one. */
+   nc.nameErr=!nc.name.trim()?"Give the workspace a name.":null;
+   nc.emailErr=nc.email.trim()&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nc.email.trim())?"That is not an email address.":null;
+   if(nc.nameErr||nc.emailErr){renderDrawer();const i=el(nc.nameErr?"ncn":"nce");if(i)i.focus();return}
+   drawer.step=2;renderDrawer()};
  const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step=1;renderDrawer()};
  const d=el("drDone");if(d)d.onclick=()=>{cap();
    /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
@@ -9846,6 +9857,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .rc-act b{font-weight:600}
 .modal--450{width:450px}
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}
+.pp-type{font-size:13px;color:var(--gray-15)}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10127,7 +10139,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="325780f";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="f4cf1e1";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
