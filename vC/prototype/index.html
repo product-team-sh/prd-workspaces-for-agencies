@@ -1844,7 +1844,7 @@ function startHandover(c){
     the wizard, so there is no role to name; the line instead points at where
     people get added. */
  handover={id:c.id,tile:clientTileHTML(c),
-  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its people from Members when you are ready.")};
+  roleLine:c.forClient===false?"Yours. Add people from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its people when it is ready for them.")};
  renderXform();
  setTimeout(endHandover,REDUCED()?HANDOVER_MS_REDUCED:HANDOVER_MS);
 }
@@ -3329,7 +3329,7 @@ function recAccessRows(c){
 }
 function recAccessCard(c,ro){
  const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU;
- const line=c.own?"Your team only":nU?`${nU} workspace user${nU===1?"":"s"} &middot; ${nT} from ${AGENCY.name}`:`No workspace user yet &middot; ${nT} from ${AGENCY.name}`;
+ const line=c.own?"Your team only":nU?`${nU} workspace user${nU===1?"":"s"} &middot; ${nT} from ${AGENCY.name}`:`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
  const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span>${r.name}</span><span class="cs">${r.sub}</span></span><span class="rc-prole">${r.role}</span></div>`;
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members &rarr;</button>${!ro&&!c.own&&canI("members")?`<button class="shd-button shd-button--secondary shd-button--sm" data-invite="${c.id}">Invite</button>`:""}</span></div>
   <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.map(row).join("")}</div></div>`;
@@ -6041,7 +6041,9 @@ const CLIENT_STEPS=[["Connect an email account","accounts",
    "Their sending comes from their own domain, not yours."],
   ["Add their prospects","prospects","Imported here, they belong to this workspace only."],
   ["Create their first sequence","sequences","Written for them, kept apart from your own campaigns."],
-  ["Launch it","sequences","Nothing sends until you do."]];
+  ["Launch it","sequences","Nothing sends until you do."],
+  /* 3 Oct 2026, Hitesh: no user at creation; the invite is the last step of the handover */
+  ["Invite their people","invite","When it is ready for them. They sign in to this workspace only, in the role you give them."]];
 function clientSetupBlock(c){
  const done=0;
  return '<div class="card" style="margin-bottom:16px;border-color:var(--blue-11)"><div class="c-b">'
@@ -6059,7 +6061,7 @@ function clientSetupBlock(c){
        +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="9"/></svg>'
        +'<span style="min-width:0"><span style="font-size:14px;font-weight:500;color:var(--gray-17);display:block">'+label+'</span>'
        +'<span class="cs">'+why+'</span></span></span>'
-      +'<button class="linkbtn" data-cstep="'+go+'">'+(next?"Start":"Open")+' &rarr;</button></div>'}).join("")
+      +'<button class="linkbtn" data-cstep="'+go+'">'+(go==="invite"?"Invite":next?"Start":"Open")+' &rarr;</button></div>'}).join("")
   +'</div></div></div>';
 }
 function onboardBlock(){
@@ -7024,25 +7026,19 @@ function drawerHTML(){
   <div class="field"><span class="flabel" id="ncColLab">Profile icon colour</span>
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
-  <!-- 29 Sep 2026, Hitesh: "first user's email and their role should be adopted" in the modal, from the earlier form. -->
-  <div class="field"><label class="flabel" for="nce">First user's email <span class="opt">(optional)</span></label><input type="email" id="nce" class="${nc.emailErr?"is-err":""}" value="${(nc.email||"").replace(/"/g,"&quot;")}" placeholder="marcus@alloyco.com" style="width:100%" aria-invalid="${nc.emailErr?"true":"false"}">
-   ${nc.emailErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.emailErr}</span></p>`:`<p class="sub nc-hint">${IC.mail}<span>We email them an invitation. They set their own password.</span></p>`}</div>
-  <!-- 2 Oct 2026, Hitesh: the role appears once there is a valid email to give it to -->
-  <div class="field nc-rolewrap" id="ncRoleWrap" ${validEmail(nc.email)?"":"hidden"}><div class="pp-sec-row"><span class="flabel" id="ncRoleLab" style="margin:0">Their role</span><button type="button" class="linkbtn" data-pproles style="font-size:12px">What each role can do</button></div>
-   <div id="ncrole" aria-labelledby="ncRoleLab" style="margin-top:8px">${roleRadios("ncrole",nc.role,"data-ncrole")}</div></div>
+  <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
-  <div class="msg m-info" style="margin-top:20px">${infoI}<span>Next: how much of your plan this workspace can use. You will be switched into it right after, so the prospects, email accounts and sequences you add next belong to it.</span></div>`;
- /* 2 Oct 2026, Hitesh: "split in 2 steps, that way we keep mental separation for our user". Step 2 is the share block from board row 03. */
- const b2=`<div class="nc-limhead"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span></div>${ncUsageHTML()}`;
+  <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
+  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16)"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span></div>${ncUsageHTML()}
+  <div class="msg m-info" style="margin-top:16px">${infoI}<span>You will be switched into the new workspace right after. Invite the client&rsquo;s people once it is ready for them.</span></div>`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
-  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace${s===2?' <span class="sub" style="font-weight:400">&middot; Usage</span>':''}</span>
-    ${s===1?'<p class="sub" style="margin:4px 0 0">Set up a separate space for one client or business. You can add more anytime.</p>':'<p class="sub" style="margin:4px 0 0">How much of your plan this workspace can use. Change it anytime on Limits.</p>'}</div>
+  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
+    <p class="sub" style="margin:4px 0 0">A separate space for one client. You can add more anytime.</p></div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <div class="dr-b">${s===1?b1:b2}</div>
-  <!-- 29 Sep 2026, Hitesh: "limits screen is not coming while adding workspace": Limits is the second step of the flow again, not a side link. -->
-  <div class="dr-f"><div>${s>1?'<button class="shd-button shd-button--tertiary" id="drBack">Back</button>':'<span class="sub">Step 1 of 2 &middot; Usage next</span>'}</div>
-   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button>${s<2?'<button class="shd-button shd-button--primary" id="drNext">Next</button>':'<button class="shd-button shd-button--primary" id="drDone">Add a workspace</button>'}</div></div>
+  <div class="dr-b">${b1}</div>
+  <div class="dr-f"><div></div>
+   <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone">Add a workspace</button></div></div>
  </aside>`;
 }
 /* 18 Sep, delight pass: a new client's default limit is a share that leaves
@@ -7124,14 +7120,12 @@ function renderDrawer(){
  const L=el("layer");shellInert();if(!drawer){L.innerHTML="";return}
  L.innerHTML=drawerHTML();
  L.querySelectorAll(".sw").forEach(b=>b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true"));
- const cap=()=>{const a=el("ncn"),b=el("ncc"),c=el("nce"),r=document.querySelector("[data-ncrole]:checked"),st=el("ncsite");
-   if(a)nc.name=a.value;if(b)nc.company=b.value;if(c)nc.email=c.value;if(st)nc.site=st.value;
-   if(r)nc.role=r.value;
+ const cap=()=>{const a=el("ncn"),b=el("ncc"),st=el("ncsite");
+   if(a)nc.name=a.value;if(b)nc.company=b.value;if(st)nc.site=st.value; nc.email="";
    nc.bif=true};
  /* the role select changes both the description under it and the "what they
     will get" sentence, so the whole drawer repaints rather than one paragraph. */
- document.querySelectorAll("[data-ncrole]").forEach(r=>r.onchange=()=>{nc.role=r.value;document.querySelectorAll("#ncrole .role-opt").forEach(l=>l.classList.toggle("is-on",l.querySelector("input").checked))});
- document.querySelectorAll("#ncrole ~ * [data-pproles], .dr-b [data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:null};renderModal()});
+
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
  L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
@@ -7146,11 +7140,14 @@ function renderDrawer(){
     rather than waiting for cap() to run on the next step. */
  /* the email typed here is also who ncAccessSentence names as the subject;
     only that one paragraph repaints, so the field keeps its caret */
- {const e=el("nce");if(e)e.oninput=()=>{nc.email=e.value;const w=el("ncRoleWrap");if(w)w.hidden=!validEmail(e.value)}}
+
  /* the reserve switch changes what the column means, so the step repaints */
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
  /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
  {const sl=el("ncShare");if(sl)sl.oninput=()=>{nc.share=+sl.value;nc.custom={};nc.err=null;const e=el("ncUerr");if(e)e.remove();ncPaintUsage()}}
+ {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const eb=document.querySelector(".nc-limhead .nc-eyebrow");if(eb)eb.textContent="Usage for "+(a.value.trim()||"this workspace");const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="How much of your plan "+(a.value.trim()||"this workspace")+" can use each cycle";
+  /* the name error clears as soon as a name is typed; it never waits for the next Add */
+  if(nc.nameErr&&a.value.trim()){nc.nameErr=null;a.classList.remove("is-err");a.setAttribute("aria-invalid","false");const fe=document.querySelector(".nc-fielderr");if(fe){fe.outerHTML='<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>'}}}}}
  {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
  {const b=el("ncReset");if(b)b.onclick=()=>{cap();nc.custom={};nc.err=null;renderDrawer()}}
  L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>i.oninput=()=>{nc.custom=nc.custom||{};nc.custom[i.dataset.cap]=num(i.value);i.classList.remove("is-err");ncPaintUsage()});
@@ -7160,15 +7157,10 @@ function renderDrawer(){
     Next is the only way to keep refining; Skip is the one-click way out at any point,
     and whatever was not visited gets the same default the drawer would have shown. */
  const sk=el("drSkip");if(sk)sk.onclick=()=>{cap();create()};
- const n=el("drNext");if(n)n.onclick=()=>{cap();
-   /* 2 Oct 2026, Hitesh: a workspace landed as "New workspace · –". The name is
-      marked required and is now enforced; an email, if typed, must be one. */
-   nc.nameErr=!nc.name.trim()?"Give the workspace a name.":null;
-   nc.emailErr=nc.email.trim()&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nc.email.trim())?"That is not an email address.":null;
-   if(nc.nameErr||nc.emailErr){renderDrawer();const i=el(nc.nameErr?"ncn":"nce");if(i)i.focus();return}
-   drawer.step=2;renderDrawer()};
- const bk=el("drBack");if(bk)bk.onclick=()=>{cap();drawer.step=1;renderDrawer()};
  const d=el("drDone");if(d)d.onclick=()=>{cap();
+   /* the name is marked required and is enforced here (one step since 3 Oct 2026) */
+   nc.nameErr=!nc.name.trim()?"Give the workspace a name.":null;
+   if(nc.nameErr){renderDrawer();const i=el("ncn");if(i)i.focus();return}
    /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
    const bad=RK.filter(k=>nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
    if(bad.length){nc.open=true;nc.err=bad.map(k=>`${RES[k].label.replace(/ \/ month$/,"")} exceeds what is available today (${f(nc.custom[k])} against ${f(compute(k).free)})`).join("; ")+".";renderDrawer();
@@ -7190,7 +7182,7 @@ function create(){
     workspace from the record's own Members tab, once it exists. */
  const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",
-  users:nc.email?[[nc.email,nc.role]]:[],mailboxes:[],limitsReviewed:nc.reachedStep3,forClient:nc.forClient!==false,site:(nc.site||"").trim()};
+  users:[],mailboxes:[],limitsReviewed:true,forClient:nc.forClient!==false,site:(nc.site||"").trim()};
  CLIENTS.push(c);byId[id]=c;
  /* teammates chosen in the modal become members of the new workspace */
  (nc.team||[]).forEach(k=>{const p=PEOPLE[k];if(p&&Array.isArray(p.ws)&&p.ws.indexOf(id)<0)p.ws.push(id)});
@@ -9014,7 +9006,7 @@ function wire(){
  q("[data-addcardoff]").forEach(b=>b.onclick=()=>{addCardOff=true;render()});
  q("[data-skiponboard]").forEach(b=>b.onclick=()=>{onboardOff=true;render()});
  q("[data-skipclientsetup]").forEach(b=>b.onclick=()=>{clientSetupOff[ctx]=true;render()});
- q("[data-cstep]").forEach(b=>b.onclick=()=>{inMod=b.dataset.cstep;openProspect=null;openSeq=null;openReply=null;render()});
+ q("[data-cstep]").forEach(b=>b.onclick=()=>{if(b.dataset.cstep==="invite"){openInvite({lock:ctx,role:"Workspace Collaborator"});return} inMod=b.dataset.cstep;openProspect=null;openSeq=null;openReply=null;render()});
  q("[data-set]").forEach(b=>b.onclick=()=>{setSel=b.dataset.set;render()});
  /* item N2, 28 Sep 2026: opens the real API & Integrations screen without
     leaving the workspace (ctx stays whatever workspace Settings was reached
@@ -10050,6 +10042,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .sk-bill{flex-direction:row;align-items:flex-start}.sk-nav{width:240px;flex:none;background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column}.sk-main{flex:1;display:flex;flex-direction:column;gap:16px}
 .page.pg-in>*{animation:pgIn .2s ease-out}@keyframes pgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.page.pg-in>*{animation:none}}
+.rc-noone{display:block;padding:10px 12px;border-radius:6px;background:var(--blue-17);font-size:13px;line-height:18px;color:var(--gray-15);margin-bottom:6px}.rc-noone b{color:var(--gray-17);font-weight:600}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10331,7 +10324,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7a74f16";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="eb52964";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
