@@ -4265,8 +4265,29 @@ function vPeopleOld(){
    that workspace as a radio list), a plain-language summary, and the footer.
    Opened from a workspace's Members tab it starts on the client path with that
    workspace locked. */
-const INV_BLANK=()=>({emails:[],draft:"",err:"",who:"team",admin:false,ws:{},clientWs:"",clientRole:"Workspace Viewer",guessed:false,lock:null});
-function openInvite(o){INV=Object.assign(INV_BLANK(),o||{}); if(INV.lock){INV.who="client";INV.clientWs=INV.lock} modal={kind:"invite"}; renderModal()}
+/* 3 Oct 2026, Hitesh (canvas row 15e): "let's build this into the prototype". The
+   purpose is a property of the person, not the form. Each address becomes a row
+   with its own proposal read from its domain; a row the product cannot settle
+   asks on the row itself and opens inline. Send waits until every row is settled. */
+const INV_BLANK=()=>({emails:[],draft:"",err:"",rows:{},lock:null,preset:null});
+function openInvite(o){o=o||{}; INV=INV_BLANK(); INV.lock=o.lock||null;
+ const pre=Array.isArray(o.ws)?o.ws:(o.ws?Object.keys(o.ws):null); if(pre&&pre.length)INV.preset={kind:"team",wsList:pre.filter(id=>byId[id])};
+ modal={kind:"invite"}; renderModal()}
+const INV_LEVEL_DEFAULT="Workspace Viewer";
+const agencyDomains=()=>{const d=new Set(); (AGENCY_OWN.mailboxes||[]).forEach(m=>{const x=(m[0].split("@")[1]||"").toLowerCase(); if(x)d.add(x)}); return d};
+function invPropose(addr){
+ const d=(addr.split("@")[1]||"").toLowerCase();
+ if(INV.lock) return {kind:"client",ws:INV.lock,wsList:[],level:INV_LEVEL_DEFAULT,from:"lock",open:false};
+ if(agencyDomains().has(d)) return {kind:"team",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],level:"Workspace Admin",from:"domain",open:false};
+ const g=invGuessWs(addr); if(g) return {kind:"client",ws:g,wsList:[],level:INV_LEVEL_DEFAULT,from:"domain",open:false};
+ if(INV.preset) return {kind:"team",ws:"",wsList:INV.preset.wsList.slice(),level:"Workspace Admin",from:"preset",open:false};
+ return {kind:null,ws:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"none",open:false};
+}
+const invSettled=r=>r.kind==="admin"||(r.kind==="client"&&!!r.ws)||(r.kind==="team"&&r.wsList.length>0);
+const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["Look only","Look only"]};
+const INV_WHY={"Workspace Admin":"Edits sequences, adds prospects and templates, exports, reveals leads against the limit.","Workspace Collaborator":"Reads everything, replies, connects their own email accounts. Changing what goes out stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
+const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the clients you pick."],["client","Use their own client workspace","A client&rsquo;s person. One workspace, nothing of your agency."],["admin","Run the agency with me","An Admin. Every client, People and Billing."]];
+const INV_TINTS=["#b91c1c","#1d4ed8","#0f766e","#6d28d9","#c2410c","#0e7490"];
 const invFirst=e=>{const n=e.split("@")[0].split(/[._-]/)[0];return n?n.charAt(0).toUpperCase()+n.slice(1):"They"};
 const invNames=I=>{const n=I.emails.map(invFirst);return n.length?n.slice(0,2).join(" and ")+(n.length>2?" and "+(n.length-2)+" more":""):"They"};
 const invShort=r=>r.replace(/^Workspace /,"");
@@ -4302,67 +4323,63 @@ function wireDD(L,id,onPick){
  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
 }
 function inviteHTML(){
- const I=INV, wsList=fundedWorkspaces(), team=I.who==="team";
- const picked=wsList.filter(c=>I.ws[c.id]);
+ const I=INV, lock=I.lock&&byId[I.lock], wsList=fundedWorkspaces().filter(x=>!x.own);
  const chips=I.emails.map(e=>`<span class="pp-echip">${e}<button type="button" data-invrm="${e}" aria-label="Remove ${e}">&times;</button></span>`).join("");
- const who=invNames(I), one=I.emails.length===1;
- const roleItems=CLIENT_ROLES.map(r=>({value:r,label:invShort(r)}));
- const lockName=I.lock&&byId[I.lock]?byId[I.lock].name:"";
- let body, sum, ok;
- if(team){
-  const roles=[...new Set(picked.map(c=>I.ws[c.id]))], rolePhrase=roles.length===1?"as "+invShort(roles[0]):"in the role set on each";
-  const notSeen=wsList.filter(c=>!I.ws[c.id]).map(c=>c.name);
-  sum=I.admin?`<strong>${who} will be Admin${one?"":"s"}:</strong> every workspace as Workspace Admin, plus People and Billing.`
-    :picked.length?`<strong>${who} will get</strong> ${listAnd(picked.map(c=>c.name))} ${rolePhrase}. They will not see ${notSeen.length?listAnd(notSeen):"anything else"}. You can change any of this later from their profile.`
-    :`<strong>${who} will join the account</strong> with no workspace yet. Pick at least one, or they will see nothing.`;
-  ok=I.emails.length>0&&(I.admin||picked.length>0);
-  body=`<label class="pp-check" style="margin-top:0"><input type="checkbox" data-invadmin ${I.admin?"checked":""}>Make them Admins <span class="sub">&middot; reaches every workspace as Workspace Admin, plus People and Billing</span></label>
-   <div class="field">
-    <div class="pp-sec-row"><span class="flabel" style="margin:0">Workspace access <span class="opt">&middot; ${picked.length} of ${wsList.length} picked</span></span></div>
-    <div class="pp-igrid${I.admin?" is-off":""}" style="margin-top:8px">${wsList.map(c=>`<div class="pp-irow${I.ws[c.id]?" is-on":""}"><input type="checkbox" data-invws="${c.id}" ${I.ws[c.id]?"checked":""} ${I.admin?"disabled":""} aria-label="${c.name}">${av(c,24)}<span class="pp-irow-n">${c.name}${c.own?' <span class="sub" style="display:inline">(your own)</span>':""}</span>${I.ws[c.id]?ddHTML("invr_"+c.id,I.ws[c.id],[{items:roleItems}],{}):'<span class="sub">No access</span>'}</div>`).join("")}</div></div>`;
- } else {
-  const c=byId[I.clientWs], r=I.clientRole, rs=roleSet(r);
-  sum=c?`<strong>${who} will get</strong> ${c.name} as a ${r}: ${rs.desc.charAt(0).toLowerCase()+rs.desc.slice(1)}. They will not see ${AGENCY.name} or any other client. ${r==="Workspace Viewer"?"Most client users start here; promote them later from their profile.":"You can change this later from their profile."}`
-    :`<strong>Pick the workspace</strong> ${who==="They"?"they":who} will live in.`;
-  ok=I.emails.length>0&&!!I.clientWs;
-  body=`<div class="inv-grid2">
-   <div class="field"><span class="flabel">Their workspace</span>
-    ${ddHTML("invWs",I.clientWs,[{items:wsList.filter(x=>!x.own).map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a workspace",disabled:!!I.lock})}
-    <span class="sub nc-hint" style="margin-top:6px">${I.lock?"Inviting into "+lockName+".":I.guessed&&c?"Guessed from the email domain. Change it if we got it wrong.":"The one workspace this person signs in to."}</span></div>
-   <div class="field"><span class="flabel">Role in that workspace</span>
-    ${roleRadios("invrole",r,"data-invrole")}</div>
-  </div>`;
- }
- return card("Invite people",`
-   <div class="field"><label class="flabel" for="invEmail">Email addresses</label>
+ const rows=I.emails.map((addr,n)=>invRowHTML(addr,I.rows[addr],n,lock,wsList)).join("");
+ const allOk=I.emails.length>0&&I.emails.every(a=>invSettled(I.rows[a]));
+ const body=`<div class="field"><label class="flabel" for="invEmail">Email addresses</label>
     <div class="pp-emails" data-invfocus>${chips}<input type="text" id="invEmail" value="${I.draft.replace(/"/g,"&quot;")}" placeholder="${I.emails.length?"Add another, then press Enter":"name@company.com, then press Enter"}"></div>
-    <p class="sub nc-hint" style="margin-top:6px">${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:"Paste a list if you like. Each person sets their own password."}</p></div>
-   ${invWhoHTML(I)}
-   ${body}
-   <div class="inv-sum">${infoI}<span>${sum}</span></div>`,invFootHTML(I,ok),"ac inv-b");
+    <p class="sub nc-hint" style="margin-top:6px">${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:"Each person sets their own password."}</p></div>
+   ${I.emails.length?`<div class="field"><span class="flabel">${lock?"What they can do in "+lock.name:"They will get"}</span><div class="inv-list">${rows}</div></div>`:""}`;
+ const n=I.emails.length;
+ const title=lock?`Invite ${lock.name}&rsquo;s people`:"Invite people";
+ return card(title,body,
+  `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
+  .replace(`<span class="semibold-3">${title}</span>`,`<span class="semibold-3">${title}${lock?`<span class="inv-sub">They sign in to ${lock.name} only.</span>`:""}</span>`);
 }
-function invWhoHTML(I){
- return `<div class="field" style="margin:0"><span class="flabel">Who are they?</span>
-  <div class="pp-rgrid" role="radiogroup" style="margin-top:8px">
-   <label class="pp-rcard${I.who==="team"?" is-on":""}"><span><input type="radio" name="invwho" value="team" ${I.who==="team"?"checked":""} ${I.lock?"disabled":""} data-invwho>On your team</span><i>${AGENCY.name} staff. They join the account and reach the workspaces you pick.</i></label>
-   <label class="pp-rcard${I.who==="client"?" is-on":""}"><span><input type="radio" name="invwho" value="client" ${I.who==="client"?"checked":""} data-invwho>At a client</span><i>Works for the client. One workspace, never the account or other clients.</i></label></div></div>`;
+function invRowHTML(addr,r,n,lock,wsList){
+ const ini=initials(addr.split("@")[0].replace(/[._-]+/g," ")), tint=INV_TINTS[n%INV_TINTS.length];
+ const c=r.kind==="client"&&byId[r.ws], names=r.wsList.map(id=>byId[id]&&byId[id].name).filter(Boolean);
+ let line, chip, warn=false;
+ if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.from==="domain"?", from the domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
+ else if(r.kind==="client") {line="A client&rsquo;s person &middot; which client?"; chip="Pick a client"; warn=true}
+ else if(r.kind==="team"&&names.length) {const verb={"Workspace Admin":"runs","Workspace Collaborator":"does the outreach for","Workspace Viewer":"looks at"}[r.level]; line=`Your team &middot; ${verb} ${listAnd(names)}, sees no other client`; chip=r.level}
+ else if(r.kind==="team") {line=`Your team${r.from==="domain"?", from the domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
+ else if(r.kind==="admin") {line="Admin &middot; every client, People and Billing"; chip="Admin"}
+ else {line="We cannot tell from the address"; chip="Who is this?"; warn=true}
+ return `<div class="inv-row${r.open?" is-open":""}" data-invrow="${addr}">
+   <span class="avatar av-tint" style="--c:${tint};width:32px;height:32px;font-size:12px">${ini}</span>
+   <span class="inv-who"><span class="inv-addr">${addr}</span><span class="inv-line">${line}</span></span>
+   ${warn?`<button type="button" class="inv-tag is-warn" data-invchange="${addr}">${chip}</button>`:`<span class="inv-tag">${chip}</span>`}
+   ${r.open||warn?"":`<button type="button" class="linkbtn" data-invchange="${addr}">Change</button>`}
+  </div>${r.open?invEditorHTML(addr,r,n,lock,wsList):""}`;
 }
-function invFootHTML(I,ok){const n=I.emails.length;
- return `<button class="linkbtn" data-pproles style="margin-right:auto">What each role can do</button><button class="shd-button shd-button--secondary" data-mclose>Cancel</button>
-   <button class="shd-button shd-button--primary" data-invsend ${ok?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`}
+function invEditorHTML(addr,r,n,lock,wsList){
+ const cards=(name,items,cur,attr)=>`<div class="inv-cards" role="radiogroup">${items.map(([v,l,h])=>`<label class="inv-card${cur===v?" is-on":""}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} ${attr}="${addr}"><span><b>${l}</b><i>${h}</i></span></label>`).join("")}</div>`;
+ const levels=CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
+ const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
+ let inner="";
+ if(!lock) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
+ if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Guessed from the email domain. Change it if we got it wrong.</p>`:""}</div>`;
+ if(r.kind==="client") inner+=lvl(`What can they do in ${byId[r.ws]?byId[r.ws].name:"it"}?`);
+ if(r.kind==="team"){const left=wsList.filter(x=>r.wsList.indexOf(x.id)<0);
+  inner+=`<div class="field"><span class="flabel">Which clients</span><div class="inv-ms">${r.wsList.map(id=>byId[id]?`<span class="pp-echip">${byId[id].name}<button type="button" data-invrmws="${id}" data-invaddr="${addr}" aria-label="Remove ${byId[id].name}">&times;</button></span>`:"").join("")}${left.length?ddHTML("invadd_"+n,"",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:r.wsList.length?"Add a client":"Pick one or more"}):""}</div><p class="inv-help">Change this later from their profile.</p></div>`;
+  inner+=lvl("How much, in those clients?")}
+ return `<div class="inv-ed" data-inved="${addr}">${inner}<div class="inv-ed-f"><button type="button" class="shd-button shd-button--secondary" data-invedcancel="${addr}">Cancel</button><button type="button" class="shd-button shd-button--primary" data-inveddone="${addr}" ${invSettled(r)?"":"disabled"}>Done</button></div></div>`;
+}
 function inviteSend(){
- const I=INV, made=[];
- I.emails.forEach(addr=>{
-  if(I.who==="client"){const c=byId[I.clientWs]; if(!c)return; const row=[addr,I.clientRole]; c.users=c.users||[]; c.users.push(row); LASTSEEN[addr]="never"; INVITED["w:"+c.id+"|"+addr]="just now"; made.push(()=>{const i=c.users.indexOf(row); if(i>-1)c.users.splice(i,1); delete INVITED["w:"+c.id+"|"+addr]})}
+ const I=INV, made=[]; let lastWhere="", lastRole="";
+ I.emails.forEach(addr=>{const r=I.rows[addr]; if(!r||!invSettled(r))return;
+  if(r.kind==="client"){const c=byId[r.ws]; if(!c)return; const row=[addr,r.level]; c.users=c.users||[]; c.users.push(row); LASTSEEN[addr]="never"; INVITED["w:"+c.id+"|"+addr]="just now"; lastWhere=" to "+c.name; lastRole=r.level; made.push(()=>{const i=c.users.indexOf(row); if(i>-1)c.users.splice(i,1); delete INVITED["w:"+c.id+"|"+addr]})}
   else {let key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
-   const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase());
-   const roles=I.admin?{}:Object.assign({},I.ws);
-   PEOPLE[key]={name:nm,initials:initials(nm),role:I.admin?"Admin":"Member",email:addr,ws:I.admin?null:Object.keys(I.ws).filter(id=>byId[id]),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now";
+   const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), admin=r.kind==="admin";
+   const roles={}; if(!admin)r.wsList.forEach(id=>roles[id]=r.level);
+   PEOPLE[key]={name:nm,initials:initials(nm),role:admin?"Admin":"Member",email:addr,ws:admin?null:r.wsList.slice(),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"; lastWhere=""; lastRole=admin?"Admin":"Member";
    made.push(()=>{delete PEOPLE[key];delete LASTSEEN[nm];delete INVITED["t:"+key]})}
  });
- const n=made.length, client=I.who==="client", where=client?" to "+byId[I.clientWs].name:"", role=client?I.clientRole:(I.admin?"Admin":"Member");
+ const n=made.length;
  const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
- receipt(scope,n===1?`Invite sent to ${I.emails[0]}${where} as ${/^[aeiou]/i.test(role)?"an":"a"} ${role}.`:`${n} invites sent${where}.`,()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
+ receipt(scope,n===1?`Invite sent to ${I.emails[0]}${lastWhere} as ${/^[aeiou]/i.test(lastRole)?"an":"a"} ${lastRole}.`:`${n} invites sent.`,()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
  PEOPLE_FLASH=null; INV=null; modal=null; renderModal();
  render();
 }
@@ -4423,24 +4440,27 @@ function wirePeopleModal(L){
  const rerender=()=>{L.innerHTML=modalHTML();wirePeopleModal(L);L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;INV=null;renderModal()})};
  if(k==="invite"){const inp=L.querySelector("#invEmail");
   const commit=()=>{const parts=inp.value.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean); let err="", bad=[];
-    parts.forEach(x=>{if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0)INV.emails.push(x)});
-    /* the client path guesses the workspace from the first address's domain,
-       once, and says so; a pick by hand clears the guess note. */
-    if(INV.who==="client"&&!INV.lock&&!INV.clientWs&&INV.emails.length){const g=invGuessWs(INV.emails[0]); if(g){INV.clientWs=g;INV.guessed=true}}
+    parts.forEach(x=>{if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
     INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n)n.focus()};
+  const drop=a=>{INV.emails=INV.emails.filter(x=>x!==a); delete INV.rows[a]};
   inp.oninput=()=>{INV.draft=inp.value; if(INV.err&&!inp.value.trim()){INV.err="";rerender();L.querySelector("#invEmail").focus()}};
-  inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){INV.emails.pop();rerender();L.querySelector("#invEmail").focus()}};
-  L.querySelectorAll("[data-invrm]").forEach(b=>b.onclick=()=>{INV.emails=INV.emails.filter(x=>x!==b.dataset.invrm);rerender()});
-  L.querySelectorAll("[data-invwho]").forEach(r=>r.onchange=()=>{INV.who=r.value; if(INV.who==="client"&&!INV.clientWs&&INV.emails.length){const g=invGuessWs(INV.emails[0]); if(g){INV.clientWs=g;INV.guessed=true}} rerender()});
-  L.querySelectorAll("[data-invadmin]").forEach(c=>c.onchange=()=>{INV.admin=c.checked;rerender()});
-  L.querySelectorAll("[data-invws]").forEach(c=>c.onchange=()=>{if(c.checked)INV.ws[c.dataset.invws]=INV.ws[c.dataset.invws]||"Workspace Collaborator"; else delete INV.ws[c.dataset.invws]; rerender()});
-  fundedWorkspaces().forEach(c=>wireDD(L,"invr_"+c.id,v=>{INV.ws[c.id]=v;rerender()}));
-  wireDD(L,"invWs",v=>{INV.clientWs=v;INV.guessed=false;rerender()});
-  L.querySelectorAll("[data-invrole]").forEach(r=>r.onchange=()=>{INV.clientRole=r.value;rerender()});
+  inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){drop(INV.emails[INV.emails.length-1]);rerender();L.querySelector("#invEmail").focus()}};
+  L.querySelectorAll("[data-invrm]").forEach(b=>b.onclick=()=>{drop(b.dataset.invrm);rerender()});
+  const row=a=>INV.rows[a];
+  L.querySelectorAll("[data-invchange]").forEach(b=>b.onclick=()=>{INV.emails.forEach(a=>{if(row(a).open){row(a).open=false}}); const r=row(b.dataset.invchange); r.open=true; r.snap=JSON.stringify(r); rerender()});
+  L.querySelectorAll("[data-invkind]").forEach(c=>c.onchange=()=>{const r=row(c.dataset.invkind); r.kind=c.value; r.from="pick";
+    if(r.kind==="client"&&!r.ws){const g=invGuessWs(c.dataset.invkind); if(g){r.ws=g;r.from="domain"} r.level=INV_LEVEL_DEFAULT}
+    if(r.kind==="team"){if(!r.wsList.length&&INV.preset)r.wsList=INV.preset.wsList.slice(); r.level="Workspace Admin"}
+    rerender()});
+  L.querySelectorAll("[data-invlevel]").forEach(c=>c.onchange=()=>{row(c.dataset.invlevel).level=c.value;rerender()});
+  L.querySelectorAll("[data-invrmws]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr); r.wsList=r.wsList.filter(x=>x!==b.dataset.invrmws); rerender()});
+  INV.emails.forEach((a,n)=>{wireDD(L,"invws_"+n,v=>{if(v){row(a).ws=v;row(a).from="pick"} rerender()}); wireDD(L,"invadd_"+n,v=>{if(v&&row(a).wsList.indexOf(v)<0)row(a).wsList.push(v); rerender()})});
+  L.querySelectorAll("[data-inveddone]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.inveddone); if(!invSettled(r))return; r.open=false; delete r.snap; rerender()});
+  L.querySelectorAll("[data-invedcancel]").forEach(b=>b.onclick=()=>{const a=b.dataset.invedcancel, r=row(a); const back=r.snap?JSON.parse(r.snap):r; back.open=false; delete back.snap; INV.rows[a]=back; rerender()});
  L.querySelectorAll("[data-invfocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#invEmail");if(n)n.focus()}});
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
   const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
-  inp.focus();}
+  if(!L.querySelector(".inv-ed"))inp.focus();}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
  if(k==="pconfirm"){L.querySelector("[data-pconfirmok]").onclick=()=>peopleModalOk("pconfirm")}
@@ -10043,6 +10063,27 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .page.pg-in>*{animation:pgIn .2s ease-out}@keyframes pgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.page.pg-in>*{animation:none}}
 .rc-noone{display:block;padding:10px 12px;border-radius:6px;background:var(--blue-17);font-size:13px;line-height:18px;color:var(--gray-15);margin-bottom:6px}.rc-noone b{color:var(--gray-17);font-weight:600}
+
+/* 3 Oct 2026, change 101 (canvas row 15e): Invite people as the rows you are about to add. SD list row, radio cards, multiselect chips. */
+.modal-h .inv-sub{display:block;margin-top:2px;font-size:12px;line-height:16px;font-weight:400;color:#6b7280}
+.inv-list{border:1px solid #e5e7eb;border-radius:4px}
+.inv-list>.inv-row{display:flex;align-items:center;gap:12px;height:auto;padding:12px 16px;border:0;border-top:1px solid #e5e7eb;cursor:default}.inv-list>.inv-row:first-child{border-top:0}.inv-row.is-open{background:#eff6ff}
+.inv-who{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}.inv-addr{font-size:14px;line-height:20px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inv-line{font-size:12px;line-height:16px;color:#6b7280}
+.inv-tag{font:inherit;font-size:12px;line-height:16px;font-weight:500;border-radius:4px;padding:3px 8px;background:#fff;border:1px solid #e5e7eb;color:#374151;white-space:nowrap}
+.inv-tag.is-warn{color:#92400e;background:#fffbeb;border-color:#fde68a;cursor:pointer}.inv-tag.is-warn:hover{background:#fef3c7}
+.inv-row .linkbtn{font-size:13px;font-weight:500;white-space:nowrap}
+.inv-ed{padding:16px;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;flex-direction:column;gap:16px}.inv-list>.inv-ed:last-child{border-radius:0 0 4px 4px}
+.inv-ed .flabel{display:block;margin-bottom:6px}.inv-ed .pp-sec-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.inv-ed .pp-sec-row .linkbtn{font-size:12px;font-weight:500}
+.inv-cards{display:flex;gap:12px}
+.inv-card{flex:1 1 0;min-width:0;display:flex;align-items:flex-start;gap:10px;padding:12px 14px 12px 12px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer;transition:background .14s,border .14s,box-shadow .14s}.inv-card:hover{background:#f9fafb}.inv-card.is-on{border-color:#bfdbfe;background:#eff6ff;box-shadow:0 0 0 2px #dbeafe}
+.inv-card input{appearance:none;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;border:1px solid #9ca3af;margin:0;flex:none;background:#fff;box-sizing:border-box;cursor:pointer}.inv-card input:checked{border:6px solid #1d4ed8}.inv-card input:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+.inv-card>span{display:flex;flex-direction:column;gap:2px;min-width:0}.inv-card b{font-size:14px;line-height:20px;font-weight:500;color:#111827}.inv-card i{font-style:normal;font-size:12px;line-height:18px;color:#6b7280}
+.inv-help{margin:6px 0 0;font-size:12px;line-height:16px;color:#6b7280}
+.inv-ed .dd{width:100%}.inv-ed .field{margin:0}
+.inv-ms{min-height:32px;border:1px solid #d1d5db;border-radius:4px;background:#fff;padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;box-sizing:border-box}
+.inv-ms .dd{width:auto;flex:1 1 140px;min-width:140px}.inv-ms .dd-trig{height:22px;border:0!important;box-shadow:none!important;padding:0 6px;font-size:13px;color:#1d4ed8;background:transparent}.inv-ms .dd-trig .dd-val.is-ph{color:#1d4ed8}
+.inv-ed-f{display:flex;justify-content:flex-end;gap:8px}
+
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10324,7 +10365,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="eb52964";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="546725b";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
