@@ -3917,7 +3917,7 @@ function rLimits(c){
  return `
  ${reqBar}<div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
    <span class="sub">${ro?"Read only while the workspace is "+(c.deletedOn?"deleted":"disabled")+".":"Each number saves as you leave it. Undo from the toast."}</span>
-   <span class="c-a"><button class="linkbtn" id="toCredits">All workspaces &rarr;</button></span></div>
+   <span class="c-a"><button class="linkbtn" data-goalloc="${FOCUS_LIM||'sends'}">All workspaces &rarr;</button></span></div>
   ${shareLine}
   <div class="lm-rows" id="rcLimTable">${rows}</div>
   <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p></div>
@@ -4526,9 +4526,11 @@ let colOpen=false, colDraft=null, colQ="";
    to, and what is still free), one group of its own with Workspace limits & usage,
    and an Email Accounts page with the billing and history that the live page
    lacks. Prices and dates are illustrative. */
-const BILL_TABS=[["plan","Platform","Plan"],["email","Email Accounts","Plan"],["crm","CRM","Add-ons"],["dialer","Dialer","Add-ons"],
- ["ai","AI Credits","Credits"],["verify","Email Verification Credits","Credits"],["radar","Inbox Radar","Deliverability"],
- ["alloc","Workspace limits & usage","Workspaces"]];
+/* 4 Oct 2026, change 109 (canvas row 16 B, doc 73): Billing is money. Four items: the plan and the
+   email accounts it bills, then what you buy. Limits are set on each workspace; Billing only shows
+   where the plan goes. The allocation view (billTab "alloc") stays renderable for deep links and tests
+   but is no longer in the nav. */
+const BILL_TABS=[["plan","Platform","Plan"],["email","Email Accounts","Plan"],["credits","Credits","Buy"],["addons","Add-ons","Buy"]];
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* 21 Sep 2026, delight pass round 6: the next invoice in words, once, so Plan
@@ -4565,48 +4567,64 @@ function poolBar(k,opts){
    ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> available to draw</span>
      <button class="linkbtn" data-goalloc="${k}">Workspace limits &rarr;</button></span>`:""}</div></div>`;
 }
+const CREDIT_PRICE={lead_finder:"$0.05 / credit",verification:"$0.004 / credit",ai:"$0.01 / credit",dialer:"$0.03 / credit",radar:"$0.40 / test"};
+const CREDIT_LAST={lead_finder:"Last bought 2,000 on 12 Sep",verification:"Last bought 5,000 on 19 Aug",ai:"Never bought",dialer:"Never bought",radar:"Never bought"};
+const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"Renews monthly with the add-on"};
+function billLine(){
+ const sent=planNextLine();
+ return `<div class="bill-line"><span class="bill-amt">${sent}.</span><span class="bill-sub">${PLAN.name.replace(" (Monthly)",", monthly")} &middot; covers ${AGENCY.name}${isNormal()?"":" and "+CLIENTS.length+" workspaces"} &middot; <button class="linkbtn" data-flash="Opens the billing portal">Invoices</button></span></div>`}
+function planGoesRow(k){
+ const R=RES[k], m=compute(k), rows=fundedWorkspaces().filter(c=>R.rows[c.id]);
+ const used=rows.reduce((t,c)=>t+(R.rows[c.id].used||0),0), given=allocOf(k), avail=Math.max(0,R.pool-given);
+ const segs=rows.map(c=>`<span title="${c.name} ${f(R.rows[c.id].cap)}" style="width:${(100*R.rows[c.id].cap/R.pool).toFixed(2)}%;background:${c.colour}"></span>`).join("");
+ return `<div class="pg-row" data-pg="${k}"><div><div class="pg-name">${R.label}</div><div class="cs">${f(R.pool)} ${R.unit} in your plan</div></div>
+  <div class="pg-bar">${segs}</div>
+  <div class="pg-used"><span>${f(used)} used</span><span class="cs">${R.pool?Math.round(100*used/R.pool):0}% of the plan</span></div>
+  <div class="pg-avail"><span>${f(avail)} available</span>${ddHTML("setlim_"+k,"",[{items:rows.map(c=>({value:c.id,label:c.name,avatar:av(c,22)}))}],{placeholder:"Set limits →"})}</div></div>`}
 function vPlatform(){
- const own=CLIENTS.reduce((t,c)=>t+c.users.length,0);
+ const own=CLIENTS.reduce((t,c)=>t+c.users.length,0), ks=RK.filter(k=>RES[k].pool>0);
+ const legend=`<div class="pg-legend">${fundedWorkspaces().map(c=>`<span><i style="background:${c.colour}"></i>${c.name}</span>`).join("")}<span><i style="background:#e5e7eb"></i>Available</span></div>`;
  return `<div class="panel plancard">
-   <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
-    <span><span class="cs">Plan Details</span><span class="semibold-4" style="display:block">${PLAN.name}</span></span>
-    <span class="tools"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button>
-     <button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Manage Billing</button></span></div>
-   <div class="panel-b plan-kv"><span><span class="cs">Start Date</span><b>${PLAN.start}</b></span>
-    <span><span class="cs">Next Billing Date</span><b>${PLAN.next}</b></span>
-    <span><span class="cs">Next Billing Amount</span><b>${planNextLine()}</b></span>
-    ${isNormal()?"":`<span><span class="cs">Covers</span><b>${AGENCY.name} and ${CLIENTS.length} workspaces</b></span>`}</div>
+   <div class="panel-h"><span class="panel-t">Plan</span>
+    <span class="c-a tools"><button class="shd-button shd-button--secondary" data-flash="Opens the billing portal">Manage Billing</button><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button></span></div>
+   <div class="panel-b plan-kv"><span><span class="cs">Plan</span><b>${PLAN.name}</b></span>
+    <span><span class="cs">Started</span><b>${PLAN.start}</b></span>
+    <span><span class="cs">Next billing date</span><b>${PLAN.next}</b></span>
+    <span><span class="cs">What changes next month</span><b>Nothing yet</b><span class="cs" style="display:block">No seats, mailboxes or credits added this cycle</span></span></div>
   </div>
-  <div class="panel">
-   <div class="panel-h"><span class="panel-t">Account Plan Usage</span><span class="sub">Email quota resets on ${PLAN.resets}</span>
-    <span class="c-a"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button></span></div>
-   <div class="panel-b ub-grid">${poolBar("sends",{title:"Emails sent this month"})}${poolBar("verification",{title:"Email verification credits"})}</div>
-  </div>
-  <div class="panel">
-   <div class="panel-h"><span class="panel-t">Total Lead Finder Credits</span>
-    <span class="c-a tools"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button>
-     <button class="linkbtn" data-flash="Not in this prototype">Download Usage Report</button>
-     <button class="linkbtn" data-flash="Not in this prototype">+ Add More Credits</button></span></div>
-   <div class="panel-b">${poolBar("lead_finder",{title:"Plan credits"})}
-    <p class="sub" style="margin:10px 0 0">On ${PLAN.next}, your current Plan Credits will reset and you'll receive ${f(RES.lead_finder.pool)} Plan Credits.</p></div>
-  </div>
+  ${isNormal()?"":`<div class="panel">
+   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub">Limits are set on each workspace. Nothing here changes a limit.</span></div>
+   <div class="panel-b" style="padding-top:12px">${legend}${ks.map(planGoesRow).join("")}</div>
+  </div>`}
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
-   <div class="panel-b">
-    <div class="list-row"><span><span style="font-weight:500">Team seats</span>
-      <span class="cs" style="display:block">${isNormal()?"People on this account":"Your team, counted once whatever they are members of"}</span></span>
-      <span class="tnum">3 of 10</span></div>
-    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Workspace users</span>
-      <span class="cs" style="display:block">External people in workspaces. Not charged as seats</span></span>
-      <span class="tnum">${own}</span></div>
-    <div class="list-row"${isNormal()?' hidden':''}><span><span style="font-weight:500">Workspaces</span>
-      <span class="cs" style="display:block">Unlimited on this plan</span></span>
-      <span class="tnum">${CLIENTS.length}</span></div>
-    <div class="list-row"><span><span style="font-weight:500">Whitelabel</span>
-      <span class="cs" style="display:block">Included in the Scale plan</span></span>
-      <span style="display:inline-flex;align-items:center;gap:12px"><span class="chip c-ok">Included</span><button class="linkbtn" data-gowl>Set up &rarr;</button></span></div>
+   <div class="panel-b sa-grid">
+    <div class="sa-row"><span>Team seats</span><span class="cs">3 of 10 used</span></div>
+    <div class="sa-row"${isNormal()?' hidden':''}><span>Workspaces</span><span class="cs">Unlimited</span></div>
+    <div class="sa-row"><span>Whitelabel</span><span class="cs">Included &middot; <button class="linkbtn" data-gowl>Set up &rarr;</button></span></div>
+    <div class="sa-row"><span>CRM</span><span class="cs">Not on this plan</span></div>
+    <div class="sa-row"><span>Dialer</span><span class="cs">Add-on &middot; $29 / month</span></div>
+    <div class="sa-row"><span>Inbox Radar</span><span class="cs">Add-on &middot; $49 / month</span></div>
    </div></div>`;
 }
+function vCreditsBuy(){
+ const ks=["lead_finder","verification","ai"].concat(RES.dialer&&RES.dialer.pool>0?["dialer"]:[]);
+ return `<div class="panel">
+   <div class="panel-h"><span class="panel-t">Credits</span><span class="sub">Shared by every workspace; each one's limit is on its Limits tab</span></div>
+   <div class="panel-b" style="padding-top:0">${ks.map(k=>{const R=RES[k], used=fundedWorkspaces().reduce((t,c)=>t+((R.rows[c.id]||{}).used||0),0), bal=Math.max(0,R.pool-used);
+    return `<div class="cp-row"><div><div class="pg-name">${R.label.replace(/ \/ month$/,"")}</div><div class="cs">${CREDIT_RENEW[k]}</div></div>
+     <div><span class="cs" style="display:block">Balance</span><b class="cp-v">${f(bal)} of ${f(R.pool)}</b></div>
+     <div><span class="cs" style="display:block">Price</span><b class="cp-v">${CREDIT_PRICE[k]}</b></div>
+     <div style="text-align:right"><button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Buy credits</button><span class="cs" style="display:block;margin-top:6px">${CREDIT_LAST[k]}</span></div></div>`}).join("")}</div></div>
+  <div class="panel"><div class="panel-b"><span class="sub">Credits are shared by every workspace. How much each one may use is set on its Limits tab, and the picture of who uses what is on Platform.</span></div></div>`}
+function vAddons(){
+ const row=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
+   <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
+    <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
+    <span class="tools"><span class="tnum" style="font-weight:600">${price}</span>${on?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Manage</button>`:`<button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add to plan</button>`}</span></div></div>`;
+ return row("Dialer","Call prospects from a sequence step, with recordings and call logs.","","$29 / month &middot; 1,000 credits",true)
+  +row("Inbox Radar","Deliverability tests for every mailbox, with alerts when placement drops.","","$49 / month &middot; 120 tests",true)
+  +row("CRM","Pipelines, deals and activity on top of the prospects you already have.","","$29 / user / month",false)}
 /* an email account bought through Saleshandy sits on a secondary sending
    domain; the client's own domain carries the accounts they connected. */
 const mbxBought=c=>{const d=(SEND_DOMAINS[c.id]||[])[0];return (c.mailboxes||[]).filter(m=>d&&String(m[0]).split("@")[1]!==d).length};
@@ -4676,22 +4694,19 @@ function vBilling(){
     group is absent rather than present and empty. */
  if(isNormal()&&billTab==="alloc") billTab="plan";
  const tabs=BILL_TABS.filter(t=>!(isNormal()&&t[0]==="alloc"));
- if(!tabs.some(t=>t[0]===billTab)) billTab="plan";
+ if(!tabs.some(t=>t[0]===billTab)&&billTab!=="alloc") billTab="plan";
  const groups=[...new Set(tabs.map(t=>t[2]))];
  const nav=`<div class="setnav">${groups.map(g=>'<h4>'+g+'</h4>'+tabs.filter(t=>t[2]===g).map(t=>
-   `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${t[1]}${t[0]==="alloc"&&REQUESTS.length?`<span class="sc">${REQUESTS.length}</span>`:""}</button>`).join("")).join("")}</div>`;
+   `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${t[1]}</button>`).join("")).join("")}</div>`;
  const page=billTab==="plan"?vPlatform()
   :billTab==="email"?vEmailBilling()
-  :billTab==="crm"?vAddon("CRM","Pipelines, deals and activity on top of the prospects you already have.","$29 / user / month")
-  :billTab==="dialer"?vAddon("Dialer","Call prospects from a sequence step, with recordings and call logs.","$39 / user / month")
-  :billTab==="ai"?vCreditPage("ai","Writing, personalisation and reply classification")
-  :billTab==="verify"?vCreditPage("verification","Checking prospect lists before a sequence sends to them")
-  :billTab==="radar"?vAddon("Inbox Radar","Deliverability tests for every mailbox, with alerts when placement drops.","$49 / month")
+  :billTab==="credits"?vCreditsBuy()
+  :billTab==="addons"?vAddons()
   :vCredits().replace('<div class="wrap">','<div class="billpage">');
  /* 4 Oct 2026, change 108, Hitesh: the strip under the header ("Scale (Monthly) · one plan for...",
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
     Billing & Subscription does. Invoices live under Manage Billing on the Platform panel. */
- return `<div class="wrap">
+ return `<div class="wrap">${billLine()}
    <div class="setwrap">${nav}<div class="billpage">${page}</div></div></div>`;
 }
 
@@ -9119,7 +9134,7 @@ function wire(){
  const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;PREVIEW=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
-   if(canI("billing")){ctx="agency";view={name:"credits"};billTab="alloc"}
+   if(canI("billing")){ctx="agency"; if(REQUESTS.length){view={name:"record",id:REQUESTS[0].client};tab="limits"} else {view={name:"credits"};billTab="plan"}}
    else{ctx="agency";view=homeView()}
    render()}});
  q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;render()});
@@ -9129,7 +9144,9 @@ function wire(){
  q("[data-blrx]").forEach(b=>b.onclick=()=>{BLR=null;clearTimeout(blrTimer);render()});
  q("[data-blalloc]").forEach(b=>b.onclick=()=>{const cid=b.dataset.blalloc;BLR=null;clearTimeout(blrTimer);render();
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
- q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="alloc";activeRes=b.dataset.goalloc;render()});
+ /* change 109: limits are decided on the workspace; Billing only shows where the plan goes */
+ q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`.pg-row[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
+ RK.forEach(k=>wireDD(document,"setlim_"+k,id=>{if(!id)return; ctx="agency";view={name:"record",id};tab="limits";FOCUS_LIM=k;render()}));
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
  q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
  /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
@@ -10359,6 +10376,20 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .modal.delete-alert-modal .btn{display:inline-flex;align-items:center;padding:.314rem 1rem;font-size:14px;font-weight:500;line-height:1.45;border-radius:4px;border:1px solid transparent;font-family:inherit;cursor:pointer}
 .modal.delete-alert-modal .btn-solid-outlined{background:#fff;border-color:#e5e7eb;color:#6b7280}.modal.delete-alert-modal .action-btn-delete{background:#b91c1c;border-color:#b91c1c;color:#fff}
 .page>.wlp{min-height:100%}
+
+/* 4 Oct 2026, change 109: Billing as money (row 16 B). The bill first, four nav items, where the plan goes. */
+.bill-line{display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:0 0 16px}
+.bill-amt{font-size:20px;line-height:28px;font-weight:600;color:#111827}.bill-sub{font-size:14px;color:#6b7280}.bill-sub .linkbtn{font-size:14px}
+.plancard .plan-kv{border-top:0;padding-top:16px}.plan-kv b{font-size:20px;line-height:24px;font-weight:600;color:#111827;display:block;margin-top:4px}
+.pg-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#6b7280;margin-bottom:6px}.pg-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.pg-row{display:grid;grid-template-columns:220px minmax(0,1fr) 150px 170px;gap:20px;align-items:center;padding:12px 0;border-top:1px solid #f3f4f6;border-radius:4px;transition:background .3s}.pg-row.pg-focus{background:#eff6ff}
+.pg-name{font-size:14px;font-weight:500;color:#111827}
+.pg-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#e5e7eb}.pg-bar span{display:block;height:100%}
+.pg-used{display:flex;flex-direction:column;font-size:14px;color:#374151}.pg-used .cs{display:block}
+.pg-avail{text-align:right;font-size:14px;font-weight:500;color:#111827;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.pg-avail .dd{width:auto}.pg-avail .dd-trig{height:auto;border:0;padding:0;font-size:12px;color:#1d4ed8;font-weight:500;background:transparent;box-shadow:none}.pg-avail .dd-trig .dd-val.is-ph{color:#1d4ed8}.pg-avail .dd-trig svg{display:none}.pg-avail .dd-menu{right:0;left:auto;min-width:220px}
+.sa-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}.sa-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#111827}.sa-row .cs{font-size:14px}
+.cp-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 220px;gap:24px;align-items:center;padding:16px 0;border-top:1px solid #f3f4f6}.cp-row:first-child{border-top:0}.cp-v{display:block;font-size:20px;line-height:24px;font-weight:600;color:#111827;margin-top:4px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10640,7 +10671,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8964d04";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="1f6c128";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
