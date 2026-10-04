@@ -4341,18 +4341,19 @@ function invRowHTML(addr,r,n,lock,wsList){
  const ini=initials(addr.split("@")[0].replace(/[._-]+/g," ")), tint=INV_TINTS[n%INV_TINTS.length];
  const c=r.kind==="client"&&byId[r.ws], names=r.wsList.map(id=>byId[id]&&byId[id].name).filter(Boolean);
  let line, chip, warn=false;
- if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.from==="domain"?", from the domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
+ if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
  else if(r.kind==="client") {line="A client&rsquo;s person &middot; which client?"; chip="Pick a client"; warn=true}
  else if(r.kind==="team"&&names.length) {const verb={"Workspace Admin":"runs","Workspace Collaborator":"does the outreach for","Workspace Viewer":"looks at"}[r.level]; line=`Your team &middot; ${verb} ${listAnd(names)}, sees no other client`; chip=r.level}
- else if(r.kind==="team") {line=`Your team${r.from==="domain"?", from the domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
+ else if(r.kind==="team") {line=`Your team${r.from==="domain"?", matched by email domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
  else if(r.kind==="admin") {line="Admin &middot; every client, People and Billing"; chip="Admin"}
  else {line="We cannot tell from the address"; chip="Who is this?"; warn=true}
- return `<div class="inv-row${r.open?" is-open":""}" data-invrow="${addr}">
+ /* 4 Oct 2026, Hitesh: "show at least this much per user": every person's choice
+    stays open, pre-picked from the address. Nothing is folded into a chip. */
+ return `<div class="inv-row" data-invrow="${addr}">
    <span class="avatar av-tint" style="--c:${tint};width:32px;height:32px;font-size:12px">${ini}</span>
    <span class="inv-who"><span class="inv-addr">${addr}</span><span class="inv-line">${line}</span></span>
-   ${warn?`<button type="button" class="inv-tag is-warn" data-invchange="${addr}">${chip}</button>`:`<span class="inv-tag">${chip}</span>`}
-   ${r.open||warn?"":`<button type="button" class="linkbtn" data-invchange="${addr}">Change</button>`}
-  </div>${r.open?invEditorHTML(addr,r,n,lock,wsList):""}`;
+   <span class="inv-tag${warn?" is-warn":""}">${chip}</span>
+  </div>${invEditorHTML(addr,r,n,lock,wsList)}`;
 }
 function invEditorHTML(addr,r,n,lock,wsList){
  const cards=(name,items,cur,attr)=>`<div class="inv-cards" role="radiogroup">${items.map(([v,l,h])=>`<label class="inv-card${cur===v?" is-on":""}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} ${attr}="${addr}"><span><b>${l}</b><i>${h}</i></span></label>`).join("")}</div>`;
@@ -4360,12 +4361,12 @@ function invEditorHTML(addr,r,n,lock,wsList){
  const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
  let inner="";
  if(!lock) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
- if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Guessed from the email domain. Change it if we got it wrong.</p>`:""}</div>`;
+ if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Matched by email domain. Change it if we got it wrong.</p>`:""}</div>`;
  if(r.kind==="client") inner+=lvl(`What can they do in ${byId[r.ws]?byId[r.ws].name:"it"}?`);
  if(r.kind==="team"){const left=wsList.filter(x=>r.wsList.indexOf(x.id)<0);
   inner+=`<div class="field"><span class="flabel">Which clients</span><div class="inv-ms">${r.wsList.map(id=>byId[id]?`<span class="pp-echip">${byId[id].name}<button type="button" data-invrmws="${id}" data-invaddr="${addr}" aria-label="Remove ${byId[id].name}">&times;</button></span>`:"").join("")}${left.length?ddHTML("invadd_"+n,"",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:r.wsList.length?"Add a client":"Pick one or more"}):""}</div><p class="inv-help">Change this later from their profile.</p></div>`;
   inner+=lvl("How much, in those clients?")}
- return `<div class="inv-ed" data-inved="${addr}">${inner}<div class="inv-ed-f"><button type="button" class="shd-button shd-button--secondary" data-invedcancel="${addr}">Cancel</button><button type="button" class="shd-button shd-button--primary" data-inveddone="${addr}" ${invSettled(r)?"":"disabled"}>Done</button></div></div>`;
+ return `<div class="inv-ed" data-inved="${addr}">${inner}</div>`;
 }
 function inviteSend(){
  const I=INV, made=[]; let lastWhere="", lastRole="";
@@ -10070,9 +10071,9 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .inv-list>.inv-row{display:flex;align-items:center;gap:12px;height:auto;padding:12px 16px;border:0;border-top:1px solid #e5e7eb;cursor:default}.inv-list>.inv-row:first-child{border-top:0}.inv-row.is-open{background:#eff6ff}
 .inv-who{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}.inv-addr{font-size:14px;line-height:20px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inv-line{font-size:12px;line-height:16px;color:#6b7280}
 .inv-tag{font:inherit;font-size:12px;line-height:16px;font-weight:500;border-radius:4px;padding:3px 8px;background:#fff;border:1px solid #e5e7eb;color:#374151;white-space:nowrap}
-.inv-tag.is-warn{color:#92400e;background:#fffbeb;border-color:#fde68a;cursor:pointer}.inv-tag.is-warn:hover{background:#fef3c7}
+.inv-tag.is-warn{color:#92400e;background:#fffbeb;border-color:#fde68a}
 .inv-row .linkbtn{font-size:13px;font-weight:500;white-space:nowrap}
-.inv-ed{padding:16px;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;flex-direction:column;gap:16px}.inv-list>.inv-ed:last-child{border-radius:0 0 4px 4px}
+.inv-ed{padding:16px;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;flex-direction:column;gap:16px}.inv-list>.inv-ed:last-child{border-radius:0 0 4px 4px}.inv-list>.inv-row~.inv-row{border-top:1px solid #e5e7eb}
 .inv-ed .flabel{display:block;margin-bottom:6px}.inv-ed .pp-sec-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.inv-ed .pp-sec-row .linkbtn{font-size:12px;font-weight:500}
 .inv-cards{display:flex;gap:12px}
 .inv-card{flex:1 1 0;min-width:0;display:flex;align-items:flex-start;gap:10px;padding:12px 14px 12px 12px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer;transition:background .14s,border .14s,box-shadow .14s}.inv-card:hover{background:#f9fafb}.inv-card.is-on{border-color:#bfdbfe;background:#eff6ff;box-shadow:0 0 0 2px #dbeafe}
@@ -10366,7 +10367,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="16be89c";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="6508fce";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
