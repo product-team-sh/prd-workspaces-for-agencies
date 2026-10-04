@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saleshandy · version C</title>
+<link rel="icon" id="favicon" href="">
 <!-- BUILD STAMP. file:// pages are cached aggressively, so a plain reload can
      serve an old copy and make a change look like it never happened. The stamp
      prints to the console on every load and sits in the tab title, so which
@@ -1640,6 +1641,7 @@ const I={
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
+ whitelabel:['0 0 24 24','<path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/>'],
  apiint:['0 0 24 24','<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>'],
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
@@ -1657,6 +1659,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
    return String(REPLIES.filter(r=>!r.replied&&myClientsFor("inbox").some(c=>c.id===r.client)).length+AGENCY_OWN.replies.length)}],['clients','Workspaces',null,'agency'],
  ['leads','Lead Finder'],['crm','CRM'],['dialer','Dialer','NEW'],['verify','Email Verifier'],
  ['mail','Email Accounts'],['tmpl','Templates'],['radar','Inbox Radar'],['analytics','Analytics'],
+ ['whitelabel','Whitelabel',null,'agency'],
  ['apiint','API & Integrations'],
  ['people','People',null,'agency'],
  ['billing','Billing',null,'agency'],
@@ -1876,6 +1879,23 @@ const svg=k=>`<svg viewBox="${I[k][0]}" fill="none" stroke="currentColor" stroke
 /* whitelabel is Enterprise-only today (PRD OQ7); Meridian is modelled as an
    Enterprise account, so the invite carries its brand and not ours. */
 const AGENCY={name:"Meridian Growth",initials:"MG",colour:"#1D4ED8",whitelabel:true};
+/* 4 Oct 2026, change 106 (plan humble-marinating-nova, doc 72): the production Whitelabel
+   module on the admin panel. The brand is the agency's own, one copy at the account (D21).
+   BRAND holds what production's /agency/config returns: company name, logo (login screen),
+   icon (rail), favicon, brand domain. The "file picker" sets a built-in sample; the cropper
+   is out of scope here. */
+const wlSample=kind=>"data:image/svg+xml;utf8,"+encodeURIComponent(kind==="logo"
+ ?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect x="18" y="22" width="56" height="56" rx="14" fill="#1D4ED8"/><text x="46" y="60" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700" fill="#fff">MG</text><text x="88" y="60" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="700" fill="#111827" textLength="196" lengthAdjust="spacingAndGlyphs">Meridian Growth</text></svg>'
+ :'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 126 126"><rect width="126" height="126" rx="28" fill="#1D4ED8"/><text x="63" y="80" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="700" fill="#fff">MG</text></svg>');
+const BRAND={companyName:"Meridian Growth",logo:wlSample("logo"),icon:wlSample("icon"),favicon:wlSample("icon"),domain:"app.meridiangrowth.com",domainVerified:true,domainPending:false};
+const brandOn=()=>AGENCY.whitelabel&&!!BRAND.icon;
+const brandTitle=()=>brandOn()?BRAND.companyName:"Saleshandy \u00b7 version C";
+let wlTab="logo", wlDomainDraft="", wlDomainErr="";
+function renderBrandMark(){const b=document.querySelector(".sb-brand"); if(!b)return; const on=brandOn()&&!solo;
+ const html=on?`<img src="${BRAND.icon}" alt=""><span>${BRAND.companyName}</span>`:logoSVG("logoGradA")+"<span>Saleshandy</span>";
+ if(b.innerHTML!==html)b.innerHTML=html;
+ const f=document.getElementById("favicon"); if(f)f.href=on?BRAND.favicon:"";
+ document.title=brandTitle()+(window.__B?" \u00b7 "+window.__B:"")}
 /* Assignment, not permission, is the primitive. A person sees the clients they were
    assigned. Everything cross-client is filtered by this one list. */
 const PEOPLE={
@@ -2680,7 +2700,7 @@ function renderRail(){
      administration included, so there is nothing account-level left for it to
      mean here. */
   ?[["Overview",["dash"]],["Workspaces",["clients"]],
-    ["Account",["people","billing","analytics"]],
+    ["Account",["people","billing","analytics","whitelabel"]],
     /* 28 Sep 2026, Hitesh: API & Integrations on the admin panel is phase 2 as
        well. Inside each workspace the existing section stays as it is today. */
     ["Coming soon",["queue","inbox","task","mail","tmpl","apiint"]]]
@@ -2715,7 +2735,7 @@ function renderRail(){
       scope 'agency' is satisfied by either.                                 */
    return (!sc||inAgency()||(isNormal()&&sc==="agency"))&&(k!=="dash"||(canI("dashboard")&&hasAgency()))
      &&(k!=="queue"||hasAgency())
-     &&(k!=="billing"||canI("billing"))&&(k!=="clients"||(canI("members")&&hasAgency()))
+     &&(k!=="billing"||canI("billing"))&&(k!=="whitelabel"||canI("billing"))&&(k!=="clients"||(canI("members")&&hasAgency()))
      /* the estate is the account's procurement surface and denies an operator,
         so it must not be offered to one either */
      &&(k!=="mail"||!inAgency()||canI("members"))
@@ -2726,10 +2746,10 @@ function renderRail(){
    ?((k==="dash"&&view.name==="dash")||(k==="queue"&&view.name==="queue")
      ||(k==="clients"&&(view.name==="clients"||view.name==="record"))||(k==="billing"&&view.name==="credits")
      ||(k==="people"&&(view.name==="people"||view.name==="person"||view.name==="addmember"))
-     ||(k==="apiint"&&view.name==="apiint")
+     ||(k==="apiint"&&view.name==="apiint")||(k==="whitelabel"&&view.name==="whitelabel")
      ||(AGY_MOD[k]&&view.name===k))
    :(asClient?RAIL2CVIEW[k]===cView:(RAIL2MOD[k]||k)===inMod);
- const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,apiint:1},
+ const routed=Object.assign({dash:1,queue:1,clients:1,billing:1,people:1,usage:1,apiint:1,whitelabel:1},
    Object.fromEntries(Object.keys(AGY_MOD).map(k=>[k,1])));
  /* a client reads its own labels, not ours. The tabs already say Replies,
     Prospects and Reports; the rail said Unified Inbox, CRM and Analytics for the
@@ -2764,7 +2784,7 @@ function renderRail(){
       check already shows "Soon" first regardless, so nothing changes. */
    return `<button class="nav-item" ${cur(k)?'aria-current="page"':''} ${routed[k]?`data-nav="${k}"`:''}>${svg(k)}<span class="lbl">${label}</span>
     ${soon(k)?'<span class="nav-soon">Soon</span>':badge==="NEW"?'<span class="nav-new">NEW</span>':badge?`<span class="nav-badge${k==="queue"?" hot":""}">${badge}</span>`:''}</button>`};
- if(view.name==="invite"||view.name==="m1"||view.name==="m2"){el("navList").innerHTML="";return}
+ if(view.name==="invite"||view.name==="login"||view.name==="m1"||view.name==="m2"){el("navList").innerHTML="";return}
  /* the client's own account: the plain product, and nothing that implies an
     agency exists. */
  if(solo){
@@ -2839,7 +2859,7 @@ function renderRail(){
      render();return}
    ctx="agency";
    view=n==="clients"?{name:"clients"}:n==="dash"?{name:"dash"}:n==="queue"?{name:"queue"}
-     :n==="billing"?{name:"credits"}:n==="people"?{name:"people"}:n==="apiint"?{name:"apiint"}:AGY_MOD[n]?{name:n}:{name:"clients"};
+     :n==="billing"?{name:"credits"}:n==="people"?{name:"people"}:n==="apiint"?{name:"apiint"}:n==="whitelabel"?{name:"whitelabel"}:AGY_MOD[n]?{name:n}:{name:"clients"};
    if(n==="billing") billTab="plan";
    render()});
 }
@@ -2887,6 +2907,7 @@ const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-h
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
 </button>`;
 function renderShell(){
+ renderBrandMark();
  const inC=ctx!=="agency", c=inC?byId[ctx]:null;
  /* correct cView before the crumb reads it: #asclient deep links always land
     with cView="workspace", and this runs before vClientSide gets a chance to
@@ -2977,6 +2998,7 @@ function renderShell(){
    :inC?(asClient?(CLIENT_LBL[cView]||{workspace:"Workspace",settings:"Settings"}[cView])
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
+   :view.name==="whitelabel"?"Whitelabel":view.name==="login"?"Log in"
    :view.name==="dash"?"Home":view.name==="credits"?("Billing & Subscription / "+billLabel(billTab))
    :view.name==="addmember"?"People / Add a person"
    :view.name==="people"?"People"
@@ -4581,8 +4603,8 @@ function vPlatform(){
       <span class="cs" style="display:block">Unlimited on this plan</span></span>
       <span class="tnum">${CLIENTS.length}</span></div>
     <div class="list-row"><span><span style="font-weight:500">Whitelabel</span>
-      <span class="cs" style="display:block">Not included in the Scale plan</span></span>
-      <span class="chip c-warn">Not on this plan</span></div>
+      <span class="cs" style="display:block">Included in the Scale plan</span></span>
+      <span style="display:inline-flex;align-items:center;gap:12px"><span class="chip c-ok">Included</span><button class="linkbtn" data-gowl>Set up &rarr;</button></span></div>
    </div></div>`;
 }
 /* an email account bought through Saleshandy sits on a secondary sending
@@ -6994,10 +7016,10 @@ function vInvite(){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="m15 18-6-6 6-6"/></svg>
     Back to prototype</button>
   <div class="invite-wrap"><div class="invite-card">
-   <div class="invite-brand">${AGENCY.whitelabel
-     ?`<span class="avatar av-tint" style="--c:${AGENCY.colour};width:28px;height:28px;font-size:11px">${AGENCY.initials}</span><span>${AGENCY.name}</span>`
+   <div class="invite-brand">${brandOn()
+     ?(BRAND.logo?`<img src="${BRAND.logo}" alt="${BRAND.companyName}" style="max-height:40px;max-width:220px">`:`<span class="avatar av-tint" style="--c:${AGENCY.colour};width:28px;height:28px;font-size:11px">${AGENCY.initials}</span><span>${BRAND.companyName}</span>`)
      :logoSVG("logoGradB")+`<span>Saleshandy</span>`}</div>
-   <p class="invite-h"><b>${AGENCY.name}</b> has given you access to <b>${c.name}</b>${AGENCY.whitelabel?"":" on Saleshandy"}</p>
+   <p class="invite-h"><b>${AGENCY.name}</b> has given you access to <b>${c.name}</b>${brandOn()?"":" on Saleshandy"}</p>
    <p class="invite-s">${roleCopy}</p>
    <div class="invite-form">
     <div class="field"><label class="flabel">Email</label>
@@ -7005,6 +7027,7 @@ function vInvite(){
     <div class="field"><label class="flabel" for="invPw">Set a password</label>
      <input type="password" id="invPw" placeholder="At least 8 characters" autocomplete="new-password"></div>
     <button class="shd-button shd-button--primary" id="invDone">Set password and continue</button>
+    <p class="sub" style="margin:-4px 0 0;text-align:center">Already set a password? <button class="linkbtn" data-gologin>Log in</button></p>
    </div>
    <div class="invite-note">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v5c0 5 4 9 9 10 5-1 9-5 9-10V7l-9-5Z"/></svg>
@@ -7017,6 +7040,93 @@ function vInvite(){
 /* Phase 1: an agency can only create a new client workspace. Connecting an
    existing Saleshandy account is out of scope, so this drawer opens directly
    on the create flow. */
+/* ── Whitelabel (change 106): the production module on the prototype's components ── */
+const WL_IMG={logo:{title:"Logo",blurb:"Set the tone for your brand with a login screen logo.",w:300,h:100,rec:"Horizontal or square PNG logo",drop:"Drag &amp; Drop your logo here to upload"},
+ icon:{title:"Icon Logo",blurb:"Showcase your brand identity throughout the platform.",w:126,h:126,rec:"Square PNG logo",drop:"Drag &amp; Drop your icon logo here to upload"},
+ favicon:{title:"Favicon",blurb:"Make your brand instantly recognizable in browser tabs.",w:126,h:126,rec:"Square PNG logo",drop:"Drag &amp; Drop your favicon here to upload"}};
+const wlPencil='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+const wlTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+const copyI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const wlCloud='<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>';
+function wlImgCard(key){const m=WL_IMG[key], v=BRAND[key];
+ return `<div class="wl-card"><h3>${m.title}</h3><p class="sub" style="margin:0 0 14px">${m.blurb}</p>
+  ${v?`<div class="wl-saved"><img src="${v}" alt="${m.title}" style="max-width:${m.w}px;max-height:${m.h}px"><span class="wl-acts"><button class="ubtn" data-wlmod="${key}" title="Modify" aria-label="Modify ${m.title}">${wlPencil}</button><button class="ubtn wl-del" data-wldel="${key}" title="Delete" aria-label="Delete ${m.title}">${wlTrash}</button></span></div>`
+   :`<div class="wl-drop">${wlCloud}<span class="wl-drop-t">${m.drop}</span><span class="sub">Recommended: <b style="color:var(--blue-11);font-weight:500">${m.rec}</b> with a transparent background (Max 1MB)</span><button class="shd-button shd-button--secondary" data-wlpick="${key}">Choose a file</button></div>`}
+ </div>`}
+function wlIllus(kind){return `<div class="wl-illus" aria-hidden="true">${kind==="logo"
+ ?`<div class="wl-illus-login"><div class="wl-illus-bar"></div><div class="wl-illus-logo">${BRAND.logo?`<img src="${BRAND.logo}" alt="">`:'<span></span>'}</div><div class="wl-illus-line"></div><div class="wl-illus-line short"></div><div class="wl-illus-btn"></div></div>`
+ :`<div class="wl-illus-tab"><span class="wl-illus-fav">${BRAND.favicon?`<img src="${BRAND.favicon}" alt="">`:""}</span><span class="wl-illus-tabt">${BRAND.companyName||"Your brand"}</span></div><div class="wl-illus-rail"><span class="wl-illus-ic">${BRAND.icon?`<img src="${BRAND.icon}" alt="">`:""}</span><i></i><i></i><i></i></div>`}</div>`}
+function wlLogoTab(){
+ return `<div class="wl-row">
+   <div class="wl-card"><h3>Company Name</h3><p class="sub" style="margin:0 0 14px">Shown beside your icon and on the login screen.</p>
+    <div style="display:flex;gap:8px;align-items:center"><input type="text" id="wlName" value="${(BRAND.companyName||"").replace(/"/g,"&quot;")}" placeholder="Enter company name" style="width:324px"><button class="shd-button shd-button--primary" id="wlNameSave" disabled>Save</button></div></div>
+   ${wlImgCard("logo")}${wlIllus("logo")}</div>
+  <div class="wl-row">${wlImgCard("icon")}${wlImgCard("favicon")}${wlIllus("icon")}</div>`}
+function wlDomainTab(){
+ const d=wlDomainDraft, host=d?(d.split(".").length>2?d.split(".")[0]:"@"):"";
+ const dns=`<table class="wl-dns"><thead><tr><th>Record type</th><th>Record / Host</th><th>Points to / Value</th><th>Status</th><th>Action</th></tr></thead>
+  <tbody><tr><td>CNAME</td><td>${host?`<span class="wl-copy">${host}<button class="ubtn" title="Copy" aria-label="Copy host" data-wlcopy="${host}">${copyI}</button></span>`:'<span class="sub">Brand domain required</span>'}</td>
+  <td><span class="wl-copy">whitelabel.saleshandy.com<button class="ubtn" title="Copy" aria-label="Copy value" data-wlcopy="whitelabel.saleshandy.com">${copyI}</button></span></td>
+  <td>${BRAND.domainVerified?'<span class="wl-ok" title="Verified">&#10003;</span>':BRAND.domainPending?'<span class="wl-pend" title="Not verified yet">&#9679;</span>':'<span class="sub">&ndash;</span>'}</td>
+  <td><button class="ubtn" data-wlrefresh title="Check again" aria-label="Check again" ${BRAND.domainPending?"":"disabled"}>&#8635;</button></td></tr></tbody></table>`;
+ if(BRAND.domain&&BRAND.domainVerified) return `<div class="wl-card wl-domain">
+   <div class="wl-dhead"><h3>Brand Domain</h3><button class="ubtn wl-del" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlTrash}</button></div>
+   <input type="text" value="${BRAND.domain}" disabled style="width:324px;margin-top:6px">
+   <div class="msg m-ok" style="margin-top:16px"><span><b>Domain setup is successfully completed!</b><br>All set! Login with your brand domain now. <button class="linkbtn" data-wlgologin>Click here</button></span></div></div>`;
+ const pending=BRAND.domainPending;
+ return `<div class="wl-card wl-domain">
+   <div class="wl-dhead"><h3>Setup Your Brand Domain</h3>${pending?`<button class="ubtn wl-del" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlTrash}</button>`:""}</div>
+   <div class="wl-step"><span class="wl-num">1</span><div><div class="wl-step-t">Enter your brand domain to replace all Saleshandy URLs</div>
+     <input type="text" id="wlDomain" value="${(pending?BRAND.domain:d).replace(/"/g,"&quot;")}" placeholder="E.g. app.example.com" ${pending?"disabled":""} class="${wlDomainErr?"is-err":""}" style="width:324px;margin-top:10px">${wlDomainErr?`<p class="nc-limsay is-err" style="margin-top:6px"><span>${wlDomainErr}</span></p>`:""}</div></div>
+   <div class="wl-step"><span class="wl-num">2</span><div><div class="wl-step-t">Log in to your domain provider (e.g. Godaddy, Namecheap) and navigate to the DNS settings</div><button class="linkbtn" data-flash="Opens the help article" style="margin-top:6px">Find your DNS provider &rarr;</button></div></div>
+   <div class="wl-step"><span class="wl-num">3</span><div style="min-width:0;flex:1"><div class="wl-step-t">Add a CNAME record in your DNS settings by copying the below details</div>${dns.replace('<span class="sub">Brand domain required</span>',pending?`${BRAND.domain.split(".").length>2?BRAND.domain.split(".")[0]:"@"}`:'<span class="sub">Brand domain required</span>')}</div></div>
+   <div style="margin-left:36px;margin-top:4px">${pending
+     ?`<div class="msg m-info">${infoI}<span><b>Domain setup is in progress!</b><br>It can take up to 48 hours. Explore the product in the meantime, and we will notify you when your brand domain is ready. <button class="linkbtn" data-wlrefresh>Check now</button></span></div>`
+     :`<button class="shd-button shd-button--primary" id="wlDomainSetup" ${d&&!wlDomainErr?"":"disabled"}>Setup Domain</button>`}</div></div>`}
+function vWhitelabel(){
+ if(!canI("billing")) return denied("set up whitelabel");
+ return `<div class="toolbar"><div class="cell-main"><span class="semibold-3">Whitelabel</span><span class="ubtn" style="width:24px;height:24px;color:var(--gray-12)" title="Add your own logo and URL to personalize the client experience and build brand reputation">${infoI}</span><button class="linkbtn" data-flash="Opens the help article" style="margin-left:4px">Know more</button></div>
+   <div class="tools"><span class="sub">Scale plan &middot; included</span></div></div>
+  <div class="tabbar"><button data-wltab="logo" aria-selected="${wlTab==="logo"}">Logo &amp; Branding</button><button data-wltab="domain" aria-selected="${wlTab==="domain"}">Domain Configuration</button></div>
+  <div class="wrap wl-wrap">${wlTab==="logo"?wlLogoTab():wlDomainTab()}</div>`}
+function vLogin(){
+ return `<div class="invite-wrap"><div class="invite-card">
+   <div class="invite-brand">${brandOn()?(BRAND.logo?`<img src="${BRAND.logo}" alt="${BRAND.companyName}" style="max-height:48px;max-width:240px">`:`<span>${BRAND.companyName}</span>`):logoSVG("logoGradB")+`<span>Saleshandy</span>`}</div>
+   <p class="invite-h" style="margin-bottom:20px">Welcome Back to ${brandOn()?BRAND.companyName:"Saleshandy"}</p>
+   <div class="invite-form">
+    <div class="field"><label class="flabel" for="lgEmail">Work Email</label><input type="email" id="lgEmail" placeholder="Enter your work email address"></div>
+    <div class="field"><label class="flabel" for="lgPass">Password</label><input type="password" id="lgPass" placeholder="Enter your password"></div>
+    <button class="shd-button shd-button--primary" data-flash="Signs the client in to their workspace" style="width:100%;justify-content:center">Login</button>
+   </div></div></div>
+  <button class="invite-back" data-invback>&larr; Back to the prototype</button>`}
+function wlDelModalHTML(){
+ if(modal.kind==="wldeldomain") return card("Delete brand domain",`<p class="ac-lead" style="margin:0">Are you sure you want to delete your brand domain?<br><span class="sub">This will remove your brand domain and revert back to the default urls.</span></p>`,
+   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-wlok>Delete</button>`,"ac");
+ const m=WL_IMG[modal.key];
+ return card("Delete "+m.title,`<p class="ac-lead" style="margin:0">Are you sure you want to delete brand ${m.title.toLowerCase()}?<br><span class="sub">This will remove your branding from login page.</span></p>`,
+   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-wlok>Delete</button>`,"ac");
+}
+function wireWhitelabel(){
+ const q=sel=>[...document.querySelectorAll(sel)], rr=()=>render();
+ q("[data-wltab]").forEach(b=>b.onclick=()=>{wlTab=b.dataset.wltab;rr()});
+ const nm=el("wlName"), sv=el("wlNameSave");
+ if(nm&&sv){nm.oninput=()=>{const v=nm.value.trim(); sv.disabled=!v||v===BRAND.companyName};
+   sv.onclick=()=>{const v=nm.value.trim(); if(!v||v===BRAND.companyName)return; const was=BRAND.companyName; BRAND.companyName=v;
+     receipt("wl","Company name saved.",()=>{BRAND.companyName=was;render()},"saved the company name"); rr()}}
+ q("[data-wlpick],[data-wlmod]").forEach(b=>b.onclick=()=>{const k=b.dataset.wlpick||b.dataset.wlmod, was=BRAND[k]; BRAND[k]=wlSample(k==="logo"?"logo":"icon");
+   receipt("wl",WL_IMG[k].title+" saved successfully.",()=>{BRAND[k]=was;render()},"saved the "+WL_IMG[k].title.toLowerCase()); rr()});
+ q("[data-wldel]").forEach(b=>b.onclick=()=>{modal={kind:"wldel",key:b.dataset.wldel};renderModal()});
+ q("[data-wldeldomain]").forEach(b=>b.onclick=()=>{modal={kind:"wldeldomain"};renderModal()});
+ const dm=el("wlDomain"); if(dm&&!dm.disabled){dm.oninput=()=>{wlDomainDraft=dm.value.replace(/^https?:\/\//i,"").replace(/^www\./i,"").trim(); wlDomainErr=""; const st=el("wlDomainSetup"); if(st)st.disabled=!wlDomainDraft;
+     const tb=document.querySelector(".wl-dns tbody td:nth-child(2)"); if(tb){const d=wlDomainDraft, host=d?(d.split(".").length>2?d.split(".")[0]:"@"):""; tb.innerHTML=host?`<span class="wl-copy">${host}<button class="ubtn" title="Copy" aria-label="Copy host" data-wlcopy="${host}">${copyI}</button></span>`:'<span class="sub">Brand domain required</span>'}};
+   dm.onblur=()=>{const d=wlDomainDraft.replace(/\/$/,""); if(d&&!/^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/.test(d)){wlDomainErr="Please enter a valid domain";rr()}}}
+ const st=el("wlDomainSetup"); if(st)st.onclick=()=>{if(!wlDomainDraft||wlDomainErr)return; BRAND.domain=wlDomainDraft; BRAND.domainPending=true; BRAND.domainVerified=false; wlDomainDraft=""; rr()};
+ q("[data-wlrefresh]").forEach(b=>b.onclick=()=>{if(!BRAND.domainPending)return; BRAND.domainPending=false; BRAND.domainVerified=true; receipt("wl","Brand domain is whitelabeled. "+BRAND.domain+" is live.",null,"verified the brand domain"); rr()});
+ q("[data-wlcopy]").forEach(b=>b.onclick=()=>{try{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.wlcopy)}catch(e){} b.title="Copied"; setTimeout(()=>{b.title="Copy"},2000)});
+ q("[data-wlgologin],[data-gologin]").forEach(b=>b.onclick=()=>{view={name:"login",back:view.name==="invite"?{name:"invite",id:view.id,role:view.role,email:view.email}:{name:"whitelabel"}};rr()});
+ q("[data-gowl]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"whitelabel"};rr()});
+}
+
 function drawerHTML(){
  /* everything below is the Add Client wizard, which is the only drawer with no
     kind of its own: it is identified by carrying a `step`. Without this guard
@@ -8254,6 +8364,7 @@ function modalHTML(){
     -level "buy unassigned, then assign to a workspace" model D13 retired.
     The live purchase flow is modal.kind==="buymbx" above, which buys
     straight into a workspace and never produces an assignment conflict. */
+ if(modal.kind==="wldel"||modal.kind==="wldeldomain") return wlDelModalHTML();
  const isDel=modal.kind==="delete";
  /* 2 Oct 2026 (S2, doc 65 §6, canvas row 07): the product's own consequence in
     plain words, the dangerous button red, Undo on the toast. */
@@ -8310,6 +8421,11 @@ function renderModal(){
     receipt("mailboxes:"+ws.id,`Bought ${n} mailbox${n===1?"":"es"} for ${wsLabel}, billed to ${AGENCY.name}.`,
       null,`bought ${n} mailbox${n===1?"":"es"} for ${wsLabel}`);
     modal=null;renderModal();render()}}
+ const wo=L.querySelector("[data-wlok]"); if(wo)wo.onclick=()=>{
+   if(modal.kind==="wldeldomain"){const was={domain:BRAND.domain,v:BRAND.domainVerified,p:BRAND.domainPending}; BRAND.domain="";BRAND.domainVerified=false;BRAND.domainPending=false; wlDomainDraft=""; modal=null; renderModal();
+     receipt("wl","Brand domain deleted successfully.",()=>{BRAND.domain=was.domain;BRAND.domainVerified=was.v;BRAND.domainPending=was.p;render()},"deleted the brand domain"); render(); return}
+   const k=modal.key, was=BRAND[k]; BRAND[k]=null; modal=null; renderModal();
+   receipt("wl",WL_IMG[k].title+" deleted successfully.",()=>{BRAND[k]=was;render()},"deleted the "+WL_IMG[k].title.toLowerCase()); render()};
  const ok=L.querySelector("[data-mconfirm]");
  if(ok) ok.onclick=()=>{
    const id=modal.client;
@@ -8486,6 +8602,8 @@ function skeletonFor(){
  if(v==="people"||v==="addmember") return `<div class="sk-page">${toolbar(sk("320px",14),sk("130px",36))}<div class="sk-tabs">${sk("80px",14)}${sk("80px",14)}${sk("90px",14)}${sk("110px",14)}</div>${toolbar(`${sk("260px",32)}${sk("150px",32)}`,sk("360px",12))}${table(8,["24%","10%","12%","28%","10%","12%"])}</div>`;
  if(v==="credits") return `<div class="sk-page sk-bill"><div class="sk-nav">${Array.from({length:8},(_,i)=>sk(i%3===0?"50%":"80%",12,"margin:10px 0")).join("")}</div><div class="sk-main">${card(170)}${card(230)}${card(260)}</div></div>`;
  if(v==="analytics") return `<div class="sk-page">${toolbar(`${sk("80px",14)}${sk("120px",14)}${sk("60px",14)}`,`${sk("200px",32)}${sk("150px",32)}${sk("90px",32)}`)}<div class="sk-card" style="height:420px">${sk("100%",360,"margin-top:30px")}</div><div class="sk-cards">${card(90)}${card(90)}${card(90)}${card(90)}</div>${table(4,["26%","14%","10%","10%","10%","10%","10%"])}</div>`;
+ if(v==="login") return "";
+ if(v==="whitelabel") return `<div class="sk-page">${toolbar(sk("120px",22),sk("110px",14))}<div class="sk-tabs">${sk("110px",14)}${sk("150px",14)}</div><div class="sk-cards">${card(240)}${card(240)}${card(240)}</div><div class="sk-cards">${card(240)}${card(240)}${card(240)}</div></div>`;
  if(v==="clients") return `<div class="sk-page">${toolbar(sk("280px",32),`${sk("32px",32)}${sk("130px",32)}${sk("150px",32)}`)}${table(6,["26%","12%","14%","12%","16%","12%","8%"])}</div>`;
  return `<div class="sk-page">${toolbar(sk("240px",22),"")}<div class="sk-card" style="height:120px">${sk("70%",14)}${sk("50%",14,"margin-top:10px")}${sk("60%",14,"margin-top:10px")}</div>${table(5,["30%","20%","20%","20%"])}</div>`;
 }
@@ -8502,7 +8620,7 @@ function render(){
     workspace itself. After conversion they exist, empty. */
  if(!hasAgency()&&(view.name==="queue"||view.name==="dash"||view.name==="clients")){
    ctx="own";inMod=inMod||"sequences";view={name:"clients"}}
- document.querySelector(".app").classList.toggle("invite-mode",view.name==="invite");
+ document.querySelector(".app").classList.toggle("invite-mode",view.name==="invite"||view.name==="login");
  /* M1 and M2 are blocking, so the shell goes with them (16 §2.2), and neither
     is reachable by anyone but the owner. */
  if((view.name==="m1"||view.name==="m2")&&!canI("billing")) view={name:"dash"};
@@ -8516,7 +8634,7 @@ function render(){
  document.querySelector(".app").classList.toggle("is-preview",!!(inClient&&asClient&&PREVIEW));
  const pageEl=el("page"), prevScroll=pageEl.scrollTop;
  const navKey=ctx+"|"+view.name+"|"+(view.id||"")+"|"+(inMod||"")+"|"+(asClient?1:0)+"|"+(cView||"")+"|"+(solo?1:0);
- if(!SKEL_FORCE&&navKey!==lastNavKey&&!REDUCED()&&!modal&&!drawer&&view.name!=="m1"&&view.name!=="m2"){
+ if(!SKEL_FORCE&&navKey!==lastNavKey&&!REDUCED()&&!modal&&!drawer&&view.name!=="m1"&&view.name!=="m2"&&view.name!=="login"){
    lastNavKey=navKey; clearTimeout(SKEL_TIMER);
    pageEl.classList.remove("pg-in"); pageEl.innerHTML=skeletonFor(); pageEl.scrollTop=0;
    SKEL_TIMER=setTimeout(()=>{SKEL_FORCE=true;try{render()}finally{SKEL_FORCE=false} pageEl.classList.add("pg-in"); setTimeout(()=>pageEl.classList.remove("pg-in"),260)},200);
@@ -8525,6 +8643,7 @@ function render(){
  lastNavKey=navKey;
  pageEl.innerHTML=solo?vSolo()
   :view.name==="invite"?vInvite()
+  :view.name==="login"?vLogin()
   /* 25 Sep 2026: Work queue, Unified Inbox, Tasks, Email Accounts and Templates
      are deferred out of the admin panel. This branch has to come before the
      vAgencyMod/vQueue checks below, which is why it sits first: it intercepts
@@ -8542,6 +8661,7 @@ function render(){
   :(ctx==="agency"&&AGY_MOD[view.name]&&MASTER_MOD[view.name])?vAgencyMod()
   :view.name==="m1"?vM1():view.name==="m2"?vM2()
   :view.name==="settings"?vSettings()
+  :view.name==="whitelabel"?vWhitelabel()
   :inClient?(asClient?vClientSide():vInClient())
   :view.name==="addmember"?vPeople()
   :view.name==="people"?vPeople()
@@ -8673,6 +8793,7 @@ function wire(){
    if(cur===k) s.dir*=-1; else {s.col=k;s.dir=-1}
    render()});
  /* ═══ agency API & Integrations: tabs, keys, MCP, CRM connections, webhooks ═══ */
+ wireWhitelabel();
  q("[data-apitab]").forEach(b=>b.onclick=()=>{apiTab=b.dataset.apitab;apiKeyFormOpen=false;
    apiWebhookFormOpen=false;apiConnectOpen=null;apiDisconnectConfirm=null;apiKeyRevokeConfirm=null;render()});
  q("[data-apikeynew]").forEach(b=>b.onclick=()=>{apiKeyFormOpen=!apiKeyFormOpen;render()});
@@ -9334,9 +9455,11 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
  if(k==="grace"){GRACE.on=true;view={name:"dash"}}
- const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,settings:1,invite:1},
+ const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,settings:1,invite:1,whitelabel:1,login:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
  if(flat[k]&&(k!=="dash"||canI("dashboard"))) view={name:k};
+ if(k==="whitelabel"){ctx="agency";asClient=false}
+ if(k==="login"){view={name:"login",back:{name:"whitelabel"}}}
  /* fix 25 Sep review #13/#21: #settings is a flat route (line above), so it
     left ctx untouched and rendered vSettings() with ctx still "agency" - the
     one deep link that could land on the admin panel's own Settings, which
@@ -10127,6 +10250,42 @@ table.organism td.ar.tnum{font-weight:500}
 input[type=text],input[type=email],input[type=password],input[type=number],select,.search input,.sq-dd,.dd-trig,.dd-val,.pp-emails input{font-size:14px;line-height:22px}
 .chip{height:20px;padding:0 7px;border-radius:4px;font-size:12px;line-height:20px;font-weight:500}
 .chip svg{width:12px;height:12px}
+
+/* 4 Oct 2026, change 106: Whitelabel page (production _whitelabel.scss on the prototype's tokens) and the brand mark. */
+.sb-brand img{width:26px;height:26px;border-radius:6px;flex:none}.sb-brand img+span{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wl-wrap{display:flex;flex-direction:column;gap:20px}
+.wl-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 260px;gap:20px;align-items:stretch}
+.wl-card{background:#fff;padding:24px;border-radius:4px;border:1px solid #e8eff5;position:relative;min-width:0}
+.wl-card h3{margin:0 0 4px;font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17)}
+.wl-drop{height:190px;border-radius:8px;border:1px dashed #9ca3af;background:#f9fafb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:0 16px}
+.wl-drop-t{font-size:14px;font-weight:500;color:var(--gray-17)}
+.wl-saved{position:relative;height:190px;border-radius:8px;border:1px solid var(--gray-13);background:#fff;display:flex;align-items:center;justify-content:center}
+.wl-saved img{object-fit:contain}
+.wl-acts{position:absolute;top:8px;right:8px;display:flex;gap:4px}.wl-acts .ubtn,.wl-dhead .ubtn{width:28px;height:28px;border-radius:4px;color:var(--gray-15)}.wl-acts .ubtn svg,.wl-dhead .ubtn svg{width:16px;height:16px}
+.wl-acts .ubtn:hover{background:#dbeafe;color:#1d4ed8}.ubtn.wl-del:hover{background:#fee2e2;color:#b91c1c}
+.wl-illus{border-radius:8px;background:var(--gray-19);border:1px solid var(--gray-16);display:flex;align-items:center;justify-content:center;padding:20px;min-height:190px}
+.wl-illus-login{width:180px;background:#fff;border-radius:8px;box-shadow:var(--shadow-xs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.wl-illus-bar{width:100%;height:4px;border-radius:2px;background:var(--blue-11)}
+.wl-illus-logo{height:32px;display:flex;align-items:center}.wl-illus-logo img{max-height:28px;max-width:140px}.wl-illus-logo span{width:90px;height:12px;border-radius:3px;background:var(--gray-13)}
+.wl-illus-line{width:100%;height:8px;border-radius:3px;background:var(--gray-16)}.wl-illus-line.short{width:60%}
+.wl-illus-btn{width:100%;height:20px;border-radius:4px;background:var(--blue-11);opacity:.85}
+.wl-illus-tab{display:flex;align-items:center;gap:8px;background:#fff;border-radius:6px 6px 0 0;padding:8px 12px;box-shadow:var(--shadow-xs);width:180px;margin-bottom:10px}
+.wl-illus-fav{width:16px;height:16px;border-radius:3px;background:var(--gray-13);overflow:hidden;flex:none}.wl-illus-fav img{width:16px;height:16px}
+.wl-illus-tabt{font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wl-illus-rail{width:180px;background:#fff;border-radius:6px;box-shadow:var(--shadow-xs);padding:10px;display:flex;flex-direction:column;gap:8px}
+.wl-illus-ic{width:26px;height:26px;border-radius:6px;background:var(--gray-13);overflow:hidden}.wl-illus-ic img{width:26px;height:26px}
+.wl-illus-rail i{display:block;height:8px;border-radius:3px;background:var(--gray-16);width:70%}
+.wl-illus>div+div{margin-top:0}.wl-illus{flex-direction:column}
+.wl-domain{max-width:860px}.wl-dhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wl-step{display:flex;gap:12px;margin-top:18px;align-items:flex-start}.wl-step-t{font-size:14px;line-height:22px;color:var(--gray-17)}
+.wl-num{width:24px;height:24px;border-radius:50%;background:var(--gray-16);color:var(--gray-15);font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:-1px}
+.wl-dns{width:100%;max-width:640px;border-collapse:collapse;font-size:14px;margin-top:12px;border:1px solid var(--gray-13);border-radius:4px;overflow:hidden}
+.wl-dns th{height:36px;padding:0 12px;background:#f3f4f6;font-size:12px;font-weight:500;color:var(--gray-15);text-align:left}
+.wl-dns td{padding:10px 12px;border-top:1px solid var(--gray-13);color:var(--gray-17);vertical-align:middle}
+.wl-copy{display:inline-flex;align-items:center;gap:6px}.wl-copy .ubtn{width:24px;height:24px}.wl-copy .ubtn svg{width:14px;height:14px}
+.wl-ok{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#d1fae5;color:#047857;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.wl-pend{color:#d97706;font-size:10px}
+.wl-wrap .msg{align-items:flex-start}.wl-wrap .msg b{font-weight:600}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10408,7 +10567,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dc3315d";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="d275d0a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
