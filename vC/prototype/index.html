@@ -4193,31 +4193,30 @@ let PPI=null;
    Open workspaces row, Run the account, Inside a workspace they can open with
    the Member column spanning one note, and the legend. Rows are data. */
 function ppRolesHTML(){
- const n=fundedWorkspaces().length;
+ /* 4 Oct 2026, Hitesh: "what roles can do is not updated; I liked C2" (canvas row 13,
+    Roles-C2-Polished). Two tables: workspace roles first, then account roles; the
+    Member column reads "Same as workspace roles, one per workspace". */
  const Y='<span class="rl-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>', N='<span class="rl-no"></span>';
- const cell=(v,i)=>`<span class="rl-c${i===2?" rl-div":""}">${v?Y:N}</span>`;
- const row=(label,vals)=>`<div class="rl-grid rl-row"><span class="rl-l">${label}</span>${vals.map(cell).join("")}</div>`;
- const ACCOUNT=[["Add a workspace, set its caps and limits",[1,1,0,0,0,0]],["Invite people and change anyone's role",[1,1,0,0,0,0]],["See Billing, credits and account-wide Analytics",[1,1,0,0,0,0]],["Transfer ownership, close the account",[1,0,0,0,0,0]]];
- const INSIDE=[["See sequences, prospects, replies and reports",[1,1,1,1,1]],["Reply to prospects from the inbox",[1,1,1,1,0]],["Create, launch and pause sequences; add prospects and templates",[1,1,1,1,0]],["Connect and buy mailboxes",[1,1,1,0,0]],["Add or remove people here, set their roles",[1,1,1,0,0]],["Change workspace settings; delete prospects and sequences",[1,1,1,0,0]]];
- const inRow=(label,vals)=>`<span class="rl-l">${label}</span>${vals.map((v,i)=>`<span class="rl-c">${v?Y:N}</span>`).join("")}`;
+ const c=v=>`<td class="rl2-c">${v===1?Y:v===0?N:v}</td>`;
+ const sec=(t,n)=>`<tr class="rl2-sec"><td colspan="${n}">${t}</td></tr>`;
+ const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
+ const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
+ const WS=[["See everything in the workspace",[1,1,1]],["Reply to prospects; connect their own email accounts",[0,1,1]],["Ask for more allowance",[0,1,1]],["Create, launch and pause sequences",[0,0,1]],["Add prospects and templates; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
+ const AC=[["Open workspaces",['<span class="rl2-t">The ones you add them to</span>',1,1]],["Add workspaces, set limits, approve requests",[0,1,1]],["Invite people, set roles",[0,1,1]],["See Analytics across workspaces",[0,1,1]],["Billing; delete a workspace",[0,0,1]],["Transfer ownership, close the account",[0,0,1]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
-  <div class="rl-h"><div><h2 id="rlTitle">What each role can do</h2><p>Account roles decide which workspaces a person reaches. Workspace roles decide what they can do inside one. A Member has both: the account role here, and a workspace role set in each workspace they are added to.</p></div>
+  <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span><span class="rl2-sub">Account role: which workspaces. Workspace role: what they can do inside.</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
-  <div class="rl-b">
-   <div class="rl-grid rl-groups"><span></span><span class="rl-g rl-g--acct"><span>Account roles</span><i></i></span><span class="rl-g"><span>Workspace roles</span><i></i></span></div>
-   <div class="rl-grid rl-head"><span class="rl-can">Can they…</span>
-    <span class="rl-th"><b>Owner</b><i>One person</i></span><span class="rl-th"><b>Admin</b><i>Senior staff</i></span><span class="rl-th rl-div"><b>Member</b><i>Most of your team</i></span>
-    <span class="rl-th"><b>Workspace Admin</b><i>Runs a client</i></span><span class="rl-th"><b>Collaborator</b><i>Does outreach</i></span><span class="rl-th"><b>Viewer</b><i>Looks only</i></span></div>
-   <div class="rl-grid rl-row rl-open"><span class="rl-l">Open workspaces</span><span class="rl-c rl-t">All ${n}</span><span class="rl-c rl-t">All ${n}</span><span class="rl-c rl-t rl-div">Picked ones</span><span class="rl-c rl-t2">One</span><span class="rl-c rl-t2">One</span><span class="rl-c rl-t2">One</span></div>
-   <span class="rl-sec">Run the account</span>
-   ${ACCOUNT.map(([l,v])=>row(l,v)).join("")}
-   <span class="rl-sec">Inside a workspace they can open</span>
-   <div class="rl-grid rl-inside">
-    <span class="rl-span">Whatever workspace role they were given there: one of the three to the right</span>
-    ${INSIDE.map(([l,v])=>`<span class="rl-l">${l}</span><span class="rl-c">${v[0]?Y:N}</span><span class="rl-c">${v[1]?Y:N}</span><span class="rl-c">${v[2]?Y:N}</span><span class="rl-c">${v[3]?Y:N}</span><span class="rl-c">${v[4]?Y:N}</span>`).join("")}
-   </div>
-   <div class="rl-foot"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span></span><span>A client's own people only ever have a workspace role. Owner and Admin are Workspace Admin everywhere, automatically.</span></div>
-  </div></div></div>`;
+  <div class="rl2-b">
+   <div><div class="rl2-cap"><b>Workspace roles</b><span>one workspace each &middot; the client&rsquo;s own people only ever have one of these</span></div>
+    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Viewer","Reads only")}${th("Collaborator","Does outreach")}${th("Workspace Admin","Runs it")}</tr></thead>
+    <tbody>${sec("Inside the workspace",4)}${WS.map(([l,v])=>row(l,v)).join("")}</tbody></table></div>
+   <div><div class="rl2-cap"><b>Account roles</b><span>your team &middot; Owner and Admin run every workspace; a Member gets a role per workspace</span></div>
+    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Member","Does the work, where added")}${th("Admin","Runs the account")}${th("Owner","One person")}</tr></thead>
+    <tbody>${sec("Inside a workspace",4)}<tr class="rl2-r"><td class="rl2-l">Act as</td><td class="rl2-c"><span class="rl2-t rl2-strong">Same as workspace roles</span><span class="rl2-t2">one per workspace</span></td><td class="rl2-c"><span class="rl2-t">Workspace Admin</span></td><td class="rl2-c"><span class="rl2-t">Workspace Admin</span></td></tr>
+    ${sec("Across the account",4)}${AC.map(([l,v])=>row(l,v)).join("")}</tbody></table></div>
+  </div>
+  <div class="rl2-f"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span></span><span>Owner and Admin are Workspace Admin everywhere, automatically.</span></div>
+  </div></div>`;
 }
 /* ── actions ── */
 function ppToast(text,undo,what){receipt("people",text,undo,what||text);setTimeout(()=>{if(modal&&modal.kind==="ppperson")renderModal()},8100)}
@@ -10086,6 +10085,23 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .inv-ed-f{display:flex;justify-content:flex-end;gap:8px}
 
 .modal.inv-b{max-height:calc(100vh - 40px);display:flex;flex-direction:column}.modal.inv-b .modal-b{overflow:auto;flex:1 1 auto;min-height:0}.modal.inv-b .modal-h,.modal.inv-b .modal-f{flex:none}
+
+/* 4 Oct 2026, change 103: the roles sheet as canvas row 13 C2. Two tables on Gray 50, white cards with an 8px radius, 40px rows, the legend in the footer. */
+.modal.rl{width:min(960px,96vw);padding:0;max-height:calc(100vh - 40px);display:flex;flex-direction:column}
+.modal.rl .modal-h{padding:20px 24px;border-bottom:1px solid #e5e7eb;flex:none}.modal.rl .modal-h>div{display:flex;flex-direction:column;gap:4px}.rl2-sub{font-size:12px;line-height:16px;color:#6b7280}
+.rl2-b{padding:16px 24px 20px;display:flex;flex-direction:column;gap:20px;background:#f9fafb;overflow:auto;flex:1 1 auto;min-height:0}
+.rl2-cap{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}.rl2-cap b{font-size:13px;font-weight:600;color:#111827}.rl2-cap span{font-size:12px;color:#6b7280}
+table.rl2{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fff}
+.rl2 th{background:#f9fafb;border-bottom:1px solid #e5e7eb;vertical-align:top}
+.rl2-can{text-align:left;padding:14px 16px;vertical-align:bottom!important;font-size:12px;font-weight:500;color:#6b7280}
+.rl2-th{padding:12px 12px 10px;text-align:center;width:168px}.rl2-th b{display:block;font-size:14px;line-height:20px;font-weight:600;color:#111827}.rl2-th i{display:block;font-style:normal;font-size:12px;color:#6b7280;margin-top:2px}
+.rl2-sec td{padding:12px 16px 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280}
+.rl2-r:hover td{background:#f9fafb}
+.rl2-l{padding:0 16px;height:40px;font-size:13px;color:#1f2937;vertical-align:middle}
+.rl2-c{padding:0 12px;height:40px;text-align:center;vertical-align:middle;font-size:12px;color:#374151;line-height:16px}
+.rl2-t{display:block;font-size:12px;color:#374151}.rl2-strong{font-weight:600;color:#111827}.rl2-t2{display:block;font-size:12px;color:#6b7280}
+.rl2-f{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 24px;border-top:1px solid #e5e7eb;font-size:12px;line-height:18px;color:#6b7280;flex:none}.rl2-f>span:first-child{display:flex;gap:16px}
+.rl2 .rl-yes{width:20px;height:20px}.rl2 .rl-yes svg{width:12px;height:12px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10367,7 +10383,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6508fce";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
+(function(){var B="25701d8";document.title="Saleshandy \u00b7 version C \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
