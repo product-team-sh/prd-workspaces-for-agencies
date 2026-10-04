@@ -7040,55 +7040,107 @@ function vInvite(){
 /* Phase 1: an agency can only create a new client workspace. Connecting an
    existing Saleshandy account is out of scope, so this drawer opens directly
    on the create flow. */
-/* ── Whitelabel (change 106): the production module on the prototype's components ── */
-const WL_IMG={logo:{title:"Logo",blurb:"Set the tone for your brand with a login screen logo.",w:300,h:100,rec:"Horizontal or square PNG logo",drop:"Drag &amp; Drop your logo here to upload"},
- icon:{title:"Icon Logo",blurb:"Showcase your brand identity throughout the platform.",w:126,h:126,rec:"Square PNG logo",drop:"Drag &amp; Drop your icon logo here to upload"},
- favicon:{title:"Favicon",blurb:"Make your brand instantly recognizable in browser tabs.",w:126,h:126,rec:"Square PNG logo",drop:"Drag &amp; Drop your favicon here to upload"}};
-const wlPencil='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
-const wlTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
-const copyI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const wlCloud='<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>';
-function wlImgCard(key){const m=WL_IMG[key], v=BRAND[key];
- return `<div class="wl-card"><h3>${m.title}</h3><p class="sub" style="margin:0 0 14px">${m.blurb}</p>
-  ${v?`<div class="wl-saved"><img src="${v}" alt="${m.title}" style="max-width:${m.w}px;max-height:${m.h}px"><span class="wl-acts"><button class="ubtn" data-wlmod="${key}" title="Modify" aria-label="Modify ${m.title}">${wlPencil}</button><button class="ubtn wl-del" data-wldel="${key}" title="Delete" aria-label="Delete ${m.title}">${wlTrash}</button></span></div>`
-   :`<div class="wl-drop">${wlCloud}<span class="wl-drop-t">${m.drop}</span><span class="sub">Recommended: <b style="color:var(--blue-11);font-weight:500">${m.rec}</b> with a transparent background (Max 1MB)</span><button class="shd-button shd-button--secondary" data-wlpick="${key}">Choose a file</button></div>`}
- </div>`}
-function wlIllus(kind){return `<div class="wl-illus" aria-hidden="true">${kind==="logo"
- ?`<div class="wl-illus-login"><div class="wl-illus-bar"></div><div class="wl-illus-logo">${BRAND.logo?`<img src="${BRAND.logo}" alt="">`:'<span></span>'}</div><div class="wl-illus-line"></div><div class="wl-illus-line short"></div><div class="wl-illus-btn"></div></div>`
- :`<div class="wl-illus-tab"><span class="wl-illus-fav">${BRAND.favicon?`<img src="${BRAND.favicon}" alt="">`:""}</span><span class="wl-illus-tabt">${BRAND.companyName||"Your brand"}</span></div><div class="wl-illus-rail"><span class="wl-illus-ic">${BRAND.icon?`<img src="${BRAND.icon}" alt="">`:""}</span><i></i><i></i><i></i></div>`}</div>`}
+/* ── Whitelabel (change 106, redone 4 Oct 2026 as the production page itself). Hitesh:
+   "this should be exactly what we have in production, just pick that part and plug it in."
+   Markup and class names follow saleshandy-webui: whitelabel.tsx, logo-branding.tsx,
+   whitelabel-image-picker.tsx, domain-configuration.tsx, domain-setup-table-column.tsx,
+   global-settings-wrapper.tsx, link-badge.tsx, notification-banner.tsx, delete-alert-modal.tsx.
+   Styles are _whitelabel.scss, _global-settings-wrapper.scss, _link-badge.scss, _input.scss,
+   _tab.scss and _buttons.scss with the scss variables resolved. The illustrations are the
+   product's own SVGs (whitelabel-logo.svg, whitelabel-favicon.svg) beside this file. The
+   cropper (react-cropper) is the one piece not carried over: the edit view shows the image
+   at 250px as production does when the cropper is off. */
+const WL_IMG={logo:{title:"Logo",desc:"Set the tone for your brand with a login screen logo.",dnd:"Drag & Drop your logo here to upload",w:300,h:100},
+ icon:{title:"Icon Logo",desc:"Showcase your brand identity throughout the platform.",dnd:"Drag & Drop your icon logo here to upload",w:126,h:126},
+ favicon:{title:"Favicon",desc:"Make your brand instantly recognizable in browser tabs.",dnd:"Drag & Drop your favicon here to upload",w:126,h:126}};
+let wlEdit={}, wlSel={};
+const wlI={pencil:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+ trash:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+ info:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+ cloud:'<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>',
+ copy:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+ refresh:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+ check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+ checks:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>'};
+function wlBanner(variant,message,sub){
+ return `<div class="wl-banner wl-banner--${variant}" data-banner>${variant==="success"?`<span class="green-txt-14">${wlI.checks}</span>`:`<span class="blue-txt-11">${wlI.check}</span>`}<div style="flex:1"><div class="semibold-1 line-height-18 popover-arrow-color-txt">${message}</div><div class="regular-1 line-height-18 popover-arrow-color-txt">${sub}</div></div></div>`}
+function wlInput(attrs,value,o){o=o||{};
+ return `<span class="bs-input-affix-wrapper${o.error?" input-error":""}${o.disabled?" bs-input-disabled":""}"><input type="text" class="bs-input" ${attrs} value="${(value||"").replace(/"/g,"&quot;")}" ${o.placeholder?`placeholder="${o.placeholder}"`:""} ${o.disabled?"disabled":""}></span>`}
+function wlImagePicker(key){const m=WL_IMG[key], added=BRAND[key], edit=!!wlEdit[key], sel=wlSel[key];
+ const rec=key==="logo"?"Horizontal or square PNG logo":"Square PNG logo";
+ const head=`<div class="d-flex flex-column"><div class="d-flex justify-content-between align-items-center"><span class="regular-2 font-medium popover-arrow-color-txt">${m.title}</span>
+   ${added&&!edit?`<div class="action-container action-container--edit"><div role="button" tabindex="0" data-wledit="${key}" title="Modify" aria-label="Modify ${m.title}">${wlI.pencil}</div></div>`:""}
+   ${added&&edit?`<div class="action-container--delete action-container"><div role="button" tabindex="0" data-wldel="${key}" title="Delete" aria-label="Delete ${m.title}">${wlI.trash}</div></div>`:""}
+  </div><span class="regular-1 line-height-18 gray-txt-15 mt-1">${m.desc}</span></div>`;
+ if(added&&!edit) return `<div>${head}<div class="mt-4 selected-image-section" style="width:${m.w}px;height:${m.h}px"><img alt="${m.title}" src="${added}"></div></div>`;
+ const showing=sel||(edit?added:null);
+ return `<div>${head}
+  <div class="whitelabel__image-picker-dnd mt-3">${showing
+    ?`<div class="ed-image-container"><img alt="${m.title}" width="250" src="${showing}"></div>`
+    :`<div class="pre-select d-flex flex-column align-items-center"><div class="empty-data-icon-wrapper">${wlI.cloud}</div>
+      <span class="regular-2 font-medium line-height-20 popover-arrow-color-txt mt-3">${m.dnd}</span>
+      <span class="regular-1 line-height-20 gray-txt-15 mt-2">Recommended: <span class="blue-txt-11">${rec} </span> with a transparent background (Max 1MB)</span>
+      <div class="mt-3"><div class="file-uploader" role="button" tabindex="0" data-wlpick="${key}"><div class="choose-file">Choose a file</div></div></div></div>`}</div>
+  <div class="d-flex justify-content-between">${showing?`<div class="d-flex mt-3"><button type="button" class="btn btn-solid-primary" data-wlsave="${key}" ${sel?"":"disabled"}>Save</button><button type="button" class="btn btn-solid-outlined bs-ml-12" data-wlcancel="${key}">Cancel</button></div>`:""}${edit?`<button type="button" class="btn btn-solid-outlined bs-ml-12 mt-3" data-wlreplace="${key}">Replace Image</button>`:""}</div></div>`}
 function wlLogoTab(){
- return `<div class="wl-row">
-   <div class="wl-card"><h3>Company Name</h3><p class="sub" style="margin:0 0 14px">Shown beside your icon and on the login screen.</p>
-    <div style="display:flex;gap:8px;align-items:center"><input type="text" id="wlName" value="${(BRAND.companyName||"").replace(/"/g,"&quot;")}" placeholder="Enter company name" style="width:324px"><button class="shd-button shd-button--primary" id="wlNameSave" disabled>Save</button></div></div>
-   ${wlImgCard("logo")}${wlIllus("logo")}</div>
-  <div class="wl-row">${wlImgCard("icon")}${wlImgCard("favicon")}${wlIllus("icon")}</div>`}
+ return `<div class="d-flex logo-container"><div class="whitelabel__container">
+  <div class="d-flex align-items-start gap-20">
+   <div class="d-flex flex-column card-view">
+    <div class="whitelabel__card"><span class="regular-2 font-medium popover-arrow-color-txt">Company Name</span>
+     <div class="d-flex bs-mt-12 whitelabel__card--input-container">${wlInput('id="wlName"',BRAND.companyName,{placeholder:"Enter company name"})}<button type="button" class="btn btn-solid-primary bs-ml-12" id="wlNameSave" disabled>Save</button></div></div>
+    <div class="whitelabel__card mt-4">${wlImagePicker("logo")}</div>
+   </div>
+   <div><img src="whitelabel-logo.svg" alt="image" width="300" height="266"></div>
+  </div>
+  <div class="d-flex align-items-start gap-20">
+   <div class="d-flex flex-column card-view">
+    <div class="card-view"><div class="whitelabel__card mt-4">${wlImagePicker("icon")}</div></div>
+    <div class="card-view"><div class="whitelabel__card mt-4 mb-2">${wlImagePicker("favicon")}</div></div>
+   </div>
+   <div class="mt-4"><img src="whitelabel-favicon.svg" alt="image" width="300" height="286"></div>
+  </div></div></div>`}
+function wlHost(d){if(!d)return ""; const parts=d.split("."); return parts.length>2?parts[0]:"@"}
+function wlDomainTable(domain,setup){
+ const valid=/^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/.test(domain||""), host=valid?wlHost(domain):"";
+ const st=BRAND.domainVerified?'<img src="verified-true.svg" width="18" height="18" alt="Verified">':setup?'<img src="verified-false.svg" width="20" height="20" alt="Not verified yet">':'<img src="verified-false.svg" width="20" height="20" alt="" style="opacity:.5">';
+ return `<div class="domain-setup-table"><div class="table-list"><div class="react-bootstrap-table"><table class="table table-organism">
+  <thead class="table-organism-header"><tr><th><span class="semibold-2 line-height-20 popover-arrow-color-txt">Record type</span></th><th><span class="semibold-2 line-height-20 popover-arrow-color-txt">Record / Host</span></th><th><span class="semibold-2 line-height-20 popover-arrow-color-txt">Points to / Value</span></th><th><span class="semibold-2 line-height-20 popover-arrow-color-txt">Status</span></th><th><span class="semibold-2 line-height-20 popover-arrow-color-txt">Action</span></th></tr></thead>
+  <tbody class="table-organism-body"><tr>
+   <td><span class="regular-2 line-height-18 popover-arrow-color-txt">CNAME</span></td>
+   <td><div class="d-flex align-items-center gap-8"><span class="regular-2 line-height-18 ${valid?"popover-arrow-color-txt":"gray-txt-15"}" id="wlHostCell">${valid?host:"Brand domain required"}</span>${valid?`<span class="gray-txt-15 pointer" role="button" tabindex="0" data-wlcopy="${host}" title="Copy">${wlI.copy}</span>`:""}</div></td>
+   <td><div class="d-flex align-items-center gap-8"><span class="regular-2 line-height-18 popover-arrow-color-txt">whitelabel.saleshandy.com</span><span class="gray-txt-15 pointer" role="button" tabindex="0" data-wlcopy="whitelabel.saleshandy.com" title="Copy">${wlI.copy}</span></div></td>
+   <td><div class="d-flex align-items-center">${st}</div></td>
+   <td><div class="d-flex align-items-center"><span class="${setup?"pointer gray-txt-15":"gray-txt-11"}" role="button" tabindex="0" data-wlrefresh title="Refresh">${wlI.refresh}</span></div></td>
+  </tr></tbody></table></div></div></div>`}
 function wlDomainTab(){
- const d=wlDomainDraft, host=d?(d.split(".").length>2?d.split(".")[0]:"@"):"";
- const dns=`<table class="wl-dns"><thead><tr><th>Record type</th><th>Record / Host</th><th>Points to / Value</th><th>Status</th><th>Action</th></tr></thead>
-  <tbody><tr><td>CNAME</td><td>${host?`<span class="wl-copy">${host}<button class="ubtn" title="Copy" aria-label="Copy host" data-wlcopy="${host}">${copyI}</button></span>`:'<span class="sub">Brand domain required</span>'}</td>
-  <td><span class="wl-copy">whitelabel.saleshandy.com<button class="ubtn" title="Copy" aria-label="Copy value" data-wlcopy="whitelabel.saleshandy.com">${copyI}</button></span></td>
-  <td>${BRAND.domainVerified?'<span class="wl-ok" title="Verified">&#10003;</span>':BRAND.domainPending?'<span class="wl-pend" title="Not verified yet">&#9679;</span>':'<span class="sub">&ndash;</span>'}</td>
-  <td><button class="ubtn" data-wlrefresh title="Check again" aria-label="Check again" ${BRAND.domainPending?"":"disabled"}>&#8635;</button></td></tr></tbody></table>`;
- if(BRAND.domain&&BRAND.domainVerified) return `<div class="wl-card wl-domain">
-   <div class="wl-dhead"><h3>Brand Domain</h3><button class="ubtn wl-del" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlTrash}</button></div>
-   <input type="text" value="${BRAND.domain}" disabled style="width:324px;margin-top:6px">
-   <div class="msg m-ok" style="margin-top:16px"><span><b>Domain setup is successfully completed!</b><br>All set! Login with your brand domain now. <button class="linkbtn" data-wlgologin>Click here</button></span></div></div>`;
- const pending=BRAND.domainPending;
- return `<div class="wl-card wl-domain">
-   <div class="wl-dhead"><h3>Setup Your Brand Domain</h3>${pending?`<button class="ubtn wl-del" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlTrash}</button>`:""}</div>
-   <div class="wl-step"><span class="wl-num">1</span><div><div class="wl-step-t">Enter your brand domain to replace all Saleshandy URLs</div>
-     <input type="text" id="wlDomain" value="${(pending?BRAND.domain:d).replace(/"/g,"&quot;")}" placeholder="E.g. app.example.com" ${pending?"disabled":""} class="${wlDomainErr?"is-err":""}" style="width:324px;margin-top:10px">${wlDomainErr?`<p class="nc-limsay is-err" style="margin-top:6px"><span>${wlDomainErr}</span></p>`:""}</div></div>
-   <div class="wl-step"><span class="wl-num">2</span><div><div class="wl-step-t">Log in to your domain provider (e.g. Godaddy, Namecheap) and navigate to the DNS settings</div><button class="linkbtn" data-flash="Opens the help article" style="margin-top:6px">Find your DNS provider &rarr;</button></div></div>
-   <div class="wl-step"><span class="wl-num">3</span><div style="min-width:0;flex:1"><div class="wl-step-t">Add a CNAME record in your DNS settings by copying the below details</div>${dns.replace('<span class="sub">Brand domain required</span>',pending?`${BRAND.domain.split(".").length>2?BRAND.domain.split(".")[0]:"@"}`:'<span class="sub">Brand domain required</span>')}</div></div>
-   <div style="margin-left:36px;margin-top:4px">${pending
-     ?`<div class="msg m-info">${infoI}<span><b>Domain setup is in progress!</b><br>It can take up to 48 hours. Explore the product in the meantime, and we will notify you when your brand domain is ready. <button class="linkbtn" data-wlrefresh>Check now</button></span></div>`
-     :`<button class="shd-button shd-button--primary" id="wlDomainSetup" ${d&&!wlDomainErr?"":"disabled"}>Setup Domain</button>`}</div></div>`}
+ if(BRAND.domain&&BRAND.domainVerified) return `<div class="whitelabel__domain-configuration">
+   <div class="d-flex align-items-center justify-content-between"><span class="semibold-3 line-height-20 popover-arrow-color-txt">Brand Domain</span>
+    <div class="action-container--delete action-container"><div role="button" tabindex="0" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlI.trash}</div></div></div>
+   <div class="bs-mt-20 brand-domain">${wlInput('id="wlDomain"',BRAND.domain,{disabled:true})}
+    <div class="mt-4">${wlBanner("success","Domain setup is successfully completed!",`All set! Login with your brand domain now. <span class="blue-txt-11 pointer" role="button" tabindex="0" data-wlgologin>Click here</span>`)}</div></div></div>`;
+ const setup=BRAND.domainPending, d=setup?BRAND.domain:wlDomainDraft;
+ return `<div class="whitelabel__domain-configuration">
+   <div class="d-flex justify-content-between"><div class="d-flex align-items-center"><span class="semibold-3 line-height-24 popover-arrow-color-txt">Setup Your Brand Domain</span><div><span class="yt ml-2 pointer" title="Learn how to setup domain." data-flash="Opens the setup video"></span></div></div>
+    <div>${setup?`<div class="action-container action-container--delete"><div role="button" tabindex="0" data-wldeldomain title="Delete" aria-label="Delete brand domain">${wlI.trash}</div></div>`:""}</div></div>
+   <div class="whitelabel__domain-configuration-steps bs-mt-20">
+    <div><div class="d-flex align-items-center"><span class="whitelabel__step-number">1</span><span class="regular-2 font-medium popover-arrow-color">Enter your brand domain to replace all Saleshandy URLs </span></div>
+     <div class="${wlDomainErr?"input-error-container":""}">${wlInput('id="wlDomain"',d,{placeholder:"E.g. app.example.com",disabled:setup,error:!!wlDomainErr})}${wlDomainErr?`<label class="bs-input-label-suffix">${wlDomainErr}</label>`:""}</div></div>
+    <div class="d-flex align-items-center mt-4"><span class="whitelabel__step-number">2</span><span class="regular-2 font-medium popover-arrow-color mr-2">Log in to your domain provider (e.g. Godaddy, Namecheap) and navigate to the DNS settings</span><a class="link-badge-anchor" href="#" data-flash="Opens the help article"><button type="button" class="link-badge-button">${wlI.info}Find your DNS provider</button></a></div>
+    <div class="mt-4"><div class="d-flex align-items-center"><div class="whitelabel__step-number"><span class="regular-2 line-height-20 popover-arrow-color">3</span></div><span class="regular-2 font-medium popover-arrow-color">Add a CNAME record in your DNS settings by copying the below details</span></div>
+     <div>${wlDomainTable(d,setup)}</div></div></div>
+   <div class="mt-4 bs-ml-36"><button type="button" class="btn btn-solid-primary" id="wlDomainSetup" ${(d&&!wlDomainErr&&!setup)?"":"disabled"}>Setup Domain</button></div>
+   ${setup?`<div class="mt-4 bs-ml-36">${wlBanner("primary","Domain setup is in progress!","It can take up to 48 hours. Explore the product in the meantime, and we'll notify you when your brand domain is ready.")}</div>`:""}</div>`}
 function vWhitelabel(){
  if(!canI("billing")) return denied("set up whitelabel");
- return `<div class="toolbar"><div class="cell-main"><span class="semibold-3">Whitelabel</span><span class="ubtn" style="width:24px;height:24px;color:var(--gray-12)" title="Add your own logo and URL to personalize the client experience and build brand reputation">${infoI}</span><button class="linkbtn" data-flash="Opens the help article" style="margin-left:4px">Know more</button></div>
-   <div class="tools"><span class="sub">Scale plan &middot; included</span></div></div>
-  <div class="tabbar"><button data-wltab="logo" aria-selected="${wlTab==="logo"}">Logo &amp; Branding</button><button data-wltab="domain" aria-selected="${wlTab==="domain"}">Domain Configuration</button></div>
-  <div class="wrap wl-wrap">${wlTab==="logo"?wlLogoTab():wlDomainTab()}</div>`}
+ const tab=(k,l)=>`<div class="bs-tabs-tab${wlTab===k?" bs-tabs-tab-active":""}" data-wltab="${k}"><div class="bs-tabs-tab-btn" role="tab" aria-selected="${wlTab===k}">${l}</div></div>`;
+ return `<div class="wlp globalSettings__Wrapper">
+  <div class="globalSettings__Header"><div class="globalSettings__Header__Left">
+   <div class="globalSettings__Header__Title" title="Add your own logo and URL to personalize the client experience and build brand reputation"><h1>Whitelabel</h1></div>
+   <a class="link-badge-anchor" href="#" data-flash="Opens the help article"><button type="button" class="link-badge-button">${wlI.info}Know more</button></a>
+  </div></div>
+  <div class="globalSettings__Content whitelabel"><div class="bs-tabs bs-tabs-top bs-tabs-small subscription-info-tabs">
+   <div class="bs-tabs-nav"><div class="bs-tabs-nav-wrap"><div class="bs-tabs-nav-list">${tab("logo","Logo &amp; Branding")}${tab("domain","Domain Configuration")}</div></div></div>
+   <div class="bs-tabs-content">${wlTab==="logo"?wlLogoTab():wlDomainTab()}</div></div></div></div>`}
 function vLogin(){
  return `<div class="invite-wrap"><div class="invite-card">
    <div class="invite-brand">${brandOn()?(BRAND.logo?`<img src="${BRAND.logo}" alt="${BRAND.companyName}" style="max-height:48px;max-width:240px">`:`<span>${BRAND.companyName}</span>`):logoSVG("logoGradB")+`<span>Saleshandy</span>`}</div>
@@ -7100,11 +7152,11 @@ function vLogin(){
    </div></div></div>
   <button class="invite-back" data-invback>&larr; Back to the prototype</button>`}
 function wlDelModalHTML(){
- if(modal.kind==="wldeldomain") return card("Delete brand domain",`<p class="ac-lead" style="margin:0">Are you sure you want to delete your brand domain?<br><span class="sub">This will remove your brand domain and revert back to the default urls.</span></p>`,
-   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-wlok>Delete</button>`,"ac");
- const m=WL_IMG[modal.key];
- return card("Delete "+m.title,`<p class="ac-lead" style="margin:0">Are you sure you want to delete brand ${m.title.toLowerCase()}?<br><span class="sub">This will remove your branding from login page.</span></p>`,
-   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-wlok>Delete</button>`,"ac");
+ const dom=modal.kind==="wldeldomain", m=dom?null:WL_IMG[modal.key];
+ const title=`<span class="delete-alert-modal--title"><span class="delete-alert-modal--title__icon">${wlI.trash}</span><h2>${dom?"Delete brand domain":"Delete "+m.title}</h2></span>`;
+ const body=dom?`<div class="delete-alert-modal--body__contents"><p>Are you sure you want to delete your brand domain?</p><p>This will remove your brand domain and revert back to the default urls.</p></div>`
+  :`<div class="delete-alert-modal--body__contents"><p>Are you sure you want to delete brand ${m.title.toLowerCase()}?</p><p>This will remove your branding from login page.</p></div>`;
+ return card(title,body,`<button type="button" class="btn btn-solid-outlined action-btn-cancel" data-mclose>Cancel</button><button type="button" class="btn btn-solid-primary action-btn-delete" data-wlok>Delete</button>`,"ac delete-alert-modal");
 }
 function wireWhitelabel(){
  const q=sel=>[...document.querySelectorAll(sel)], rr=()=>render();
@@ -7112,16 +7164,19 @@ function wireWhitelabel(){
  const nm=el("wlName"), sv=el("wlNameSave");
  if(nm&&sv){nm.oninput=()=>{const v=nm.value.trim(); sv.disabled=!v||v===BRAND.companyName};
    sv.onclick=()=>{const v=nm.value.trim(); if(!v||v===BRAND.companyName)return; const was=BRAND.companyName; BRAND.companyName=v;
-     receipt("wl","Company name saved.",()=>{BRAND.companyName=was;render()},"saved the company name"); rr()}}
- q("[data-wlpick],[data-wlmod]").forEach(b=>b.onclick=()=>{const k=b.dataset.wlpick||b.dataset.wlmod, was=BRAND[k]; BRAND[k]=wlSample(k==="logo"?"logo":"icon");
-   receipt("wl",WL_IMG[k].title+" saved successfully.",()=>{BRAND[k]=was;render()},"saved the "+WL_IMG[k].title.toLowerCase()); rr()});
+     receipt("wl","Company name updated successfully.",()=>{BRAND.companyName=was;render()},"saved the company name"); rr()}}
+ q("[data-wlpick],[data-wlreplace]").forEach(b=>b.onclick=()=>{const k=b.dataset.wlpick||b.dataset.wlreplace; wlSel[k]=wlSample(k==="logo"?"logo":"icon"); rr()});
+ q("[data-wledit]").forEach(b=>b.onclick=()=>{wlEdit[b.dataset.wledit]=true;rr()});
+ q("[data-wlcancel]").forEach(b=>b.onclick=()=>{const k=b.dataset.wlcancel; delete wlSel[k]; delete wlEdit[k]; rr()});
+ q("[data-wlsave]").forEach(b=>b.onclick=()=>{const k=b.dataset.wlsave; if(!wlSel[k])return; const was=BRAND[k]; BRAND[k]=wlSel[k]; delete wlSel[k]; delete wlEdit[k];
+   receipt("wl",WL_IMG[k].title+" saved successfully",()=>{BRAND[k]=was;render()},"saved the "+WL_IMG[k].title.toLowerCase()); rr()});
  q("[data-wldel]").forEach(b=>b.onclick=()=>{modal={kind:"wldel",key:b.dataset.wldel};renderModal()});
  q("[data-wldeldomain]").forEach(b=>b.onclick=()=>{modal={kind:"wldeldomain"};renderModal()});
- const dm=el("wlDomain"); if(dm&&!dm.disabled){dm.oninput=()=>{wlDomainDraft=dm.value.replace(/^https?:\/\//i,"").replace(/^www\./i,"").trim(); wlDomainErr=""; const st=el("wlDomainSetup"); if(st)st.disabled=!wlDomainDraft;
-     const tb=document.querySelector(".wl-dns tbody td:nth-child(2)"); if(tb){const d=wlDomainDraft, host=d?(d.split(".").length>2?d.split(".")[0]:"@"):""; tb.innerHTML=host?`<span class="wl-copy">${host}<button class="ubtn" title="Copy" aria-label="Copy host" data-wlcopy="${host}">${copyI}</button></span>`:'<span class="sub">Brand domain required</span>'}};
+ const dm=el("wlDomain"); if(dm&&!dm.disabled){dm.oninput=()=>{wlDomainDraft=dm.value.replace(/^https?:\/\//i,"").replace(/^www\./i,"").trim(); if(wlDomainDraft!==dm.value)dm.value=wlDomainDraft; wlDomainErr="";
+     const st=el("wlDomainSetup"); if(st)st.disabled=!wlDomainDraft; const tb=el("wlHostCell"); if(tb){const ok=/^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/.test(wlDomainDraft); tb.textContent=ok?wlHost(wlDomainDraft):"Brand domain required"; tb.className="regular-2 line-height-18 "+(ok?"popover-arrow-color-txt":"gray-txt-15")}};
    dm.onblur=()=>{const d=wlDomainDraft.replace(/\/$/,""); if(d&&!/^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/.test(d)){wlDomainErr="Please enter a valid domain";rr()}}}
- const st=el("wlDomainSetup"); if(st)st.onclick=()=>{if(!wlDomainDraft||wlDomainErr)return; BRAND.domain=wlDomainDraft; BRAND.domainPending=true; BRAND.domainVerified=false; wlDomainDraft=""; rr()};
- q("[data-wlrefresh]").forEach(b=>b.onclick=()=>{if(!BRAND.domainPending)return; BRAND.domainPending=false; BRAND.domainVerified=true; receipt("wl","Brand domain is whitelabeled. "+BRAND.domain+" is live.",null,"verified the brand domain"); rr()});
+ const st=el("wlDomainSetup"); if(st)st.onclick=()=>{const d=wlDomainDraft.replace(/\/$/,""); if(!d||wlDomainErr)return; if(!/^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/.test(d)){wlDomainErr="Please enter a valid domain";rr();return} BRAND.domain=d; BRAND.domainPending=true; BRAND.domainVerified=false; wlDomainDraft=""; rr()};
+ q("[data-wlrefresh]").forEach(b=>b.onclick=()=>{if(!BRAND.domainPending)return; BRAND.domainPending=false; BRAND.domainVerified=true; receipt("wl","Brand domain is Whitelabeled. "+BRAND.domain+" is ready.",null,"verified the brand domain"); rr()});
  q("[data-wlcopy]").forEach(b=>b.onclick=()=>{try{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.wlcopy)}catch(e){} b.title="Copied"; setTimeout(()=>{b.title="Copy"},2000)});
  q("[data-wlgologin],[data-gologin]").forEach(b=>b.onclick=()=>{view={name:"login",back:view.name==="invite"?{name:"invite",id:view.id,role:view.role,email:view.email}:{name:"whitelabel"}};rr()});
  q("[data-gowl]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"whitelabel"};rr()});
@@ -8424,7 +8479,7 @@ function renderModal(){
  const wo=L.querySelector("[data-wlok]"); if(wo)wo.onclick=()=>{
    if(modal.kind==="wldeldomain"){const was={domain:BRAND.domain,v:BRAND.domainVerified,p:BRAND.domainPending}; BRAND.domain="";BRAND.domainVerified=false;BRAND.domainPending=false; wlDomainDraft=""; modal=null; renderModal();
      receipt("wl","Brand domain deleted successfully.",()=>{BRAND.domain=was.domain;BRAND.domainVerified=was.v;BRAND.domainPending=was.p;render()},"deleted the brand domain"); render(); return}
-   const k=modal.key, was=BRAND[k]; BRAND[k]=null; modal=null; renderModal();
+   const k=modal.key, was=BRAND[k]; BRAND[k]=null; delete wlEdit[k]; delete wlSel[k]; modal=null; renderModal();
    receipt("wl",WL_IMG[k].title+" deleted successfully.",()=>{BRAND[k]=was;render()},"deleted the "+WL_IMG[k].title.toLowerCase()); render()};
  const ok=L.querySelector("[data-mconfirm]");
  if(ok) ok.onclick=()=>{
@@ -10251,41 +10306,64 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .chip{height:20px;padding:0 7px;border-radius:4px;font-size:12px;line-height:20px;font-weight:500}
 .chip svg{width:12px;height:12px}
 
-/* 4 Oct 2026, change 106: Whitelabel page (production _whitelabel.scss on the prototype's tokens) and the brand mark. */
+/* 4 Oct 2026, change 106: the production Whitelabel page. Selectors and values are the
+   product's scss with variables resolved; namespaced under .wlp so nothing leaks. */
 .sb-brand img{width:26px;height:26px;border-radius:6px;flex:none}.sb-brand img+span{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.wl-wrap{display:flex;flex-direction:column;gap:20px}
-.wl-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 260px;gap:20px;align-items:stretch}
-.wl-card{background:#fff;padding:24px;border-radius:4px;border:1px solid #e8eff5;position:relative;min-width:0}
-.wl-card h3{margin:0 0 4px;font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17)}
-.wl-drop{height:190px;border-radius:8px;border:1px dashed #9ca3af;background:#f9fafb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:0 16px}
-.wl-drop-t{font-size:14px;font-weight:500;color:var(--gray-17)}
-.wl-saved{position:relative;height:190px;border-radius:8px;border:1px solid var(--gray-13);background:#fff;display:flex;align-items:center;justify-content:center}
-.wl-saved img{object-fit:contain}
-.wl-acts{position:absolute;top:8px;right:8px;display:flex;gap:4px}.wl-acts .ubtn,.wl-dhead .ubtn{width:28px;height:28px;border-radius:4px;color:var(--gray-15)}.wl-acts .ubtn svg,.wl-dhead .ubtn svg{width:16px;height:16px}
-.wl-acts .ubtn:hover{background:#dbeafe;color:#1d4ed8}.ubtn.wl-del:hover{background:#fee2e2;color:#b91c1c}
-.wl-illus{border-radius:8px;background:var(--gray-19);border:1px solid var(--gray-16);display:flex;align-items:center;justify-content:center;padding:20px;min-height:190px}
-.wl-illus-login{width:180px;background:#fff;border-radius:8px;box-shadow:var(--shadow-xs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
-.wl-illus-bar{width:100%;height:4px;border-radius:2px;background:var(--blue-11)}
-.wl-illus-logo{height:32px;display:flex;align-items:center}.wl-illus-logo img{max-height:28px;max-width:140px}.wl-illus-logo span{width:90px;height:12px;border-radius:3px;background:var(--gray-13)}
-.wl-illus-line{width:100%;height:8px;border-radius:3px;background:var(--gray-16)}.wl-illus-line.short{width:60%}
-.wl-illus-btn{width:100%;height:20px;border-radius:4px;background:var(--blue-11);opacity:.85}
-.wl-illus-tab{display:flex;align-items:center;gap:8px;background:#fff;border-radius:6px 6px 0 0;padding:8px 12px;box-shadow:var(--shadow-xs);width:180px;margin-bottom:10px}
-.wl-illus-fav{width:16px;height:16px;border-radius:3px;background:var(--gray-13);overflow:hidden;flex:none}.wl-illus-fav img{width:16px;height:16px}
-.wl-illus-tabt{font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wl-illus-rail{width:180px;background:#fff;border-radius:6px;box-shadow:var(--shadow-xs);padding:10px;display:flex;flex-direction:column;gap:8px}
-.wl-illus-ic{width:26px;height:26px;border-radius:6px;background:var(--gray-13);overflow:hidden}.wl-illus-ic img{width:26px;height:26px}
-.wl-illus-rail i{display:block;height:8px;border-radius:3px;background:var(--gray-16);width:70%}
-.wl-illus>div+div{margin-top:0}.wl-illus{flex-direction:column}
-.wl-domain{max-width:860px}.wl-dhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.wl-step{display:flex;gap:12px;margin-top:18px;align-items:flex-start}.wl-step-t{font-size:14px;line-height:22px;color:var(--gray-17)}
-.wl-num{width:24px;height:24px;border-radius:50%;background:var(--gray-16);color:var(--gray-15);font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:-1px}
-.wl-dns{width:100%;max-width:640px;border-collapse:collapse;font-size:14px;margin-top:12px;border:1px solid var(--gray-13);border-radius:4px;overflow:hidden}
-.wl-dns th{height:36px;padding:0 12px;background:#f3f4f6;font-size:12px;font-weight:500;color:var(--gray-15);text-align:left}
-.wl-dns td{padding:10px 12px;border-top:1px solid var(--gray-13);color:var(--gray-17);vertical-align:middle}
-.wl-copy{display:inline-flex;align-items:center;gap:6px}.wl-copy .ubtn{width:24px;height:24px}.wl-copy .ubtn svg{width:14px;height:14px}
-.wl-ok{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#d1fae5;color:#047857;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.wl-pend{color:#d97706;font-size:10px}
-.wl-wrap .msg{align-items:flex-start}.wl-wrap .msg b{font-weight:600}
+.wlp{font-family:Inter,sans-serif;color:#1f2937}
+.wlp .d-flex{display:flex}.wlp .flex-column{flex-direction:column}.wlp .align-items-start{align-items:flex-start}.wlp .align-items-center{align-items:center}.wlp .justify-content-between{justify-content:space-between}.wlp .justify-content-center{justify-content:center}
+.wlp .gap-20{gap:1.25rem}.wlp .gap-8{gap:.5rem}.wlp .mt-1{margin-top:.25rem}.wlp .mt-2{margin-top:.5rem}.wlp .mt-3{margin-top:1rem}.wlp .mt-4{margin-top:1.5rem}.wlp .mb-2{margin-bottom:.5rem}.wlp .mr-2{margin-right:.5rem}.wlp .ml-2{margin-left:.5rem}
+.wlp .bs-mt-12{margin-top:12px}.wlp .bs-mt-20{margin-top:20px}.wlp .bs-ml-12{margin-left:12px}.wlp .bs-ml-36{margin-left:36px}
+.wlp .regular-1{font-size:12px;font-weight:400;line-height:20px}.wlp .regular-2{font-size:14px;font-weight:400;line-height:22px}.wlp .semibold-1{font-size:12px;font-weight:600;line-height:20px}.wlp .semibold-2{font-size:14px;font-weight:600;line-height:22px}.wlp .semibold-3{font-size:16px;font-weight:600;line-height:24px}
+.wlp .font-medium{font-weight:500}.wlp .line-height-18{line-height:18px}.wlp .line-height-20{line-height:20px}.wlp .line-height-24{line-height:24px}
+.wlp .popover-arrow-color-txt,.wlp .popover-arrow-color{color:#1f2937}.wlp .gray-txt-15{color:#6b7280}.wlp .gray-txt-11{color:#9ca3af}.wlp .blue-txt-11{color:#1d4ed8}.wlp .green-txt-14{color:#059669}.wlp .pointer{cursor:pointer}
+.wlp.globalSettings__Wrapper{padding:1.5rem 1.5rem 0;background:#fff;height:100%;display:flex;flex-direction:column;position:relative;flex:1 1 auto;min-height:0}
+.wlp .globalSettings__Header{display:flex;margin-bottom:1.5rem;flex-direction:row;justify-content:space-between}
+.wlp .globalSettings__Header__Left{display:flex;gap:.5rem;align-items:center;flex-direction:row;justify-content:flex-start;width:auto;position:relative}
+.wlp .globalSettings__Header__Title h1{color:#1f2937;font-size:1.125rem;font-weight:600;line-height:1.5rem;margin:0}
+.wlp .globalSettings__Content{flex:1 1 auto;min-height:0;overflow-y:auto}
+.wlp .link-badge-anchor{text-decoration:none}.wlp .link-badge-anchor .link-badge_Icon{color:#9ca3af}
+.wlp .link-badge-button{display:flex;height:1.5rem;border:1px solid #e5e7eb;border-radius:6.25rem;padding:0 .375rem;background:#fff;gap:.25rem;align-items:center;color:#6b7280;font-weight:500;font-size:.75rem;line-height:1.25rem;font-family:inherit;cursor:pointer}.wlp .link-badge-button svg{color:#9ca3af}.wlp .link-badge-button:hover{border-color:#93c5fd;transition:.1s ease-in-out}
+.wlp .bs-tabs-nav{position:relative;display:flex;margin:0 0 1.625rem 0}.wlp .bs-tabs-nav-list{display:flex;position:relative}
+.wlp .bs-tabs-tab{position:relative;display:inline-flex;align-items:center;margin:0 1.5rem 0 0;padding:12px 0;font-size:14px;background:transparent;border:0;outline:none;cursor:pointer;color:#6b7280}.wlp .bs-tabs-tab:last-of-type{margin-right:0}.wlp .bs-tabs-tab:hover{color:#1d4ed8}
+.wlp .bs-tabs-tab.bs-tabs-tab-active{color:#1d4ed8;font-weight:600}.wlp .bs-tabs-tab.bs-tabs-tab-active::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:#1d4ed8}
+.wlp .whitelabel__container{overflow-y:auto;height:calc(100vh - 220px);width:100%}.wlp .card-view{width:100%;flex:1 1 auto;min-width:0}.wlp .logo-container{width:100%}.wlp .gap-20>div:last-child:not(.card-view){flex:none;width:300px}.wlp .gap-20>div:last-child img{display:block}
+.wlp .whitelabel__card{padding:1.5rem;border-radius:.25rem;border:1px solid #e8eff5;background:#fff;position:relative}
+.wlp .whitelabel__card--input-container .bs-input-affix-wrapper{width:20.25rem}
+.wlp .action-container div{position:absolute;top:1.0625rem;right:1.1875rem;padding:.375rem;display:flex;justify-content:center;align-items:center;border:none;border-radius:.25rem;transition:all .2s;cursor:pointer;color:#9ca3af}
+.wlp .whitelabel__domain-configuration .action-container div{position:static}
+.wlp .action-container--edit>div:hover{background:#dbeafe}.wlp .action-container--edit>div:hover svg{color:#1d4ed8}
+.wlp .action-container--delete>div:hover{background:#fee2e2}.wlp .action-container--delete>div:hover svg{color:#b91c1c}
+.wlp .selected-image-section{overflow:hidden;display:flex;justify-content:center;align-items:center;background:#fff}.wlp .selected-image-section img{max-width:100%;max-height:100%;object-fit:contain}
+.wlp .whitelabel__image-picker-dnd{height:11.875rem;border-radius:.5rem;border:1px dashed #9ca3af;background:#f9fafb;display:flex;justify-content:center;align-items:center;text-align:center}
+.wlp .ed-image-container img{max-height:150px;object-fit:contain}
+.wlp .file-uploader{padding:.375rem 1rem;border:1px solid #1d4ed8;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff}.wlp .file-uploader:hover,.wlp .file-uploader:focus{background:#dbeafe}
+.wlp .choose-file{display:flex;align-items:center;border-radius:4px;color:#1d4ed8;justify-content:center;width:100%;font-weight:600;font-size:14px;line-height:20px}
+.wlp .whitelabel__domain-configuration{background:#fff;padding:1.5rem;border-radius:.25rem;border:1px solid #e8eff5}
+.wlp .whitelabel__domain-configuration .brand-domain .bs-input-affix-wrapper{width:20.25rem}
+.wlp .whitelabel__domain-configuration-steps .bs-input-affix-wrapper{width:20.25rem;margin-top:.875rem;margin-left:2.25rem}
+.wlp .whitelabel__domain-configuration-steps .input-error-container{display:flex;flex-direction:column}.wlp .whitelabel__domain-configuration-steps .input-error-container label{margin-left:2.25rem}
+.wlp .domain-setup-table{margin-top:.75rem;margin-left:2.25rem}.wlp .domain-setup-table .table-list{height:fit-content}
+.wlp table.table-organism{width:100%;max-width:640px;border-collapse:separate;border-spacing:0}
+.wlp .table-organism-header{height:2.25rem;background:#f3f4f6}.wlp .table-organism-header th{padding:0 .75rem;text-align:left;border:0;white-space:nowrap}.wlp .table-organism-header th:first-child{border-top-left-radius:.25rem}.wlp .table-organism-header th:last-child{border-top-right-radius:.25rem}
+.wlp .table-organism-body td{padding:.625rem .75rem;border-bottom:1px solid #e5e7eb;vertical-align:middle}.wlp .table-organism-body td:first-child{border-left:1px solid #e5e7eb}.wlp .table-organism-body td:last-child{border-right:1px solid #e5e7eb}
+.wlp .whitelabel__step-number{width:1.5rem;height:1.5rem;display:inline-flex;justify-content:center;align-items:center;background:#f3f4f6;border-radius:50%;margin-right:.75rem;font-size:14px;color:#1f2937;flex:none}
+.wlp .bs-input-affix-wrapper{position:relative;width:100%;min-width:0;padding:4px 11px;color:#1f2937;font-size:14px;line-height:1.5715;background:#fff;border:1px solid #d9d9d9;border-radius:.25rem;transition:all .3s;display:inline-flex;box-sizing:border-box}
+.wlp .bs-input-affix-wrapper:hover,.wlp .bs-input-affix-wrapper:focus-within{border-color:#346aff}.wlp .bs-input-affix-wrapper:focus-within{box-shadow:0 0 0 2px rgba(24,144,255,.5)}
+.wlp .bs-input-affix-wrapper>input.bs-input{padding:0;border:none;outline:none;height:auto;width:100%;font:inherit;background:transparent;box-shadow:none;line-height:inherit}.wlp .bs-input-affix-wrapper>input.bs-input::placeholder{color:#bfbfbf}
+.wlp .bs-input-affix-wrapper.input-error{border-color:#f5222d}.wlp .bs-input-affix-wrapper.bs-input-disabled{background:#f5f5f5;color:#bfbfbf;cursor:not-allowed}.wlp .bs-input-affix-wrapper.bs-input-disabled>input{color:#8c8c8c;cursor:not-allowed}
+.wlp .input-error-container .bs-input-label-suffix{color:#f5222d;font-size:14px;line-height:22px}
+.wlp .btn{display:inline-flex;align-items:center;justify-content:center;padding:.314rem 1rem;font-size:14px;font-weight:500;line-height:1.45;border-radius:4px;border:1px solid transparent;font-family:inherit;cursor:pointer;transition:all .15s}
+.wlp .btn-solid-primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.wlp .btn-solid-primary:hover{background:#1e40af;border-color:#1e40af}.wlp .btn-solid-primary:disabled{background:#93c5fd;border-color:#93c5fd;color:#fff;cursor:not-allowed}
+.wlp .btn-solid-outlined{background:#fff;border-color:#1d4ed8;color:#1d4ed8}.wlp .btn-solid-outlined:hover{background:#dbeafe}
+.wlp .wl-banner{padding:1rem 1.25rem;border-radius:.5rem;display:flex;align-items:flex-start;gap:.75rem}.wlp .wl-banner--primary{background:#eff6ff;color:#1e40af}.wlp .wl-banner--success{background:#ecfdf5;color:#166534}
+.wlp .empty-data-icon-wrapper{display:flex;justify-content:center}
+.wlp .yt{display:inline-block}
+.modal.delete-alert-modal .delete-alert-modal--title{display:flex;align-items:flex-start;gap:.625rem}.modal.delete-alert-modal .delete-alert-modal--title__icon{color:#b91c1c;display:inline-flex}.modal.delete-alert-modal .delete-alert-modal--title__icon svg{width:24px;height:24px}
+.modal.delete-alert-modal .delete-alert-modal--title h2{line-height:1.5rem;margin:0;padding:0;font-size:1rem;font-weight:600;color:#1f2937}
+.modal.delete-alert-modal .modal-b{padding:1rem 1.5rem 1.5rem;font-size:.875rem;line-height:1.25rem;color:#1f2937}.modal.delete-alert-modal .delete-alert-modal--body__contents p{margin:0 0 .5rem}.modal.delete-alert-modal .delete-alert-modal--body__contents p:last-child{margin-bottom:0}
+.modal.delete-alert-modal .btn{display:inline-flex;align-items:center;padding:.314rem 1rem;font-size:14px;font-weight:500;line-height:1.45;border-radius:4px;border:1px solid transparent;font-family:inherit;cursor:pointer}
+.modal.delete-alert-modal .btn-solid-outlined{background:#fff;border-color:#e5e7eb;color:#6b7280}.modal.delete-alert-modal .action-btn-delete{background:#b91c1c;border-color:#b91c1c;color:#fff}
+.page>.wlp{min-height:100%}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -10567,7 +10645,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d275d0a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="d814a7a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
