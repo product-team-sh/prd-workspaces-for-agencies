@@ -4353,7 +4353,10 @@ function personAccessHTML(p){
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
    <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>
-  <div class="panel"><div class="panel-h"><span class="panel-t">Sign-in</span></div><div class="panel-b pp-sec-row" style="margin:0">${signin}</div></div>
+  ${/* change 119, 5 Oct 2026: the Sign-in card is gone. The header carries the
+     state (Active / Invited · Resend), the reset link and, for a client user on a
+     brand domain, where they sign in. The card repeated all of it with the action
+     1,000px from its sentence (canvas row 24, board 1). */""}
   ${only?`<div class="msg m-warn" role="status">${warnI}<span><b>${p.name}</b> is ${p.c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in; <button class="linkbtn" data-openrec="${p.c.id}">disable the workspace</button> instead if the client is leaving.</span></div>`:""}`;
 }
 /* exact time for an activity entry: a real clock for entries made in this
@@ -4391,12 +4394,13 @@ function vPerson(){
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
  const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${p.role}`;
  const status=p.invited?`Invited ${AGE(p.invited)} &middot; not accepted`:`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
+ const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
  const rm=p.owner?`<span class="sub">The Owner is transferred from your own page.</span>`:p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
  const reset=p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
-   ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email} &middot; ${sub} &middot; ${status}</span></span></div>
+   ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email} &middot; ${sub} &middot; ${status}${signsAt}</span></span></div>
   <div class="tools">${reset}${rm}</div></div>
  ${receiptBar("people")}
  <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
@@ -10956,7 +10960,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="58e3f39";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="a464481";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
