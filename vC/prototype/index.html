@@ -4299,7 +4299,7 @@ function personAccessHTML(p){
  const mixedNote=r.mixed?`<p class="sub" style="margin:10px 0 0">${p.first} has a different level in some clients: ${r.wsList.map(id=>byId[id].name+" &middot; "+INV_SHORT[ppWsRole(p.P,id)][0]).join(", ")}.</p>`:"";
  const since=p.invited?`Invited ${AGE(p.invited)}, not accepted yet.`:p.kind==="client"?`${p.c.name}&rsquo;s person since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
-   :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-flash="Not in this prototype">Send reset link</button>`;
+   :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
    <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>
@@ -4342,7 +4342,7 @@ function vPerson(){
  const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${p.role}`;
  const status=p.invited?`Invited ${AGE(p.invited)} &middot; not accepted`:`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const rm=p.owner?`<span class="sub">The Owner is transferred from your own page.</span>`:p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
- const reset=p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Send reset link</button>`;
+ const reset=p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
@@ -4356,6 +4356,9 @@ function vPerson(){
 function personEdit(key){
  const p=personOf(key); if(!p||!personCanEdit(p)) return;
  INV=INV_BLANK(); INV.edit=key; INV.emails=[p.email]; INV.rows[p.email]=personInvRow(p); INV.lock=p.kind==="client"?p.c.id:null;
+ /* change 116: an Admin turned into a teammate keeps every client until the owner trims,
+    so Save is never dead on arrival */
+ INV.preset={kind:"team",wsList:fundedWorkspaces().filter(x=>!x.own).map(x=>x.id)};
  modal={kind:"invite"}; renderModal();
 }
 function personSave(){
@@ -4518,7 +4521,7 @@ function inviteHTML(){
  /* change 114: Edit from a person's page is this same form for one person */
  if(I.edit){const p=personOf(I.edit), nm=p?p.name:I.emails[0];
   return card(`Edit ${nm}&rsquo;s access`,`<div class="field"><div class="inv-list">${rows}</div></div>`,
-   `<span class="sub" style="margin-right:auto">Changes apply on their next request. Undo from the toast.</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Save changes</button>`,"ac inv-b")}
+   `<span class="sub" style="margin-right:auto">${allOk?"Changes apply on their next request. Undo from the toast.":`<span style="color:var(--orange-12)">${(I.rows[I.emails[0]]||{}).kind==="client"?"Pick the client to save.":"Pick at least one client to save."}</span>`}</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Save changes</button>`,"ac inv-b")}
  const title=lock?`Invite ${lock.name}&rsquo;s people`:"Invite people";
  return card(title,body,
   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
@@ -9470,6 +9473,7 @@ function wire(){
  q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
  q("[data-ptabp]").forEach(b=>b.onclick=()=>{PERSON_TAB=b.dataset.ptabp;render()});
  q("[data-pedit]").forEach(b=>b.onclick=()=>personEdit(b.dataset.pedit));
+ q("[data-preset]").forEach(b=>b.onclick=()=>{ppToast(`Reset link sent to ${b.dataset.preset}. It works for 24 hours.`,null,"reset link sent");render()});
  q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
  q("[data-prmc]").forEach(b=>b.onclick=()=>{modal={kind:"prmc",key:b.dataset.prmc};renderModal()});
  q("[data-openrec]").forEach(b=>b.onclick=()=>{view={name:"record",id:b.dataset.openrec};render()});
@@ -10866,7 +10870,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6b53c53";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="65fc60b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
