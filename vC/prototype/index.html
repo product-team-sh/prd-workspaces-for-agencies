@@ -1914,6 +1914,14 @@ const PEOPLE={
  /* 29 Sep 2026, from the People redesign boards */
  dev:  {name:"Dev Kapoor",  initials:"DK",role:"Member",email:"dev@meridiangrowth.com",ws:["nw","bl"],roles:{nw:"Workspace Admin",bl:"Workspace Viewer"}},
  mira: {name:"Mira Chen",   initials:"MC",role:"Member",email:"mira@meridiangrowth.com",ws:["vx"],roles:{vx:"Workspace Collaborator"}},
+ /* change 121, 5 Oct 2026: a second Admin, two Members with a different level
+    per workspace, one disabled teammate (`disabled`: they keep their rows and
+    cannot sign in; Remove still works) and one invite that expired. */
+ jonah:{name:"Jonah Reyes", initials:"JR",role:"Admin",email:"jonah@meridiangrowth.com",ws:null},
+ lena: {name:"Lena Okafor", initials:"LO",role:"Member",email:"lena@meridiangrowth.com",ws:["at","sf","pc"],roles:{at:"Workspace Admin",sf:"Workspace Collaborator",pc:"Workspace Viewer"}},
+ tariq:{name:"Tariq Hassan",initials:"TH",role:"Member",email:"tariq@meridiangrowth.com",ws:["vx","at"],roles:{vx:"Workspace Collaborator",at:"Workspace Viewer"}},
+ rosa: {name:"Rosa Lindqvist",initials:"RL",role:"Member",email:"rosa@meridiangrowth.com",ws:["ok","al"],roles:{ok:"Workspace Admin",al:"Workspace Collaborator"},disabled:true},
+ felix:{name:"Felix Adeyemi",initials:"FA",role:"Member",email:"felix@meridiangrowth.com",ws:["bl"],roles:{bl:"Workspace Collaborator"}},
 };
 const CAN={
  /* `destructive` is delete and unlink, which end a relationship and are the
@@ -1982,6 +1990,28 @@ const CLIENTS=[
  {id:"cp",name:"Cascade Partners",company:"Cascade Partners LLP",email:"desk@cascade.partners",colour:"#4B5563",
   seq:0,mbx:0,prospects:0,sent:0,reply:0,prev:0,pos:0,created:"08 Sep, 2026",
   users:[["desk@cascade.partners","Workspace Collaborator"]],mailboxes:[],overrides:{}},
+ /* change 121, 5 Oct 2026: four more workspaces so the demo shows every state
+    at once. Atlas is the large account (200,000-email limit, 40 email accounts,
+    60 sequences); Summit is paused at its email limit today; Oakridge churned
+    and was disabled on 28 Aug with its data kept; Pinecrest carries its own
+    limits rather than a share of the plan (absent from SHARE0, no c.share). */
+ {id:"at",name:"Atlas Manufacturing",company:"Atlas Manufacturing plc",email:"marketing@atlasmfg.com",colour:"#047857",
+  seq:60,mbx:40,prospects:38500,sent:54000,reply:5.4,prev:5.1,pos:1.6,created:"15 May, 2026",limitsReviewed:true,
+  users:[["marketing@atlasmfg.com","Workspace Admin"],["reports@atlasmfg.com","Workspace Viewer"]],overrides:{priority:"Balanced Sending"},
+  mailboxes:[["outbound@atlas-reach.com","Healthy",100,"agency"],["plants@atlas-reach.com","Healthy",100,"agency"],["connect@atlasmfg-go.com","Healthy",90,"client"]]},
+ {id:"sf",name:"Summit Fintech",company:"Summit Fintech Ltd",email:"growth@summitfintech.com",colour:"#0E7490",
+  seq:7,mbx:38,prospects:6100,sent:30000,reply:5.9,prev:5.6,pos:1.9,created:"27 Jul, 2026",limitsReviewed:true,
+  users:[["growth@summitfintech.com","Workspace Collaborator"]],overrides:{},
+  mailboxes:[["hello@summit-outbound.com","Healthy",100,"agency"],["team@summit-outbound.com","Healthy",100,"agency"]]},
+ {id:"ok",name:"Oakridge Realty",company:"Oakridge Realty Ltd",email:"lettings@oakridgerealty.co.uk",colour:"#9333EA",
+  seq:4,mbx:12,prospects:2400,sent:9800,reply:4.4,prev:4.6,pos:1.3,created:"02 Jun, 2026",limitsReviewed:true,
+  disabled:true,disabledBy:"Alex",disabledOn:"28 Aug",
+  users:[["lettings@oakridgerealty.co.uk","Workspace Viewer"]],overrides:{},
+  mailboxes:[["lettings@oakridge-go.com","Healthy",80,"agency"]]},
+ {id:"pc",name:"Pinecrest Hospitality",company:"Pinecrest Hospitality Group",email:"hello@pinecrest.hotels",colour:"#A16207",
+  seq:3,mbx:8,prospects:1500,sent:5200,reply:6.8,prev:6.2,pos:2.4,created:"30 Aug, 2026",limitsReviewed:true,
+  users:[["hello@pinecrest.hotels","Workspace Viewer"]],overrides:{dupes:"Off"},
+  mailboxes:[["stay@pinecrest-go.com","Healthy",100,"agency"]]},
 ];/* D14: every seeded workspace is for a client; a workspace created later says so itself */
 CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
 
@@ -1989,12 +2019,59 @@ const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 let ACTIVITY=[];
 /* change 114: a few seeded entries so a person's Activity tab (and a workspace's)
    has history before anyone clicks. who = the teammate who did it. */
-ACTIVITY.push(
- {client:"nw",who:"Priya Nair",when:"2 days ago",text:"Emails sent / month limit changed from 45,000 to 50,000",at:0},
- {client:"vx",who:"Priya Nair",when:"3 days ago",text:"Approved Vertex Health's request for 500 Lead Finder credits",at:0},
- {client:"nw",who:"Alex Meridian",when:"5 days ago",text:"Invited sam@meridiangrowth.com as a Member",at:0},
- {client:"al",who:"Priya Nair",when:"1 week ago",text:"Sending priority changed to Balanced Sending",at:0},
- {client:"nw",who:"Dev Kapoor",when:"yesterday",text:"Asked for 20,000 more emails",at:0});
+/* change 121, 5 Oct 2026: about forty entries over the last 30 days so every
+   workspace's Activity tab and every person's Activity tab has history. `at` is
+   minus the age in days, so the lists sort newest first (a request row carries
+   at:1 and stays on top; a live logAct entry carries a real clock). */
+const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="today") return 0; if(x==="yesterday") return 1;
+ const m=x.match(/(\d+)\s*(min|hour|day|week|month)/); if(m) return +m[1]*(m[2]==="min"?1/1440:m[2]==="hour"?1/24:m[2]==="day"?1:m[2]==="week"?7:30);
+ /* the prototype's today is 9 Sep 2026 (CYCLE, declared further down, says the same) */
+ const d=Date.parse(x.replace(/,/g,"")+" 00:00"), t=Date.parse("9 September 2026 00:00"); return isNaN(d)?60:Math.max(0,Math.round((t-d)/864e5))};
+[
+ [ "nw","Priya Nair","2 hours ago","Previewed the workspace as ops@northwind.co"],
+ [ "at","Lena Okafor","3 hours ago","Email account connect@atlasmfg-go.com connected"],
+ [ "sf","Alex Meridian","5 hours ago","Sending stopped: the Emails sent / month limit of 30,000 was reached"],
+ [ "at","Jonah Reyes","6 hours ago","Bought 2 email accounts on atlas-mail.com, $7.00 a month"],
+ [ "pc","Priya Nair","8 hours ago","Dedupe across sequences changed to Off"],
+ [ "nw","Dev Kapoor","yesterday","Asked for 20,000 more emails"],
+ [ "vx","Tariq Hassan","yesterday","Email account care@vertex-reach.com reconnected"],
+ [ "nw","Jonah Reyes","yesterday","Limit on Email verification credits changed from 800 to 1,000"],
+ [ "nw","Priya Nair","2 days ago","Emails sent / month limit changed from 45,000 to 50,000"],
+ [ "al","Alex Meridian","2 days ago","Received a request for 640 more Lead Finder credits"],
+ [ "at","Alex Meridian","2 days ago","AI credits limit changed from 400 to 500"],
+ [ "sf","Priya Nair","2 days ago","Invited growth@summitfintech.com as Workspace Collaborator"],
+ [ "pc","Alex Meridian","3 days ago","Signed in to the workspace as Workspace Admin"],
+ [ "vx","Priya Nair","3 days ago","Approved Vertex Health's request for 500 Lead Finder credits; the limit is now 3,500"],
+ [ "vx","Priya Nair","3 days ago","Declined the request for 15,000 more emails"],
+ [ "at","Lena Okafor","3 days ago","Sending priority changed to Balanced Sending"],
+ [ "bl","Dev Kapoor","4 days ago","Sequence Seed stage SaaS resumed"],
+ [ "at","Tariq Hassan","4 days ago","Added 1,200 prospects from a CSV import"],
+ [ "nw","Alex Meridian","5 days ago","Invited sam@meridiangrowth.com as a Member"],
+ [ "sf","Lena Okafor","5 days ago","Email account hello@summit-outbound.com connected"],
+ [ "at","Alex Meridian","6 days ago","Emails sent / month limit changed from 180,000 to 200,000"],
+ [ "al","Priya Nair","1 week ago","Sending priority changed to Balanced Sending"],
+ [ "vx","Jonah Reyes","1 week ago","Tariq Hassan added as Workspace Collaborator"],
+ [ "pc","Alex Meridian","1 week ago","Limits reviewed: own limits, no share of the plan"],
+ [ "at","Jonah Reyes","8 days ago","Lena Okafor's role changed to Workspace Admin"],
+ [ "nw","Priya Nair","9 days ago","Email account outreach@northwind-go.com disconnected"],
+ [ "pc","Priya Nair","9 days ago","Email account stay@pinecrest-go.com connected"],
+ [ "pc","Lena Okafor","9 days ago","Sequence Hotel GMs, coastal created"],
+ [ "ok","Alex Meridian","12 days ago","Workspace disabled: Oakridge Realty ended its contract. Data kept."],
+ [ "ok","Priya Nair","13 days ago","All 4 sequences paused ahead of the handover"],
+ [ "sf","Alex Meridian","15 days ago","Emails sent / month limit changed from 25,000 to 30,000"],
+ [ "at","Lena Okafor","16 days ago","Custom tracking domain set to go.atlasmfg.com"],
+ [ "al","Alex Meridian","18 days ago","sales@alloyco.com's role changed to Workspace Collaborator"],
+ [ "bl","Alex Meridian","19 days ago","Invited felix@meridiangrowth.com as a Member"],
+ [ "vx","Mira Chen","20 days ago","Added 640 prospects from Lead Finder"],
+ [ "nw","Dev Kapoor","22 days ago","Sequence Peak season pre-book created"],
+ [ "at","Jonah Reyes","24 days ago","Lead Finder credits limit changed from 4,000 to 4,700"],
+ [ "sf","Priya Nair","26 days ago","Sequence Summit renewals created"],
+ [ "ok","Alex Meridian","28 days ago","Lead Finder credits limit changed from 600 to 300"],
+ [ "at","Alex Meridian","30 days ago","Rosa Lindqvist removed from the workspace"],
+ [ "ok","Rosa Lindqvist","25 days ago","Sequence Lettings win-back paused"],
+ [ "al","Rosa Lindqvist","27 days ago","Email account sales@alloy-outbound.com reconnected"],
+ [ "ok","Rosa Lindqvist","29 days ago","Added 180 prospects from a CSV import"],
+].forEach(([client,who,when,text])=>ACTIVITY.push({client,who,when,text,at:-AGO_DAYS(when)}));
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
    A prototype stops being believed at the first count that disagrees with the
@@ -2023,6 +2100,10 @@ const SEND_DOMAINS={
  vx:["vertex-reach.com","vertexhealth-go.com","vx-outreach.com","vertex-mail.com","hello-vertex.com","vertex-team.com","getvertex.com"],
  al:["alloy-outbound.com","alloyco-go.com","alloy-reach.com","alloy-mail.com"],
  bl:["brightline-go.com","brightline-reach.com"],
+ at:["atlas-reach.com","atlasmfg-go.com","atlas-outbound.com","atlas-mail.com","hello-atlas.com","atlasmfg-team.com"],
+ sf:["summit-outbound.com","summitfintech-go.com","sf-reach.com","summit-mail.com"],
+ ok:["oakridge-go.com","oakridge-reach.com"],
+ pc:["pinecrest-go.com","pinecrest-reach.com"],
 };
 const MB_LOCAL=["hello","team","outreach","contact","connect","reach","intro","desk","partners",
  "growth","sales","enquiries","start","hq","talk","meet","direct","hi","mail","first"];
@@ -2064,6 +2145,14 @@ const SEQ_SETS={
      "Procurement follow-up","Trust pilots, North West","Webinar follow-up","Clinics ICP test","Vertex win-back"],
  al:["Fabricators, Midlands","Metals ICP test","Supply chain leads","Event follow-up, MACH","Alloy win-back"],
  bl:["Founder outbound","Seed stage SaaS","Brightline ICP test"],
+ /* Atlas runs sixty: one per buyer role per region, which is how a large
+    manufacturer's outbound is actually organised */
+ at:(()=>{const who=["Plant managers","Procurement leads","Operations directors","Maintenance heads","Quality managers","Supply chain leads"],
+   where=["Midlands","North West","Scotland","Yorkshire","South East","Wales","Ireland","Benelux","DACH","Nordics"], out=[];
+   where.forEach(w=>who.forEach(r=>out.push(r+", "+w))); return out})(),
+ sf:["CFOs, Series B","Payments ICP test","Lending ops outbound","Summit renewals","Fintech event follow-up","Treasury leads","Partner intros"],
+ ok:["Landlords, Oakridge","Lettings win-back","Commercial agents","Oakridge renewals"],
+ pc:["Hotel GMs, coastal","Group bookings outbound","Pinecrest ICP test"],
 };
 const SEQ_STATE=["Active","Active","Active","Paused","Draft"];
 function growSequences(c){
@@ -2126,6 +2215,15 @@ const PROS_CO={
      ["Sharrow Precision","Buyer"],["Deerpark Castings","Managing Director"]],
  bl:[["Ridge Analytics","VP Finance"],["Larkspur Software","Founder"],["Kestrel Data","Head of Growth"],
      ["Onward Labs","CEO"],["Pilotfish","Co-founder"],["Trailhead Systems","COO"]],
+ at:[["Brakewell Engineering","Plant Manager"],["Severn Castings","Procurement Lead"],["Halewood Precision","Operations Director"],
+     ["Calder Fabrication","Maintenance Head"],["Ridgeway Components","Quality Manager"],["Trent Tooling","Supply Chain Lead"],
+     ["Northgate Steel","Works Director"],["Fenwick Industrial","Buyer"],["Deerpark Alloys","Managing Director"]],
+ sf:[["Ledgerline","CFO"],["Payfield","Head of Payments"],["Corrow Capital","Treasury Lead"],["Kestrel Lending","COO"],
+     ["Marrow Pay","Founder"],["Bassett Finance","Head of Operations"],["Onward Credit","VP Finance"]],
+ ok:[["Hartley Estates","Landlord"],["Quinn Lettings","Director"],["Rowntree Property","Portfolio Manager"],
+     ["Zhao Holdings","Owner"],["Mercer Commercial","Agent"]],
+ pc:[["Harbour View Hotel","General Manager"],["Lindqvist Lodges","Owner"],["Bassett Group Travel","Bookings Lead"],
+     ["Coastal Stays","Operations Manager"],["Ferreira Resorts","Commercial Director"]],
 };
 const PROS_STATUS=["Contacted","Contacted","Opened","Opened","Clicked","Replied","Not contacted","Bounced"];
 const PROS_SUBJ=["Quick question about {co}","{co} and a 20 minute idea","Worth a look, {co}?",
@@ -2186,7 +2284,9 @@ const fundedClients=()=>myClients().filter(funded);
    is allocated, warned about or alerted on. Only the owner and manager see it;
    an operator holding three clients has no business in the agency's own budget. */
 const fundedWorkspaces=()=>canI("limits")?fundedClients().concat([OWN_WS]):fundedClients();
-CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c)});
+CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c);
+ /* a disabled workspace keeps its data and sends nothing: every live sequence sits paused */
+ if(c.disabled) c.sequences.forEach(q=>{if(q.state==="Active") q.state="Paused"})});
 /* sends and prospects pool sizes are the real figures from a Scale account */
 /* 2 Oct 2026, Hitesh, checked against saleshandy.com/pricing: a plan meters
    Emails sent / month and Lead Finder credits / month (both renew), Email
@@ -2196,19 +2296,23 @@ CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c)});
    plan, active prospects Unlimited on Scale, so none of them is a limit an
    agency can share out; the old Active Prospects and Email Accounts rows are
    gone. Numbers are the Scale plan's. */
+/* change 121, 5 Oct 2026: ten workspaces, one of them with a 200,000-email
+   limit, no longer fit the 200,000 step of the Scale ladder, so the plan is
+   the 500,000 step and the credit pools move up with it. Limits still never
+   total more than the plan. */
 const RES={
- sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:200000,floors:false,warn:.8,
-  rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},own:{res:0,cap:8000,used:5585}}},
- lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:8000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3000,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},own:{res:0,cap:240,used:227}}},
- verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1000,used:240},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:128}}},
- ai:{label:"AI credits",short:"AI credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:1000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:150,used:124},al:{res:0,cap:200,used:188},bl:{res:0,cap:50,used:24},cp:{res:0,cap:20,used:0},own:{res:0,cap:60,used:31}}},
- dialer:{label:"Dialer credits",short:"Dialer credits",nature:"Add-on balance",kind:"balance",addon:true,unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1500,used:410},vx:{res:0,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
- radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:500,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:120,used:30},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
+ sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:500000,floors:false,warn:.8,
+  rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},at:{res:0,cap:200000,used:54000},sf:{res:0,cap:30000,used:30000},ok:{res:0,cap:10000,used:0},pc:{res:0,cap:12000,used:5200},own:{res:0,cap:8000,used:5585}}},
+ lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:15000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3500,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},at:{res:0,cap:4700,used:1840},sf:{res:0,cap:800,used:610},ok:{res:0,cap:300,used:0},pc:{res:0,cap:600,used:355},own:{res:0,cap:240,used:227}}},
+ verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:10000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:1000,used:240},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},at:{res:0,cap:2500,used:1120},sf:{res:0,cap:600,used:410},ok:{res:0,cap:200,used:0},pc:{res:0,cap:500,used:140},own:{res:0,cap:300,used:128}}},
+ ai:{label:"AI credits",short:"AI credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:2000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:150,used:124},al:{res:0,cap:200,used:188},bl:{res:0,cap:50,used:24},cp:{res:0,cap:20,used:0},at:{res:0,cap:500,used:290},sf:{res:0,cap:120,used:66},ok:{res:0,cap:40,used:0},pc:{res:0,cap:100,used:38},own:{res:0,cap:60,used:31}}},
+ dialer:{label:"Dialer credits",short:"Dialer credits",nature:"Add-on balance",kind:"balance",addon:true,unit:"credits",pool:6000,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:1500,used:410},vx:{res:0,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},at:{res:0,cap:400,used:120},sf:{res:0,cap:100,used:12},ok:{res:0,cap:100,used:0},pc:{res:0,cap:100,used:28},own:{res:0,cap:300,used:140}}},
+ radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:600,floors:true,warn:.8,
+  rows:{nw:{res:0,cap:120,used:30},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},at:{res:0,cap:40,used:14},sf:{res:0,cap:10,used:2},ok:{res:0,cap:5,used:0},pc:{res:0,cap:10,used:3},own:{res:0,cap:40,used:22}}},
 };
 const RK=Object.keys(RES);
 /* 2 Oct 2026, Hitesh (phase 1, doc 66 §6): limits are fixed numbers. For a credit
@@ -2220,7 +2324,7 @@ RK.forEach(k=>{RES[k].step=RES[k].pool>=100000?500:RES[k].pool>=5000?50:RES[k].p
 const syncRes=(k,r)=>{if(RES[k].floors) r.res=r.cap};
 const allocOf=k=>Object.values(RES[k].rows).reduce((t,r)=>t+r.cap,0);
 /* the share each workspace started with, as a readout on its Limits tab */
-const SHARE0={nw:25,vx:30,al:12,bl:10,cp:3,own:4};
+const SHARE0={nw:25,vx:30,al:12,bl:10,cp:3,at:40,sf:6,ok:2,own:4};
 const CYC_END=()=>CYCLE.days+" "+CYCLE.month.slice(0,3);
 /* non-email channel volume per client. Email is not here: it is c.sent, because
    only email draws on a plan allowance and so already lives on the client. These
@@ -2232,6 +2336,10 @@ const CHAN={
  al:{li:4100,call:620,wa:340},
  bl:{li:980,call:0,wa:0},
  cp:{li:0,call:0,wa:0},
+ at:{li:11200,call:2400,wa:0},
+ sf:{li:3900,call:480,wa:0},
+ ok:{li:0,call:0,wa:0},
+ pc:{li:620,call:140,wa:210},
  own:{li:1350,call:210,wa:0},
 };
 /* item 34, 28 Sep 2026: `thread` is the message or two that came before the
@@ -2307,7 +2415,7 @@ const PROSPECTS={
  vx:[{id:"p4",name:"Dr Alan Reece",title:"Clinical Director",co:"Parkview Health",email:"a.reece@parkviewhealth.org",status:"Replied",
       trail:[{t:"sent",d:"1 Sep, 09:00",s:"Reducing DNA rates at Parkview",b:"Hi Alan, we cut did-not-attend rates by around 30% for clinics your size."},
              {t:"reply",d:"1 Sep, 14:20",s:"Re: Reducing DNA rates",b:"We are mid-procurement. Send details and I will pass them on."}]}],
- al:[],bl:[],cp:[],own:[]
+ al:[],bl:[],cp:[],at:[],sf:[],ok:[],pc:[],own:[]
 };
 CLIENTS.forEach(growProspects);
 /* change 117, 5 Oct 2026 (canvas rows 23 B and 23b E): a request is one ask with
@@ -2319,7 +2427,12 @@ let REQUESTS=[
  {id:"r2",ask:"a2",client:"nw",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
  {id:"r3",ask:"a2",client:"nw",res:"lead_finder",amount:1000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
 ];
-let ANSWERS=[];
+/* change 121: Vertex's last ask was decided on 6 Sep: the Lead Finder line raised
+   (its limit is 3,500 now, was 3,000) and the email line declined with a note. */
+let ANSWERS=[
+ {id:"r0a",ask:"a0",client:"vx",res:"lead_finder",amount:500,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"approved",on:"6 Sep",to:3500},
+ {id:"r0b",ask:"a0",client:"vx",res:"sends",amount:15000,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"declined",on:"6 Sep",dnote:"60,000 already covers the renewals push. Let's look again after the 15th."},
+];
 const askLines=(cid)=>REQUESTS.filter(q=>q.client===cid);
 const askOf=(cid)=>{const L=askLines(cid); return L.length?{id:L[0].ask||L[0].id,lines:L,note:L[0].note,when:L[0].when}:null};
 const linesText=L=>listAnd(L.map(q=>f(q.amount)+" "+(RES[q.res].short||RES[q.res].unit)));
@@ -2393,10 +2506,10 @@ OWN_WS.sent=OWN_WS.sequences.reduce((t,q)=>t+q.sent,0);
    the allocation surfaces and cost to serve. */
 byId.own=OWN_WS;
 /* 2 Oct 2026 (S2): the activity each workspace was born with, oldest last */
-CLIENTS.concat([OWN_WS]).forEach(c=>{
- if(c.limitsReviewed&&!c.own) ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Limits reviewed"});
- (c.users||[]).forEach(u=>ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:`Invited ${u[0]} as ${u[1]}`}));
- ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Workspace created"})});
+CLIENTS.concat([OWN_WS]).forEach(c=>{const at=-AGO_DAYS(c.created)-0.001;
+ if(c.limitsReviewed&&!c.own) ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Limits reviewed",at});
+ (c.users||[]).forEach(u=>ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:`Invited ${u[0]} as ${u[1]}`,at}));
+ ACTIVITY.push({client:c.id,who:"Alex Meridian",when:c.created,text:"Workspace created",at})});
 const isOwn=()=>ctx==="own";
 /* 1 Oct 2026, Hitesh: "in Workspaces all workspaces should come, including the
    account's own". The Workspaces list and Home's table list the own workspace
@@ -2446,6 +2559,8 @@ const CLIENT_TMPL={
  nw:[{name:"Line-haul opener, Northwind voice",base:"tp1",edited:"04 Sep, 2026",by:"Priya Nair"}],
  vx:[{name:"Clinical tone rewrite",base:"tp1",edited:"02 Sep, 2026",by:"Priya Nair"}],
  al:[],bl:[],cp:[],
+ at:[{name:"Plant manager opener, Atlas voice",base:"tp1",edited:"22 Aug, 2026",by:"Lena Okafor"}],
+ sf:[],ok:[],pc:[],
 };
 const tmplShared=()=>TEMPLATES.filter(t=>t.scope==="all");
 const tmplFor=c=>{const own=CLIENT_TMPL[c.id]||[];
@@ -3256,7 +3371,8 @@ function vClients(){
  <div class="wrap">
   ${graceBanner()}
   ${receiptBar("clients")}
-  ${(()=>{const mine=REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client));return mine.length?
+  ${(()=>{/* change 121: one ask can carry several lines, so count workspaces, not lines */
+   const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn" id="toCredits2">Review</button></span></div>`:""})()}
   <div class="panel"><div class="tscroll"><table class="organism ws-table">
@@ -3375,7 +3491,7 @@ function recStrip(c){
  return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
   <div class="rs-row">${cells.map(cell).join("")}</div></div>`;
 }
-const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
+const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber","#9333EA":"Purple","#047857":"Green"};
 const colourName=h=>COLOUR_NAMES[String(h||"").toUpperCase()]||"Custom";
 const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:"–");
 let REC_EDIT=null, REC_COL=null;   /* the client whose Details card is being edited in place, and the colour picked while editing */
@@ -3447,11 +3563,19 @@ const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"
  "desk@cascade.partners":"never",
  /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
     is the case the last-screen confirmation below exists for. */
- "marcus@alloyco.com":"just now","ceo@brightline.app":"never"};
+ "marcus@alloyco.com":"just now","ceo@brightline.app":"never",
+ /* change 121 */
+ "Jonah Reyes":"1 hour ago","Lena Okafor":"yesterday","Tariq Hassan":"4 days ago","Rosa Lindqvist":"3 weeks ago","Felix Adeyemi":"never",
+ "marketing@atlasmfg.com":"today","reports@atlasmfg.com":"5 days ago","growth@summitfintech.com":"never",
+ "lettings@oakridgerealty.co.uk":"2 weeks ago","hello@pinecrest.hotels":"yesterday"};
 /* 21 Sep 2026, delight pass round 6: when an invite went out, keyed by name
    the way LASTSEEN already is, so the People row can say "Invited 21 Sep"
    rather than only "never". */
-let INVITED={"t:mira":"3 days ago"};
+let INVITED={"t:mira":"3 days ago","t:felix":"19 days ago","w:sf|growth@summitfintech.com":"2 days ago"};
+/* change 121: an invite link lasts 14 days; past that the row says so and offers Resend */
+const INVITE_DAYS=14;
+const invExpired=w=>{const m=String(w||"").toLowerCase().match(/(\d+)\s*(day|week|month)/); if(!m) return false;
+ return +m[1]*(m[2]==="day"?1:m[2]==="week"?7:30)>INVITE_DAYS};
 const TODAY_STR="21 Sep";
 /* "just now" or "today" only, per the rule this round works to: an hour-old
    session does not count as someone still at the keyboard. */
@@ -3965,6 +4089,9 @@ function rLimits(c){
   return `<div class="rc-reqbar rq-multi" role="status"><div class="rq-h"><span><b>${c.name.split(" ")[0]} asked for more</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all &middot; ${L.length} lines</button></span>`:""}</div><div class="rq-lines">${lines}</div>${/* change 120: the reason sits under the line it concerns (canvas row 24, board 6) */""}</div>`})();
  const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
  const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace projected to ${CYC_END()}</span></div>`;
+ /* change 121: what was decided on the last ask, so the tab says so without a trip to Activity */
+ const answered=ask?[]:ANSWERS.filter(a=>a.client===c.id);
+ const ansLine=answered.length?`<div class="lm-share lm-answered"><span class="sub">Last ask, answered ${answered[0].on||TODAY_D}: ${listAnd(answered.map(a=>a.state==="approved"?`${RES[a.res].label.replace(/ \/ month$/,"")} raised by ${f(a.amount)} to ${f(a.to||RES[a.res].rows[c.id].cap)}`:`${f(a.amount)} more ${RES[a.res].short||RES[a.res].unit} declined${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.</span></div>`:"";
  /* 5 Oct 2026 (change 112, canvas row 19 D): two facts per row, the number and
     whether it holds. The limit sits beside the name with what the plan has
     available under it; one wide bar carries used (solid), this cycle's pace
@@ -3990,7 +4117,7 @@ function rLimits(c){
  ${reqBar}<div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
    ${ro?`<span class="sub">Read only while the workspace is ${c.deletedOn?"deleted":"disabled"}.</span>`:""}
    <span class="c-a"><button class="linkbtn" data-goalloc="${FOCUS_LIM||'sends'}">All workspaces &rarr;</button></span></div>
-  ${shareLine}
+  ${shareLine}${ansLine}
   <div class="lm-rows" id="rcLimTable">${rows}</div>
   <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p>${ro?"":`<span class="sub lm-saves">Numbers save as you leave them. Undo from the toast.</span>`}</div>
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
@@ -4176,7 +4303,7 @@ const ppWsRole=(p,id)=>(p.roles&&p.roles[id])||"Workspace Collaborator";
 function ppTeam(){
  return Object.keys(PEOPLE).map(k=>{const P=PEOPLE[k]; const email=P.email||(k+"@"+AGENCY.name.toLowerCase().replace(/[^a-z]/g,"")+".com");
   const seen=AGE(LASTSEEN[P.name]||LASTSEEN[email]||"unknown");
-  return {k,P,name:P.name,initials:P.initials||initials(P.name),email,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,invited:INVITED["t:"+k]||(seen==="never"?"3 days ago":null),me:k===me_}})
+  return {k,P,name:P.name,initials:P.initials||initials(P.name),email,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,invited:INVITED["t:"+k]||(seen==="never"?"3 days ago":null),me:k===me_,disabled:!!P.disabled||!!DISABLED["t:"+k]}})
   .sort((a,b)=>({Owner:0,Admin:1,Member:2}[a.role]-{Owner:0,Admin:1,Member:2}[b.role])||a.name.localeCompare(b.name));
 }
 function ppClients(){
@@ -4185,7 +4312,9 @@ function ppClients(){
  return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
 }
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
-const ppStatus=r=>r.invited?`<span class="pp-st pp-st--inv"><i></i>Invited ${r.invited==="never"?"":r.invited}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
+/* change 121: a disabled person reads Disabled in grey; an invite older than 14 days reads expired, Resend stays */
+const ppStatus=r=>r.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span>`
+ :r.invited?`<span class="pp-st pp-st--inv"><i></i>${invExpired(r.invited)?"Invite expired":"Invited "+(r.invited==="never"?"":AGE(r.invited))}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
 function ppAccess(r){
  const all=myClients().concat([]);
  if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces &middot; Workspace Admin</span>`;
@@ -4323,7 +4452,7 @@ let PERSON_TAB="access", PA_KIND="all", PA_WS="all";
 function personOf(key){
  if(!key) return null;
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
-  return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
+  return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,disabled:r.disabled,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
  if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
   return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
  return null;
@@ -4347,7 +4476,7 @@ function personAccessHTML(p){
  if(p.owner) cardHTML=cardHTML.replace('Admin &middot; every client, People and Billing','Owner &middot; everything, including billing. Transferred from your own page, never granted here.');
  if(r.mixed) cardHTML=cardHTML.replace('</div></div>$','')+'';
  const mixedNote=r.mixed?`<p class="sub" style="margin:10px 0 0">${p.first} has a different level in some clients: ${r.wsList.map(id=>byId[id].name+" &middot; "+INV_SHORT[ppWsRole(p.P,id)][0]).join(", ")}.</p>`:"";
- const since=p.invited?`Invited ${AGE(p.invited)}, not accepted yet.`:p.kind==="client"?`${p.c.name}&rsquo;s person since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
+ const since=p.disabled?`Disabled; their access is kept but they cannot sign in.`:p.invited?(invExpired(p.invited)?`Invited ${AGE(p.invited)}; the link expired after ${INVITE_DAYS} days.`:`Invited ${AGE(p.invited)}, not accepted yet.`):p.kind==="client"?`${p.c.name}&rsquo;s person since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
    :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
@@ -4375,6 +4504,7 @@ function personActs(p){
  const out=[];
  if(p.kind==="team") ACTIVITY.filter(a=>a.who===p.name).forEach(a=>out.push({kind:"change",ws:a.client,text:a.text,when:a.when,at:a.at||0,stamp:paStamp(a)}));
  if(p.kind==="client") REQUESTS.filter(q=>q.client===p.c.id).forEach(q=>out.push({kind:"change",ws:p.c.id,text:`Asked for ${f(q.amount)} more ${RES[q.res].unit}${q.note?" &middot; &ldquo;"+q.note+"&rdquo;":""}`,when:q.when,at:0,stamp:paStamp({when:q.when,text:q.note||q.res})}));
+ if(p.kind==="client") ACTIVITY.filter(a=>a.who===p.email).forEach(a=>out.push({kind:"change",ws:a.client,text:a.text,when:a.when,at:a.at||0,stamp:paStamp(a)}));
  if(p.seen&&p.seen!=="never"&&p.seen!=="unknown") out.push({kind:"signin",ws:null,text:"Signed in &middot; Chrome",when:p.seen,at:0,stamp:paStamp({when:p.seen,text:"signin"})});
  const ord=x=>x.at||(-(parseInt(String(x.when).match(/\d+/)||[0])[0]*(String(x.when).indexOf("week")>-1?7:String(x.when).indexOf("hour")>-1?0.04:String(x.when).indexOf("min")>-1?0.001:1)))||(String(x.when).indexOf("yesterday")>-1?-1:0);
  return out.sort((a,b)=>ord(b)-ord(a));
@@ -4393,10 +4523,11 @@ function vPerson(){
  if(!canI("members")) return denied("see or manage people");
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
  const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${p.role}`;
- const status=p.invited?`Invited ${AGE(p.invited)} &middot; not accepted`:`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
+ const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
+  :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
  const rm=p.owner?`<span class="sub">The Owner is transferred from your own page.</span>`:p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
- const reset=p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
+ const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
@@ -4763,7 +4894,16 @@ let colOpen=false, colDraft=null, colQ="";
    bought and managed inside each workspace (D6); their charge rides on the invoice. */
 const BILL_TABS=[["plan","Platform","Plan"],["credits","Credits","Buy"],["addons","Add-ons","Buy"]];
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
-const PLAN={name:"Scale (Monthly)",start:"19 Aug, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
+const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
+/* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
+   so Plan can say what next month's invoice adds instead of "Nothing yet". */
+const INVOICES=[["01 Sep, 2026","Scale (Monthly), September, with 11 email accounts",PLAN.amount,"Paid"],
+ ["01 Aug, 2026","Scale (Monthly), August, with 8 email accounts",PLAN.lastAmount,"Paid"],
+ ["01 Jul, 2026","Scale (Monthly), July, with 8 email accounts",PLAN.lastAmount,"Paid"]];
+const PURCHASES=[{on:"3 Sep",ws:"at",what:"email accounts",n:2,amount:7.00}];
+const nextMonthLine=()=>{if(!PURCHASES.length) return `<b>Nothing yet</b><span class="cs" style="display:block">No seats, email accounts or credits added this cycle</span>`;
+ const tot=PURCHASES.reduce((t,x)=>t+x.amount,0);
+ return `<b>+${usd(tot)} a month</b><span class="cs" style="display:block">${PURCHASES.map(x=>`${x.n} ${x.what} bought in ${byId[x.ws]?byId[x.ws].name:x.ws} on ${x.on}`).join("; ")}; the plan itself stays ${PLAN.amount.replace(/\.00$/,"")}</span>`};
 /* 21 Sep 2026, delight pass round 6: the next invoice in words, once, so Plan
    Details reads as a sentence rather than a bare dollar figure beside a date
    it does not otherwise connect to. */
@@ -4821,7 +4961,14 @@ function vPlatform(){
    <div class="panel-b plan-kv"><span><span class="cs">Plan</span><b>${PLAN.name}</b><span class="cs">Covers ${AGENCY.name}${isNormal()?"":" and "+CLIENTS.length+" workspaces"}</span></span>
     <span><span class="cs">Started</span><b>${PLAN.start}</b></span>
     <span><span class="cs">Next billing date</span><b>${PLAN.next}</b></span>
-    <span><span class="cs">What changes next month</span><b>Nothing yet</b><span class="cs" style="display:block">No seats, mailboxes or credits added this cycle</span></span></div>
+    <span><span class="cs">What changes next month</span>${nextMonthLine()}</span></div>
+  </div>
+  <div class="panel">
+   <div class="panel-h"><span class="panel-t">Last invoices</span><span class="sub">The plan and every email account bought through Saleshandy, on one invoice</span>
+    <span class="c-a"><button class="linkbtn" data-flash="Opens the billing portal">All invoices &rarr;</button></span></div>
+   <div class="tscroll"><table class="organism" style="min-width:560px">
+    <thead><tr><th>Date</th><th>Description</th><th class="ar">Amount</th><th>Status</th><th class="colact"></th></tr></thead>
+    <tbody>${INVOICES.map(h=>`<tr><td class="tnum">${h[0]}</td><td>${h[1]}</td><td class="ar tnum">${h[2]}</td><td><span class="chip c-ok">${h[3]}</span></td><td class="ar colact"><button class="linkbtn" data-flash="Opens the billing portal">Invoice</button></td></tr>`).join("")}</tbody></table></div>
   </div>
   ${isNormal()?"":`<div class="panel">
    <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub">Limits are set on each workspace. Nothing here changes a limit.</span></div>
@@ -4830,7 +4977,7 @@ function vPlatform(){
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
    <div class="panel-b sa-grid">
-    <div class="sa-row"><span>Team seats</span><span class="cs">3 of 10 used</span></div>
+    <div class="sa-row"><span>Team seats</span><span class="cs">${Object.keys(PEOPLE).length} of 15 used</span></div>
     <div class="sa-row"${isNormal()?' hidden':''}><span>Workspaces</span><span class="cs">Unlimited</span></div>
     <div class="sa-row"><span>Whitelabel</span><span class="cs">Included &middot; <button class="linkbtn" data-gowl>Set up &rarr;</button></span></div>
     <div class="sa-row"><span>CRM</span><span class="cs">Not on this plan</span></div>
@@ -6525,8 +6672,8 @@ function attention(c){
    reply rate on this screen.                                                    */
 
 /* last cycle, for the comparison line on each tile */
-let LAST={clients:4, sent:98400, touches:133400, replies:6900};
-const DASH_ROWS=8;   /* the dashboard ranks; the full list lives in Clients */
+let LAST={clients:9, sent:98400, touches:133400, replies:6900};   /* change 121: Cascade is the one workspace added this month */
+const DASH_ROWS=10;  /* the dashboard ranks; the full list lives in Clients. Change 121: ten, so the seeded book shows whole */
 /* 2 Oct 2026, Hitesh (board row 04, B3): the Home table shows counted numbers only.
    Per workspace this cycle: prospects added, emails sent and its delta, bounce
    rate, leads revealed; plus the mailbox and sequence states the system keeps. */
@@ -6534,7 +6681,13 @@ const HOME_METRICS={own:{pa:420,pad:6,sd:8,bounce:0.8,leads:312,ld:5,last:"2 hou
  nw:{pa:2150,pad:9,sd:11,bounce:0.9,leads:1478,ld:3,last:"1 hour ago"},
  vx:{pa:2900,pad:4,sd:2,bounce:1.1,leads:2976,ld:9,last:"20 minutes ago",mpaused:2},
  al:{pa:1250,pad:-18,sd:-14,bounce:1.4,leads:1280,ld:-30,last:"yesterday",sysp:2},
- bl:{pa:180,pad:-25,sd:-20,bounce:4.2,leads:96,ld:-12,last:"3 days ago"},cp:{}};
+ bl:{pa:180,pad:-25,sd:-20,bounce:4.2,leads:96,ld:-12,last:"3 days ago"},cp:{},
+ /* change 121: Atlas is big and steady; Summit stopped today at its email limit,
+    so the system paused its live sequences; Oakridge is disabled; Pinecrest is new */
+ at:{pa:5400,pad:7,sd:5,bounce:1.2,leads:1840,ld:4,last:"12 minutes ago"},
+ sf:{pa:640,pad:-9,sd:14,bounce:1.0,leads:610,ld:6,last:"today, 07:40",sysp:4},
+ ok:{pa:0,pad:null,sd:null,bounce:1.3,leads:0,ld:null,last:"28 Aug"},
+ pc:{pa:310,pad:null,sd:null,bounce:0.9,leads:355,ld:null,last:"3 hours ago"}};
 function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).filter(q=>q.state==="Paused").length;
  return{pa:m.pa!=null?m.pa:Math.round(c.prospects*0.14/10)*10,pad:m.pad!=null?m.pad:null,sd:m.sd!=null?m.sd:null,bounce:m.bounce!=null?m.bounce:1.0,
   leads:m.leads!=null?m.leads:(L.r.used||0),ld:m.ld!=null?m.ld:null,last:m.last||"today",
@@ -8110,7 +8263,7 @@ function vClientSide(){
      <span class="semibold-3" style="display:block">${c.name}</span>
      <span class="cs">Your workspace</span></span></div>
  </div>
- <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${(u=>u+(u?"":accessNote(c)))(graceNote(c)+atLimitBanner(c))}${
+ <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${(u=>u+(u?"":accessNote(c)))(graceNote(c)+(cView==="usage"?"":atLimitBanner(c)))}${
    granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
      ?`<p class="sub" style="margin:0">${AGENCY.name} shares ${RESTRICT_NOUN[cView]||"this"} here. Ask them if you need more.</p>`:""}${
    cView==="sequences"?cSeq(c)
@@ -9733,6 +9886,26 @@ const SCALE_NAMES=["Ashgrove Dental","Beacon Freight","Cobalt Works","Dunmore Ca
  "Saltmarsh Energy","Tamar Logistics","Umber Studios","Verity Payments","Westbrook Motors","Xenon Labs","Yarrow Health",
  "Zephyr Travel","Alder Consulting","Brackenfield Farms","Corwen Textiles","Dovetail Furniture","Ember Security",
  "Fenwick Books","Glasswater Marine","Hollins Recruitment","Isley Architects","Jarrow Tools","Kelso Optics"];
+function demoScenario(name){
+ const nwDisc=INFRA_ALL.find(a=>a.kind==="Email account disconnected"&&a.client==="nw");
+ if(name==="calm"){
+  REQUESTS=[]; GRACE.on=false;
+  RK.forEach(k=>Object.keys(RES[k].rows).forEach(id=>{const r=RES[k].rows[id]; if(r.cap>0&&r.used>=r.cap*RES[k].warn) r.used=Math.round(r.cap*0.62)}));
+  const sf=byId.sf; if(sf){sf.sent=RES.sends.rows.sf.used; growSequences(sf); HOME_METRICS.sf={pa:640,pad:3,sd:4,bounce:1.0,leads:RES.lead_finder.rows.sf.used,ld:2,last:"20 minutes ago"}}
+  CLIENTS.forEach(c=>(c.mailboxes||[]).forEach(m=>{if(m[1]==="Disconnected"){m[1]="Healthy";m[2]=100}}));
+  if(nwDisc) INFRA_ALL.splice(INFRA_ALL.indexOf(nwDisc),1);
+  /* nothing falling either: last cycle's rate sits where this cycle's is */
+  CLIENTS.forEach(c=>{if(c.prev&&c.reply&&c.reply<c.prev*0.75) c.prev=+(c.reply*0.95).toFixed(1)});
+ }
+ if(name==="crisis"){
+  GRACE.on=true;
+  const nw=RES.sends.rows.nw; nw.used=nw.cap; byId.nw.sent=nw.cap; growSequences(byId.nw); HOME_METRICS.nw=Object.assign({},HOME_METRICS.nw,{sysp:5,last:"today, 06:10"});
+  if(!REQUESTS.some(r=>r.client==="at")) REQUESTS.push({id:"r4",ask:"a3",client:"at",res:"verification",amount:1000,note:"Cleaning a 40,000-row list before the October push.",when:"3 hours ago"});
+  ACTIVITY.unshift({client:"nw",who:"Alex Meridian",when:"3 hours ago",text:"Sending stopped: the Emails sent / month limit of "+f(nw.cap)+" was reached",at:-0.12});
+ }
+ DEMO=name;
+}
+let DEMO="busy";
 function scaleTo(n){
  const r=rng("scale");
  const pal=["#B45309","#0F766E","#C2410C","#6D28D9","#0E7490","#9333EA","#4B5563","#BE185D","#1D4ED8","#047857","#B91C1C","#7C3AED"];
@@ -9779,6 +9952,13 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
  if(k==="grace"){GRACE.on=true;view={name:"dash"}}
+ /* change 121, 5 Oct 2026: #demo=calm, #demo=busy, #demo=crisis. Three states of
+    the same book for a demo: calm has nothing at a limit, no ask waiting and no
+    disconnected account; busy is today's seed, unchanged; crisis has two
+    workspaces paused at their email limit, three asks waiting, one disconnected
+    account and the card-failed grace warning. Fixtures are mutated before the
+    first render, nothing else changes. */
+ if(k==="demo"){demoScenario(v||"busy");ctx="agency";asClient=false;view={name:"dash"}}
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,settings:1,invite:1,whitelabel:1,login:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
  if(flat[k]&&(k!=="dash"||canI("dashboard"))) view={name:k};
@@ -10960,7 +11140,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="98c0801";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="ba2f091";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
