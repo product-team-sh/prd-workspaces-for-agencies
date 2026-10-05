@@ -2202,13 +2202,13 @@ const RES={
  lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:8000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3000,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},own:{res:0,cap:240,used:227}}},
  verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1000,used:624},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:128}}},
+  rows:{nw:{res:0,cap:1000,used:240},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:128}}},
  ai:{label:"AI credits",short:"AI credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:1000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:300,used:261},vx:{res:0,cap:150,used:124},al:{res:0,cap:200,used:188},bl:{res:0,cap:50,used:24},cp:{res:0,cap:20,used:0},own:{res:0,cap:60,used:31}}},
  dialer:{label:"Dialer credits",short:"Dialer credits",nature:"Add-on balance",kind:"balance",addon:true,unit:"credits",pool:5000,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:1500,used:820},vx:{res:0,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
+  rows:{nw:{res:0,cap:1500,used:410},vx:{res:0,cap:1200,used:610},al:{res:0,cap:600,used:590},bl:{res:0,cap:400,used:40},cp:{res:0,cap:200,used:0},own:{res:0,cap:300,used:140}}},
  radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:500,floors:true,warn:.8,
-  rows:{nw:{res:0,cap:120,used:96},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
+  rows:{nw:{res:0,cap:120,used:30},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},own:{res:0,cap:40,used:22}}},
 };
 const RK=Object.keys(RES);
 /* 2 Oct 2026, Hitesh (phase 1, doc 66 §6): limits are fixed numbers. For a credit
@@ -3855,7 +3855,7 @@ function cUsage(c){
     <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
    <span class="cu-act">${act}</span></div>`}).join("");
  let top;
- if(ask) top=`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canReq?`<button class="linkbtn" data-askwithdraw="${c.id}">Withdraw</button>`:""}</div>`;
+ if(ask) top=`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}${canReq?` <button class="linkbtn" data-askwithdraw="${c.id}">Withdraw</button>`:""}</span></div>`;
  else if(answered.length){const up=answered.filter(a=>a.state==="approved").length, dn=answered.length-up;
   top=`<p class="cu-line">${first} answered your ask: ${up?up+" line"+(up===1?"":"s")+" raised":""}${up&&dn?", ":""}${dn?dn+" declined":""}. ${worst?"":"Your outreach is running."}</p>`}
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm);
@@ -3961,8 +3961,8 @@ function rLimits(c){
   if(one){const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
    return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><input class="rq-note" type="text" data-nonote="${rq.id}" placeholder="Note for ${c.name.split(" ")[0]} if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`}
   const lines=L.map(r=>{const R=RES[r.res], free=compute(r.res).free, ok=free>=r.amount;
-   return `<div class="rq-line"><span class="rq-l"><b>${R.label}</b></span><span>asked for <b>${f(r.amount)}</b> more</span><span class="sub">now ${f(R.rows[c.id].cap)}</span><span style="color:${ok?"var(--green-16)":"var(--red-18)"}">${f(free)} available in the plan</span><span class="tools">${canI("limits")?`<input class="rq-note" type="text" data-nonote="${r.id}" placeholder="Note if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${r.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(r.amount)} more</button><button class="shd-button shd-button--tertiary shd-button--sm" data-no="${r.id}">Decline</button>`:""}</span></div>`}).join("");
-  return `<div class="rc-reqbar rq-multi" role="status"><div class="rq-h"><span><b>${c.name.split(" ")[0]} asked for more</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all &middot; ${L.length} lines</button></span>`:""}</div><div class="rq-lines">${lines}</div>${allFit?"":`<p class="sub rq-foot">${short} line${short===1?" asks":"s ask"} for more than the plan has available. Lower another workspace, add capacity, or decline ${short===1?"it":"those"} with a note the client sees.</p>`}</div>`})();
+   return `<div class="rq-line"><span class="rq-l"><b>${R.label}</b></span><span>asked for <b>${f(r.amount)}</b> more</span><span class="sub">now ${f(R.rows[c.id].cap)}</span><span style="color:${ok?"var(--green-16)":"var(--red-18)"}">${f(free)} available in the plan</span><span class="tools">${canI("limits")?`<input class="rq-note" type="text" data-nonote="${r.id}" placeholder="Note if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${r.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(r.amount)} more</button><button class="shd-button shd-button--tertiary shd-button--sm" data-no="${r.id}">Decline</button>`:""}</span></div>${ok?"":`<p class="sub rq-foot rq-under">${R.label.replace(/ \/ month$/,"")}: ${f(r.amount)} more is ${f(r.amount-free)} past what the plan has available. Lower another workspace, add capacity, or decline it with a note the client sees.</p>`}`}).join("");
+  return `<div class="rc-reqbar rq-multi" role="status"><div class="rq-h"><span><b>${c.name.split(" ")[0]} asked for more</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all &middot; ${L.length} lines</button></span>`:""}</div><div class="rq-lines">${lines}</div>${/* change 120: the reason sits under the line it concerns (canvas row 24, board 6) */""}</div>`})();
  const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
  const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace projected to ${CYC_END()}</span></div>`;
  /* 5 Oct 2026 (change 112, canvas row 19 D): two facts per row, the number and
@@ -4229,7 +4229,7 @@ function vPeople(){
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
  const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":"Search invites";
- const hint=all?"Everyone who can sign in: your team, and each client's users in their own workspace."
+ const hint=all?""
    :tab==="team"?"Owner and Admins reach every workspace. Members reach only the ones they are added to."
    :tab==="clients"?"Each client user signs in to one workspace and never sees "+AGENCY.name+" or another client."
    :"Resend sends the same link again. Each person sets their own password when they accept.";
@@ -4803,7 +4803,7 @@ const CREDIT_LAST={lead_finder:"Last bought 2,000 on 12 Sep",verification:"Last 
 const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"Renews monthly with the add-on"};
 function billLine(){
  const sent=planNextLine();
- return `<div class="bill-line"><span class="bill-amt">${sent}.</span><span class="bill-sub">${PLAN.name.replace(" (Monthly)",", monthly")} &middot; covers ${AGENCY.name}${isNormal()?"":" and "+CLIENTS.length+" workspaces"} &middot; <button class="linkbtn" data-flash="Opens the billing portal">Invoices</button></span></div>`}
+ return `<div class="bill-line"><span class="bill-amt">${sent}</span><span class="bill-sub">&middot; ${PLAN.name.replace(" (Monthly)",", monthly")} &middot; <button class="linkbtn" data-flash="Opens the billing portal">Invoices</button></span></div>`}
 function planGoesRow(k){
  const R=RES[k], m=compute(k), rows=fundedWorkspaces().filter(c=>R.rows[c.id]);
  const used=rows.reduce((t,c)=>t+(R.rows[c.id].used||0),0), given=allocOf(k), avail=Math.max(0,R.pool-given);
@@ -4818,7 +4818,7 @@ function vPlatform(){
  return `<div class="panel plancard">
    <div class="panel-h"><span class="panel-t">Plan</span>
     <span class="c-a tools"><button class="shd-button shd-button--secondary" data-flash="Opens the billing portal">Manage Billing</button><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button></span></div>
-   <div class="panel-b plan-kv"><span><span class="cs">Plan</span><b>${PLAN.name}</b></span>
+   <div class="panel-b plan-kv"><span><span class="cs">Plan</span><b>${PLAN.name}</b><span class="cs">Covers ${AGENCY.name}${isNormal()?"":" and "+CLIENTS.length+" workspaces"}</span></span>
     <span><span class="cs">Started</span><b>${PLAN.start}</b></span>
     <span><span class="cs">Next billing date</span><b>${PLAN.next}</b></span>
     <span><span class="cs">What changes next month</span><b>Nothing yet</b><span class="cs" style="display:block">No seats, mailboxes or credits added this cycle</span></span></div>
@@ -10444,7 +10444,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* change 117: the ask with lines, and the client's Usage */
 .rq-note{height:28px;width:220px;padding:0 8px;border:1px solid var(--gray-23);border-radius:4px;font:inherit;font-size:12px;background:#fff}
 .rc-reqbar.rq-multi{display:block}.rq-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.rq-lines{margin-top:10px;border-top:1px solid #fde68a}.rq-line{display:grid;grid-template-columns:1.3fr 1fr .8fr 1.2fr auto;gap:16px;align-items:center;padding:8px 0;border-bottom:1px solid #fde68a;font-size:13px}.rq-line .rq-l b{font-weight:500}.rq-foot{margin:8px 0 0}
+.rq-lines{margin-top:10px;border-top:1px solid #fde68a}.rq-under{margin:0;padding:6px 0 10px;border-bottom:1px solid #fde68a}.rq-line{display:grid;grid-template-columns:1.3fr 1fr .8fr 1.2fr auto;gap:16px;align-items:center;padding:8px 0;border-bottom:1px solid #fde68a;font-size:13px}.rq-line .rq-l b{font-weight:500}.rq-foot{margin:8px 0 0}
 .cu-line{margin:0;font-size:14px;color:var(--gray-17)}
 .cu-status{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-radius:4px;font-size:14px;line-height:20px;background:#fff;border:1px solid var(--gray-16)}
 .cu-status.is-warn{background:#fffbeb;border-color:#fde68a}.cu-status.is-bad{background:#fef2f2;border-color:#fecaca}.cu-status i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d97706;margin-right:8px}
@@ -10667,7 +10667,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .page>.wlp{min-height:100%}
 
 /* 4 Oct 2026, change 109: Billing as money (row 16 B). The bill first, four nav items, where the plan goes. */
-.bill-line{display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:0 0 16px}
+.bill-line{display:flex;align-items:baseline;justify-content:flex-start;gap:10px;flex-wrap:wrap;margin:0 0 16px}
 .bill-amt{font-size:20px;line-height:28px;font-weight:600;color:#111827}.bill-sub{font-size:14px;color:#6b7280}.bill-sub .linkbtn{font-size:14px}
 .plancard .plan-kv{border-top:0;padding-top:16px}.plan-kv b{font-size:20px;line-height:24px;font-weight:600;color:#111827;display:block;margin-top:4px}
 .pg-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#6b7280;margin-bottom:6px}.pg-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
@@ -10960,7 +10960,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a464481";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="98c0801";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
