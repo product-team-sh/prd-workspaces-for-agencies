@@ -2310,10 +2310,19 @@ const PROSPECTS={
  al:[],bl:[],cp:[],own:[]
 };
 CLIENTS.forEach(growProspects);
+/* change 117, 5 Oct 2026 (canvas rows 23 B and 23b E): a request is one ask with
+   lines. REQUESTS holds the pending lines; `ask` groups the lines of one ask.
+   ANSWERS holds decided lines (approved or declined, with the agency's note) so
+   the client's Usage can say what happened. */
 let REQUESTS=[
- {id:"r1",client:"al",res:"lead_finder",amount:640,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
- {id:"r2",client:"nw",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
+ {id:"r1",ask:"a1",client:"al",res:"lead_finder",amount:640,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
+ {id:"r2",ask:"a2",client:"nw",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
+ {id:"r3",ask:"a2",client:"nw",res:"lead_finder",amount:1000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
 ];
+let ANSWERS=[];
+const askLines=(cid)=>REQUESTS.filter(q=>q.client===cid);
+const askOf=(cid)=>{const L=askLines(cid); return L.length?{id:L[0].ask||L[0].id,lines:L,note:L[0].note,when:L[0].when}:null};
+const linesText=L=>listAnd(L.map(q=>f(q.amount)+" "+(RES[q.res].short||RES[q.res].unit)));
 
 /* agency cost of goods, so cost per positive reply can be computed.
    No competitor can produce this because none of them meter per client centrally. */
@@ -3369,8 +3378,8 @@ function recAccessCard(c,ro){
 function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   return `<div class="rc-lrow"><div class="rc-lhead"><span>${R.label}</span><span class="sub${s.tone==="bad"?" is-bad":""}">${f(r.used)} of ${f(r.cap)}</span></div><div class="rc-lbar"><span style="width:${p}%;background:${barCol(s.tone)}"></span></div></div>`}).join("");
- const rq=REQUESTS.find(q=>q.client===c.id);
- const req=rq&&!ro?`<div class="rc-req"><span><b>Asked for ${f(rq.amount)} more ${RES[rq.res].unit}</b> &middot; ${AGE(rq.when)}</span><button class="linkbtn" data-tab="limits">Review</button></div>`:"";
+ const ask=askOf(c.id);
+ const req=ask&&!ro?`<div class="rc-req"><span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)}</span><button class="linkbtn" data-tab="limits">Review</button></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows||'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
@@ -3697,7 +3706,7 @@ let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
 /* People revamp, 29 Sep 2026 (Hitesh: "UX is broken, everything has to be revamped"):
    one table and the product's own modals, modelled on Settings > Users and Teams. */
 let PEOPLE_Q="", PEOPLE_ROLE="all", peopleMenu=null, INV=null, DISABLED={};
-const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1};
+const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1};
 /* an upgrade (or a lateral Owner<->Admin change) confirms inline before it
    writes; {key,to,from}. A downgrade to Member is a different shape, because
    it turns an enumerated-nowhere ws:null into a real list someone has to
@@ -3796,63 +3805,78 @@ function rMembers(c){
    agency oversubscribes several clients stop at once and all of them escalate to
    us unless the copy says whose limit it was.                                   */
 function cUsage(c){
- const daysLeft=CYCLE.days-CYCLE.day;
- /* item 25, 28 Sep 2026: Workspace Admin and Collaborator can send a capacity
-    request; a Viewer, who changes nothing, sees the allowance only. */
- const canReq=canC(c,"request");
- let worstK=null,worstP=-1;
- const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id],st=rowState(k,c.id,m);
-  /* floor, so only a genuinely exhausted allowance ever shows 100% */
-  const p=Math.min(100,Math.floor(st.pct*100));
-  if(st.room>0&&p>worstP){worstP=p;worstK=k}
-  const pending=REQUESTS.find(x=>x.client===c.id&&x.res===k);
-  const state=st.room===0?"At your limit":st.pct>=R.warn?"Close to your limit":"Within limit";
-  const tone=st.room===0?"bad":st.pct>=R.warn?"warn":"ok";
-  const asking=canReq&&reqForm&&reqForm.client===c.id&&reqForm.res===k;
-  const suggested=Math.max(500,Math.round(r.cap*0.5/500)*500);
-  return `<tr>
-   <td><span style="font-weight:500">${R.label}</span>
-     <span class="cs" style="display:block">${st.room===0
-       ?"Paused until "+AGENCY.name+" raises it"
-       :st.pct>=R.warn?f(st.room)+" left"+(R.nature==="Storage"?"":" this month")
-       :R.kind==="balance"?"A balance; refills when you buy more":"Renews on 1 October"}</span></td>
-   <td class="ar tnum">${f(r.used)}</td>
-   <td class="ar tnum">${f(r.cap)}</td>
-   <td>${meter(p,tone,state)}</td>
-   <td class="ar colact">${pending
-     ?`<span class="sub">Asked ${AGE(pending.when)}${canReq?` &middot; <button class="linkbtn quiet" data-reqwithdraw="${pending.id}">Withdraw</button>`:""}</span>`
-     :asking?`<button class="linkbtn quiet" data-reqclose>Cancel</button>`
-     /* 1 Oct 2026, Hitesh: "allow the user to ask for more even if they have not
-        used any capacity; if they know they will need more, the option should
-        always be present". Request more is on every row for anyone who may
-        request; only a Viewer sees the dash. */
-     :canReq
-       ?`<button class="linkbtn" data-reqopen="${k}">Request more</button>`
-       :'<span class="sub">–</span>'}</td></tr>
-  ${asking?`<tr class="confirmrow"><td colspan="5"><div class="inlineconfirm" style="flex-direction:column;align-items:stretch">
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
-     <div><label class="fld" for="reqFormAmt">How much more?</label>
-      ${numIn(suggested,R.unit,`id="reqFormAmt" style="width:160px"`)}</div>
-     <div style="flex:1;min-width:220px"><label class="fld" for="reqFormWhy">Why?</label>
-      <input type="text" id="reqFormWhy" placeholder="A sentence is enough" style="width:100%;height:32px;padding:0 10px;border-radius:var(--radius-input);border:1px solid var(--gray-16);font:inherit"></div>
-    </div>
-    <p class="sub" id="reqFormSay" style="margin:6px 0 0">${AGENCY.name} will see: "${reqQueueLine(c,k,suggested)}"</p>
-    <div class="tools" style="margin-top:6px">
-     <button class="shd-button shd-button--primary shd-button--sm" data-reqsend="${k}">Send request</button>
-     <button class="shd-button shd-button--tertiary shd-button--sm" data-reqclose>Cancel</button>
-    </div></div></td></tr>`:""}`}).join("");
- const summary=worstK&&worstP>=90
-   ?`${RES[worstK].label} is at ${worstP}% with ${daysLeft} day${daysLeft===1?"":"s"} left.`
-   :`You have used ${Math.round(elapsed()*100)}% of this month with ${daysLeft} day${daysLeft===1?"":"s"} left, on pace.`;
- return `<p class="sub" style="margin:0;font-size:13px">${summary}</p><div class="panel">
-  <div class="panel-h"><span class="panel-t">What ${AGENCY.name} has allocated to you</span></div>
-  <div class="tscroll"><table class="organism" style="min-width:760px">
-   <thead><tr><th>Allowance</th><th class="ar">Used</th><th class="ar">Your limit</th>
-    <th>Usage</th><th class="colact"></th></tr></thead>
-   <tbody>${rows}</tbody></table></div>
-  <div class="panel-b" style="border-top:1px solid var(--gray-200)"><span class="sub">
-   These are the volumes ${AGENCY.name} set for your workspace. Asking for more sends a request to
-   them, not to Saleshandy.</span></div></div>`;
+ /* change 117 (canvas rows 23 B, 23b E; doc 13 §3): the client asks one question,
+    "can our outreach keep running this month?", and when the answer is no makes one
+    move, "ask the agency for more", then wants to know what happened. The page reads
+    as a status, not a table; the ask is one sheet covering every allowance; the
+    answer lands on the rows. A Viewer sees the allowance only. */
+ const daysLeft=CYCLE.days-CYCLE.day, canReq=canC(c,"request"), first=AGENCY.name;
+ const ask=askOf(c.id), answered=ANSWERS.filter(a=>a.client===c.id);
+ let worst=null;
+ const info=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[k==="sends"?c.id:c.id],st=rowState(k,c.id,m),pc=paceOf(k,c.id);
+  /* close means the limit is near, or the pace says it runs out before the cycle ends */
+  const tone=st.room===0?"paused":(st.pct>=R.warn||(pc&&pc.hits))?"close":"fine";
+  if(tone!=="fine"&&(!worst||st.pct>worst.pct)) worst={k,pct:st.pct,tone,pc};
+  return {k,R,r,st,pc,tone}});
+ const pendFor=k=>REQUESTS.find(x=>x.client===c.id&&x.res===k);
+ const ansFor=k=>answered.filter(a=>a.res===k).slice(-1)[0];
+ const rows=info.map(({k,R,r,st,pc,tone})=>{
+  const pend=pendFor(k), ans=ansFor(k);
+  const word=tone==="paused"?`Paused until ${first} raises it`:tone==="close"?"Close to your limit":"Fine";
+  const pace=pc&&pc.hits&&tone==="close"?` &middot; runs out around ${pc.when} at this pace`:"";
+  const sub=R.kind==="balance"?`Topped up by ${first}`:"Renews 1 Oct";
+  const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
+  const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
+  const fill=pend?(cap/(cap+pend.amount))*pct:pct;
+  const line=pend?`<span class="cu-ans sub">Asked for ${f(pend.amount)} more</span>`
+   :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>${first} raised this to ${f(ans.to||R.rows[c.id].cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
+   :ans?`<span class="cu-ans is-no"><span><i></i>${first} declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span>${canReq?`<button class="linkbtn" data-askopen="${k}">Ask again</button>`:""}</span>`:"";
+  const act=!canReq||pend?"":(worst&&worst.k===k&&!ans)?`<button class="shd-button shd-button--primary shd-button--sm" data-askopen="${k}">Ask for more</button>`:`<button class="linkbtn quiet" data-askopen="${k}">Ask for more</button>`;
+  return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
+   <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
+    <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
+   <span class="cu-act">${act}</span></div>`}).join("");
+ let top;
+ if(ask) top=`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canReq?`<button class="linkbtn" data-askwithdraw="${c.id}">Withdraw</button>`:""}</div>`;
+ else if(answered.length){const up=answered.filter(a=>a.state==="approved").length, dn=answered.length-up;
+  top=`<p class="cu-line">${first} answered your ask: ${up?up+" line"+(up===1?"":"s")+" raised":""}${up&&dn?", ":""}${dn?dn+" declined":""}. ${worst?"":"Your outreach is running."}</p>`}
+ else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm);
+  top=worst.tone==="paused"
+   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.${canReq?` <button class="linkbtn" data-askopen="${worst.k}">Ask for more &rarr;</button>`:""}</span></div>`
+   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}${canReq?` <button class="linkbtn" data-askopen="${worst.k}">Ask for more &rarr;</button>`:""}</span></div>`}
+ else top=`<p class="cu-line">Your outreach is running. Nothing is close to its limit.</p>`;
+ return `${top}<div class="panel">
+  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span></div>
+  <div class="panel-b cu-rows">${rows}</div>
+  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
+}
+/* the ask: one sheet, every allowance, pre-filled with what the pace needs */
+function askNeed(k,cid){const R=RES[k], r=R.rows[cid], pc=paceOf(k,cid), st=R.step||1;
+ if(pc&&pc.hits) return Math.max(st,Math.ceil((pc.proj-r.cap)/st)*st);
+ return Math.max(st,Math.round(r.cap*0.5/st)*st)}
+function askHTML(){
+ const c=byId[modal.client]; if(!c) return "";
+ modal.amts=modal.amts||(()=>{const o={}; RK.forEach(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return; const st=rowState(k,c.id,compute(k)); if(k===modal.pre||st.room===0||st.pct>=R.warn) o[k]=askNeed(k,c.id)}); return o})();
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const st=rowState(k,c.id,compute(k)), pc=paceOf(k,c.id), on=!!modal.amts[k];
+  const tone=st.room===0?"paused":st.pct>=R.warn?"close":"fine";
+  return `<div class="ask-row"><span><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${f(r.used)} of ${f(r.cap)}${R.kind==="balance"?"":" this month"}</span></span><span class="cu-word is-${tone}">${tone==="paused"?"Paused":tone==="close"?"Close to your limit":""}</span><span class="numin"><input type="text" inputmode="numeric" value="${on?f(modal.amts[k]):""}" placeholder="no change" data-askamt="${k}" aria-label="${R.label}, how much more"><span class="unit">more</span></span><span class="cs">${on?(pc&&pc.hits?"What the pace needs"+(k==="sends"?" to finish the month":""):""):""}</span></div>`}).join("");
+ const picked=RK.filter(k=>modal.amts[k]>0);
+ const say=picked.length?`${c.name.split(" ")[0]} ${reqState(picked[0],c.id)} and asked for ${listAnd(picked.map(k=>f(modal.amts[k])+" more "+(RES[k].short||RES[k].unit)))}${modal.why?": "+modal.why:""}`:"Pick at least one allowance.";
+ return card(`Ask ${AGENCY.name} for more`,`
+   <div class="ask-head"><span>Allowance</span><span></span><span>How much more</span><span></span></div>
+   <div class="ask-rows">${rows}</div>
+   <div class="field" style="margin:16px 0 0"><label class="flabel" for="askWhy">Why? One line is enough; ${AGENCY.name} decides on it.</label><input type="text" id="askWhy" value="${(modal.why||"").replace(/"/g,"&quot;")}" placeholder="What the extra is for" style="width:100%;height:36px;padding:0 10px;border-radius:var(--radius-input);border:1px solid var(--gray-23);font:inherit;box-sizing:border-box"></div>
+   <p class="sub" id="askSay" style="margin:12px 0 0">${AGENCY.name} will read: &ldquo;${say}&rdquo;</p>`,
+  `<span class="sub" style="margin-right:auto">One ask. ${AGENCY.name} decides each line and you see the answer here.</span><button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-asksend ${picked.length&&(modal.why||"").trim()?"":"disabled"}>Send to ${AGENCY.name}</button>`,"ac ask-b");
+}
+function askSend(){
+ const c=byId[modal.client]; if(!c) return; const why=(modal.why||"").trim(); const picked=RK.filter(k=>modal.amts[k]>0); if(!picked.length||!why) return;
+ const askId="a"+Date.now().toString(36).slice(-5), made=[];
+ picked.forEach(k=>{if(REQUESTS.some(x=>x.client===c.id&&x.res===k)) return; const row={id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,res:k,amount:modal.amts[k],note:why,when:"just now"}; REQUESTS.push(row); made.push(row)});
+ ANSWERS=ANSWERS.filter(a=>a.client!==c.id||picked.indexOf(a.res)<0);
+ modal=null; renderModal();
+ receipt("client:"+c.id,`Sent to ${AGENCY.name}: ${linesText(made)}. They see it in their queue and you see the answer here.`,()=>{REQUESTS=REQUESTS.filter(x=>made.indexOf(x)<0);render()},`asked ${AGENCY.name} for more`);
+ render();
 }
 /* limits are edited as a draft and applied together. Typing a number used to
    change the pool on the spot, so a slip of the finger reallocated a client
@@ -3910,9 +3934,17 @@ function rLimits(c){
     workspace started with stays as one readout line. Each number saves as you
     leave it; a limit above what the plan has is refused with both numbers. */
  const ro=!!(c.disabled||c.deletedOn), dis=ro?" disabled":"", canEdit=canI("limits")&&!ro;
- const rq=REQUESTS.find(q=>q.client===c.id);
- const reqBar=(()=>{if(!rq||ro) return ""; const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
-  return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`})();
+ const ask=askOf(c.id), rq=ask?ask.lines[0]:null;
+ /* change 117: the ask with its lines. One line keeps the one-line bar; more than one
+    adds Approve all / Decline all and a row per line, each with its own decision and
+    an optional note the client reads. */
+ const reqBar=(()=>{if(!ask||ro) return ""; const L=ask.lines, one=L.length===1;
+  const fits=r=>compute(r.res).free>=r.amount, allFit=L.every(fits), short=L.filter(r=>!fits(r)).length;
+  if(one){const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
+   return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><input class="rq-note" type="text" data-nonote="${rq.id}" placeholder="Note for ${c.name.split(" ")[0]} if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`}
+  const lines=L.map(r=>{const R=RES[r.res], free=compute(r.res).free, ok=free>=r.amount;
+   return `<div class="rq-line"><span class="rq-l"><b>${R.label}</b></span><span>asked for <b>${f(r.amount)}</b> more</span><span class="sub">now ${f(R.rows[c.id].cap)}</span><span style="color:${ok?"var(--green-16)":"var(--red-18)"}">${f(free)} available in the plan</span><span class="tools">${canI("limits")?`<input class="rq-note" type="text" data-nonote="${r.id}" placeholder="Note if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${r.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(r.amount)} more</button><button class="shd-button shd-button--tertiary shd-button--sm" data-no="${r.id}">Decline</button>`:""}</span></div>`}).join("");
+  return `<div class="rc-reqbar rq-multi" role="status"><div class="rq-h"><span><b>${c.name.split(" ")[0]} asked for more</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all &middot; ${L.length} lines</button></span>`:""}</div><div class="rq-lines">${lines}</div>${allFit?"":`<p class="sub rq-foot">${short} line${short===1?" asks":"s ask"} for more than the plan has available. Lower another workspace, add capacity, or decline ${short===1?"it":"those"} with a note the client sees.</p>`}</div>`})();
  const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
  const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace projected to ${CYC_END()}</span></div>`;
  /* 5 Oct 2026 (change 112, canvas row 19 D): two facts per row, the number and
@@ -4654,6 +4686,11 @@ function wirePeopleModal(L){
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
   const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(INV.edit){if(!L.querySelector("[data-invsend]").disabled)personSave();return} if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
   if(!L.querySelector(".inv-ed"))inp.focus();}
+ if(k==="ask"){const upd=()=>{const say=L.querySelector("#askSay"), send=L.querySelector("[data-asksend]"); const html=askHTML(); const tmp=document.createElement("div"); tmp.innerHTML=html; if(say)say.innerHTML=tmp.querySelector("#askSay").innerHTML; if(send)send.disabled=tmp.querySelector("[data-asksend]").disabled};
+  L.querySelectorAll("[data-askamt]").forEach(i=>i.oninput=()=>{modal.amts[i.dataset.askamt]=num(i.value)||0; upd()});
+  const w=L.querySelector("#askWhy"); if(w)w.oninput=()=>{modal.why=w.value; upd()};
+  const send=L.querySelector("[data-asksend]"); if(send)send.onclick=()=>{if(!send.disabled)askSend()};
+  const f1=L.querySelector(`[data-askamt="${modal.pre}"]`)||L.querySelector("#askWhy"); if(f1)f1.focus()}
  if(k==="prm"||k==="prmc"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{modal.to[d.id.slice(6)]=v})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=prmGo; L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
@@ -8468,6 +8505,7 @@ function modalHTML(){
  if(modal.kind==="pproles") return ppRolesHTML();
  if(modal.kind==="invite") return inviteHTML();
  if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
+ if(modal.kind==="ask") return askHTML();
  if(modal.kind==="chrole") return chroleHTML();
  if(modal.kind==="assignws") return assignwsHTML();
  if(modal.kind==="pconfirm") return pconfirmHTML();
@@ -9277,10 +9315,14 @@ function wire(){
    if(t){t.done=true;t.doneIn=t.client} render()});
  q("[data-request]").forEach(b=>b.onclick=()=>{const k=b.dataset.request;
    if(REQUESTS.some(r=>r.client===ctx&&r.res===k))return;
-   modal={kind:"request",client:ctx,res:k};renderModal()});
+   modal={kind:"ask",client:ctx,pre:k};renderModal()});
  /* Usage's own Request more: inline under the row, not a modal, so the
     sentence the agency will read sits right beside the ask. */
  q("[data-reqopen]").forEach(b=>b.onclick=()=>{reqForm={client:ctx,res:b.dataset.reqopen};render()});
+ /* change 117: the ask sheet, from any row, the status line or a limit banner */
+ q("[data-askopen]").forEach(b=>b.onclick=()=>{modal={kind:"ask",client:ctx,pre:b.dataset.askopen};renderModal()});
+ q("[data-askwithdraw]").forEach(b=>b.onclick=()=>{const L=askLines(b.dataset.askwithdraw); if(!L.length) return; REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0);
+   receipt("client:"+b.dataset.askwithdraw,`Withdrawn. ${AGENCY.name} no longer sees this ask.`,()=>{L.forEach(r=>REQUESTS.push(r));render()}); render()});
  q("[data-reqclose]").forEach(b=>b.onclick=()=>{reqForm=null;render()});
  q("[data-reqsend]").forEach(b=>b.onclick=()=>{const k=b.dataset.reqsend,id=ctx;
    const amtEl=el("reqFormAmt"),whyEl=el("reqFormWhy");
@@ -9442,18 +9484,28 @@ function wire(){
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   if(compute(r.res).free<r.amount){RC_REFUSED={id:r.client,k:r.res,text:`Not approved. Only ${f(compute(r.res).free)} ${RES[r.res].unit} are available in the plan. Lower another workspace or add capacity.`};render();return}
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+   const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans);
    logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
    receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
-     ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
+     ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
+  const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():"";
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
-   logAct(c.id,`Declined the request for ${f(r.amount)} more ${R.unit}`);
+   const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans);
+   logAct(c.id,`Declined the request for ${f(r.amount)} more ${R.unit}${dnote?" ("+dnote+")":""}`);
    receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
-     ()=>{REQUESTS.push(r)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
+     ()=>{REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Declined &middot; ${c.name} &middot; limit stays ${f(R.rows[r.client].cap)}`)})};
  q("[data-no]").forEach(b=>b.onclick=()=>declineReq(b,b.dataset.no));
+ /* change 117: the whole ask at once */
+ q("[data-okall]").forEach(b=>b.onclick=()=>{const L=askLines(b.dataset.okall); if(!L.length) return; if(L.some(r=>compute(r.res).free<r.amount)) return;
+  const c=byId[b.dataset.okall], undo=[]; L.forEach(r=>{const R=RES[r.res]; R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans); undo.push(()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); ANSWERS.splice(ANSWERS.indexOf(ans),1)}); logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`)});
+  REQUESTS=REQUESTS.filter(x=>x.client!==c.id); receipt("queue",`Approved all ${L.length} lines. ${c.name} can carry on.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`approved ${c.name}'s ask`); render()});
+ q("[data-noall]").forEach(b=>b.onclick=()=>{const L=askLines(b.dataset.noall); if(!L.length) return; const c=byId[b.dataset.noall], undo=[];
+  L.forEach(r=>{const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():""; const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans); undo.push(()=>ANSWERS.splice(ANSWERS.indexOf(ans),1)); logAct(c.id,`Declined the request for ${f(r.amount)} more ${RES[r.res].unit}`)});
+  REQUESTS=REQUESTS.filter(x=>x.client!==c.id); receipt("queue",`Declined all ${L.length} lines. ${c.name} keeps its limits.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`declined ${c.name}'s ask`); render()});
  q("[data-undo]").forEach(b=>b.onclick=()=>{if(!RECEIPT) return; RECEIPT.undo&&RECEIPT.undo();
    const i=DECIDED.indexOf(RECEIPT.entry); if(i>-1) DECIDED.splice(i,1); clearReceipt(); render()});
  q("[data-rcpx]").forEach(b=>b.onclick=()=>{clearReceipt(); render()});
@@ -10366,7 +10418,23 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .rc-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}.rc-dot.ok{background:var(--green-14)}.rc-dot.warn{background:#d97706}.rc-dot.mute{background:#9ca3af}
 .rc-stat{font-size:13px;white-space:nowrap}
 .rc-reqbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:10px 16px;border-radius:4px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:18px}
-.rc-reqbar .tools{display:flex;gap:8px;flex:none}
+.rc-reqbar .tools{display:flex;gap:8px;flex:none;align-items:center}
+/* change 117: the ask with lines, and the client's Usage */
+.rq-note{height:28px;width:220px;padding:0 8px;border:1px solid var(--gray-23);border-radius:4px;font:inherit;font-size:12px;background:#fff}
+.rc-reqbar.rq-multi{display:block}.rq-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.rq-lines{margin-top:10px;border-top:1px solid #fde68a}.rq-line{display:grid;grid-template-columns:1.3fr 1fr .8fr 1.2fr auto;gap:16px;align-items:center;padding:8px 0;border-bottom:1px solid #fde68a;font-size:13px}.rq-line .rq-l b{font-weight:500}.rq-foot{margin:8px 0 0}
+.cu-line{margin:0;font-size:14px;color:var(--gray-17)}
+.cu-status{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-radius:4px;font-size:14px;line-height:20px;background:#fff;border:1px solid var(--gray-16)}
+.cu-status.is-warn{background:#fffbeb;border-color:#fde68a}.cu-status.is-bad{background:#fef2f2;border-color:#fecaca}.cu-status i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d97706;margin-right:8px}
+.cu-rows{padding-top:0;padding-bottom:0}.cu-row{display:grid;grid-template-columns:240px minmax(0,1fr) 150px;gap:24px;align-items:center;padding:14px 0;border-top:1px solid var(--gray-16)}.cu-row:first-child{border-top:0}
+.cu-name b{display:block;font-size:14px;font-weight:500;color:var(--gray-17)}.cu-mid{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cu-top{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--gray-17)}.cu-word{font-size:13px;color:var(--gray-15)}.cu-word.is-close{color:var(--orange-12);font-weight:500}.cu-word.is-paused{color:var(--red-18);font-weight:500}
+.cu-bar{position:relative;display:block;height:6px;background:var(--gray-16);border-radius:3px;overflow:hidden}.cu-fill{position:absolute;left:0;top:0;height:6px;border-radius:3px;background:var(--blue-11)}.cu-fill.is-close{background:var(--orange-14)}.cu-fill.is-paused{background:var(--red-18)}
+.cu-ext{position:absolute;top:0;right:0;height:6px;background:#fde68a}
+.cu-ans{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--gray-15)}.cu-ans i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--gray-23)}.cu-ans.is-ok{color:var(--green-16)}.cu-ans.is-ok i{background:var(--green-16)}
+.cu-act{text-align:right}.cu-act .linkbtn.quiet{color:var(--gray-15)}.cu-foot{border-top:1px solid var(--gray-16)}
+.ask-b{width:760px}.ask-head,.ask-row{display:grid;grid-template-columns:1.6fr 1fr 170px 1.3fr;gap:16px;align-items:center}.ask-head{font-size:12px;font-weight:500;color:var(--gray-15);padding-bottom:6px}
+.ask-row{padding:10px 0;border-top:1px solid var(--gray-16);font-size:14px}.ask-row b{font-weight:500;color:var(--gray-17)}.ask-row .cs{display:block}.ask-row .numin input{width:170px}
 .rc-act b{font-weight:600}
 .modal--450{width:450px}
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}
@@ -10870,7 +10938,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="65fc60b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="48c3204";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
