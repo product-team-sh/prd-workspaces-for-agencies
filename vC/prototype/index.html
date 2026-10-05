@@ -2988,6 +2988,8 @@ function renderShell(){
     trigger's own avatar and second line say where you are. */
  el("sbWs").style.boxShadow="none";
  el("ctxBar").style.setProperty("--ctx",inC&&!norm?c.colour:"transparent");
+ (()=>{let x=el("crumbExtra"); if(!x){x=document.createElement("span");x.id="crumbExtra";x.className="wlp crumb-extra";el("crumbTail").after(x)}
+   x.innerHTML=(!solo&&view.name==="whitelabel")?`<a class="link-badge-anchor" href="#" data-flash="Opens the help article" title="Add your own logo and URL to personalize the client experience and build brand reputation"><button type="button" class="link-badge-button">${wlI.info}Know more</button></a>`:""})();
  el("crumbTail").textContent=solo?(soloMod==="settings"?"Settings":AGY_MOD[soloMod][0])
    :view.name==="settings"?"Settings"
    :view.name==="queue"?"Work queue"
@@ -3739,7 +3741,9 @@ function rMembers(c){
     and every row that can change carries the People row menu. */
  const stat=r=>r.status==="Active"?`<span class="pp-st"><i></i>Active</span>`:r.status==="Invited"?`<span class="pp-st pp-st--inv"><i></i>Invited ${AGE(INVITED[r.key]||"3 days ago")}</span>${canEdit?`<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="pp-st pp-st--off"><i></i>Inactive</span>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
- const cols='grid-template-columns:minmax(0,1.6fr) 240px 140px 200px 44px';
+ /* 5 Oct 2026, change 113 (Changes needed.md #3): four columns packed from the left;
+    the slack sits after the row menu instead of between Person and Role. */
+ const cols='grid-template-columns:minmax(260px,400px) 250px 140px 190px 44px';
  const head=lab=>`<div class="pp-head" style="${cols}"><span>Person</span><span>${lab}</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
  const person=r=>`<span class="pp-person">${ppAv(r.initials,r.kind==="team"?(r.role==="Owner"?"#1D4ED8":"#DBEAFE"):r.colour,32,r.status==="Invited")}<span><b>${r.name}${r.key==="t:"+me_?' <span class="sub">(you)</span>':""}</b><i>${r.kind==="team"?r.role:r.email}</i></span></span>`;
  const more=r=>`<span class="pp-end">${canEdit&&r.role!=="Owner"?`<button class="ubtn pp-more" aria-haspopup="menu" aria-expanded="${peopleMenu===r.key}" data-pmenu="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${peopleMenu===r.key?peopleMenuHTML(r):""}`:""}</span>`;
@@ -5703,7 +5707,9 @@ const anVisible=()=>{const mine=anSources();
  if(anWsSel===null) return mine;
  const sel=new Set(anWsSel); return mine.filter(c=>sel.has(c.id))};
 const anWsLabel=()=>anWsSel===null?"All mine":anWsSel.length+" of "+anSources().length;
-const AN_TABS=[["seq","Sequence"],["mail","Emails &amp; Domain","New"],["team","Teams"]];
+/* 5 Oct 2026, change 113 (Changes needed.md #2): Emails & Domain and Teams are gone from
+   the account's Analytics; one tab means no tab bar. anMailRows/anTeamRows stay unreachable. */
+const AN_TABS=[["seq","Sequence"]];
 /* 29 Sep 2026, Hitesh: "check analytics screen, it should look like this" (the product's Analytics, Sequence tab). */
 let anView="prospect", anPct=false, anGran="daily", anCount="relative", anFirst=false;
 /* one small table per tab: [key,label,isNumeric]. Labels first, numerics last,
@@ -5849,7 +5855,7 @@ function anSeqRowsFull(wss){
 }
 function vAgencyAnalytics(){
  const wss=anVisible(), wsOpts=anSources(), pct=(n,d)=>d?Math.round(n/d*100)+"%":"0%";
- const tabs=`<div class="tabbar an-tabs">${AN_TABS.map(([k,l,tag])=>`<button data-antab="${k}" aria-selected="${anTab===k}">${l}${tag?` <span class="chip c-new">${tag}</span>`:""}</button>`).join("")}</div>`;
+ const tabs=AN_TABS.length>1?`<div class="tabbar an-tabs">${AN_TABS.map(([k,l,tag])=>`<button data-antab="${k}" aria-selected="${anTab===k}">${l}${tag?` <span class="chip c-new">${tag}</span>`:""}</button>`).join("")}</div>`:`<span></span>`;
  const dd=(label,icon,attrs)=>`<button class="an-dd" ${attrs}>${icon}<span>${label}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>`;
  const wsPick=`<span style="position:relative">${dd("Workspaces: "+anWsLabel(),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>',`data-anwstoggle aria-expanded="${anWsOpen}"`)}
      ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;right:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
@@ -7155,10 +7161,8 @@ function vWhitelabel(){
  if(!canI("billing")) return denied("set up whitelabel");
  const tab=(k,l)=>`<div class="bs-tabs-tab${wlTab===k?" bs-tabs-tab-active":""}" data-wltab="${k}"><div class="bs-tabs-tab-btn" role="tab" aria-selected="${wlTab===k}">${l}</div></div>`;
  return `<div class="wlp globalSettings__Wrapper">
-  <div class="globalSettings__Header"><div class="globalSettings__Header__Left">
-   <div class="globalSettings__Header__Title" title="Add your own logo and URL to personalize the client experience and build brand reputation"><h1>Whitelabel</h1></div>
-   <a class="link-badge-anchor" href="#" data-flash="Opens the help article"><button type="button" class="link-badge-button">${wlI.info}Know more</button></a>
-  </div></div>
+  <!-- 5 Oct 2026, change 113 (Changes needed.md #1): the page's own "Whitelabel" header
+       is gone; the topbar already says it. Know more rides beside the crumb. -->
   <div class="globalSettings__Content whitelabel"><div class="bs-tabs bs-tabs-top bs-tabs-small subscription-info-tabs">
    <div class="bs-tabs-nav"><div class="bs-tabs-nav-wrap"><div class="bs-tabs-nav-list">${tab("logo","Logo &amp; Branding")}${tab("domain","Domain Configuration")}</div></div></div>
    <div class="bs-tabs-content">${wlTab==="logo"?wlLogoTab():wlDomainTab()}</div></div></div></div>`}
@@ -10342,7 +10346,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 /* 4 Oct 2026, change 106: the production Whitelabel page. Selectors and values are the
    product's scss with variables resolved; namespaced under .wlp so nothing leaks. */
 .sb-brand img{width:26px;height:26px;border-radius:6px;flex:none}.sb-brand img+span{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.wlp{font-family:Inter,sans-serif;color:#1f2937}
+.wlp{font-family:Inter,sans-serif;color:#1f2937}.crumb-extra{display:inline-flex;align-items:center;margin-left:10px}.crumb-extra:empty{display:none}
 .wlp .d-flex{display:flex}.wlp .flex-column{flex-direction:column}.wlp .align-items-start{align-items:flex-start}.wlp .align-items-center{align-items:center}.wlp .justify-content-between{justify-content:space-between}.wlp .justify-content-center{justify-content:center}
 .wlp .gap-20{gap:1.25rem}.wlp .gap-8{gap:.5rem}.wlp .mt-1{margin-top:.25rem}.wlp .mt-2{margin-top:.5rem}.wlp .mt-3{margin-top:1rem}.wlp .mt-4{margin-top:1.5rem}.wlp .mb-2{margin-bottom:.5rem}.wlp .mr-2{margin-right:.5rem}.wlp .ml-2{margin-left:.5rem}
 .wlp .bs-mt-12{margin-top:12px}.wlp .bs-mt-20{margin-top:20px}.wlp .bs-ml-12{margin-left:12px}.wlp .bs-ml-36{margin-left:36px}
@@ -10692,7 +10696,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0fa5a25";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="add6f11";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
