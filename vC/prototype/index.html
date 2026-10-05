@@ -1987,6 +1987,14 @@ CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
 
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 let ACTIVITY=[];
+/* change 114: a few seeded entries so a person's Activity tab (and a workspace's)
+   has history before anyone clicks. who = the teammate who did it. */
+ACTIVITY.push(
+ {client:"nw",who:"Priya Nair",when:"2 days ago",text:"Emails sent / month limit changed from 45,000 to 50,000",at:0},
+ {client:"vx",who:"Priya Nair",when:"3 days ago",text:"Approved Vertex Health's request for 500 Lead Finder credits",at:0},
+ {client:"nw",who:"Alex Meridian",when:"5 days ago",text:"Invited sam@meridiangrowth.com as a Member",at:0},
+ {client:"al",who:"Priya Nair",when:"1 week ago",text:"Sending priority changed to Balanced Sending",at:0},
+ {client:"nw",who:"Dev Kapoor",when:"yesterday",text:"Asked for 20,000 more emails",at:0});
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
    A prototype stops being believed at the first count that disagrees with the
@@ -3004,7 +3012,7 @@ function renderShell(){
    :view.name==="dash"?"Home":view.name==="credits"?"Billing & Subscription"
    :view.name==="addmember"?"People / Add a person"
    :view.name==="people"?"People"
-   :view.name==="person"?("People / "+(view.id&&view.id.indexOf("c:")===0?view.id.slice(view.id.indexOf("|")+1):PEOPLE[view.id]?PEOPLE[view.id].name:""))
+   :view.name==="person"?("People / "+((personOf(view.id)||{}).name||""))
    :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
@@ -3689,7 +3697,7 @@ let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
 /* People revamp, 29 Sep 2026 (Hitesh: "UX is broken, everything has to be revamped"):
    one table and the product's own modals, modelled on Settings > Users and Teams. */
 let PEOPLE_Q="", PEOPLE_ROLE="all", peopleMenu=null, INV=null, DISABLED={};
-const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1};
+const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1};
 /* an upgrade (or a lateral Owner<->Admin change) confirms inline before it
    writes; {key,to,from}. A downgrade to Member is a different shape, because
    it turns an enumerated-nowhere ws:null into a real list someone has to
@@ -4154,14 +4162,14 @@ function vPeople(){
  const typeCell=t=>all?`<span class="pp-type">${t}</span>`:"";
  const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Account role</span>"}<span>Workspace access</span><span>Last active</span><span>Status</span><span></span></div>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
- const teamRow=r=>`<div class="pp-row${r.role==="Owner"?"":" is-link"}" style="${cols}" ${r.role==="Owner"?"":`data-ppopen="${r.k}"`}>
+ const teamRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="t:${r.k}">
    <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
    ${typeCell("Your team")}<span class="pp-roletxt">${r.role}</span>
    <span class="pp-access">${ppAccess(r)}</span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
- const clRow=r=>`<div class="pp-row" style="${cols}">
+ const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
    ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?r.role:"Client user"}</span>
    <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
@@ -4254,6 +4262,146 @@ function ppRolesHTML(){
   <div class="rl2-f"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span></span><span>Owner and Admin are Workspace Admin everywhere, automatically.</span></div>
   </div></div>`;
 }
+/* ══ change 114, 5 Oct 2026 (canvas rows 20b, 20c; doc 75): a person is a page.
+   People / Name, two tabs. Access shows the invite row after the fact, in the
+   invite card's own format, read-only, with Edit opening the Invite people form
+   for this one person. Activity lists what they changed, with the exact time.
+   Remove is a sheet that hands what they own to someone, per workspace. Every
+   row on People opens it: teammates, client users and the Owner. The drawer
+   (ppPanelHTML) is no longer opened from anywhere. */
+let PERSON_TAB="access", PA_KIND="all", PA_WS="all";
+function personOf(key){
+ if(!key) return null;
+ if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
+  return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
+ if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
+  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
+ return null;
+}
+/* the invite row this person would have had: one shape before and after Send */
+function personInvRow(p){
+ if(p.kind==="client") return {kind:"client",ws:p.c.id,wsList:[],level:p.role,from:"pick"};
+ const P=p.P; if(P.role!=="Member") return {kind:"admin",ws:null,wsList:[],level:"Workspace Admin",from:"pick"};
+ const ws=(P.ws||[]).filter(id=>byId[id]); const lv=ws.length?ppWsRole(P,ws[0]):"Workspace Admin";
+ return {kind:"team",ws:null,wsList:ws.slice(),level:lv,from:"pick",mixed:ws.some(id=>ppWsRole(P,id)!==lv)};
+}
+const personCanEdit=p=>canI("members")&&!p.owner;
+function personAccessHTML(p){
+ const r=personInvRow(p), wsList=fundedWorkspaces().filter(x=>!x.own);
+ let cardHTML=invRowHTML(p.email,r,p.kind==="team"?Object.keys(PEOPLE).indexOf(p.k):1,p.kind==="client"?p.c:null,wsList);
+ const editBtn=personCanEdit(p)?`<button class="shd-button shd-button--tertiary shd-button--sm" data-pedit="${p.key}">Edit</button>`:"";
+ cardHTML=cardHTML.replace(/<span class="inv-tag[^"]*">[^<]*<\/span>/,editBtn).replace(/<span class="avatar av-tint"[^>]*>[^<]*<\/span>/,ppAv(p.initials,p.colour,32,!!p.invited))
+   .replace(/<input type="radio"/g,'<input type="radio" disabled tabindex="-1"')
+   .replace('<p class="inv-help">Change this later from their profile.</p>','')
+   .replace(/Matched by email domain\. Change it if we got it wrong\./,'');
+ if(p.owner) cardHTML=cardHTML.replace('Admin &middot; every client, People and Billing','Owner &middot; everything, including billing. Transferred from your own page, never granted here.');
+ if(r.mixed) cardHTML=cardHTML.replace('</div></div>$','')+'';
+ const mixedNote=r.mixed?`<p class="sub" style="margin:10px 0 0">${p.first} has a different level in some clients: ${r.wsList.map(id=>byId[id].name+" &middot; "+INV_SHORT[ppWsRole(p.P,id)][0]).join(", ")}.</p>`:"";
+ const since=p.invited?`Invited ${AGE(p.invited)}, not accepted yet.`:p.kind==="client"?`${p.c.name}&rsquo;s person since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
+ const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
+   :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-flash="Not in this prototype">Send reset link</button>`;
+ const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
+ return `<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
+   <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>
+  <div class="panel"><div class="panel-h"><span class="panel-t">Sign-in</span></div><div class="panel-b pp-sec-row" style="margin:0">${signin}</div></div>
+  ${only?`<div class="msg m-warn" role="status">${warnI}<span><b>${p.name}</b> is ${p.c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in; <button class="linkbtn" data-openrec="${p.c.id}">disable the workspace</button> instead if the client is leaving.</span></div>`:""}`;
+}
+/* exact time for an activity entry: a real clock for entries made in this
+   session, a date derived from the relative wording for the seeded ones */
+function paStamp(a){
+ let d; if(a.at&&a.at>1e12) d=new Date(a.at);
+ else {const w=String(a.when||"").toLowerCase(), m=w.match(/(\d+)\s*(min|hour|day|week|month)/); d=new Date();
+  if(w==="yesterday") d.setDate(d.getDate()-1);
+  else if(m){const n=+m[1]; if(m[2]==="min")d.setMinutes(d.getMinutes()-n); else if(m[2]==="hour")d.setHours(d.getHours()-n); else if(m[2]==="day")d.setDate(d.getDate()-n); else if(m[2]==="week")d.setDate(d.getDate()-7*n); else d.setMonth(d.getMonth()-n)}
+  else if(w.indexOf("last week")>-1) d.setDate(d.getDate()-7);
+  if(!/min|hour|just now/.test(w)){let h=0; for(const ch of String(a.text||"")) h=(h*31+ch.charCodeAt(0))%1000; d.setHours(9+(h%9),(h*7)%60,0,0)}}
+ const pad=n=>(n<10?"0":"")+n;
+ return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function personActs(p){
+ const out=[];
+ if(p.kind==="team") ACTIVITY.filter(a=>a.who===p.name).forEach(a=>out.push({kind:"change",ws:a.client,text:a.text,when:a.when,at:a.at||0,stamp:paStamp(a)}));
+ if(p.kind==="client") REQUESTS.filter(q=>q.client===p.c.id).forEach(q=>out.push({kind:"change",ws:p.c.id,text:`Asked for ${f(q.amount)} more ${RES[q.res].unit}${q.note?" &middot; &ldquo;"+q.note+"&rdquo;":""}`,when:q.when,at:0,stamp:paStamp({when:q.when,text:q.note||q.res})}));
+ if(p.seen&&p.seen!=="never"&&p.seen!=="unknown") out.push({kind:"signin",ws:null,text:"Signed in &middot; Chrome",when:p.seen,at:0,stamp:paStamp({when:p.seen,text:"signin"})});
+ const ord=x=>x.at||(-(parseInt(String(x.when).match(/\d+/)||[0])[0]*(String(x.when).indexOf("week")>-1?7:String(x.when).indexOf("hour")>-1?0.04:String(x.when).indexOf("min")>-1?0.001:1)))||(String(x.when).indexOf("yesterday")>-1?-1:0);
+ return out.sort((a,b)=>ord(b)-ord(a));
+}
+function personActivityHTML(p){
+ let rows=personActs(p);
+ if(PA_KIND!=="all") rows=rows.filter(r=>r.kind===PA_KIND);
+ if(PA_WS!=="all") rows=rows.filter(r=>r.ws===PA_WS);
+ const wsOpts=[{value:"all",label:"All workspaces"}].concat(fundedWorkspaces().map(c=>({value:c.id,label:c.name,avatar:av(c,18)})));
+ const tag=r=>r.ws&&byId[r.ws]?`<span class="pa-tag">${av(byId[r.ws],18)}${byId[r.ws].name}</span>`:r.kind==="signin"?`<span class="sub">Sign-in</span>`:`<span class="sub">Account</span>`;
+ return `<div class="panel"><div class="panel-h"><span class="panel-t">What ${p.first} changed</span><span class="sub">across every workspace they reach &middot; times in your timezone</span>
+   <span class="c-a tools">${ddHTML("paKind",PA_KIND,[{items:[{value:"all",label:"Everything"},{value:"change",label:"Changes"},{value:"signin",label:"Sign-ins"}]}],{})}${ddHTML("paWs",PA_WS,[{items:wsOpts}],{})}</span></div>
+   <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(r=>`<div class="pa-row"><span style="min-width:0">${r.text}</span>${tag(r)}<span class="sub pa-ts">${r.stamp}</span></div>`).join(""):`<p class="sub" style="margin:12px 0">Nothing changed by ${p.first} yet. Sign-ins and changes land here.</p>`}</div></div>`;
+}
+function vPerson(){
+ if(!canI("members")) return denied("see or manage people");
+ const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
+ const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${p.role}`;
+ const status=p.invited?`Invited ${AGE(p.invited)} &middot; not accepted`:`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
+ const rm=p.owner?`<span class="sub">The Owner is transferred from your own page.</span>`:p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
+ const reset=p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Send reset link</button>`;
+ return `
+ <div class="toolbar" data-keeptitle><div class="cell-main">
+   <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
+   ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email} &middot; ${sub} &middot; ${status}</span></span></div>
+  <div class="tools">${reset}${rm}</div></div>
+ ${receiptBar("people")}
+ <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
+ <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
+}
+/* Edit: the Invite people form, for this one person */
+function personEdit(key){
+ const p=personOf(key); if(!p||!personCanEdit(p)) return;
+ INV=INV_BLANK(); INV.edit=key; INV.emails=[p.email]; INV.rows[p.email]=personInvRow(p); INV.lock=p.kind==="client"?p.c.id:null;
+ modal={kind:"invite"}; renderModal();
+}
+function personSave(){
+ const I=INV, key=I.edit, p=personOf(key); if(!p) return; const r=I.rows[p.email]; if(!r||!invSettled(r)) return;
+ const snapPeople=JSON.stringify(PEOPLE), snapUsers=JSON.stringify(CLIENTS.map(c=>c.users||[]));
+ const restore=()=>{const P=JSON.parse(snapPeople); Object.keys(PEOPLE).forEach(k=>delete PEOPLE[k]); Object.assign(PEOPLE,P); JSON.parse(snapUsers).forEach((u,i)=>CLIENTS[i].users=u); render()};
+ let what="", newKey=key;
+ if(p.kind==="client"){const u=p.c.users.find(x=>x[0]===p.email); if(u&&u[1]!==r.level){u[1]=r.level; what=`${p.name} is now ${INV_SHORT[r.level][1]} in ${p.c.name}.`; logAct(p.c.id,`${p.name}'s level set to ${ppShort(r.level)}`)}}
+ else {const P=p.P;
+  if(r.kind==="client"){const c=byId[r.ws]; delete PEOPLE[p.k]; c.users=c.users||[]; c.users.push([p.email,r.level]); newKey="w:"+c.id+"|"+p.email; what=`${p.name} is now ${c.name}&rsquo;s person, ${INV_SHORT[r.level][1]}.`; logAct(c.id,`${p.name} moved to ${c.name}'s people as ${ppShort(r.level)}`)}
+  else if(r.kind==="admin"){if(P.role!=="Admin"){P.role="Admin";P.ws=null; what=`${p.name} is now an Admin: every client, People and Billing.`}}
+  else {const was=P.role; P.role="Member"; P.ws=r.wsList.slice(); P.roles=P.roles||{}; r.wsList.forEach(id=>{P.roles[id]=r.level}); what=`${p.name} works on ${listAnd(r.wsList.map(id=>byId[id].name))} as ${INV_SHORT[r.level][0].toLowerCase()==="run them"?"Workspace Admin":ppShort(r.level)}.`; if(was==="Admin")what=`${p.name} is a Member now: ${what.slice(p.name.length+1)}`; r.wsList.forEach(id=>logAct(id,`${p.name}'s level set to ${ppShort(r.level)}`))}}
+ modal=null; INV=null; renderModal();
+ if(what) receipt("people",what+" Changes apply on their next request.",restore,`updated ${p.name}'s access`);
+ view={name:"person",id:newKey}; render();
+}
+/* Remove: the handover sheet */
+function prmHTML(){
+ const p=personOf(modal.key); if(!p) return "";
+ if(p.kind==="client"){const only=(p.c.users||[]).length===1;
+  return card(`Remove ${p.name} from ${p.c.name}`,only
+   ?`<div class="msg m-warn" role="status">${warnI}<span><b>${p.name}</b> is ${p.c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in. If the client is leaving, <button class="linkbtn" data-openrec="${p.c.id}">disable the workspace</button> instead.</span></div>`
+   :`<p class="ac-lead">Their sign-in ends now. ${p.c.name.split(" ")[0]}&rsquo;s sequences and email accounts belong to the workspace and keep running.</p><p class="sub" style="margin:10px 0 0">Undo from the toast.</p>`,
+   `<button class="shd-button shd-button--tertiary" data-mclose>Keep</button>${only?"":`<button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`}`,"ac")}
+ const P=p.P, wss=(P.ws===null?fundedWorkspaces():(P.ws||[]).map(id=>byId[id]).filter(Boolean));
+ modal.to=modal.to||{};
+ const rows=wss.map(c=>{const n=(c.sequences||[]).filter(q=>q.owner===p.name).length;
+  const cands=ppTeam().filter(t=>t.k!==p.k&&!t.invited&&(t.ws===null||t.ws.some(x=>x.id===c.id)));
+  if(!modal.to[c.id]) modal.to[c.id]=(cands.find(t=>t.me)||cands[0]||{}).k||"";
+  return `<div class="prm-row"><span class="prm-ws">${av(c,24)}<span><b>${c.name}</b><i>${n?`${n} sequence${n===1?"":"s"}`:"nothing to hand over"}</i></span></span>${n?`<span class="prm-to"><span class="sub">Hand to</span>${ddHTML("prmto_"+c.id,modal.to[c.id],[{items:cands.map(t=>({value:t.k,label:t.name}))}],{})}</span>`:"<span></span>"}</div>`}).join("");
+ return card(`Remove ${p.first} from the account`,`<p class="ac-lead">Their sign-in ends now. What they own moves to the person you pick, per workspace.</p>
+   <div class="prm-list">${rows||`<div class="prm-row"><span class="sub">Not in any workspace. Nothing to hand over.</span></div>`}</div>
+   <p class="sub" style="margin:12px 0 0">Sequences keep running under their new owner. Undo from the toast.</p>`,
+  `<button class="shd-button shd-button--tertiary" data-mclose>Keep</button><button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`,"ac");
+}
+function prmGo(){
+ const p=personOf(modal.key); if(!p) return;
+ if(p.kind==="client"){const c=p.c, i=c.users.findIndex(x=>x[0]===p.email); if(i<0||c.users.length===1) return; const u=c.users[i]; c.users.splice(i,1); modal=null; renderModal();
+  logAct(c.id,`${p.name} removed from ${c.name}'s people`); view={name:"people"}; PP.tab="clients";
+  receipt("people",`${p.name} removed from ${c.name}. Their sign-in has ended.`,()=>{c.users.splice(i,0,u);render()},`${p.name} removed from ${c.name}`); render(); return}
+ const P=p.P, to=modal.to||{}, moved=[];
+ Object.keys(to).forEach(id=>{const c=byId[id], T=PEOPLE[to[id]]; if(!c||!T) return; (c.sequences||[]).forEach(q=>{if(q.owner===p.name){q.owner=T.name; moved.push([q,p.name])}}); if(moved.some(m=>m[0].client===id)||true) logAct(id,`${p.name} removed; ${(c.sequences||[]).filter(q=>q.owner===T.name&&moved.some(m=>m[0]===q)).length||0} sequence(s) handed to ${T.name}`)});
+ delete PEOPLE[p.k]; modal=null; renderModal(); view={name:"people"};
+ receipt("people",`${p.name} removed from the account. ${moved.length?moved.length+" sequence"+(moved.length===1?"":"s")+" handed over.":"Nothing to hand over."}`,()=>{PEOPLE[p.k]=P; moved.forEach(([q,o])=>q.owner=o); render()},`${p.name} removed from the account`);
+ render();
+}
 /* ── actions ── */
 function ppToast(text,undo,what){receipt("people",text,undo,what||text);setTimeout(()=>{if(modal&&modal.kind==="ppperson")renderModal()},8100)}
 function wirePP(L){
@@ -4304,7 +4452,7 @@ function vPeopleOld(){
    purpose is a property of the person, not the form. Each address becomes a row
    with its own proposal read from its domain; a row the product cannot settle
    asks on the row itself and opens inline. Send waits until every row is settled. */
-const INV_BLANK=()=>({emails:[],draft:"",err:"",rows:{},lock:null,preset:null});
+const INV_BLANK=()=>({emails:[],draft:"",err:"",rows:{},lock:null,preset:null,edit:null});
 function openInvite(o){o=o||{}; INV=INV_BLANK(); INV.lock=o.lock||null;
  const pre=Array.isArray(o.ws)?o.ws:(o.ws?Object.keys(o.ws):null); if(pre&&pre.length)INV.preset={kind:"team",wsList:pre.filter(id=>byId[id])};
  modal={kind:"invite"}; renderModal()}
@@ -4367,6 +4515,10 @@ function inviteHTML(){
     <p class="sub nc-hint" style="margin-top:6px">${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:"Each person sets their own password."}</p></div>
    ${I.emails.length?`<div class="field"><span class="flabel">${lock?"What they can do in "+lock.name:"They will get"}</span><div class="inv-list">${rows}</div></div>`:""}`;
  const n=I.emails.length;
+ /* change 114: Edit from a person's page is this same form for one person */
+ if(I.edit){const p=personOf(I.edit), nm=p?p.name:I.emails[0];
+  return card(`Edit ${nm}&rsquo;s access`,`<div class="field"><div class="inv-list">${rows}</div></div>`,
+   `<span class="sub" style="margin-right:auto">Changes apply on their next request. Undo from the toast.</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Save changes</button>`,"ac inv-b")}
  const title=lock?`Invite ${lock.name}&rsquo;s people`:"Invite people";
  return card(title,body,
   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
@@ -4476,7 +4628,7 @@ function peopleModalOk(kind){
 function wirePeopleModal(L){
  const k=modal&&modal.kind; if(!k||!PEOPLE_MODALS[k]) return;
  const rerender=()=>{L.innerHTML=modalHTML();wirePeopleModal(L);L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;INV=null;renderModal()})};
- if(k==="invite"){const inp=L.querySelector("#invEmail");
+ if(k==="invite"){const inp=L.querySelector("#invEmail")||{value:"",focus(){},oninput:null,onkeydown:null};
   const commit=()=>{const parts=inp.value.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean); let err="", bad=[];
     parts.forEach(x=>{if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
     INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n)n.focus()};
@@ -4497,8 +4649,9 @@ function wirePeopleModal(L){
   L.querySelectorAll("[data-invedcancel]").forEach(b=>b.onclick=()=>{const a=b.dataset.invedcancel, r=row(a); const back=r.snap?JSON.parse(r.snap):r; back.open=false; delete back.snap; INV.rows[a]=back; rerender()});
  L.querySelectorAll("[data-invfocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#invEmail");if(n)n.focus()}});
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
-  const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
+  const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(INV.edit){if(!L.querySelector("[data-invsend]").disabled)personSave();return} if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
   if(!L.querySelector(".inv-ed"))inp.focus();}
+ if(k==="prm"||k==="prmc"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{modal.to[d.id.slice(6)]=v})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=prmGo; L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
  if(k==="pconfirm"){L.querySelector("[data-pconfirmok]").onclick=()=>peopleModalOk("pconfirm")}
@@ -8310,6 +8463,7 @@ function modalHTML(){
  if(modal.kind==="ppperson") return ppPanelHTML();
  if(modal.kind==="pproles") return ppRolesHTML();
  if(modal.kind==="invite") return inviteHTML();
+ if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
  if(modal.kind==="chrole") return chroleHTML();
  if(modal.kind==="assignws") return assignwsHTML();
  if(modal.kind==="pconfirm") return pconfirmHTML();
@@ -8745,7 +8899,7 @@ function render(){
   :inClient?(asClient?vClientSide():vInClient())
   :view.name==="addmember"?vPeople()
   :view.name==="people"?vPeople()
-  :view.name==="person"?vPeople()
+  :view.name==="person"?vPerson()
   :view.name==="queue"?vQueue()
   :view.name==="dash"?vDash()
   :view.name==="record"?vRecord(view.id):view.name==="credits"?vBilling():vClients();
@@ -9312,9 +9466,17 @@ function wire(){
  q("[data-topeopleclients]").forEach(b=>b.onclick=()=>{PEOPLE_TAB="clients";view={name:"people"};render()});
  q("[data-ptab]").forEach(b=>b.onclick=()=>{PEOPLE_TAB=b.dataset.ptab;peopleMenu=null;render()});
  /* People v2 */
- q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select"))return;modal={kind:"ppperson",k:r.dataset.ppopen};PP.addws=false;PP.removeConfirm=false;renderModal()});
+ q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
+ q("[data-ptabp]").forEach(b=>b.onclick=()=>{PERSON_TAB=b.dataset.ptabp;render()});
+ q("[data-pedit]").forEach(b=>b.onclick=()=>personEdit(b.dataset.pedit));
+ q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
+ q("[data-prmc]").forEach(b=>b.onclick=()=>{modal={kind:"prmc",key:b.dataset.prmc};renderModal()});
+ q("[data-openrec]").forEach(b=>b.onclick=()=>{view={name:"record",id:b.dataset.openrec};render()});
+ wireDD(document,"paKind",v=>{PA_KIND=v;render()});
+ wireDD(document,"paWs",v=>{PA_WS=v;render()});
  q("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles"};renderModal()});
  q("[data-ppresend]").forEach(b=>b.onclick=()=>{const k=b.dataset.ppresend;INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now";ppToast("Invite resent.",null);render()});
+ q("[data-pproles]").forEach(b=>{if(!b.onclick)b.onclick=()=>{modal={kind:"pproles"};renderModal()}});
  q("[data-ppcl]").forEach(b=>b.onclick=e=>{e.stopPropagation();PP.menu=PP.menu===b.dataset.ppcl?null:b.dataset.ppcl;render()});
  q("[data-ppclrole]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [key,role]=b.dataset.ppclrole.split("|");const [id,email]=key.slice(2).split("|");const c=byId[id];const u=c.users.find(x=>x[0]===email);const was=u[1];u[1]=role;PP.menu=null;ppToast(`${ppName(email)} is now ${ppShort(role)} in ${c.name}.`,()=>{u[1]=was;render()});render()});
  q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
@@ -9565,7 +9727,7 @@ if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={nam
  /* People, a person (agency key, or a client user's "c:<clientId>|<email>"),
     and a cold Add a person: defect D4, none of the three worked from a hash. */
  if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
- if(k==="person"&&v){view={name:"people"};if(PEOPLE[v])setTimeout(()=>{modal={kind:"ppperson",k:v};renderModal()},60)}
+ if(k==="person"&&v){const key=v.indexOf("t:")===0||v.indexOf("w:")===0?v:"t:"+v; view=personOf(key)?{name:"person",id:key}:{name:"people"}; PERSON_TAB="access"}
  if(k==="addmember"){view={name:"people"};setTimeout(()=>openInvite({}),60)}
  if(k==="client"&&byId[v]) view={name:"record",id:v};
  /* the client's own side, and the create modal, are otherwise several clicks
@@ -10300,6 +10462,13 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .inv-ms{min-height:32px;border:1px solid #d1d5db;border-radius:4px;background:#fff;padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;box-sizing:border-box}
 .inv-ms .dd{width:auto;flex:1 1 140px;min-width:140px}.inv-ms .dd-trig{height:22px;border:0!important;box-shadow:none!important;padding:0 6px;font-size:13px;color:#1d4ed8;background:transparent}.inv-ms .dd-trig .dd-val.is-ph{color:#1d4ed8}
 .inv-ed-f{display:flex;justify-content:flex-end;gap:8px}
+/* change 114: the person page */
+.inv-ro .inv-person{border:1px solid var(--gray-16);border-radius:6px;overflow:hidden}.inv-ro .inv-ed{pointer-events:none}.inv-ro .inv-card{cursor:default}.inv-ro .inv-ms .dd{display:none}
+.pa-row{display:grid;grid-template-columns:minmax(0,1fr) 220px 160px;gap:16px;align-items:center;padding:12px 0;border-top:1px solid var(--gray-16);font-size:14px;color:var(--gray-17)}.pa-row:first-child{border-top:0}
+.pa-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-15)}.pa-ts{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pa-danger{color:var(--red-12)!important;border-color:var(--gray-23)!important}
+.prm-list{border:1px solid var(--gray-16);border-radius:4px}.prm-row{display:grid;grid-template-columns:1fr 230px;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--gray-16)}.prm-row:first-child{border-top:0}
+.prm-ws{display:flex;align-items:center;gap:8px;font-size:14px}.prm-ws b{font-weight:500;color:var(--gray-17)}.prm-ws i{display:block;font-style:normal;font-size:12px;color:var(--gray-15)}.prm-to{display:flex;align-items:center;gap:8px}.prm-to .dd{flex:1}
 
 .modal.inv-b{max-height:calc(100vh - 40px);display:flex;flex-direction:column}.modal.inv-b .modal-b{overflow:auto;flex:1 1 auto;min-height:0}.modal.inv-b .modal-h,.modal.inv-b .modal-f{flex:none}
 
@@ -10696,7 +10865,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="add6f11";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="66ee79f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
