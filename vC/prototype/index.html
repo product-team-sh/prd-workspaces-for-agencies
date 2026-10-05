@@ -3902,25 +3902,35 @@ function rLimits(c){
  const reqBar=(()=>{if(!rq||ro) return ""; const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
   return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`})();
  const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
- const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace is this cycle so far, projected to ${CYC_END()}</span></div>`;
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), st=rowState(k,c.id,m), p=Math.min(100,Math.round(st.pct*100)), pc=paceOf(k,c.id);
-  const usedCol=st.tone==="bad"?"var(--red-18)":st.tone==="warn"?"var(--orange-12)":"var(--gray-17)";
-  const paceLine=pc?`<span class="sub lm-pace">${pc.atLimit?`<b class="is-bad">at the limit</b>`:`on pace for ${f(pc.proj)} this cycle &middot; <b class="${pc.soon?"is-bad":pc.hits?"is-warn":""}">${pc.hits?(k==="sends"?"hits the limit around ":"runs out around ")+pc.when:"lasts the cycle"}</b>`}</span>`:`<span class="sub lm-pace">&nbsp;</span>`;
-  const kind=k==="sends"?"Monthly limit":"Reserved for "+first;
-  const asked=rq&&rq.res===k?rq.amount:null, st10=R.step*10, st100=R.step*100;
-  const chips=canEdit?`<span class="lm-chips">${[st10,asked||st100].map(x=>`<button class="lm-chip" data-rlgive="${k}|${x}">+${f(x)}${x===asked?" asked":""}</button>`).join("")}</span>`:"";
+ const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace projected to ${CYC_END()}</span></div>`;
+ /* 5 Oct 2026 (change 112, canvas row 19 D): two facts per row, the number and
+    whether it holds. The limit sits beside the name with what the plan has
+    available under it; one wide bar carries used (solid), this cycle's pace
+    (grey tint), the limit (a tick) and what spills past the tick (amber). One
+    status line, amber for "runs out", red only when the limit is reached now.
+    Set to N raises the limit to the pace in one click, capped by the plan. The
+    give-more chips are gone; − and + stay on hover. */
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), st=rowState(k,c.id,m), pc=paceOf(k,c.id);
+  const atNow=st.room===0, proj=pc?pc.proj:r.used, scale=Math.max(r.cap,proj,1)*1.08;
+  const wUsed=Math.min(100,r.used/scale*100), wCap=r.cap/scale*100, wPace=Math.min(100,proj/scale*100);
+  const fill=atNow?"var(--red-18)":"var(--blue-11)";
+  const verb=k==="sends"?"Hits the limit around ":"Runs out around ";
+  const target=pc&&pc.hits&&!atNow?Math.min(proj,r.cap+m.free):0;
+  const setTo=canEdit&&target>r.cap?` &middot; <button class="linkbtn lm-set" data-rlset="${k}|${target}">Set to ${f(target)}</button>`:"";
+  const status=!pc?"":atNow?`<b class="is-bad">At the limit</b>${setTo}`:pc.hits?`<span class="is-warn">${verb}${pc.when} at this pace</span>${setTo}`:`<span>Lasts the cycle</span>`;
   const ctl=`<span class="lm-ctl">${canEdit?`<button class="lm-step" data-rlstep="${k}|-1" aria-label="${f(R.step)} less">&minus;</button>`:""}${numIn(r.cap,R.unit,`data-lim="${k}" data-fld="cap" aria-label="${R.label} limit"${dis}`)}${canEdit?`<button class="lm-step" data-rlstep="${k}|1" aria-label="${f(R.step)} more">+</button>`:""}</span>`;
   return `<div class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
-   <span class="lm-name"><b>${R.label}</b><span class="sub">${kind} &middot; ${f(m.free)} available in the plan</span></span>
-   <span class="lm-use"><span class="sub"><b class="tnum" style="color:${usedCol}">${f(r.used)}</b> used of ${f(r.cap)}</span><span class="lm-bar"><span style="width:${p}%;background:${barCol(st.tone)}"></span></span>${paceLine}</span>
-   <span class="lm-right">${chips}${ctl}</span></div>`}).join("");
+   <span class="lm-name"><b>${R.label}</b></span>
+   <span class="lm-in">${ctl}<span class="sub lm-avail">${f(m.free)} available in the plan</span></span>
+   <span class="lm-use"><span class="lm-bar2"><span class="lm-b-cap" style="width:${wCap.toFixed(1)}%"></span><span class="lm-b-over" style="left:${wCap.toFixed(1)}%;width:${Math.max(0,wPace-wCap).toFixed(1)}%"></span><span class="lm-b-used" style="width:${wUsed.toFixed(1)}%;background:${fill}"></span><span class="lm-b-tick" style="left:${wCap.toFixed(1)}%"></span></span>
+   <span class="lm-line"><span class="sub"><b class="tnum" style="color:${atNow?"var(--red-18)":"var(--gray-17)"}">${f(r.used)}</b> used${pc?` &middot; on pace for ${f(proj)} this cycle`:""}</span><span class="sub lm-pace">${status}</span></span></span></div>`}).join("");
  return `
  ${reqBar}<div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
-   <span class="sub">${ro?"Read only while the workspace is "+(c.deletedOn?"deleted":"disabled")+".":"Each number saves as you leave it. Undo from the toast."}</span>
+   ${ro?`<span class="sub">Read only while the workspace is ${c.deletedOn?"deleted":"disabled"}.</span>`:""}
    <span class="c-a"><button class="linkbtn" data-goalloc="${FOCUS_LIM||'sends'}">All workspaces &rarr;</button></span></div>
   ${shareLine}
   <div class="lm-rows" id="rcLimTable">${rows}</div>
-  <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p></div>
+  <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p>${ro?"":`<span class="sub lm-saves">Numbers save as you leave them. Undo from the toast.</span>`}</div>
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
 }
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
@@ -9241,6 +9251,7 @@ function wire(){
    setLimit(k,view.id,num(i.value)); render()});
  q("[data-rlstep]").forEach(b=>b.onclick=()=>{const [k,d]=b.dataset.rlstep.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+RES[k].step*(+d)); render()});
  q("[data-rlgive]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlgive.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+(+n)); render()});
+ q("[data-rlset]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlset.split("|"); setLimit(k,view.id,+n,"set to this cycle's pace"); render()});
  q("[data-share]").forEach(b=>b.onclick=()=>{modal={kind:"share",client:b.dataset.share,share:null};renderModal()});
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
  q("[data-dapply]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.dapply.split("|");
@@ -10196,11 +10207,20 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .lm-share{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;border-bottom:1px solid var(--gray-16);background:var(--gray-19);font-size:13px;color:var(--gray-15)}
 .lm-share b{font-weight:600;color:var(--gray-17)}.lm-share .linkbtn{font-size:13px;margin-left:4px}
 .lm-rows{padding:0 24px}
-.lm-row{display:grid;grid-template-columns:minmax(0,1fr) 320px 470px;align-items:center;gap:16px;padding:10px 0;border-top:1px solid var(--gray-16);margin:0 -24px;padding-left:24px;padding-right:24px;transition:background .12s}
+.lm-row{display:grid;grid-template-columns:300px 230px minmax(0,1fr);align-items:center;gap:24px;padding:16px 0;border-top:1px solid var(--gray-16);margin:0 -24px;padding-left:24px;padding-right:24px;transition:background .12s}
 .lm-row:first-child{border-top:0}
 .lm-row:hover,.lm-row:focus-within,.lm-row.is-focus{background:var(--gray-19)}
-.lm-name{display:flex;flex-direction:column;gap:2px}.lm-name b{font-size:13px;font-weight:500;color:var(--gray-17)}
-.lm-use{display:flex;flex-direction:column;gap:5px}
+.lm-name{display:flex;flex-direction:column;gap:2px}.lm-name b{font-size:14px;font-weight:500;color:var(--gray-17)}
+.lm-in{display:flex;flex-direction:column;gap:4px;align-items:flex-start}.lm-avail{font-size:12px}
+.lm-use{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lm-bar2{position:relative;display:block;height:8px;background:var(--gray-16);border-radius:4px}
+.lm-bar2>span{position:absolute;top:0;height:8px;border-radius:4px}
+.lm-b-cap{left:0;background:var(--gray-23);opacity:.6}.lm-b-over{background:var(--orange-14);opacity:.35;border-radius:0 4px 4px 0}
+.lm-b-tick{top:-4px!important;height:16px!important;width:2px;border-radius:0!important;background:var(--gray-17)}
+.lm-line{display:flex;justify-content:space-between;gap:16px;font-size:12px;white-space:nowrap}.lm-line .sub{font-size:12px}
+.lm-pace .is-warn{color:var(--orange-12)}.lm-pace .is-bad{color:var(--red-18);font-weight:500}
+.lm-set{font-size:12px;font-weight:500}
+.rc-limsay{display:flex;justify-content:space-between;align-items:center;gap:16px}.rc-limsay .nc-limsay{margin:0}.lm-saves{font-size:12px;white-space:nowrap}
 .lm-bar{display:block;width:200px;height:4px;background:var(--gray-16);border-radius:2px;overflow:hidden}.lm-bar>span{display:block;height:4px}
 .lm-pace b{font-weight:500}.lm-pace b.is-bad{color:var(--red-18)}.lm-pace b.is-warn{color:var(--orange-12)}
 .lm-right{display:flex;align-items:center;justify-content:flex-end;gap:12px}
@@ -10672,7 +10692,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b00ca61";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="0fa5a25";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
