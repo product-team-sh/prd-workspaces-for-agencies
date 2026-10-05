@@ -2887,33 +2887,51 @@ const inModLabel=()=>(inMod==="usage"?"Usage":IN_LBL[inMod])||(AGY_MOD[inMod]?AG
 /* the client's Usage screen from the agency's side: the same rows, named as
    what you allocated, with the way to change them one click away */
 function agencyUsage(c){
- const rows=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id];if(!r)return "";
-   const st=rowState(k,c.id,m),pc=Math.min(100,Math.round(st.pct*100));
-   return `<tr><td><span style="font-weight:500">${R.label}</span><span class="cs" style="display:block">${r.res?f(r.res)+" reserved for them":"Shared pool"}</span></td>
-    <td class="ar tnum">${f(r.used)}</td><td class="ar tnum">${f(r.cap)}</td><td>${meter(pc,st.tone,st.state)}</td><td class="ar tnum">${f(st.draw)}</td></tr>`}).join("");
- const pend=REQUESTS.filter(q=>q.client===c.id);
- /* item 18/47, 28 Sep 2026: this screen used to only ever describe a client
-    ("what you allocated to them"), because ctx==="own" never reached it.
-    Reads as what it now also is: the agency's own workspace, on US10's "same
-    pool, under its own cap". "Change limits" goes to the allocation tab
-    (fundedWorkspaces() already includes OWN_WS there) rather than a client
-    record, which the own workspace is not and has no Disable/Delete on. */
- return `<div class="panel">
-  <div class="panel-h"><span class="panel-t">${c.own?"Your own allowance":"What you allocated to "+c.name}</span>
-   <span class="sub">${CYCLE.month} &middot; ${c.own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
-   <span class="c-a">${c.own
-     ?`<button class="linkbtn" data-goalloc="sends">Change limits &rarr;</button>`
-     :`<button class="linkbtn" data-golimits="${c.id}">Change limits &rarr;</button>`}</span></div>
-  ${/* fix 25 Sep review #11: the Work queue is Coming soon, so these two
-        sentences now point at Home's own "Needs a decision" card, the same
-        place the Home dashboard's equivalent copy was already repointed to
-        (see the "used to hand off to the Work queue" comment above
-        arrivalLine). */""}
-  ${pend.length?`<div class="panel-b" style="border-bottom:1px solid var(--gray-13)"><div class="msg m-info">${infoI}<span><strong>${c.name} asked for more:</strong> ${pend.map(q=>"+"+f(q.amount)+" "+RES[q.res].unit+" of "+RES[q.res].label+", "+AGE(q.when)).join("; ")}. Decide it from Home, under Needs a decision.</span></div></div>`:""}
-  <div class="tscroll"><table class="organism" style="min-width:760px">
-   <thead><tr><th>Allowance</th><th class="ar">Used</th><th class="ar">Limit</th><th>Usage</th><th class="ar">Available</th></tr></thead>
-   <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${c.own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same numbers on its own Usage screen. A request from them lands on your Home, under Needs a decision."}</p></div>`;
+ /* change 118, 5 Oct 2026: the agency opening a workspace's Usage module saw the
+    pre-117 allocation table while the client saw the status page. Same rows, same
+    status line, in the agency's words: "what you allocated", "raise it", and the
+    ask pointing at the Limits tab where it is decided. The own workspace reads in
+    the first person and its action goes to Billing's allocation. */
+ const own=!!c.own, first=c.name.split(" ")[0], daysLeft=CYCLE.days-CYCLE.day;
+ const goBtn=(t,cls)=>own?`<button class="${cls}" data-goalloc="sends">${t}</button>`:`<button class="${cls}" data-golimits="${c.id}">${t}</button>`;
+ const ask=own?null:askOf(c.id), answered=own?[]:ANSWERS.filter(a=>a.client===c.id);
+ let worst=null;
+ const info=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id]; if(!r) return null;
+  const st=rowState(k,c.id,m),pc=paceOf(k,c.id);
+  const tone=st.room===0?"paused":(st.pct>=R.warn||(pc&&pc.hits))?"close":"fine";
+  if(tone!=="fine"&&(!worst||st.pct>worst.pct)) worst={k,pct:st.pct,tone,pc};
+  return {k,R,r,st,pc,tone}}).filter(Boolean);
+ const pendFor=k=>own?null:REQUESTS.find(x=>x.client===c.id&&x.res===k);
+ const ansFor=k=>answered.filter(a=>a.res===k).slice(-1)[0];
+ const rows=info.map(({k,R,r,st,pc,tone})=>{
+  const pend=pendFor(k), ans=ansFor(k);
+  const word=tone==="paused"?(own?"Paused until you raise it":`Paused until you raise it`):tone==="close"?(own?"Close to your limit":"Close to its limit"):"Fine";
+  const pace=pc&&pc.hits&&tone==="close"?` &middot; runs out around ${pc.when} at this pace`:"";
+  const sub=R.kind==="balance"?"Topped up by you":"Renews 1 Oct";
+  const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
+  const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
+  const fill=pend?(cap/(cap+pend.amount))*pct:pct;
+  const line=pend?`<span class="cu-ans sub">${first} asked for ${f(pend.amount)} more</span>`
+   :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>You raised this to ${f(ans.to||cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
+   :ans?`<span class="cu-ans is-no"><span><i></i>You declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
+  const act=pend?goBtn("Decide &rarr;","linkbtn"):goBtn(tone==="fine"?"Change limit":"Raise it","linkbtn quiet");
+  return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
+   <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
+    <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
+   <span class="cu-act">${act}</span></div>`}).join("");
+ let top;
+ if(ask) top=`<div class="cu-status is-pend"><span><i></i><b>${first} asked for ${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""} ${goBtn("Decide on the Limits tab &rarr;","linkbtn")}</span></div>`;
+ else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
+  top=worst.tone==="paused"
+   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`
+   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`}
+ else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
+ return `${top}<div class="panel">
+  <div class="panel-h"><span class="panel-t">${own?"Your own allowance":"What you allocated to "+c.name}</span>
+   <span class="sub">${CYCLE.month} &middot; ${own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
+   <span class="c-a">${goBtn("Change limits &rarr;","linkbtn")}</span></div>
+  <div class="panel-b cu-rows">${rows}</div>
+  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them lands on your Home, under Needs a decision, and on this workspace's Limits tab."}</span></div></div>`;
 }
 /* the workspace-switcher trigger's own markup, captured once so renderShell
    can remove it from the DOM for a client-role session and re-insert the
@@ -10938,7 +10956,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="48c3204";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="58e3f39";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
