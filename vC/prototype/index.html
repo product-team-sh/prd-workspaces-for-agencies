@@ -2307,7 +2307,7 @@ CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c);
 const RES={
  sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:500000,floors:false,warn:.8,
   rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},at:{res:0,cap:200000,used:54000},sf:{res:0,cap:30000,used:30000},ok:{res:0,cap:10000,used:0},pc:{res:0,cap:12000,used:5200},own:{res:0,cap:8000,used:5585}}},
- lead_finder:{label:"Lead Finder credits / month",short:"Lead Finder credits",nature:"Renews monthly",kind:"monthly",unit:"credits",pool:15000,floors:true,warn:.8,
+ lead_finder:{label:"Lead Finder credits",short:"Lead Finder credits",nature:"Granted for the plan term on day one",kind:"balance",unit:"credits",pool:15000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3500,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},at:{res:0,cap:4700,used:1840},sf:{res:0,cap:800,used:610},ok:{res:0,cap:300,used:0},pc:{res:0,cap:600,used:355},own:{res:0,cap:240,used:227}}},
  verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:10000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:1000,used:240},vx:{res:0,cap:1400,used:896},al:{res:0,cap:800,used:398},bl:{res:0,cap:400,used:124},cp:{res:0,cap:200,used:0},at:{res:0,cap:2500,used:1120},sf:{res:0,cap:600,used:410},ok:{res:0,cap:200,used:0},pc:{res:0,cap:500,used:140},own:{res:0,cap:300,used:128}}},
@@ -7636,10 +7636,11 @@ function drawerHTML(){
    is the largest share whose reservations still fit what is available today. */
 const NC_SHARE_DEFAULT=10;
 const ncStep=k=>{const p=RES[k].pool;return p>=100000?500:p>=5000?50:p>=1000?10:5};
-function ncShareMax(){let mx=100;RK.forEach(k=>{const m=compute(k);mx=Math.min(mx,Math.floor(m.free/RES[k].pool*100))});return Math.max(1,mx)}
+/* change 126: the slider runs to 100%; a resource that cannot cover the share is capped at what is available today */
+function ncShareMax(){return 100}
 function ncTightest(){let b=null;RK.forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
 function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share==null?NC_SHARE_DEFAULT:nc.share))}
-function ncDerived(k){const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)}
+function ncDerived(k){const st=ncStep(k),free=compute(k).free;const raw=Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st);return Math.min(raw,Math.floor(free/st)*st)}
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
 const ncDefaultCap=ncDerived;
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
@@ -7650,9 +7651,9 @@ function ncUsageHTML(){
  return `<div class="nc-usage" id="ncUsage">
   <div class="nc-urow"><label class="flabel" for="ncShare" style="margin:0">How much of your plan ${who} can use each cycle</label><span class="nc-upct" id="ncPct">${custom?"Custom":share+"%"}</span></div>
   <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%" aria-label="Share of your plan">
-  <div class="nc-ucap"><span>1%</span><span>Up to ${mx}% today. ${ncTightest()} run out first.</span></div>
-  <div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits a month")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
-  <div class="nc-uline"><span class="sub">Emails are a monthly limit. Credits are reserved for ${who} from your balance.</span><button type="button" class="linkbtn" id="ncEdit">${nc.open?"Hide":"Edit each resource"}</button></div>
+  <div class="nc-ucap"><span>1%</span><span>100% is everything still available.</span></div>
+  <div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
+  <div class="nc-uline"><span class="sub">Emails are a monthly limit. Credits come with the plan and are reserved for ${who} from your balance.</span><button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">${nc.open?"Hide the numbers":"Set exact numbers"}</button></div>
   ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it.</span><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button></div>${RK.map(row).join("")}</div>`:""}
   ${nc.err?`<p class="nc-limsay is-err" id="ncUerr"><span>${nc.err}</span></p>`:""}
  </div>`;
@@ -7716,7 +7717,7 @@ function renderDrawer(){
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
- {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="How much of your plan "+who+" can use each cycle";const ln=document.querySelector(".nc-uline .sub");if(ln)ln.textContent="Emails are a monthly limit. Credits are reserved for "+who+" from your balance."}}
+ {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="How much of your plan "+who+" can use each cycle";const ln=document.querySelector(".nc-uline .sub");if(ln)ln.textContent="Emails are a monthly limit. Credits come with the plan and are reserved for "+who+" from your balance."}}
  /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
     then paintPrev() rebinds it on every repaint after */
  L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
@@ -8645,7 +8646,7 @@ function modalHTML(){
    <div class="nc-usage" id="shUsage">
     <div class="nc-urow"><label class="flabel" for="shShare" style="margin:0">How much of your plan ${sc.name.split(" ")[0]} can use each cycle</label><span class="nc-upct" id="shPct">${sh}%</span></div>
     <input type="range" id="shShare" min="${mn}" max="${mx}" step="1" value="${sh}" style="--p:${mx>mn?Math.round((sh-mn)/(mx-mn)*100):100}%" aria-label="Share of your plan">
-    <div class="nc-ucap"><span>At least ${mn}% today: nothing goes below what is already used.</span><span>Up to ${mx}% today. ${tight} runs out first.</span></div>
+    <div class="nc-ucap"><span>At least ${mn}% today: nothing goes below what is already used.</span><span>100% gives it everything still available.</span></div>
     <!-- change 115, 5 Oct 2026, Hitesh: the per-resource tiles were the Add a workspace
          preview copied in (and covered four of six resources). The rows behind this
          window are the numbers; the share is the only thing this window sets. -->
@@ -10558,7 +10559,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 #ncShare:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px #dbeafe}
 .nc-ucap{display:flex;justify-content:space-between;font-size:11px;line-height:16px;color:#6b7280}
 .nc-share-tiles{display:flex;gap:8px;margin-top:4px}.nc-share-tile{flex:1 1 0;min-width:0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:4px}.nc-share-tile b{display:block;font-size:16px;line-height:22px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}.nc-share-tile span{display:block;font-size:11px;line-height:16px;color:#6b7280}
-.nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
+.nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-uline #ncEdit{flex:none;white-space:nowrap;margin-left:16px}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
 .nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
 .nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
 .nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
@@ -11150,7 +11151,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9c3c471";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="77def47";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
