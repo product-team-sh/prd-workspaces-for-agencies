@@ -3193,7 +3193,8 @@ function renderPop(q=""){
  el("popL").innerHTML=(t?"":`<div class="pop-acct">${row("agency",`<span class="pop-ico">${gridI}</span>`,AGENCY.name,{text:"Account"},ctx==="agency")}</div>`)
   +`<div class="pop-h">Your workspaces</div>`
   +(ownMatch?row("own",av(AGENCY.initials,AGENCY.colour),AGENCY.name,{text:"Yours"},ctx==="own"):"")
-  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,attention(c),ctx===c.id)).join("")
+  /* change 132 (Hitesh): no attention tags in the switcher; it lists places, Home carries the state */
+  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,null,ctx===c.id)).join("")
    :ownMatch?"":`<p class="sub" style="padding:8px">No workspaces found</p>`);
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
@@ -8929,7 +8930,7 @@ function renderModal(){
    }
    if(modal.kind==="rollback"){modal=null;renderModal();render();return}
    if(modal.kind==="share"){const sc=byId[id], sl=L.querySelector("#shShare"), sh=sl?+sl.value:NC_SHARE_DEFAULT, prev=[];
-     RK.forEach(k=>{const R=RES[k], r=R.rows[id]; if(!r||r.custom) return; const st=R.step, v=Math.max(r.used,Math.max(st,Math.floor(R.pool*sh/100/st)*st)); if(v!==r.cap){prev.push([k,r.cap]); r.cap=v; syncRes(k,r)}});
+     RK.forEach(k=>{const R=RES[k], r=R.rows[id]; if(!r||r.custom) return; const st=R.step, left=R.pool-(allocOf(k)-r.cap), v=Math.max(r.used,Math.min(Math.floor(left/st)*st,Math.max(st,Math.floor(R.pool*sh/100/st)*st))); if(v!==r.cap){prev.push([k,r.cap]); r.cap=v; syncRes(k,r)}});
      sc.share=sh; SHARE0[id]=sh; RC_REFUSED=null;
      receipt("client:"+id,`${sc.name} now has ${sh}% of your plan; ${prev.length} limit${prev.length===1?"":"s"} changed.`,()=>{prev.forEach(([k,v])=>{RES[k].rows[id].cap=v;syncRes(k,RES[k].rows[id])});render()},`changed ${sc.name}'s share`);
      logAct(id,`Share of the plan set to ${sh}%`);
@@ -11184,7 +11185,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5f41630";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="81f636a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
