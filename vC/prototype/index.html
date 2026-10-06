@@ -1694,7 +1694,7 @@ const isNormal=()=>!hasAgency()&&!asClient&&!solo;
    pinned against the rail, which taught nothing and landed badly at every
    width. The explanation belongs in the moment the thing changes, not in a
    tooltip after it has already changed.                                      */
-let xform=null, xformDone=false, xformPending=false, xformLand=null, GUIDE=null, UB_TAB="allow";
+let xform=null, xformDone=false, xformPending=false, xformLand=null, UB_TAB="allow";
 const REDUCED=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 const XS_WORK=2200;              /* stands in for convert + fetch */
 const XS_BEATS=[900,1100,1100];  /* beat 4 holds until the work is done */
@@ -1733,7 +1733,9 @@ function endXform(){
     opens with it: the guide is the act itself, not a tour of where the button
     is.                                                                     */
  xform=null;renderXform();
- if(xformLand){const c=xformLand;xformLand=null;GUIDE=c;ctx="agency";asClient=false;view=homeView();render();return}
+ /* change 148: the one-time guide card is gone. The sequence lands on Home as
+    before and the learn-by-doing tour starts there, on the row it just made. */
+ if(xformLand){const c=xformLand;xformLand=null;ctx="agency";asClient=false;view=homeView();tourStart(c.id);return}
  ctx="agency";asClient=false;view={name:"clients"};render();
  /* opened synchronously rather than on a timer. The drawer has its own entrance
     transition, so the staggered feel costs nothing, and sequencing UI on a
@@ -2705,6 +2707,7 @@ function setLimit(k,id,v,why){
  const tot=allocOf(k)-was+v;
  if(tot>R.pool){RC_REFUSED={id,k,text:`Not saved. Limits for ${R.label.toLowerCase()} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. Reduce by ${f(tot-R.pool)}, lower another workspace, or add capacity.`}; return false}
  RC_REFUSED=null; r.cap=v; r.custom=true; syncRes(k,r);
+ if(TOUR&&TOUR.step===3&&TOUR.ws===id) TOUR.limitDone=true;   /* change 148 */
  const stops=v<r.used, pc=paceOf(k,id);
  receipt("client:"+id,`${c.name}'s ${R.label.toLowerCase()} limit is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":pc&&pc.hits&&v>was?" At this pace it lasts until "+pc.when+".":""} ${f(compute(k).free)} ${R.unit} stay available in the plan.`,
    ()=>{r.cap=was;syncRes(k,r);render()},`changed ${c.name}'s ${R.label.toLowerCase()} limit`);
@@ -2972,7 +2975,8 @@ function renderRail(){
      support only. */
   +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||view.name==="apiint"))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
-  +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
+  /* change 148: the ? item opens a one-item Help popover carrying Replay the tour */
+  +`<button class="nav-item" id="helpBtn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav;
@@ -5422,19 +5426,8 @@ function arrivalLine(mine,items){
  if(repClause) return repClause+".";
  return "";
 }
-function homeGuideHTML(){
- if(!GUIDE) return "";
- const c=GUIDE;
- return `<div class="panel home-guide"><div class="panel-b">
-  <div class="hg-h"><span class="semibold-3">You now run ${AGENCY.name} from here</span><button class="linkbtn" data-guideok>Got it</button></div>
-  <div class="hg-grid">
-   <div><b>Home</b><span class="sub">Every workspace at a glance, and what needs a decision.</span></div>
-   <div><b>Workspaces</b><span class="sub">Open ${c.name.replace(/\.$/,"")}, set its limits, invite its people.</span></div>
-   <div><b>The switcher</b><span class="sub">At the foot of the rail. Move between the account, your own workspace and ${c.name}${/\.$/.test(c.name)?"":"."}</span></div>
-  </div>
-  <div class="hg-f"><button class="shd-button shd-button--primary" data-enter="${c.id}">Open ${c.name}</button><span class="sub">Your own sequences, prospects and email accounts are unchanged, in your own workspace.</span></div>
- </div></div>`;
-}
+/* change 148: homeGuideHTML (the one-time Home guide card) deleted; the
+   guided tour (TOUR, below render) replaced it. */
 function vDash(){
  if(!canI("dashboard")) return denied("see the account dashboard");
  /* Superseded 17 Sep 2026. Home used to exist for a normal user, so every region
@@ -5543,7 +5536,7 @@ function vDash(){
    const setupHtml=rcSetup(c,S,done)
      .replace('class="rc-setup"','class="rc-setup" style="margin:0;flex:1;min-width:0"')
      .replace(/data-tab="/g,'data-hometab="'+c.id+'" data-tab="');
-   return '<tr class="crow"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
+   return '<tr class="crow" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
      +'<td colspan="7">'+setupHtml+'</td>'
@@ -5696,7 +5689,7 @@ function heroCards(mine,tch,rep,items){
  const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
- return homeGuideHTML()+`<div class="hero">
+ return `<div class="hero">
   ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" this month"),
     `<span class="hero-v">${f(mine.length)}</span>`,
     `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
@@ -9203,10 +9196,171 @@ function render(){
  wire();renderThread();
  renderXform();
 }
-const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); renderToast()};
+const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); renderToast(); tourCheck(); tourDraw()};
+/* ═══ change 148: the learn-by-doing tour ═══
+   Replaces the one-time Home guide card. Five steps, each spotlighting the
+   control the step is about and advancing only when the user does the thing
+   (opens the row, clicks Invite, changes a limit, opens the workspace, opens
+   the switcher). Nothing is blocked: the dim layer never takes pointer events,
+   so the app stays fully usable and the user can wander off; the card then
+   says where to go back to. In-session only, no storage.                    */
+let TOUR=null, TOUR_LAST=null, TOUR_KEY="", TOUR_TICK=null, helpOpen=false;
+const TOUR_N=5;
+const tourWs=()=>TOUR&&byId[TOUR.ws]||null;
+const tourNm=c=>c.name.replace(/\.$/,"");
+const tourOnRec=c=>ctx==="agency"&&!asClient&&view.name==="record"&&view.id===c.id;
+const tourGoRec=(c,t)=>{ORIGIN=null;ctx="agency";asClient=false;view={name:"record",id:c.id};tab=t||"overview";render()};
+/* each step: where the target lives (for the "go back" line), how to get
+   there, the target element (null when off screen), the copy, the optional
+   secondary button, and the condition that completes it. `sub` is the tab
+   sub-state: the tab button is the target until that tab is active. */
+const TOUR_STEPS={
+ 1:{where:c=>"Home",go:c=>{ctx="agency";asClient=false;view=homeView();render()},
+    target:c=>ctx==="agency"&&!asClient&&view.name==="dash"?document.querySelector(`.home-tbl tr[data-crow="${c.id}"]`):null,
+    head:c=>"Every workspace, at a glance.",body:c=>"",act:c=>`Open ${tourNm(c)}.`,
+    done:c=>tourOnRec(c)},
+ 2:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"overview"),
+    target:c=>!tourOnRec(c)?null:tab==="overview"?document.querySelector(`.rc-card [data-invite="${c.id}"]`):document.querySelector('.tabbar [data-tab="overview"]'),
+    sub:c=>tourOnRec(c)&&tab!=="overview"?"Open the Overview tab.":"",
+    head:c=>`Invite ${tourNm(c)}'s people.`,body:c=>"They see only this workspace. You can do this later.",act:c=>"Click Invite.",
+    sec:"Later",done:c=>!!(modal&&modal.kind==="invite")||!!(TOUR&&TOUR.secDone)},
+ 3:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"limits"),
+    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector('.lm-row[data-rl="sends"]')||document.querySelector(".lm-row")):document.querySelector('.tabbar [data-tab="limits"]'),
+    sub:c=>tourOnRec(c)&&tab!=="limits"?"Open the Limits tab.":"",
+    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Change any number here; ${tourNm(c)} asks for more from its side.`,act:c=>"Change the Emails limit.",
+    sec:"Got it",done:c=>!!(TOUR&&(TOUR.limitDone||TOUR.secDone))},
+ 4:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c),
+    target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
+    head:c=>`Everything ${tourNm(c)} runs lives inside.`,body:c=>"",act:c=>"Open it.",
+    done:c=>ctx===c.id},
+ 5:{where:c=>tourNm(c),go:c=>{ctx=c.id;asClient=false;cView="sequences";inMod="sequences";openProspect=null;openSeq=null;openReply=null;render()},
+    target:c=>(asClient||solo)?null:el("wsBtn"),
+    head:c=>`Move between the account, your own workspace and ${tourNm(c)} here.`,body:c=>"",act:c=>"Try it.",
+    done:c=>popOpen&&el("pop")&&!el("pop").hidden}
+};
+function tourLayer(){let L=el("tourLayer"); if(!L){L=document.createElement("div");L.id="tourLayer";const M=el("modalLayer");if(M)M.insertAdjacentElement("beforebegin",L);else document.body.appendChild(L)} return L}
+function tourStart(id){
+ if(!byId[id]) return;
+ TOUR_LAST=id; TOUR={step:1,ws:id,pending:false,secDone:false,limitDone:false}; TOUR_KEY="";
+ helpOpen=false; renderHelpPop();
+ ctx="agency";asClient=false;view=homeView();tab="overview";
+ clearInterval(TOUR_TICK); TOUR_TICK=setInterval(()=>{if(!TOUR){clearInterval(TOUR_TICK);return} tourCheck();tourDraw()},300);
+ render();
+}
+function tourEnd(toast){
+ TOUR=null; TOUR_KEY=""; clearInterval(TOUR_TICK); const L=el("tourLayer"); if(L){L.innerHTML="";L.hidden=true}
+ if(toast) tourToast("You can replay the tour from Help.");
+}
+/* the design system's toast via renderToast, but without receipt()'s DECIDED
+   entry: skipping a tour is not a decision Home should list. */
+function tourToast(text){clearTimeout(receiptTimer);RECEIPT={scope:"tour",text,short:text,variant:"info"};receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast()},8000);renderToast()}
+function tourAdvance(){
+ if(!TOUR||TOUR.pending) return; TOUR.pending=true;
+ setTimeout(()=>{if(!TOUR) return; TOUR.step++; TOUR.pending=false; TOUR.secDone=false; TOUR_KEY=""; tourDraw()},300);
+}
+function tourCheck(){
+ if(!TOUR||TOUR.pending) return; const c=tourWs(); if(!c){tourEnd(false);return}
+ const S=TOUR_STEPS[TOUR.step]; if(S&&S.done(c)) tourAdvance();
+}
+const tourVisible=r=>r&&r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<window.innerHeight&&r.left<window.innerWidth;
+function tourDraw(){
+ const L=tourLayer(); if(!TOUR){L.innerHTML="";L.hidden=true;TOUR_KEY="";return}
+ const c=tourWs(); if(!c){tourEnd(false);return}
+ /* a modal, the add-workspace dialog or the conversion sequence owns the
+    screen; the tour waits under it rather than drawing over it. The page
+    skeleton (200ms) is skipped too, or the card would flash "go back". */
+ const hidden=!!(modal||drawer||xform||handover)||!!document.querySelector("#page .sk-toolbar,#page .sk-card,#page .sk-table");
+ if(hidden){L.hidden=true;TOUR_KEY="";return}
+ L.hidden=false;
+ const step=TOUR.step, done=step>TOUR_N, S=done?null:TOUR_STEPS[step];
+ let t=null, sub="";
+ if(!done){t=S.target(c); sub=S.sub?S.sub(c):""; if(t&&!tourVisible(t.getBoundingClientRect())&&t.closest("#page")){t.scrollIntoView({block:"center",behavior:"auto"})}}
+ const key=[step,done?"done":t?(sub?"tab":"on"):"off"].join("|");
+ if(key!==TOUR_KEY){
+   TOUR_KEY=key;
+   const nm=tourNm(c);
+   let card;
+   if(done){
+     card=`<div class="tour-card tour-card--done" role="dialog" aria-label="Tour finished"><div class="tour-eye">Tour finished</div>
+      <div class="tour-h">That is the whole model: workspaces, the people on them, and the limits between them.</div>
+      <p class="tour-p">Home is one click away.</p>
+      <div class="tour-f"><span></span><button type="button" class="shd-button shd-button--primary shd-button--sm" data-tourdone>Done</button></div></div>`;
+   }else if(!t){
+     card=`<div class="tour-card tour-card--off" role="dialog" aria-label="Tour, step ${step} of ${TOUR_N}"><div class="tour-eye">Step ${step} of ${TOUR_N}</div>
+      <div class="tour-h">${S.head(c)}</div>
+      <p class="tour-p">Go back to ${S.where(c)} to continue.</p>
+      <div class="tour-f"><button type="button" class="linkbtn" data-tourskip>Skip tour</button><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-tourgo>Go to ${S.where(c)}</button></div></div>`;
+   }else{
+     const body=S.body(c);
+     card=`<div class="tour-card" role="dialog" aria-label="Tour, step ${step} of ${TOUR_N}"><div class="tour-eye">Step ${step} of ${TOUR_N}</div>
+      <div class="tour-h">${S.head(c)}</div>
+      ${body?`<p class="tour-p">${body}</p>`:""}
+      <p class="tour-act">${sub||S.act(c)}</p>
+      <div class="tour-f"><button type="button" class="linkbtn" data-tourskip>Skip tour</button>${S.sec&&!sub?`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-toursec>${S.sec}</button>`:""}</div></div>`;
+   }
+   L.innerHTML=`<svg class="tour-dim" aria-hidden="true"><defs><mask id="tourMask"><rect width="100%" height="100%" fill="#fff"/><rect class="tour-hole" rx="6" ry="6" fill="#000"/></mask></defs><rect width="100%" height="100%" fill="rgba(17,24,39,.45)" mask="url(#tourMask)"/><rect class="tour-ring" rx="6" ry="6" fill="none" stroke="#1D4ED8" stroke-width="2"/></svg>`+card;
+   const Q=s=>L.querySelector(s);
+   if(Q("[data-tourskip]")) Q("[data-tourskip]").onclick=e=>{e.stopPropagation();tourEnd(true)};
+   if(Q("[data-tourdone]")) Q("[data-tourdone]").onclick=e=>{e.stopPropagation();tourEnd(false)};
+   if(Q("[data-toursec]")) Q("[data-toursec]").onclick=e=>{e.stopPropagation();if(TOUR){TOUR.secDone=true;tourCheck()}};
+   if(Q("[data-tourgo]")) Q("[data-tourgo]").onclick=e=>{e.stopPropagation();const S2=TOUR&&TOUR_STEPS[TOUR.step];const c2=tourWs();if(S2&&c2)S2.go(c2)};
+   const sv=Q(".tour-dim"); sv.style.display=(done||t)?"":"none";
+   L.dataset.step=done?"done":String(step); L.dataset.state=done?"done":t?(sub?"tab":"on"):"off";
+ }
+ tourPlace(t);
+}
+/* geometry only: the cutout and the card follow the target on every render,
+   scroll, resize and tick without the card being rebuilt (which would eat a
+   click mid-press). */
+function tourPlace(t){
+ const L=el("tourLayer"); if(!L||L.hidden||!TOUR) return;
+ const card=L.querySelector(".tour-card"), hole=L.querySelector(".tour-hole"), ring=L.querySelector(".tour-ring"); if(!card) return;
+ const vw=window.innerWidth, vh=window.innerHeight, pad=8, gap=16, m=16;
+ const cw=card.offsetWidth||320, ch=card.offsetHeight||160;
+ const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+ if(!t){
+   if(hole){hole.setAttribute("width",0);hole.setAttribute("height",0);ring.setAttribute("width",0);ring.setAttribute("height",0)}
+   if(card.classList.contains("tour-card--done")){card.style.left=Math.round((vw-cw)/2)+"px";card.style.top=Math.round((vh-ch)/2)+"px"}
+   else{card.style.left=(vw-cw-24)+"px";card.style.top="72px"}
+   return;
+ }
+ const r=t.getBoundingClientRect();
+ const x=r.left-pad, y=r.top-pad, w=r.width+pad*2, h=r.height+pad*2;
+ [hole,ring].forEach(e=>{e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("width",w);e.setAttribute("height",h)});
+ let cx, cy;
+ if(x+w+gap+cw<=vw-m){cx=x+w+gap;cy=clamp(y,m,vh-ch-m)}
+ else if(y+h+gap+ch<=vh-m){cy=y+h+gap;cx=clamp(x,m,vw-cw-m)}
+ else if(x-gap-cw>=m){cx=x-gap-cw;cy=clamp(y,m,vh-ch-m)}
+ else if(y-gap-ch>=m){cy=y-gap-ch;cx=clamp(x,m,vw-cw-m)}
+ else{cx=clamp(x+w+gap,m,vw-cw-m);cy=clamp(y,m,vh-ch-m)}
+ card.style.left=Math.round(cx)+"px"; card.style.top=Math.round(cy)+"px";
+}
+function tourTargetEl(){const c=tourWs(); if(!c||!TOUR||TOUR.step>TOUR_N) return null; return TOUR_STEPS[TOUR.step].target(c)}
+window.addEventListener("resize",()=>tourPlace(tourTargetEl()));
+document.addEventListener("scroll",()=>tourPlace(tourTargetEl()),true);
+/* Escape skips, but only when nothing closable sits on top: capture phase so
+   this sees popOpen before the generic Escape handler clears it. */
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&TOUR&&!modal&&!drawer&&!popOpen&&!mePopOpen&&!helpOpen) tourEnd(true)},true);
+/* the Help (?) popover at the rail foot: one item, Replay the tour */
+function renderHelpPop(){
+ let P=el("helpPop"); if(!P){P=document.createElement("div");P.id="helpPop";P.className="help-pop";P.hidden=true;document.body.appendChild(P)}
+ const b=el("helpBtn"); if(b) b.setAttribute("aria-expanded",helpOpen?"true":"false");
+ if(!helpOpen||!b){P.hidden=true;P.innerHTML="";return}
+ const last=TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TOUR_LAST:(CLIENTS.find(x=>!x.deletedOn&&!x.own)||{}).id;
+ P.innerHTML=`<button type="button" class="help-item" data-tourreplay${last?"":" disabled"}>Replay the tour</button>`;
+ P.querySelector("[data-tourreplay]").onclick=e=>{e.stopPropagation();helpOpen=false;renderHelpPop();if(last) tourStart(last)};
+ P.hidden=false;
+ /* above the ? item, on its left edge, the way the switcher's popover sits
+    above its tile: the rail widens and narrows on hover under it and the
+    popover stays put either way. */
+ const r=b.getBoundingClientRect(); P.style.left=Math.round(Math.max(8,r.left))+"px";
+ P.style.top=Math.round(Math.max(8,r.top-P.offsetHeight-6))+"px";
+}
+document.addEventListener("click",e=>{if(helpOpen&&!el("helpPop").contains(e.target)&&!(el("helpBtn")&&el("helpBtn").contains(e.target))){helpOpen=false;renderHelpPop()}});
+
 function wire(){
  const q=s=>document.querySelectorAll(s);
- q("[data-guideok]").forEach(b=>b.onclick=()=>{GUIDE=null;render()});
+ {const hb=el("helpBtn"); if(hb) hb.onclick=e=>{e.stopPropagation();helpOpen=!helpOpen;renderHelpPop()}}   /* change 148 */
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
    if(view.name==="settings")view={name:"clients"}; cView="sequences"; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; render()});
  /* `update`, `overview` and `limits` are agency-side record tabs, not client
@@ -10630,7 +10784,6 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-upct{display:flex;align-items:baseline;gap:4px;white-space:nowrap}.nc-upct b{font-weight:600}.nc-upct .sub{font-size:12px}
 .inf-table td,.inf-table th{white-space:nowrap}.inf-prov{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;font-weight:700;font-size:12px;margin-right:4px}.inf-ws{display:inline-flex;align-items:center;gap:8px}
 .ub-tabs{margin:0 0 16px}
-.home-guide{margin-bottom:16px;border-color:#bfdbfe}.hg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.hg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.hg-grid b{display:block;font-weight:500;margin-bottom:2px}.hg-f{display:flex;align-items:center;gap:12px;margin-top:14px}
 .nc-limhead #ncEdit{flex:none;white-space:nowrap;line-height:1}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
 .nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;min-height:32px;padding:6px 0 10px}.nc-uhead .linkbtn{flex:none;white-space:nowrap}.nc-uhead .linkbtn{font-size:12px}
 .nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
@@ -11016,8 +11169,7 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .xs-row{min-height:216px}
 .xs-foot>:last-child{min-height:32px;display:inline-flex;align-items:center}
 .xs-av{display:grid;place-items:center;color:#fff}
-/* 36. the Home guide sits on the same x as every other panel */
-.home-guide{margin:0 24px 16px}
+/* 36. (change 148) the Home guide card and its .home-guide rule are gone; the tour replaced it */
 /* 37 / 38. login and invite: no rail margin while the rail is hidden; the system button size */
 .app.invite-mode .main{margin-left:0}
 .invite-form .shd-button{height:32px;font-size:14px}
@@ -11031,6 +11183,23 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 /* 15. Home: the Yours chip rides the name line */
 .ws-nm{display:inline-flex;align-items:center;gap:6px;min-width:0}.ws-nm .cn{white-space:nowrap}
 .ws-nm .yours{margin-left:0!important}
+
+/* change 148: the guided tour layer and the Help popover */
+#tourLayer{position:fixed;inset:0;z-index:1150;pointer-events:none}
+#tourLayer[hidden]{display:none}
+#tourLayer .tour-dim{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tour-card{position:absolute;width:320px;box-sizing:border-box;padding:16px 20px;background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(17,24,39,.22),0 0 0 1px rgba(17,24,39,.06);pointer-events:auto;font-size:14px;line-height:20px;color:var(--gray-17)}
+.tour-eye{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:#1D4ED8;margin-bottom:6px}
+.tour-h{font-size:16px;line-height:24px;font-weight:600;color:var(--gray-17)}
+.tour-p{margin:6px 0 0;font-size:14px;line-height:20px;color:var(--gray-12)}
+.tour-act{margin:10px 0 0;font-size:14px;line-height:20px;font-weight:500;color:var(--gray-17);display:flex;align-items:center;gap:6px}
+.tour-act::before{content:"";width:6px;height:6px;border-radius:50%;background:#1D4ED8;flex:none}
+.tour-f{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.tour-f .linkbtn{font-size:13px}
+.help-pop{position:fixed;z-index:1001;min-width:168px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:4px;box-shadow:0 4px 24px 0 rgba(0,0,0,.08);padding:4px}
+.help-pop[hidden]{display:none}
+.help-item{display:block;width:100%;text-align:left;background:none;border:0;font:inherit;font-size:14px;line-height:20px;padding:6px 10px;border-radius:4px;color:var(--gray-17);cursor:pointer}
+.help-item:hover{background:var(--gray-19)}.help-item:disabled{color:var(--gray-11);cursor:default}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -11312,7 +11481,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="bcd195a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="86c944b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
