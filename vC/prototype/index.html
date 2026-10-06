@@ -4011,18 +4011,21 @@ function askHTML(){
  modal.amts=modal.amts||(()=>{const o={}; RK.forEach(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return; const st=rowState(k,c.id,compute(k)); if(k===modal.pre||st.room===0||st.pct>=R.warn) o[k]=askNeed(k,c.id)}); return o})();
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const st=rowState(k,c.id,compute(k)), pc=paceOf(k,c.id), on=!!modal.amts[k];
   const tone=st.room===0?"paused":st.pct>=R.warn?"close":"fine";
-  return `<div class="ask-row"><span><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${f(r.used)} of ${f(r.cap)}${R.kind==="balance"?"":" this month"}</span></span><span class="cu-word is-${tone}">${tone==="paused"?"Paused":tone==="close"?"Close to your limit":""}</span><span class="numin"><input type="text" inputmode="numeric" value="${on?f(modal.amts[k]):""}" placeholder="no change" data-askamt="${k}" aria-label="${R.label}, how much more"><span class="unit">more</span></span><span class="cs">${on?(pc&&pc.hits?"What the pace needs"+(k==="sends"?" to finish the month":""):""):""}</span></div>`}).join("");
+  return `<div class="ask-row"><span><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${f(r.used)} of ${f(r.cap)}${R.kind==="balance"?"":" this month"}</span></span><span class="cu-word is-${tone}">${tone==="paused"?"Paused":tone==="close"?"Close to your limit":""}</span><span class="numin"><input type="text" inputmode="numeric" value="${on?f(modal.amts[k]):""}" placeholder="no change" data-askamt="${k}" aria-label="${R.label}, how much more"><span class="unit">more</span></span></div>`}).join("");
  const picked=RK.filter(k=>modal.amts[k]>0);
  const say=picked.length?`${c.name.split(" ")[0]} ${reqState(picked[0],c.id)} and asked for ${listAnd(picked.map(k=>f(modal.amts[k])+" more "+(RES[k].short||RES[k].unit)))}${modal.why?": "+modal.why:""}`:"Pick at least one allowance.";
  return card(`Ask ${AGENCY.name} for more`,`
-   <div class="ask-head"><span>Allowance</span><span></span><span>How much more</span><span></span></div>
+   <div class="ask-head"><span>Allowance</span><span></span><span>How much more</span></div>
    <div class="ask-rows">${rows}</div>
-   <div class="field" style="margin:16px 0 0"><label class="flabel" for="askWhy">Why? One line is enough; ${AGENCY.name} decides on it.</label><input type="text" id="askWhy" value="${(modal.why||"").replace(/"/g,"&quot;")}" placeholder="What the extra is for" style="width:100%;height:36px;padding:0 10px;border-radius:var(--radius-input);border:1px solid var(--gray-23);font:inherit;box-sizing:border-box"></div>
+   <div class="field" style="margin:16px 0 0"><label class="flabel" for="askWhy">Why? <span style="color:var(--red-18)">*</span> <span class="sub">One line is enough; ${AGENCY.name} decides on it.</span></label><input type="text" id="askWhy" required value="${(modal.why||"").replace(/"/g,"&quot;")}" placeholder="What the extra is for" class="${modal.err==="why"?"is-err":""}" style="width:100%;height:36px;padding:0 10px;border-radius:var(--radius-input);border:1px solid ${modal.err==="why"?"var(--red-18)":"var(--gray-23)"};font:inherit;box-sizing:border-box"></div>
+   <p class="sub" id="askErr" style="margin:8px 0 0;color:var(--red-18);min-height:18px">${modal.err==="why"?"Say why, in one line.":modal.err==="amt"?"Pick at least one allowance and say how much more.":""}</p>
    <p class="sub" id="askSay" style="margin:12px 0 0">${AGENCY.name} will read: &ldquo;${say}&rdquo;</p>`,
-  `<span class="sub" style="margin-right:auto">${PREVIEW?"Preview: nothing is sent from here.":"One ask. "+AGENCY.name+" decides each line and you see the answer here."}</span><button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-asksend ${(!PREVIEW&&(picked.length&&(modal.why||"").trim()))?"":"disabled"} title="${PREVIEW?"A preview sends nothing":""}">Send to ${AGENCY.name}</button>`,"ac ask-b");
+  `<span class="sub" style="margin-right:auto">${PREVIEW?"Preview: nothing is sent from here.":"One ask. "+AGENCY.name+" decides each line and you see the answer here."}</span><button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-asksend ${PREVIEW?"disabled":""} title="${PREVIEW?"A preview sends nothing":""}">Send to ${AGENCY.name}</button>`,"ac ask-b");
 }
 function askSend(){
- const c=byId[modal.client]; if(!c) return; const why=(modal.why||"").trim(); const picked=RK.filter(k=>modal.amts[k]>0); if(!picked.length||!why) return;
+ const c=byId[modal.client]; if(!c) return; const why=(modal.why||"").trim(); const picked=RK.filter(k=>modal.amts[k]>0);
+ /* change 140: Send always answers. The missing piece is named under the field. */
+ if(!picked.length||!why){modal.err=!picked.length?"amt":"why"; renderModal(); const f=document.querySelector(!picked.length?"[data-askamt]":"#askWhy"); if(f)f.focus(); return}
  const askId="a"+Date.now().toString(36).slice(-5), made=[];
  picked.forEach(k=>{if(REQUESTS.some(x=>x.client===c.id&&x.res===k)) return; const row={id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,res:k,amount:modal.amts[k],note:why,when:"just now"}; REQUESTS.push(row); made.push(row)});
  ANSWERS=ANSWERS.filter(a=>a.client!==c.id||picked.indexOf(a.res)<0);
@@ -4849,7 +4852,7 @@ function wirePeopleModal(L){
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
   const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(INV.edit){if(!L.querySelector("[data-invsend]").disabled)personSave();return} if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
   if(!L.querySelector(".inv-ed"))inp.focus();}
- if(k==="ask"){const upd=()=>{const say=L.querySelector("#askSay"), send=L.querySelector("[data-asksend]"); const html=askHTML(); const tmp=document.createElement("div"); tmp.innerHTML=html; if(say)say.innerHTML=tmp.querySelector("#askSay").innerHTML; if(send)send.disabled=tmp.querySelector("[data-asksend]").disabled};
+ if(k==="ask"){const upd=()=>{const say=L.querySelector("#askSay"); const picked=RK.filter(x=>modal.amts[x]>0), why=(modal.why||"").trim(); if(modal.err==="amt"&&picked.length)modal.err=null; if(modal.err==="why"&&why)modal.err=null; const html=askHTML(); const tmp=document.createElement("div"); tmp.innerHTML=html; if(say)say.innerHTML=tmp.querySelector("#askSay").innerHTML; const e=L.querySelector("#askErr"); if(e)e.textContent=tmp.querySelector("#askErr").textContent; const w=L.querySelector("#askWhy"); if(w)w.style.borderColor=modal.err==="why"?"var(--red-18)":"var(--gray-23)"};
   L.querySelectorAll("[data-askamt]").forEach(i=>i.oninput=()=>{modal.amts[i.dataset.askamt]=num(i.value)||0; upd()});
   const w=L.querySelector("#askWhy"); if(w)w.oninput=()=>{modal.why=w.value; upd()};
   const send=L.querySelector("[data-asksend]"); if(send)send.onclick=()=>{if(!send.disabled)askSend()};
@@ -10708,7 +10711,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .cu-ext{position:absolute;top:0;right:0;height:6px;background:#fde68a}
 .cu-ans{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--gray-15)}.cu-ans i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--gray-23)}.cu-ans.is-ok{color:var(--green-16)}.cu-ans.is-ok i{background:var(--green-16)}
 .cu-act{text-align:right}.cu-act .linkbtn.quiet{color:var(--gray-15)}.cu-foot{border-top:1px solid var(--gray-16)}
-.ask-b{width:760px}.ask-head,.ask-row{display:grid;grid-template-columns:1.6fr 1fr 170px 1.3fr;gap:16px;align-items:center}.ask-head{font-size:12px;font-weight:500;color:var(--gray-15);padding-bottom:6px}
+.ask-b{width:760px}.ask-head,.ask-row{display:grid;grid-template-columns:1.6fr 1fr 170px;gap:16px;align-items:center}.ask-head{font-size:12px;font-weight:500;color:var(--gray-15);padding-bottom:6px}
 .ask-row{padding:10px 0;border-top:1px solid var(--gray-16);font-size:14px}.ask-row b{font-weight:500;color:var(--gray-17)}.ask-row .cs{display:block}.ask-row .numin input{width:170px}
 .rc-act b{font-weight:600}
 .modal--450{width:450px}
@@ -11213,7 +11216,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f6cca70";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="8493e83";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
