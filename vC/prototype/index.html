@@ -3981,24 +3981,24 @@ function cUsage(c){
   const fill=pend?(cap/(cap+pend.amount))*pct:pct;
   const line=pend?`<span class="cu-ans sub">Asked for ${f(pend.amount)} more</span>`
    :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>${first} raised this to ${f(ans.to||R.rows[c.id].cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
-   :ans?`<span class="cu-ans is-no"><span><i></i>${first} declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span>${canReq?`<button class="linkbtn" data-askopen="${k}">Ask again</button>`:""}</span>`:"";
-  const act=!canReq||pend?"":(worst&&worst.k===k&&!ans)?`<button class="shd-button shd-button--primary shd-button--sm" data-askopen="${k}">Ask for more</button>`:`<button class="linkbtn quiet" data-askopen="${k}">Ask for more</button>`;
+   :ans?`<span class="cu-ans is-no"><span><i></i>${first} declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
+  const act="";
   return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
    <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
     <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
-   <span class="cu-act">${act}</span></div>`}).join("");
+</div>`}).join("");
  let top;
  if(ask) top=`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}${canReq?` <button class="linkbtn" data-askwithdraw="${c.id}">Withdraw</button>`:""}</span></div>`;
  else if(answered.length){const up=answered.filter(a=>a.state==="approved").length, dn=answered.length-up;
   top=`<p class="cu-line">${first} answered your ask: ${up?up+" line"+(up===1?"":"s")+" raised":""}${up&&dn?", ":""}${dn?dn+" declined":""}. ${worst?"":"Your outreach is running."}</p>`}
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm);
   top=worst.tone==="paused"
-   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.${canReq?` <button class="linkbtn" data-askopen="${worst.k}">Ask for more &rarr;</button>`:""}</span></div>`
-   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}${canReq?` <button class="linkbtn" data-askopen="${worst.k}">Ask for more &rarr;</button>`:""}</span></div>`}
+   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.</span></div>`
+   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}</span></div>`}
  else top=`<p class="cu-line">Your outreach is running. Nothing is close to its limit.</p>`;
  return `${top}<div class="panel">
-  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span></div>
-  <div class="panel-b cu-rows">${rows}</div>
+  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
+  <div class="panel-b cu-rows cu-rows--noact">${rows}</div>
   <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
@@ -10668,7 +10668,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .cu-line{margin:0;font-size:14px;color:var(--gray-17)}
 .cu-status{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-radius:4px;font-size:14px;line-height:20px;background:#fff;border:1px solid var(--gray-16)}
 .cu-status.is-warn{background:#fffbeb;border-color:#fde68a}.cu-status.is-bad{background:#fef2f2;border-color:#fecaca}.cu-status i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d97706;margin-right:8px}
-.cu-rows{padding-top:0;padding-bottom:0}.cu-row{display:grid;grid-template-columns:240px minmax(0,1fr) 150px;gap:24px;align-items:center;padding:14px 0;border-top:1px solid var(--gray-16)}.cu-row:first-child{border-top:0}
+.cu-rows{padding-top:0;padding-bottom:0}.cu-rows--noact .cu-row{grid-template-columns:240px minmax(0,1fr)}.cu-row{display:grid;grid-template-columns:240px minmax(0,1fr) 150px;gap:24px;align-items:center;padding:14px 0;border-top:1px solid var(--gray-16)}.cu-row:first-child{border-top:0}
 .cu-name b{display:block;font-size:14px;font-weight:500;color:var(--gray-17)}.cu-mid{display:flex;flex-direction:column;gap:6px;min-width:0}
 .cu-top{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--gray-17)}.cu-word{font-size:13px;color:var(--gray-15)}.cu-word.is-close{color:var(--orange-12);font-weight:500}.cu-word.is-paused{color:var(--red-18);font-weight:500}
 .cu-bar{position:relative;display:block;height:6px;background:var(--gray-16);border-radius:3px;overflow:hidden}.cu-fill{position:absolute;left:0;top:0;height:6px;border-radius:3px;background:var(--blue-11)}.cu-fill.is-close{background:var(--orange-14)}.cu-fill.is-paused{background:var(--red-18)}
@@ -11180,7 +11180,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d9c07be";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="004476b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
