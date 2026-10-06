@@ -1694,7 +1694,7 @@ const isNormal=()=>!hasAgency()&&!asClient&&!solo;
    pinned against the rail, which taught nothing and landed badly at every
    width. The explanation belongs in the moment the thing changes, not in a
    tooltip after it has already changed.                                      */
-let xform=null, xformDone=false, xformPending=false, xformLand=null;
+let xform=null, xformDone=false, xformPending=false, xformLand=null, GUIDE=null;
 const REDUCED=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 const XS_WORK=2200;              /* stands in for convert + fetch */
 const XS_BEATS=[900,1100,1100];  /* beat 4 holds until the work is done */
@@ -1733,7 +1733,7 @@ function endXform(){
     opens with it: the guide is the act itself, not a tour of where the button
     is.                                                                     */
  xform=null;renderXform();
- if(xformLand){const c=xformLand;xformLand=null;startHandover(c);return}
+ if(xformLand){const c=xformLand;xformLand=null;GUIDE=c;ctx="agency";asClient=false;view=homeView();render();return}
  ctx="agency";asClient=false;view={name:"clients"};render();
  /* opened synchronously rather than on a timer. The drawer has its own entrance
     transition, so the staggered feel costs nothing, and sequencing UI on a
@@ -1762,8 +1762,9 @@ function renderXform(){
    +item("Mailboxes",O.mailboxes.length)+item("Replies",O.replies.length),"xs-on");
  /* the shape of a client workspace, not a client. None exists yet, and naming
     one here would describe something the user has not done. */
- const theirs='<div class="xs-ws xs-new'+(b>=1?" in xs-on":"")+'" style="border-style:dashed">'
-   +'<div class="xs-nm"><span class="xs-av" style="background:var(--gray-11)">?</span>Your first workspace</div>'
+ const nw=xformLand;
+ const theirs='<div class="xs-ws xs-new'+(b>=1?" in xs-on":"")+'" style="border-style:'+(nw?"solid":"dashed")+'">'
+   +'<div class="xs-nm"><span class="xs-av" style="background:'+(nw?nw.colour:"var(--gray-11)")+'">'+(nw?initials(nw.name):"?")+'</span>'+(nw?nw.name:"Your first workspace")+'</div>'
    +item("Sequences","0")+item("Prospects","0")+item("Mailboxes","0")+item("Replies","0")+'</div>';
  L.innerHTML='<div class="xs"><div class="xs-stage">'
   +'<div class="xs-top'+(b>=3?" in":"")+'">'
@@ -1784,10 +1785,13 @@ function renderXform(){
    +(b<XS_CAPS.length-1
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-xsskip>Skip</button>'
      :xform.ready
-       ?'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>'
+       ?(nw?'<span class="xs-wait">Opening your admin panel</span>':'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>')
        :'<span class="xs-wait"><span class="xs-spin"></span>Setting up your account</span>')
   +'</div></div></div>';
  L.querySelectorAll("[data-xsskip],[data-xsgo]").forEach(x=>x.onclick=endXform);
+ /* change 127: with a workspace just made the sequence ends on its own and lands
+    on the admin panel; no click to find. */
+ if(nw&&b>=XS_CAPS.length-1&&xform.ready&&!xform.auto) xform.auto=setTimeout(endXform,1400);
 }
 /* 21 Sep 2026, delight pass round 5: the moment after Add Client, on the
    create path (Connect has its own confirmation and its own receipt, on the
@@ -5386,6 +5390,19 @@ function arrivalLine(mine,items){
  if(repClause) return repClause+".";
  return "";
 }
+function homeGuideHTML(){
+ if(!GUIDE) return "";
+ const c=GUIDE;
+ return `<div class="panel home-guide"><div class="panel-b">
+  <div class="hg-h"><span class="semibold-3">You now run ${AGENCY.name} from here</span><button class="linkbtn" data-guideok>Got it</button></div>
+  <div class="hg-grid">
+   <div><b>Home</b><span class="sub">Every workspace at a glance, and what needs a decision.</span></div>
+   <div><b>Workspaces</b><span class="sub">Open ${c.name.replace(/\.$/,"")}, set its limits, invite its people.</span></div>
+   <div><b>The switcher</b><span class="sub">At the foot of the rail. Move between the account, your own workspace and ${c.name}${/\.$/.test(c.name)?"":"."}</span></div>
+  </div>
+  <div class="hg-f"><button class="shd-button shd-button--primary shd-button--sm" data-enter="${c.id}">Open ${c.name}</button><span class="sub">Your own sequences, prospects and email accounts are unchanged, in your own workspace.</span></div>
+ </div></div>`;
+}
 function vDash(){
  if(!canI("dashboard")) return denied("see the account dashboard");
  /* Superseded 17 Sep 2026. Home used to exist for a normal user, so every region
@@ -5647,7 +5664,7 @@ function heroCards(mine,tch,rep,items){
  const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
- return `<div class="hero">
+ return homeGuideHTML()+`<div class="hero">
   ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" this month"),
     `<span class="hero-v">${f(mine.length)}</span>`,
     `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
@@ -9143,6 +9160,7 @@ function render(){
 const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); renderToast()};
 function wire(){
  const q=s=>document.querySelectorAll(s);
+ q("[data-guideok]").forEach(b=>b.onclick=()=>{GUIDE=null;render()});
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
    if(view.name==="settings")view={name:"clients"}; cView="sequences"; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; render()});
  /* `update`, `overview` and `limits` are agency-side record tabs, not client
@@ -10559,7 +10577,8 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 #ncShare:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px #dbeafe}
 .nc-ucap{display:flex;justify-content:space-between;font-size:11px;line-height:16px;color:#6b7280}
 .nc-share-tiles{display:flex;gap:8px;margin-top:4px}.nc-share-tile{flex:1 1 0;min-width:0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:4px}.nc-share-tile b{display:block;font-size:16px;line-height:22px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}.nc-share-tile span{display:block;font-size:11px;line-height:16px;color:#6b7280}
-.nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-uline #ncEdit{flex:none;white-space:nowrap;margin-left:16px}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
+.nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.home-guide{margin-bottom:16px;border-color:#bfdbfe}.hg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.hg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.hg-grid b{display:block;font-weight:500;margin-bottom:2px}.hg-f{display:flex;align-items:center;gap:12px;margin-top:14px}
+.nc-uline #ncEdit{flex:none;white-space:nowrap;margin-left:16px}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
 .nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
 .nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
 .nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
@@ -11151,7 +11170,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="77def47";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="583d6c6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
