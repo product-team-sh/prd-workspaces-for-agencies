@@ -1735,7 +1735,7 @@ function endXform(){
  xform=null;renderXform();
  /* change 148: the one-time guide card is gone. The sequence lands on Home as
     before and the learn-by-doing tour starts there, on the row it just made. */
- if(xformLand){const c=xformLand;xformLand=null;ctx="agency";asClient=false;view=homeView();tourStart(c.id);return}
+ if(xformLand){const c=xformLand;xformLand=null;ctx="agency";asClient=false;view=homeView();if(GUIDE_ON) tourStart(c.id); else render();return}
  ctx="agency";asClient=false;view={name:"clients"};render();
  /* opened synchronously rather than on a timer. The drawer has its own entrance
     transition, so the staggered feel costs nothing, and sequencing UI on a
@@ -2975,8 +2975,9 @@ function renderRail(){
      support only. */
   +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||view.name==="apiint"))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
-  /* change 148: the ? item opens a one-item Help popover carrying Replay the tour */
-  +`<button class="nav-item" id="helpBtn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
+  /* change 150: the ? item opens Intercom's messenger in production, so it does not
+     host the tour (change 148's Help popover is undone); Replay lives in the account menu. */
+  +`<button class="nav-item" data-flash="Opens the support messenger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav;
@@ -3105,7 +3106,7 @@ function renderShell(){
    /* no client user yet: the header says it is a preview rather than showing a
       dash for a person who does not exist (24 Sep 2026). */
    if(noClientUserYet(c)){el("meAv").textContent=(c.initials||c.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2)).toUpperCase(); el("meNm").textContent="Preview · no workspace user yet";}
-   else {const u=c.users[0][0]; el("meAv").textContent=u.slice(0,2).toUpperCase(); el("meNm").textContent=u;}}
+   else {const u=actingClientUser(c)[0]; el("meAv").textContent=u.slice(0,2).toUpperCase(); el("meNm").textContent=u;}}
  else {el("meAv").textContent=ME().initials; el("meNm").textContent=ME().name;}
  /* item 1, 28 Sep: a workspace-user session or solo has nobody to switch to,
     so the chip is a label, not a menu trigger - same treatment as wsStatic. */
@@ -3244,7 +3245,9 @@ function renderMePop(){
    <span class="avatar av-tint" style="--c:var(--blue-11);width:32px;height:32px;font-size:12px">${p.initials}</span>
    <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</span><span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.email||""}</span></span></div>
   <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
+  <button class="pop-r" data-tourreplay${tourReplayId()?"":" disabled"}>Replay the product tour</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
+ el("mePopL").querySelectorAll("[data-tourreplay]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=tourReplayId();closeMePop();if(id) tourStart(id)});
  el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else flash(b,"Open a workspace's Settings for your profile")});
  el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
 }
@@ -3775,7 +3778,10 @@ const userAccessOf=(c,u)=>roleSet(u?u[1]:DEFAULT_CLIENT_ROLE);
 /* the "as client" preview has no user switcher, so it acts as the first user
    on the client, the same one the invite and the record's Members tab lead
    with. Alloy's second user is reachable only by looking at its own row. */
-const actingClientUser=c=>(c.users&&c.users[0])||null;
+/* change 150: the demo panel signs in as a chosen workspace user; when that
+   email is on the client it is the acting user, else the first user as before. */
+let ACTING_EMAIL=null, CLIENT_SESSION=false;   /* CLIENT_SESSION: signed in as that user, so no preview banner and no account to go back to */
+const actingClientUser=c=>{if(ACTING_EMAIL&&c.users){const u=c.users.find(x=>x[0]===ACTING_EMAIL);if(u) return u} return (c.users&&c.users[0])||null};
 /* 24 Sep 2026, Hitesh: a workspace with no client user yet is previewed as the
    role a new invitee would get by default, not as the most restrictive role.
    "View as client" then shows what it WILL look like, and the banner says so. */
@@ -9145,7 +9151,7 @@ function render(){
  document.querySelector(".app").classList.toggle("mig-mode",view.name==="m1"||view.name==="m2");
  renderShell();
  const inClient=ctx!=="agency";
- const bn=el("asBanner"); bn.hidden=!(inClient&&asClient);
+ const bn=el("asBanner"); bn.hidden=!(inClient&&asClient&&!CLIENT_SESSION);
  /* 2 Oct 2026 (S2, canvas row 07): a preview, not a session */
  if(inClient&&asClient) bn.innerHTML=`<span>Viewing <strong>${byId[ctx].name}</strong> as its users see it. Nothing you do here is sent, and this preview is noted on the workspace.</span>
    <button id="exitAs">Back to account view</button>`;
@@ -9195,6 +9201,7 @@ function render(){
  lastPageKey=pageKey;
  wire();renderThread();
  renderXform();
+ if(typeof demoSync==="function") demoSync();
 }
 const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); renderToast(); tourCheck(); tourDraw()};
 /* ═══ change 148: the learn-by-doing tour ═══
@@ -9204,7 +9211,9 @@ const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); render
    the switcher). Nothing is blocked: the dim layer never takes pointer events,
    so the app stays fully usable and the user can wander off; the card then
    says where to go back to. In-session only, no storage.                    */
-let TOUR=null, TOUR_LAST=null, TOUR_KEY="", TOUR_TICK=null, helpOpen=false;
+let TOUR=null, TOUR_LAST=null, TOUR_KEY="", TOUR_TICK=null;
+/* change 150: the demo panel can switch the guide off; endXform then lands on Home with no tour */
+let GUIDE_ON=true;
 const TOUR_N=5;
 const tourWs=()=>TOUR&&byId[TOUR.ws]||null;
 const tourNm=c=>c.name.replace(/\.$/,"");
@@ -9248,14 +9257,13 @@ function tourLayer(){let L=el("tourLayer"); if(!L){L=document.createElement("div
 function tourStart(id){
  if(!byId[id]) return;
  TOUR_LAST=id; TOUR={step:1,ws:id,pending:false,secDone:false,limitDone:false}; TOUR_KEY="";
- helpOpen=false; renderHelpPop();
  ctx="agency";asClient=false;view=homeView();tab="overview";
  clearInterval(TOUR_TICK); TOUR_TICK=setInterval(()=>{if(!TOUR){clearInterval(TOUR_TICK);return} tourCheck();tourDraw()},300);
  render();
 }
 function tourEnd(toast){
  TOUR=null; TOUR_KEY=""; clearInterval(TOUR_TICK); const L=el("tourLayer"); if(L){L.innerHTML="";L.hidden=true}
- if(toast) tourToast("You can replay the tour from Help.");
+ if(toast) tourToast("Replay it from your account menu, top right.");
 }
 /* the design system's toast via renderToast, but without receipt()'s DECIDED
    entry: skipping a tour is not a decision Home should list. */
@@ -9347,27 +9355,13 @@ window.addEventListener("resize",()=>tourPlace(tourTargetEl()));
 document.addEventListener("scroll",()=>tourPlace(tourTargetEl()),true);
 /* Escape skips, but only when nothing closable sits on top: capture phase so
    this sees popOpen before the generic Escape handler clears it. */
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&TOUR&&!modal&&!drawer&&!popOpen&&!mePopOpen&&!helpOpen) tourEnd(true)},true);
-/* the Help (?) popover at the rail foot: one item, Replay the tour */
-function renderHelpPop(){
- let P=el("helpPop"); if(!P){P=document.createElement("div");P.id="helpPop";P.className="help-pop";P.hidden=true;document.body.appendChild(P)}
- const b=el("helpBtn"); if(b) b.setAttribute("aria-expanded",helpOpen?"true":"false");
- if(!helpOpen||!b){P.hidden=true;P.innerHTML="";return}
- const last=TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TOUR_LAST:(CLIENTS.find(x=>!x.deletedOn&&!x.own)||{}).id;
- P.innerHTML=`<button type="button" class="help-item" data-tourreplay${last?"":" disabled"}>Replay the tour</button>`;
- P.querySelector("[data-tourreplay]").onclick=e=>{e.stopPropagation();helpOpen=false;renderHelpPop();if(last) tourStart(last)};
- P.hidden=false;
- /* above the ? item, on its left edge, the way the switcher's popover sits
-    above its tile: the rail widens and narrows on hover under it and the
-    popover stays put either way. */
- const r=b.getBoundingClientRect(); P.style.left=Math.round(Math.max(8,r.left))+"px";
- P.style.top=Math.round(Math.max(8,r.top-P.offsetHeight-6))+"px";
-}
-document.addEventListener("click",e=>{if(helpOpen&&!el("helpPop").contains(e.target)&&!(el("helpBtn")&&el("helpBtn").contains(e.target))){helpOpen=false;renderHelpPop()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&TOUR&&!modal&&!drawer&&!popOpen&&!mePopOpen&&!demoOpen) tourEnd(true)},true);
+/* change 150: Replay the product tour lives in the account menu (renderMePop);
+   the rail's ? item is the support messenger again. */
+const tourReplayId=()=>TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TOUR_LAST:(CLIENTS.find(x=>!x.deletedOn&&!x.own)||{}).id;
 
 function wire(){
  const q=s=>document.querySelectorAll(s);
- {const hb=el("helpBtn"); if(hb) hb.onclick=e=>{e.stopPropagation();helpOpen=!helpOpen;renderHelpPop()}}   /* change 148 */
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
    if(view.name==="settings")view={name:"clients"}; cView="sequences"; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; render()});
  /* `update`, `overview` and `limits` are agency-side record tabs, not client
@@ -10027,28 +10021,36 @@ function resetToNormal(){
    redirects / to /sequence). The seeded seven-client agency is still one hash
    away for anyone who wants to review that side; it is what v1 and v2 already
    publish. Boot order matters: this runs before the first render().         */
-if(!location.hash||/^#(setup|confirm|transform|home|new-agency)$/.test(location.hash)){resetToNormal();
+/* change 150: the hash may carry several &-joined pairs. The route is the first
+   pair that is not a demo-panel param (as, guide, chrome); every existing hash
+   keeps its k=v meaning, and the params ride along across the reload. */
+const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
+ raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
+  if(k==="as"||k==="guide"||k==="chrome"){p[k]=v;return} if(!route) route=seg});
+ return {route,p}})();
+const H0=HASHX.route?"#"+HASHX.route:"";
+if(!H0||/^#(setup|confirm|transform|home|new-agency)$/.test(H0)){resetToNormal();
   ctx="own";inMod="sequences";view={name:"clients"}}
 /* Home runs in the master context, which for a normal user is the same place
    as the house workspace and is presented as such. #home is the direct way in
    for review; the rail's Home item takes the same route. */
 /* there is no Home before a first client, so these land where the product
    actually lands a new account */
-if(location.hash==="#new-agency"||location.hash==="#home"){
+if(H0==="#new-agency"||H0==="#home"){
   resetToNormal();ctx="own";inMod="sequences";view={name:"clients"}}
 /* the same Home with setup still outstanding: the state a brand new account is
    in on its first login, before there is a single number worth printing. */
-if(location.hash==="#setup"){resetToNormal();setupDone=false;ctx="own";inMod="sequences";view={name:"clients"}}
+if(H0==="#setup"){resetToNormal();setupDone=false;ctx="own";inMod="sequences";view={name:"clients"}}
 /* drives the whole transformation from a cold load, so each beat can be caught
    in a screenshot and reviewed on its own */
-if(location.hash==="#transform"){resetToNormal();ctx="own";inMod="sequences";view={name:"clients"};
+if(H0==="#transform"){resetToNormal();ctx="own";inMod="sequences";view={name:"clients"};
  setTimeout(()=>{startXform()},60)}
 /* where the sequence leaves you: inside the new client's empty workspace */
-if(location.hash==="#clientsetup"){resetToNormal();agencyMode=true;xformDone=true;
+if(H0==="#clientsetup"){resetToNormal();agencyMode=true;xformDone=true;
  setTimeout(()=>{nc=NC_INIT();nc.name="Northwind Logistics";nc.company="Northwind Logistics Ltd";
    nc.email="ops@northwind.co";create()},60)}
 /* the confirmation on its own, for review */
-if(location.hash==="#confirm"){resetToNormal();ctx="own";inMod="sequences";view={name:"clients"};
+if(H0==="#confirm"){resetToNormal();ctx="own";inMod="sequences";view={name:"clients"};
  setTimeout(()=>{modal={kind:"agencyconfirm"};renderModal()},60)}
 /* ═══ lists at scale ═══════════════════════════════════════════════════════════
    One pager for every long table: 25 for records, 50 for mailboxes, which are
@@ -10178,17 +10180,97 @@ function scaleTo(n){
  SCALE.n=CLIENTS.length;
 }
 
+/* ═══ change 150: the demo control panel ═══
+   A presenter picks the product state, the guide, and who is signed in from
+   one place instead of a hash. Every choice that changes the fixtures or the
+   person goes through the hash (the hashchange handler reloads), so the
+   choice survives the reload and the URL can be copied. In-session only. */
+let demoOpen=false, demoVA=null;
+const DEMO_SCN=[["fresh","Fresh account (no workspace yet)"],["busy","Busy: 10 workspaces, asks waiting"],["calm","Calm: nothing wrong"],["crisis","Crisis: two paused, three asks, grace"]];
+const DEMO_SHORT={fresh:"Fresh account",busy:"Busy",calm:"Calm",crisis:"Crisis"};
+/* which showcase the current load is: the route says, not the fixtures */
+function demoScn(){const r=HASHX.route; if(!r||/^(setup|home|new-agency)$/.test(r)) return "fresh"; const m=r.match(/^demo=?(.*)$/); return m?(m[1]||"busy"):null}
+const demoChromeOff=()=>HASHX.p.chrome==="off";
+const demoAgencyPeople=()=>Object.keys(PEOPLE).filter(k=>!PEOPLE[k].disabled&&!PEOPLE[k].invited);
+const demoClientWs=()=>CLIENTS.filter(c=>!c.deletedOn&&!c.own);
+const demoPersonLbl=k=>{const p=PEOPLE[k]; if(p.role!=="Member") return p.name+" · "+p.role;
+ const ws=(p.ws||[]).map(i=>byId[i]&&!byId[i].deletedOn?byId[i].name.split(/\s+/)[0]:"").filter(Boolean); return p.name+" · Member"+(ws.length?" on "+ws.join(", "):"")};
+/* the session as it is now, for the View as controls and the Now line */
+function demoCurrent(){const c=asClient&&byId[ctx]&&ctx!=="agency"&&ctx!=="own"?byId[ctx]:null;
+ if(c){const u=actingClientUser(c); return {mode:"client",ws:c.id,email:u?u[0]:"",role:actingRole(c),name:c.name}}
+ return {mode:"agency",key:me_,name:ME().name,role:ME().role}}
+function demoHash(parts){return parts.filter(Boolean).join("&")}
+function demoGo(hash){const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
+/* the route to keep when only the person changes: the current one, or demo=busy when there is none */
+function demoRoute(){return HASHX.route||""}
+function demoGuideParam(){return GUIDE_ON?"":"guide=off"}
+function demoApplyScn(n){
+ if(n==="fresh"){demoGo(demoHash([demoGuideParam()]));return}
+ demoGo(demoHash(["demo="+n,demoAsParam(),demoGuideParam()]))}
+function demoAsParam(){const v=demoVA||demoCurrent(); if(v.mode==="client") return v.ws?"as=w:"+v.ws+"|"+(v.email||""):""; return v.key&&v.key!=="owner"?"as=t:"+v.key:""}
+function demoApplyAs(){const r=demoRoute(); demoGo(demoHash([r||"demo=busy",demoAsParam(),demoGuideParam()]))}
+function demoToggleGuide(){GUIDE_ON=!GUIDE_ON;
+ /* no reload needed: the flag is read at the end of the sequence. The URL is
+    rewritten so the next panel navigation, and a browser reload, keep it. */
+ const h=demoHash([demoRoute(),HASHX.p.as?"as="+HASHX.p.as:"",demoGuideParam()]);
+ history.replaceState(null,"",location.pathname+(h?"#"+h:"")); HASHX.p.guide=GUIDE_ON?undefined:"off"; demoSync()}
+function demoNowLine(){const cur=demoCurrent(),scn=demoScn();
+ const who=cur.mode==="client"?cur.name+" · "+(cur.email||"no user yet")+" ("+cur.role+")":"Agency · "+cur.name+" ("+cur.role+")";
+ return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+" · "+who+" · guide "+(GUIDE_ON?"on":"off")}
+function demoSync(){
+ let pill=el("demoPill"),P=el("demoPanel");
+ if(!pill){pill=document.createElement("button");pill.id="demoPill";pill.type="button";pill.className="shd-button shd-button--tertiary shd-button--sm";pill.setAttribute("aria-haspopup","true");pill.setAttribute("aria-controls","demoPanel");
+  pill.onclick=e=>{e.stopPropagation();demoOpen=!demoOpen;if(demoOpen) demoVA=null;demoSync()};document.body.appendChild(pill);
+  P=document.createElement("div");P.id="demoPanel";P.className="panel";P.setAttribute("role","dialog");P.setAttribute("aria-label","Demo controls");P.hidden=true;document.body.appendChild(P);
+  P.addEventListener("click",e=>e.stopPropagation())}
+ const off=demoChromeOff()||view.name==="login"||view.name==="invite";
+ pill.hidden=off; if(off) demoOpen=false;
+ pill.textContent="Demo"; pill.setAttribute("aria-expanded",demoOpen?"true":"false");
+ P.hidden=!demoOpen; if(!demoOpen){P.innerHTML="";return}
+ const scn=demoScn(), cur=demoCurrent(); if(!demoVA) demoVA=Object.assign({},cur);
+ const va=demoVA, people=demoAgencyPeople(), wss=demoClientWs(), replay=tourReplayId();
+ if(va.mode==="client"&&!wss.some(c=>c.id===va.ws)) va.ws=wss.length?wss[0].id:"";
+ const wsC=va.mode==="client"?byId[va.ws]:null, users=wsC&&wsC.users||[];
+ if(wsC&&!users.some(u=>u[0]===va.email)) va.email=users.length?users[0][0]:"";
+ if(va.mode==="agency"&&!PEOPLE[va.key]) va.key=me_;
+ const esc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+ const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
+  <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
+  <div class="dp-g"><div class="dp-t">Product guide</div>
+   <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON}" data-dpguide aria-label="Guide after the first workspace"></button></div>
+   <div class="dp-row" style="margin-top:6px"><span class="sub">Five steps</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay?"":" disabled"} title="${replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
+  <div class="dp-g"><div class="dp-t">View as</div>
+   <div class="dp-vs"><label class="dp-r"><input type="radio" name="dpva" value="agency"${va.mode==="agency"?" checked":""}><span>Agency</span></label><label class="dp-r"><input type="radio" name="dpva" value="client"${va.mode==="client"?" checked":""}${wss.length?"":" disabled"}><span>Client</span></label></div>
+   ${va.mode==="agency"?`<select class="dp-sel" data-dpkey aria-label="Agency user">${people.map(k=>`<option value="${k}"${va.key===k?" selected":""}>${esc(demoPersonLbl(k))}</option>`).join("")}</select>`
+   :`<select class="dp-sel" data-dpws aria-label="Workspace">${wss.map(c=>`<option value="${c.id}"${va.ws===c.id?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
+     <select class="dp-sel" data-dpemail aria-label="Workspace user"${users.length?"":" disabled"}>${users.length?users.map(u=>`<option value="${esc(u[0])}"${va.email===u[0]?" selected":""}>${esc(u[0])} · ${u[1]}</option>`).join(""):`<option value="">No workspace user yet (previews as ${DEFAULT_CLIENT_ROLE})</option>`}</select>`}
+   <div class="dp-f"><button type="button" class="shd-button shd-button--primary shd-button--sm" data-dpapply>Apply</button></div></div>
+  <div class="dp-g"><div class="dp-t">Now</div><div class="dp-now" id="demoNow">${esc(demoNowLine())}</div></div>`;
+ if(P.innerHTML!==html) P.innerHTML=html;
+ P.querySelector("[data-dpclose]").onclick=()=>{demoOpen=false;demoSync()};
+ P.querySelectorAll("[name=dpscn]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyScn(r.value)});
+ P.querySelector("[data-dpguide]").onclick=demoToggleGuide;
+ P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
+ P.querySelectorAll("[name=dpva]").forEach(r=>r.onchange=()=>{if(!r.checked) return; va.mode=r.value; if(va.mode==="agency"&&!va.key) va.key=me_; demoSync()});
+ const sk=P.querySelector("[data-dpkey]"); if(sk) sk.onchange=()=>{va.key=sk.value;demoSync()};
+ const sw=P.querySelector("[data-dpws]"); if(sw) sw.onchange=()=>{va.ws=sw.value;va.email="";demoSync()};
+ const se=P.querySelector("[data-dpemail]"); if(se) se.onchange=()=>{va.email=se.value;demoSync()};
+ P.querySelector("[data-dpapply]").onclick=demoApplyAs;
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&demoOpen&&!modal&&!drawer){demoOpen=false;demoSync()}});
+document.addEventListener("click",e=>{if(demoOpen&&!el("demoPanel").contains(e.target)&&!el("demoPill").contains(e.target)){demoOpen=false;demoSync()}});
+
 /* Deep links, so any screen can be opened and checked without clicking a path
    to it: #clients, #queue, #dash, #credits, #settings, #invite, #solo-plain
    for an ordinary account with no agency relationship, and #client=<id> for
    a client record. Unknown hashes are ignored.                             */
-if(location.hash==="#solo-plain"){const c=byId.solo;
+if(H0==="#solo-plain"){const c=byId.solo;
   if(c){solo=true;ctx=c.id;asClient=false;soloMod="seq"}}
-if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={name:"m1"}}
+if(H0==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={name:"m1"}}
 /* change 131: the hash is read at boot only, so a hash typed into an open page did
    nothing until a reload. The app never writes the hash itself. */
 window.addEventListener("hashchange",()=>location.reload());
-{const h=decodeURIComponent(location.hash.replace(/^#/,""));
+{const h=HASHX.route;
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
  if(k==="grace"){GRACE.on=true;view={name:"dash"}}
@@ -10239,8 +10321,19 @@ window.addEventListener("hashchange",()=>location.reload());
   const cc=byId[v], role=actingRole(cc), mods=roleSet(role).mods;
   const first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);
   cView=first?first[0]:"settings"}
- if(k==="addclient"){view={name:"clients"};setTimeout(openAddClient,0)}}
+ if(k==="addclient"){view={name:"clients"};setTimeout(openAddClient,0)}
+ /* change 150: the demo panel's params. `guide=off` turns the learn-by-doing
+    tour off; `as=t:<key>` signs in as an agency person and lands them where
+    the product lands them (Home, or Workspaces for a Member); `as=w:<id>|<email>`
+    is a real workspace-user session, not a preview. */
+ if(HASHX.p.guide==="off") GUIDE_ON=false;
+ if(HASHX.p.as){const a=HASHX.p.as;
+  if(a.indexOf("t:")===0&&PEOPLE[a.slice(2)]){me_=a.slice(2);ctx="agency";asClient=false;PREVIEW=false;inMod=null;view=homeView()}
+  if(a.indexOf("w:")===0){const [id,email]=a.slice(2).split("|"),cc=byId[id];
+   if(cc&&!cc.deletedOn){ctx=id;asClient=true;PREVIEW=false;CLIENT_SESSION=true;ACTING_EMAIL=email||null;openProspect=null;openSeq=null;openReply=null;
+    const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);cView=first?first[0]:"settings"}}}}
 render();
+demoSync();
 </script>
 
 <style>
@@ -11192,6 +11285,33 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .ws-nm .yours{margin-left:0!important}
 
 /* change 148: the guided tour layer and the Help popover */
+/* ══ change 150: the demo control panel ═══════════════════════════════════
+   Presenter scaffolding, like the running-order panel: a pill at the bottom
+   right opens a panel to pick the showcase state, switch the guide, and sign
+   in as any agency person or workspace user. Above the app and the rail,
+   below every modal (.scrim is 1099). Hidden with &chrome=off, which the PRD
+   shot script passes, and never on the client login or accept-invite pages. */
+#demoPill{position:fixed;right:16px;bottom:16px;z-index:1010;border-radius:14px;padding:0 12px;font-size:12px;font-weight:600;gap:6px;box-shadow:var(--shadow-xs)}
+#demoPill[aria-expanded=true]{background:var(--gray-16);color:var(--gray-17)}
+#demoPill[hidden],#demoPanel[hidden]{display:none}
+#demoPanel{position:fixed;right:16px;bottom:52px;width:320px;z-index:1010;box-shadow:0 4px 24px 0 rgba(0,0,0,.12);border:1px solid var(--gray-13);max-height:calc(100vh - 68px);overflow:auto;font-size:13px}
+.dp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 10px 16px;border-bottom:1px solid var(--gray-13)}
+.dp-h b{font-size:14px;font-weight:600;color:var(--gray-17)}
+.dp-x{width:24px;height:24px;border:0;background:none;border-radius:4px;color:var(--gray-12);font-size:16px;line-height:1;cursor:pointer;padding:0}
+.dp-x:hover{background:var(--gray-16);color:var(--gray-17)}
+.dp-g{padding:10px 16px 12px;border-bottom:1px solid var(--gray-13)}
+.dp-g:last-child{border-bottom:0}
+.dp-t{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15);margin:0 0 6px}
+.dp-r{display:flex;align-items:center;gap:8px;min-height:26px;font-size:13px;line-height:18px;color:var(--gray-17);cursor:pointer}
+.dp-r input{margin:0}
+.dp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:26px}
+.dp-row>span{flex:1 1 auto;min-width:0}.dp-row>.shd-button,.dp-row>.sw{flex:none;white-space:nowrap}
+.dp-vs{display:flex;gap:16px}
+.dp-sel{display:block;width:100%;height:28px;border:1px solid var(--gray-13);border-radius:4px;background:var(--gray-1);font:inherit;font-size:13px;color:var(--gray-17);padding:0 8px;margin-top:6px}
+.dp-sel:focus{outline:none;border-color:#1D4ED8;box-shadow:0 0 0 3px #dbeafe}
+.dp-now{font-size:12px;line-height:18px;color:var(--gray-12);word-break:break-word}
+.dp-now b{font-weight:600;color:var(--gray-17)}
+.dp-f{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 #tourLayer{position:fixed;inset:0;z-index:1150;pointer-events:none}
 #tourLayer[hidden]{display:none}
 #tourLayer .tour-dim{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -11203,10 +11323,6 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .tour-act::before{content:"";width:6px;height:6px;border-radius:50%;background:#1D4ED8;flex:none}
 .tour-f{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
 .tour-f .linkbtn{font-size:13px}
-.help-pop{position:fixed;z-index:1001;min-width:168px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:4px;box-shadow:0 4px 24px 0 rgba(0,0,0,.08);padding:4px}
-.help-pop[hidden]{display:none}
-.help-item{display:block;width:100%;text-align:left;background:none;border:0;font:inherit;font-size:14px;line-height:20px;padding:6px 10px;border-radius:4px;color:var(--gray-17);cursor:pointer}
-.help-item:hover{background:var(--gray-19)}.help-item:disabled{color:var(--gray-11);cursor:default}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -11488,7 +11604,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3dbc1b5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="e983dfc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
