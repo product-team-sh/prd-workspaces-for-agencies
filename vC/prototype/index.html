@@ -9208,9 +9208,12 @@ const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); render
    Replaces the one-time Home guide card. Five steps, each spotlighting the
    control the step is about and advancing only when the user does the thing
    (opens the row, clicks Invite, changes a limit, opens the workspace, opens
-   the switcher). Nothing is blocked: the dim layer never takes pointer events,
-   so the app stays fully usable and the user can wander off; the card then
-   says where to go back to. In-session only, no storage.                    */
+   the switcher). Change 152: the dim blocks. Four transparent blocker rects
+   surround the cutout and take every click outside it (a wheel over them
+   still scrolls whatever is under the pointer); only the target, the card and
+   anything above the layer (modals, toasts) stay live. Off target ("Go back
+   to...") nothing is drawn but the card, so nothing is blocked there.
+   In-session only, no storage.                                              */
 let TOUR=null, TOUR_LAST=null, TOUR_KEY="", TOUR_TICK=null;
 /* change 150: the demo panel can switch the guide off; endXform then lands on Home with no tour */
 let GUIDE_ON=true;
@@ -9226,7 +9229,10 @@ const tourGoRec=(c,t)=>{ORIGIN=null;ctx="agency";asClient=false;view={name:"reco
    sub-state: the tab button is the target until that tab is active. */
 const TOUR_STEPS={
  1:{where:c=>"Home",go:c=>{ctx="agency";asClient=false;view=homeView();render()},
-    target:c=>ctx==="agency"&&!asClient&&view.name==="dash"?document.querySelector(`.home-tbl tr[data-crow="${c.id}"]`):null,
+    target:c=>ctx==="agency"&&!asClient&&view.name==="dash"?(document.querySelector(`.home-tbl tr[data-crow="${c.id}"] .cn`)||document.querySelector(`.home-tbl tr[data-crow="${c.id}"]`)):null,
+    /* change 152: the cutout is the name link, but the card keeps clear of the
+       whole row, so it is placed against the row and lands below it */
+    anchor:c=>document.querySelector(`.home-tbl tr[data-crow="${c.id}"]`),
     head:c=>"Every workspace, at a glance.",body:c=>"",act:c=>`Open ${tourNm(c)}.`,
     done:c=>tourOnRec(c)},
  2:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"overview"),
@@ -9262,7 +9268,7 @@ function tourStart(id){
  render();
 }
 function tourEnd(toast){
- TOUR=null; TOUR_KEY=""; clearInterval(TOUR_TICK); const L=el("tourLayer"); if(L){L.innerHTML="";L.hidden=true}
+ TOUR=null; TOUR_KEY=""; clearInterval(TOUR_TICK); document.body.classList.remove("tour-on"); const L=el("tourLayer"); if(L){L.innerHTML="";L.hidden=true}
  if(toast) tourToast("Replay it from your account menu, top right.");
 }
 /* the design system's toast via renderToast, but without receipt()'s DECIDED
@@ -9278,8 +9284,9 @@ function tourCheck(){
 }
 const tourVisible=r=>r&&r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<window.innerHeight&&r.left<window.innerWidth;
 function tourDraw(){
- const L=tourLayer(); if(!TOUR){L.innerHTML="";L.hidden=true;TOUR_KEY="";return}
+ const L=tourLayer(); if(!TOUR){L.innerHTML="";L.hidden=true;TOUR_KEY="";document.body.classList.remove("tour-on");return}
  const c=tourWs(); if(!c){tourEnd(false);return}
+ document.body.classList.add("tour-on");
  /* a modal, the add-workspace dialog or the conversion sequence owns the
     screen; the tour waits under it rather than drawing over it. The page
     skeleton (200ms) is skipped too, or the card would flash "go back". */
@@ -9313,42 +9320,63 @@ function tourDraw(){
       <p class="tour-act">${sub||S.act(c)}</p>
       <div class="tour-f"><button type="button" class="linkbtn" data-tourskip>Skip tour</button>${S.sec&&!sub?`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-toursec>${S.sec}</button>`:""}</div></div>`;
    }
-   L.innerHTML=`<svg class="tour-dim" aria-hidden="true"><defs><mask id="tourMask"><rect width="100%" height="100%" fill="#fff"/><rect class="tour-hole" rx="6" ry="6" fill="#000"/></mask></defs><rect width="100%" height="100%" fill="rgba(17,24,39,.45)" mask="url(#tourMask)"/><rect class="tour-ring" rx="6" ry="6" fill="none" stroke="#1D4ED8" stroke-width="2"/></svg>`+card;
+   /* change 152: four transparent blockers around the cutout (they take the
+      clicks), and one ring whose outer shadow is the dim (it takes none). */
+   L.innerHTML=`<div class="tour-blk" data-blk="t"></div><div class="tour-blk" data-blk="l"></div><div class="tour-blk" data-blk="r"></div><div class="tour-blk" data-blk="b"></div><div class="tour-ring" aria-hidden="true"></div>`+card;
+   L.querySelectorAll(".tour-blk").forEach(b=>{b.onwheel=tourWheel;b.onclick=e=>e.stopPropagation()});
    const Q=s=>L.querySelector(s);
    if(Q("[data-tourskip]")) Q("[data-tourskip]").onclick=e=>{e.stopPropagation();tourEnd(true)};
    if(Q("[data-tourdone]")) Q("[data-tourdone]").onclick=e=>{e.stopPropagation();tourEnd(false)};
    if(Q("[data-toursec]")) Q("[data-toursec]").onclick=e=>{e.stopPropagation();if(TOUR){TOUR.secDone=true;tourCheck()}};
    if(Q("[data-tourgo]")) Q("[data-tourgo]").onclick=e=>{e.stopPropagation();const S2=TOUR&&TOUR_STEPS[TOUR.step];const c2=tourWs();if(S2&&c2)S2.go(c2)};
-   const sv=Q(".tour-dim"); sv.style.display=(done||t)?"":"none";
+   L.classList.toggle("is-off",!done&&!t);
    L.dataset.step=done?"done":String(step); L.dataset.state=stateKey;
  }
- tourPlace(t);
+ tourPlace(t,S&&S.anchor?S.anchor(c):null);
 }
 /* geometry only: the cutout and the card follow the target on every render,
    scroll, resize and tick without the card being rebuilt (which would eat a
    click mid-press). */
-function tourPlace(t){
+function tourPlace(t,anchor){
  const L=el("tourLayer"); if(!L||L.hidden||!TOUR) return;
- const card=L.querySelector(".tour-card"), hole=L.querySelector(".tour-hole"), ring=L.querySelector(".tour-ring"); if(!card) return;
+ const card=L.querySelector(".tour-card"), ring=L.querySelector(".tour-ring"); if(!card) return;
  const vw=window.innerWidth, vh=window.innerHeight, pad=8, gap=16, m=16;
  const cw=card.offsetWidth||320, ch=card.offsetHeight||160;
  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+ const box=(k,bx,by,bw,bh)=>{const e=L.querySelector(`.tour-blk[data-blk="${k}"]`); if(!e) return; e.style.left=Math.round(bx)+"px";e.style.top=Math.round(by)+"px";e.style.width=Math.max(0,Math.round(bw))+"px";e.style.height=Math.max(0,Math.round(bh))+"px"};
  if(!t){
-   if(hole){hole.setAttribute("width",0);hole.setAttribute("height",0);ring.setAttribute("width",0);ring.setAttribute("height",0)}
-   if(card.classList.contains("tour-card--done")){card.style.left=Math.round((vw-cw)/2)+"px";card.style.top=Math.round((vh-ch)/2)+"px"}
+   if(card.classList.contains("tour-card--done")){
+     /* finished: one blocker over everything, the ring collapsed to a point so
+        its shadow dims the whole screen under the centred card */
+     box("t",0,0,vw,vh);box("l",0,0,0,0);box("r",0,0,0,0);box("b",0,0,0,0);
+     if(ring){ring.style.left=(vw/2)+"px";ring.style.top=(vh/2)+"px";ring.style.width="0px";ring.style.height="0px";ring.style.borderWidth="0"}
+     card.style.left=Math.round((vw-cw)/2)+"px";card.style.top=Math.round((vh-ch)/2)+"px"}
    else{card.style.left=(vw-cw-24)+"px";card.style.top="72px"}
    return;
  }
  const r=t.getBoundingClientRect();
  const x=r.left-pad, y=r.top-pad, w=r.width+pad*2, h=r.height+pad*2;
- [hole,ring].forEach(e=>{e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("width",w);e.setAttribute("height",h)});
+ box("t",0,0,vw,y);box("l",0,y,x,h);box("r",x+w,y,vw-x-w,h);box("b",0,y+h,vw,vh-y-h);
+ if(ring){ring.style.left=x+"px";ring.style.top=y+"px";ring.style.width=w+"px";ring.style.height=h+"px";ring.style.borderWidth="2px"}
+ /* the card is placed against the anchor (the cutout itself unless the step
+    names a wider one), right of it if that fits, else below, left, above */
+ const a=anchor?anchor.getBoundingClientRect():r;
+ const ax=Math.min(a.left,r.left)-pad, ay=Math.min(a.top,r.top)-pad, aw=Math.max(a.right,r.right)+pad-ax, ah=Math.max(a.bottom,r.bottom)+pad-ay;
  let cx, cy;
- if(x+w+gap+cw<=vw-m){cx=x+w+gap;cy=clamp(y,m,vh-ch-m)}
- else if(y+h+gap+ch<=vh-m){cy=y+h+gap;cx=clamp(x,m,vw-cw-m)}
- else if(x-gap-cw>=m){cx=x-gap-cw;cy=clamp(y,m,vh-ch-m)}
- else if(y-gap-ch>=m){cy=y-gap-ch;cx=clamp(x,m,vw-cw-m)}
- else{cx=clamp(x+w+gap,m,vw-cw-m);cy=clamp(y,m,vh-ch-m)}
+ if(ax+aw+gap+cw<=vw-m){cx=ax+aw+gap;cy=clamp(ay,m,vh-ch-m)}
+ else if(ay+ah+gap+ch<=vh-m){cy=ay+ah+gap;cx=clamp(x,m,vw-cw-m)}
+ else if(ax-gap-cw>=m){cx=ax-gap-cw;cy=clamp(ay,m,vh-ch-m)}
+ else if(ay-gap-ch>=m){cy=ay-gap-ch;cx=clamp(x,m,vw-cw-m)}
+ else{cx=clamp(ax+aw+gap,m,vw-cw-m);cy=clamp(ay,m,vh-ch-m)}
  card.style.left=Math.round(cx)+"px"; card.style.top=Math.round(cy)+"px";
+}
+/* a wheel over a blocker scrolls whatever scrollable sits under the pointer
+   (the page, the rail, the switcher list), so the dim never traps the scroll */
+function tourWheel(e){
+ const stack=document.elementsFromPoint(e.clientX,e.clientY).filter(x=>!x.closest("#tourLayer"));
+ let n=stack[0];
+ while(n&&n!==document.body){const cs=getComputedStyle(n); if(/(auto|scroll)/.test(cs.overflowY)&&n.scrollHeight>n.clientHeight){n.scrollTop+=e.deltaY;return} n=n.parentElement}
+ window.scrollBy(0,e.deltaY);
 }
 function tourTargetEl(){const c=tourWs(); if(!c||!TOUR||TOUR.step>TOUR_N) return null; return TOUR_STEPS[TOUR.step].target(c)}
 window.addEventListener("resize",()=>tourPlace(tourTargetEl()));
@@ -11314,7 +11342,12 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .dp-f{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 #tourLayer{position:fixed;inset:0;z-index:1150;pointer-events:none}
 #tourLayer[hidden]{display:none}
-#tourLayer .tour-dim{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tour-blk{position:absolute;pointer-events:auto;background:transparent}
+.tour-ring{position:absolute;pointer-events:none;box-sizing:border-box;border:2px solid #1D4ED8;border-radius:6px;box-shadow:0 0 0 9999px rgba(17,24,39,.45)}
+#tourLayer.is-off .tour-blk,#tourLayer.is-off .tour-ring{display:none}
+/* change 152: on tour step 1 the spotlit row keeps its name and line; the hover shortcuts would jump past the record */
+body.tour-on .home-tbl .crow .qa{display:none!important}
+body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-within .ws-sub{display:block}
 .tour-card{position:absolute;width:320px;box-sizing:border-box;padding:16px 20px;background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(17,24,39,.22),0 0 0 1px rgba(17,24,39,.06);pointer-events:auto;font-size:14px;line-height:20px;color:var(--gray-17)}
 .tour-eye{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:#1D4ED8;margin-bottom:6px}
 .tour-h{font-size:16px;line-height:24px;font-weight:600;color:var(--gray-17)}
@@ -11604,7 +11637,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="83d29b6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="47b5efc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
