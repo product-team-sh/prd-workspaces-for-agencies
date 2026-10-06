@@ -250,7 +250,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .nav-badge{font-size:11px;font-weight:500;color:#fff;background:#10b981;border-radius:9999px;
  min-width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;line-height:1;box-sizing:border-box}
 .nav-badge.hot{background:#ef4444}
-.nav-new{display:inline-flex;align-items:center;height:20px;padding:4px 8px;box-sizing:border-box;font-size:11px;font-weight:500;line-height:1;color:#fff;background:#f59e0b;border:1px solid #f59e0b;border-radius:4px;letter-spacing:0}
+.nav-new{display:inline-flex;align-items:center;height:20px;padding:4px 8px;box-sizing:border-box;font-size:11px;font-weight:500;line-height:1;color:var(--blue-11);background:var(--blue-13);border:1px solid var(--blue-13);border-radius:4px;letter-spacing:0}
 /* Coming soon, 25 Sep 2026: a muted pill, not the New badge's amber, so a rail
    full of "Soon" items reads as parked rather than freshly launched. */
 .nav-soon{display:inline-flex;align-items:center;height:20px;padding:4px 8px;box-sizing:border-box;font-size:11px;font-weight:500;line-height:1;color:var(--label-text);background:#f3f4f6;
@@ -532,7 +532,6 @@ table.organism td.tnum,table.organism td.ar{white-space:nowrap}
 /* the th rule above sets text-align:left and outranks a bare `.ar` (0-1-2 vs
    0-1-1), which silently left-aligned every numeric header while its values
    stayed right-aligned. Do not simplify these selectors back.             */
-table.organism th.ar,table.organism td.ar{text-align:right}
 table.organism td:first-child{padding-left:24px;border-left:1px solid var(--gray-13)}
 table.organism td:last-child{padding-right:24px;border-right:1px solid var(--gray-13)}
 /* Real hover is an ambient shadow on a still-white row, from _agency-client.scss
@@ -611,7 +610,6 @@ table.organism tr.att>td{background:transparent}
    column the sort icon sat after the label, so the label ended 20px left of
    the numbers under it. The icon leads in those columns; the label's right
    edge is the column's. */
-table.organism th.ar .sortable{flex-direction:row-reverse}
 /* the Analytics totals row: a blended figure is not another data row, so it
    gets a filled background and a firmer rule above it. */
 .an-totals td{background:var(--gray-16);border-top:2px solid var(--gray-13)}
@@ -3039,7 +3037,7 @@ function agencyUsage(c){
   const line=pend?`<span class="cu-ans sub">${first} asked for ${f(pend.amount)} more</span>`
    :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>You raised this to ${f(ans.to||cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
    :ans?`<span class="cu-ans is-no"><span><i></i>You declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
-  const act=pend?goBtn("Decide &rarr;","linkbtn"):goBtn(tone==="fine"?"Change limit":"Raise it","linkbtn quiet");
+  const act=pend?goBtn("Decide &rarr;","linkbtn"):goBtn(tone==="fine"?"Change limit &rarr;":"Raise limit &rarr;","linkbtn");
   return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
    <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
     <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
@@ -3051,7 +3049,7 @@ function agencyUsage(c){
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`
    :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`}
  else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
- const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email accounts"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
+ const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
  return `${top}${tabs}<div class="panel">
   <div class="panel-h"><span class="panel-t">${own?"Your own allowance":"What you allocated to "+c.name}</span>
@@ -3310,7 +3308,7 @@ function vClients(){
    /* one vocabulary with Home, from attention(); round 3, 17 Sep 2026 */
    cell:c=>`<td>${statusCell(c)}</td>`},
   {id:"act",label:"",req:true,
-   cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn" data-manage="${c.id}">Manage</button><button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button></span></td>`},
+   cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn linkbtn--sm" data-manage="${c.id}">Manage</button><button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button></span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
  const all=myWorkspaces().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
@@ -3387,7 +3385,7 @@ function vClients(){
   ${(()=>{/* change 121: one ask can carry several lines, so count workspaces, not lines */
    const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
-    <button class="linkbtn" id="toCredits2">Review</button></span></div>`:""})()}
+    <button class="linkbtn linkbtn--sm" id="toCredits2">Review</button></span></div>`:""})()}
   <div class="panel"><div class="tscroll"><table class="organism ws-table">
    <thead><tr>${shown.map(x=>x.id==="act"?'<th class="colact"></th>'
      :x.sort?th(x.label,x.ar?1:0):`<th class="${x.ar?'ar':''}">${x.label}</th>`).join("")}</tr></thead>
@@ -3407,7 +3405,7 @@ function recMenuHTML(c){
  if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its users out. You can enable it again.</span></button>`);
  if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Removes it for everyone. You can restore it within 30 days.</span></button>`);
  if(!items.length) return "";
- return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions" style="padding:6px 10px;font-weight:700;letter-spacing:1px">&middot;&middot;&middot;</button>
+ return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
   <div class="menu" role="menu" ${recMenu?"":"hidden"} style="width:280px;padding:6px">${items.join("")}</div></span>`;
 }
 /* 18 Sep, delight pass: a client at a limit, or one that has asked for more,
@@ -3501,7 +3499,7 @@ function recStrip(c){
  const fresh=c.sent===0, cells=wsCells(c);
  const head=c.disabled?`Frozen since ${c.disabledOn||TODAY_D}, when the workspace was disabled.`:fresh?"Numbers start with the first send.":periodText();
  const cell=x=>`<div class="rs-cell"><span class="rs-l">${x.l}</span><span class="rs-v tnum">${x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||"")}</span><span class="rs-s${x.cls?" "+x.cls:""}">${x.line||"&nbsp;"}</span></div>`;
- return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
+ return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn linkbtn--sm" data-goanalytics="${c.id}">See in Analytics &rarr;</button></div>
   <div class="rs-row">${cells.map(cell).join("")}</div></div>`;
 }
 const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber","#9333EA":"Purple","#047857":"Green"};
@@ -3526,7 +3524,7 @@ function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   return `<div class="rc-lrow"><div class="rc-lhead"><span>${R.label}</span><span class="sub${s.tone==="bad"?" is-bad":""}">${f(r.used)} of ${f(r.cap)}</span></div><div class="rc-lbar"><span style="width:${p}%;background:${barCol(s.tone)}"></span></div></div>`}).join("");
  const ask=askOf(c.id);
- const req=ask&&!ro?`<div class="rc-req"><span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)}</span><button class="linkbtn" data-tab="limits">Review</button></div>`:"";
+ const req=ask&&!ro?`<div class="rc-req"><span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)}</span><button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows||'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
@@ -4000,10 +3998,10 @@ function cUsage(c){
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.</span></div>`
    :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}</span></div>`}
  else top=`<p class="cu-line">Your outreach is running. Nothing is close to its limit.</p>`;
- const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email accounts"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
+ const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${first} yet.</span></div></div>`}`;
  return `${top}${tabs}<div class="panel">
-  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
+  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
   <div class="panel-b cu-rows cu-rows--noact">${rows}</div>
   <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
 }
@@ -4187,7 +4185,7 @@ function rMail(c){
   ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",c.mailboxes.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
     .map(([k,l,n])=>`<button data-mbh="${k}" aria-pressed="${mbHealth===k}">${l}<span class="pn">${n}</span></button>`).join("")}</div></div>`:""}
   <div class="tscroll"><table class="organism" style="min-width:560px">
-   <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th><th></th></tr></thead>
+   <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th>${asClient?"":"<th></th>"}</tr></thead>
    <tbody>${c.mailboxes.length?rows.map(m=>{
     /* fix 25 Sep review #3: Reconnect is a state mutation and was rendered
        live for every role, Viewer included. Gated the same way the Warm-up
@@ -4199,14 +4197,14 @@ function rMail(c){
     return `<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
     <td><span class="chip c-${MB_TONE[m[1]]||"mute"}">${m[1]==="Reconnecting"?"Reconnecting, usually a minute":MB_LABEL(m[1])}</span></td>
     <td class="ar tnum">${m[1]==="Disconnected"||m[1]==="Reconnecting"?'<span class="sub">–</span>':m[2]}</td>
-    <td class="ar">${m[1]==="Disconnected"
+    ${asClient?"":`<td class="ar">${m[1]==="Disconnected"
       ?(mayReconnect
         ?`<button class="shd-button shd-button--primary shd-button--sm" data-reconnect="${m[0]}">Reconnect</button>`
         :`<span class="sub" aria-disabled="true"${mbSrc(m)==="agency"?` title="Set up by ${AGENCY.name}"`:` title="Your role cannot reconnect mailboxes"`}>Reconnect</span>`)
       :m[1]==="Reconnecting"
       ?`<span class="sub" aria-disabled="true">Reconnecting</span>`
-      :""}</td></tr>`;}).join("")
-    :'<tr><td colspan="4"><span class="sub">'+(mbHealth==="all"?"No email accounts yet. This workspace cannot send.":"None in this state.")+'</span></td></tr>'}
+      :""}</td>`}</tr>`;}).join("")
+    :'<tr><td colspan="'+(asClient?3:4)+'"><span class="sub">'+(mbHealth==="all"?"No email accounts yet. This workspace cannot send.":"None in this state.")+'</span></td></tr>'}
    </tbody></table></div>
   ${filt.length>10?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
     <span class="sub">Showing ${rows.length} of ${filt.length}</span>
@@ -4337,7 +4335,7 @@ function ppAccess(r){
  const all=myClients().concat([]);
  if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces &middot; Workspace Admin</span>`;
  if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
- return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,16)}${byId[id].name.split(" ")[0]} <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span></span>`).join("");
+ return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,18)}${byId[id].name.split(" ")[0]} <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span></span>`).join("");
 }
 /* 1 Oct 2026, Hitesh: "row 16, A variation, for the People listing page" (the
    canvas board PL-A). One kind of person at a time: tabs Your team, Client
@@ -4585,7 +4583,7 @@ function prmHTML(){
   return card(`Remove ${p.name} from ${p.c.name}`,only
    ?`<div class="msg m-warn" role="status">${warnI}<span><b>${p.name}</b> is ${p.c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in. If the client is leaving, <button class="linkbtn" data-openrec="${p.c.id}">disable the workspace</button> instead.</span></div>`
    :`<p class="ac-lead">Their sign-in ends now. ${p.c.name.split(" ")[0]}&rsquo;s sequences and email accounts belong to the workspace and keep running.</p><p class="sub" style="margin:10px 0 0">Undo from the toast.</p>`,
-   `<button class="shd-button shd-button--tertiary" data-mclose>Keep</button>${only?"":`<button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`}`,"ac")}
+   `<button class="shd-button shd-button--secondary" data-mclose>Keep</button>${only?"":`<button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`}`,"ac")}
  const P=p.P, wss=(P.ws===null?fundedWorkspaces():(P.ws||[]).map(id=>byId[id]).filter(Boolean));
  modal.to=modal.to||{};
  const rows=wss.map(c=>{const n=(c.sequences||[]).filter(q=>q.owner===p.name).length;
@@ -4595,7 +4593,7 @@ function prmHTML(){
  return card(`Remove ${p.first} from the account`,`<p class="ac-lead">Their sign-in ends now. What they own moves to the person you pick, per workspace.</p>
    <div class="prm-list">${rows||`<div class="prm-row"><span class="sub">Not in any workspace. Nothing to hand over.</span></div>`}</div>
    <p class="sub" style="margin:12px 0 0">Sequences keep running under their new owner. Undo from the toast.</p>`,
-  `<button class="shd-button shd-button--tertiary" data-mclose>Keep</button><button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`,"ac");
+  `<button class="shd-button shd-button--secondary" data-mclose>Keep</button><button class="shd-button shd-button--danger" data-prmgo>Remove ${p.first}</button>`,"ac");
 }
 function prmGo(){
  const p=personOf(modal.key); if(!p) return;
@@ -5024,18 +5022,18 @@ function mailPurchasesHTML(c,forClient){
  const mine=INFRA_BUY.filter(r=>r.ws===c.id); if(!mine.length) return "";
  const rows=mine.map(r=>`<tr>
    <td class="tnum">${r.on}</td>
-   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP&&!forClient?` <span class="sub">${r.domP}</span>`:""}</td>
-   <td><b>${r.mbx}</b>${r.mbxP&&!forClient?` <span class="sub">${r.mbxP}</span>`:""}</td>
-   <td><b>${r.ip}</b>${r.ipP&&!forClient?` <span class="sub">${r.ipP}</span>`:""}</td>
+   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP?` <span class="sub">${r.domP}</span>`:""}</td>
+   <td><b>${r.mbx}</b>${r.mbxP?` <span class="sub">${r.mbxP}</span>`:""}</td>
+   <td><b>${r.ip}</b>${r.ipP?` <span class="sub">${r.ipP}</span>`:""}</td>
    <td class="tnum">${r.renew}${r.due?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
-   <td class="colact">${forClient?"":r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td></tr>`).join("");
+   <td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn linkbtn--sm" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td></tr>`).join("");
  return `<div class="panel">
-  <div class="panel-h"><span class="panel-t">${forClient?"Your email accounts":"Purchase History"}</span><span class="sub">${forClient?"The domains, email accounts and IPs your outreach sends from, set up by "+AGENCY.name:"Domains, email accounts and IPs this workspace sends from, with their renewal dates"}</span></div>
-  ${forClient?"":`<div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${warnI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>`}
+  <div class="panel-h"><span class="panel-t">Purchase History</span><span class="sub">Domains, email accounts and IPs this workspace sends from, with their renewal dates</span></div>
+  <div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>
   <div class="tscroll"><table class="organism inf-table" style="min-width:900px">
    <thead><tr><th>PURCHASE DATE</th><th>DOMAINS</th><th>EMAIL ACCOUNTS</th><th>IPS / AZURE TENANTS</th><th>RENEWAL DATE</th><th>PLAN TYPE</th><th class="colact"></th></tr></thead>
    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${forClient?AGENCY.name+" renews these for you; nothing to do on your side.":"Billed to "+AGENCY.name+"'s plan. "+c.name.split(" ")[0]+"'s people see the accounts, never these prices."}</p></div>`;
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">Billed to ${AGENCY.name}'s plan.</p></div>`;
 }
 function vAddons(){
  const row=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
@@ -5255,7 +5253,7 @@ function decisionRow(q){
      +dqTip('<button class="linkbtn quiet" data-decline="'+q.req+'">Deny</button>',denyConsequence(rq))}
  else if(q.raise){const [k,id]=q.raise.split("|"),m=compute(k),step=Math.max(500,Math.round(m.free*0.4/500)*500);
    act=dqTip('<button class="shd-button shd-button--primary shd-button--sm" data-raise="'+q.raise+'">Raise to '+abbr(RES[k].rows[id].cap+step)+'</button>',raiseConsequence(k,id))}
- else if(q.collision) act='<button class="linkbtn" data-collision>Review</button>';
+ else if(q.collision) act='<button class="linkbtn linkbtn--sm" data-collision>Review</button>';
  else if(c){const mb=(((q.what||"")+" "+(q.why||"")).match(/\S+@\S+\.\w+/)||[])[0];
    act='<button class="linkbtn" data-goto="'+c.id+'|'+(q.act==="Reconnect"?"accounts":"sequences")+(mb?'|'+mb:'')+'">'+q.act+' &rarr;</button>'}
  else act="";
@@ -5434,7 +5432,7 @@ function homeGuideHTML(){
    <div><b>Workspaces</b><span class="sub">Open ${c.name.replace(/\.$/,"")}, set its limits, invite its people.</span></div>
    <div><b>The switcher</b><span class="sub">At the foot of the rail. Move between the account, your own workspace and ${c.name}${/\.$/.test(c.name)?"":"."}</span></div>
   </div>
-  <div class="hg-f"><button class="shd-button shd-button--primary shd-button--sm" data-enter="${c.id}">Open ${c.name}</button><span class="sub">Your own sequences, prospects and email accounts are unchanged, in your own workspace.</span></div>
+  <div class="hg-f"><button class="shd-button shd-button--primary" data-enter="${c.id}">Open ${c.name}</button><span class="sub">Your own sequences, prospects and email accounts are unchanged, in your own workspace.</span></div>
  </div></div>`;
 }
 function vDash(){
@@ -5524,8 +5522,8 @@ function vDash(){
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
   const num=x=>'<td><span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'')+'</td>';
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
-   +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
-   +'<span class="ws-sub">'+yoursTag(c)+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
+   +'<span class="ws-nm"><button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'+yoursTag(c)+'</span>'
+   +'<span class="ws-sub">'+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
@@ -5549,7 +5547,7 @@ function vDash(){
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
      +'<td colspan="7">'+setupHtml+'</td>'
-     +'<td class="ar colact"><button class="linkbtn" data-manage="'+c.id+'">Manage</button></td></tr>'})();
+     +'<td class="ar colact"><button class="linkbtn linkbtn--sm" data-manage="'+c.id+'">Manage</button></td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
@@ -6244,7 +6242,7 @@ function anSeries(wss){
  return out;
 }
 function anChart(pts){
- const W=1240,H=330,L=64,R=64,T=16,B=48, iw=W-L-R, ih=H-T-B;
+ const W=1240,H=330,L=80,R=78,T=16,B=48, iw=W-L-R, ih=H-T-B;
  const maxL=Math.max(1,...pts.map(p=>p.contacted)), maxR=Math.max(1,...pts.map(p=>Math.max(p.opened,p.replies,p.positive,p.negative,p.unsub)));
  const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(v))), m=v/p; return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p};
  const yl=nice(maxL), yr=nice(maxR);
@@ -6257,8 +6255,8 @@ function anChart(pts){
  const xl=pts.map((p,i)=>i%step===0?`<text x="${x(i).toFixed(1)}" y="${H-B+24}" text-anchor="middle" class="an-ax">${p.label}</text>`:"").join("");
  return `<svg class="an-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Contacted and engagement, last 30 days">
   ${grid}
-  <rect x="${L-30}" y="${T}" width="2" height="${ih}" fill="var(--blue-11)"/><text transform="translate(${L-40},${T+ih/2}) rotate(-90)" text-anchor="middle" class="an-ax">Contacted</text>
-  <rect x="${W-R+28}" y="${T}" width="2" height="${ih/2}" fill="#C026D3"/><rect x="${W-R+28}" y="${T+ih/2}" width="2" height="${ih/2}" fill="#10B981"/><text transform="translate(${W-R+42},${T+ih/2}) rotate(90)" text-anchor="middle" class="an-ax">Engagement</text>
+  <rect x="${L-30}" y="${T}" width="2" height="${ih}" fill="var(--blue-11)"/><text transform="translate(${L-56},${T+ih/2}) rotate(-90)" text-anchor="middle" class="an-ax">Contacted</text>
+  <rect x="${W-R+28}" y="${T}" width="2" height="${ih/2}" fill="#C026D3"/><rect x="${W-R+28}" y="${T+ih/2}" width="2" height="${ih/2}" fill="#10B981"/><text transform="translate(${W-R+56},${T+ih/2}) rotate(90)" text-anchor="middle" class="an-ax">Engagement</text>
   ${line("unsub","#F59E0B",yR,true)}${line("negative","#EF4444",yR,true)}${line("positive","#10B981",yR)}${line("replies","#10B981",yR)}${line("opened","#C026D3",yR)}${line("contacted","#3B82F6",yL)}
   ${xl}</svg>
   <div class="an-legend">${[["#3B82F6","Contacted"],["#C026D3","Opened"],["#10B981","Replies"],["#10B981","Positive Sentiment"],["#EF4444","Negative Sentiment",1],["#F59E0B","Unsubscribed",1]].map(([c,l,dim])=>`<span${dim?' class="is-dim"':""}><i style="background:${c}"></i>${l}</span>`).join("")}</div>`;
@@ -6568,7 +6566,7 @@ function onboardBlock(){
    plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'};
  const later=[["Generate AI Sequence",ic.seq],["Add Prospects",ic.crm],["Add Email Account",ic.mail],["Launch Sequence",ic.launch]];
  return '<div class="ob"><div class="ob-l">'
-  +'<div class="ob-h"><b>Welcome, '+first+'! Let’s set up your agency’s outreach</b><button class="linkbtn" data-skiponboard style="color:var(--gray-15);font-weight:400">Skip Onboarding</button></div>'
+  +'<div class="ob-h"><b>Welcome, '+first+'! Let’s set up your agency’s outreach</b><button class="linkbtn quiet" data-skiponboard>Skip Onboarding</button></div>'
   +'<div class="ob-bar"><i><b style="width:0%"></b></i><span class="sub">0/5 steps completed</span></div>'
   +'<div class="ob-steps">'
   +'<div class="ob-step is-cur"><span><span style="color:var(--blue-11);display:inline-flex">'+ic.ws+'</span><span>Create a workspace</span><span class="chip c-new chip--sm">NEW</span></span>'
@@ -6689,7 +6687,7 @@ function attention(c){
  /* a disabled client outranks everything else that could be said about it.
     Nothing it does matters until it is re-enabled, and the row has to say so
     or the agency thinks sending stopped when it did not. */
- if(c.disabled) return{rank:-1,pin:true,chip:"Disabled",tone:"c-bad",
+ if(c.disabled) return{rank:-1,pin:true,chip:"Disabled",tone:"c-mute",
    why:"Sending is stopped and nothing goes out. Re-enable to start again. Nothing has been lost."};
  const m=medianCPP(), cp=costPer(c);
  const lim=funded(c)?RK.map(k=>({k,st:rowState(k,c.id,compute(k))})).filter(x=>x.st.room===0):[];
@@ -7309,9 +7307,9 @@ function aQueue(Q,filters){
    <td class="ar colact">${
      q.req?(canI("limits")?dqTip(`<button class="linkbtn" data-ok="${q.req}">Approve</button>`,reqConsequence(REQUESTS.find(x=>x.id===q.req))):`<span class="sub">Waiting on the account</span>`)
      :q.raise?(canI("limits")?dqTip(`<button class="linkbtn" data-raise="${q.raise}">Raise limit</button>`,raiseConsequence(...q.raise.split("|"))):`<span class="sub">Waiting on the account</span>`)
-     :q.migreview?`<button class="linkbtn" data-migreview>Review</button>`
-     :q.collision?`<button class="linkbtn" data-collision>Review</button>`
-     :q.reply?`<button class="linkbtn" data-openreply="${q.reply}">Reply</button>`
+     :q.migreview?`<button class="linkbtn linkbtn--sm" data-migreview>Review</button>`
+     :q.collision?`<button class="linkbtn linkbtn--sm" data-collision>Review</button>`
+     :q.reply?`<button class="linkbtn linkbtn--sm" data-openreply="${q.reply}">Reply</button>`
      :q.plan?dqTip(`<button class="linkbtn" data-gobill>${q.act}</button>`,ADD_CAP_TIP)
      :q.pay?`<button class="linkbtn" data-gobill>${q.act}</button>`
      :c?`<button class="linkbtn" data-goto="${c.id}|${destFor(q)}${q.mb?"|"+q.mb:""}">${q.act}</button>`
@@ -7477,7 +7475,7 @@ function vInvite(){
     <div class="field"><label class="flabel" for="invPw">Set a password</label>
      <input type="password" id="invPw" placeholder="At least 8 characters" autocomplete="new-password"></div>
     <button class="shd-button shd-button--primary" id="invDone">Set password and continue</button>
-    <p class="sub" style="margin:-4px 0 0;text-align:center">Already set a password? <button class="linkbtn" data-gologin>Log in</button></p>
+    <p class="sub" style="margin:-4px 0 0;text-align:center">Already set a password? <button class="linkbtn linkbtn--sm" data-gologin>Log in</button></p>
    </div>
    <div class="invite-note">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v5c0 5 4 9 9 10 5-1 9-5 9-10V7l-9-5Z"/></svg>
@@ -7598,7 +7596,9 @@ function vLogin(){
     <div class="field"><label class="flabel" for="lgPass">Password</label><input type="password" id="lgPass" placeholder="Enter your password"></div>
     <button class="shd-button shd-button--primary" data-flash="Signs the client in to their workspace" style="width:100%;justify-content:center">Login</button>
    </div></div></div>
-  <button class="invite-back" data-invback>&larr; Back to the prototype</button>`}
+  <button class="invite-back" data-invback>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="m15 18-6-6 6-6"/></svg>
+    Back to prototype</button>`}
 function wlDelModalHTML(){
  const dom=modal.kind==="wldeldomain", m=dom?null:WL_IMG[modal.key];
  const title=`<span class="delete-alert-modal--title"><span class="delete-alert-modal--title__icon">${wlI.trash}</span><h2>${dom?"Delete brand domain":"Delete "+m.title}</h2></span>`;
@@ -7695,25 +7695,27 @@ function ncDerived(k){const st=ncStep(k),free=compute(k).free;const raw=Math.max
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
 const ncDefaultCap=ncDerived;
 function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const st=R.step||1,want=Math.max(st,Math.floor(R.pool*sh/100/st)*st),left=R.pool-(allocOf(k)-r.cap);if(left>0){m=Math.max(m,want/left);if(want>left&&!first)first=k}});
- return "<b>"+sh+"%</b><span class=\"sub\"> of your plan &middot; "+(first?"past what is left for "+RES[first].label.replace(/ \/ month$/,""):Math.round(m*100)+"% of what is left")+"</span>"}
+ return "<b>"+sh+"%</b><span class=\"sub\"> of your plan &middot; "+(first?"past what is left for "+RES[first].label.replace(/ \/ month$/,"").replace(/^Lead Finder credits$/,"Lead Finder"):Math.round(m*100)+"% of what is left")+"</span>"}
 /* change 130: the share stays a share of the plan; beside it the form says what that
    is of what is left, and the track greys the part of the plan already given away. */
 const ncUncapped=k=>{const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)};
 const ncCapped=k=>ncCapFor(k)<ncUncapped(k);
 function ncLeftPct(){let m=0,first=null;RK.forEach(k=>{const free=compute(k).free,u=ncUncapped(k);if(ncCapped(k)&&!first)first=k;if(free>0)m=Math.max(m,u/free);else if(u>0)m=Math.max(m,2)});return {pct:Math.round(m*100),capped:first}}
 function ncGivenPct(){let g=0;RK.forEach(k=>{const m=compute(k);g=Math.max(g,Math.round((1-m.free/RES[k].pool)*100))});return Math.min(99,Math.max(0,g))}
-function ncPctText(){const share=ncShare(),custom=ncIsCustom();if(custom)return "Custom";const L=ncLeftPct();return "<b>"+share+"%</b><span class=\"sub\"> of your plan &middot; "+(L.capped?"past what is left for "+RES[L.capped].label.replace(/ \/ month$/,""):L.pct+"% of what is left")+"</span>"}
+function ncPctText(){const share=ncShare(),custom=ncIsCustom();if(custom)return "Custom";const L=ncLeftPct();return "<b>"+share+"%</b><span class=\"sub\"> of your plan &middot; "+(L.capped?"past what is left for "+RES[L.capped].label.replace(/ \/ month$/,"").replace(/^Lead Finder credits$/,"Lead Finder"):L.pct+"% of what is left")+"</span>"}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
- const tile=(k,l)=>`<div class="nc-share-tile"><b data-tile="${k}">${f(ncCapFor(k))}</b><span data-tilel="${k}" data-l="${l}">${l}${ncCapped(k)?" &middot; all that is left":""}</span></div>`;
+ const tile=(k,l)=>`<div class="nc-share-tile"><b data-tile="${k}">${f(ncCapFor(k))}</b><span data-tilel="${k}" data-l="${l}">${l}</span></div>`;
+ const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage" id="ncUsage">
   <div class="nc-urow"><label class="flabel" for="ncShare" style="margin:0">Share of your plan for ${who}</label><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
   <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:${100-ncGivenPct()}%" aria-label="Share of your plan">
   <div class="nc-ucap"><span>1%</span><span>${ncGivenPct()?ncGivenPct()+"% of your plan is already given out (grey).":"Nothing is given out yet."}</span></div>
-  <div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
-  <div class="nc-uline"><span class="sub">The slider sets every limit at once. Edit limits to set any of them yourself.</span></div>
+  ${nc.open?"":`<div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
+  <p class="sub nc-capnote" id="ncCapNote" style="${anyCapped?"":"display:none"}">Some numbers are capped at what is left on your plan.</p>
+  <div class="nc-uline"><span class="sub">The slider sets every limit at once. Edit limits to set any of them yourself.</span></div>`}
   ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it. Emails are a monthly limit; credits come with the plan and are reserved for ${who} from your balance.</span><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button></div>${RK.map(row).join("")}</div>`:""}
   ${nc.err?`<p class="nc-limsay is-err" id="ncUerr"><span>${nc.err}</span></p>`:""}
  </div>`;
@@ -7724,7 +7726,7 @@ function ncPaintUsage(){
  const sl=el("ncShare"); if(sl){sl.style.setProperty("--p",(mx>1?Math.round((share-1)/(mx-1)*100):100)+"%")}
  const pct=el("ncPct"); if(pct)pct.innerHTML=ncPctText();
  document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
- document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l+(ncCapped(b.dataset.tilel)?" &middot; all that is left":""));
+ document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const n=el("ncCapNote");if(n)n.style.display=RK.some(ncCapped)?"":"none"}
  document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",!!(nc.custom&&nc.custom[k]!=null))});
  const rs=el("ncReset"); if(rs){rs.style.display=custom?"":"none";rs.textContent="Reset to "+share+"%"}
 }
@@ -7956,8 +7958,8 @@ function cInbox(c){
    <tbody>${rows.length?rows.map(r=>`<tr><td style="font-weight:500">${r.from}</td>
      <td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
      <td class="ar colact">${canReply
-       ?`<button class="linkbtn" data-openreplyc="${r.id}">Reply</button>`
-       :`<button class="linkbtn" data-openreplyc="${r.id}">View</button>`}</td></tr>`).join("")
+       ?`<button class="linkbtn linkbtn--sm" data-openreplyc="${r.id}">Reply</button>`
+       :`<button class="linkbtn linkbtn--sm" data-openreplyc="${r.id}">View</button>`}</td></tr>`).join("")
     :'<tr><td colspan="4"><span class="sub">No replies yet.</span></td></tr>'}</tbody></table></div>
   ${canReply?"":`<div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">You are a ${actingRole(c)}. ${AGENCY.name} replies on your behalf here.</span></div>`}</div>`;
 }
@@ -8058,7 +8060,7 @@ function cTasks(c){
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("task")}</span>
    <span class="panel-t">Tasks</span><span class="sub">${open} open</span>
-   ${may?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-taskadd="${c.id}">Add a task</button></span>`:""}</div>
+   ${may?`<span class="c-a"><button class="shd-button shd-button--primary" data-taskadd="${c.id}">Add a task</button></span>`:""}</div>
   ${receiptBar("tasks:"+c.id)}
   <div class="tscroll"><table class="organism" style="min-width:640px">
    <thead><tr><th>Task</th><th>Prospect</th><th>Due</th><th>Status</th></tr></thead>
@@ -8084,7 +8086,7 @@ function cDialer(c){
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("dialer")}</span>
    <span class="panel-t">Dialer</span><span class="sub">${rows.length} call${rows.length===1?"":"s"} logged</span>
-   ${may?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" ${(PROSPECTS[c.id]||[]).length?"":"disabled"} data-dialadd="${c.id}">Log a call</button></span>`:""}</div>
+   ${may?`<span class="c-a"><button class="shd-button shd-button--primary" ${(PROSPECTS[c.id]||[]).length?"":"disabled"} data-dialadd="${c.id}">Log a call</button></span>`:""}</div>
   ${receiptBar("dialer:"+c.id)}
   <div class="tscroll"><table class="organism" style="min-width:640px">
    <thead><tr><th>Contact</th><th>Company</th><th>Outcome</th><th class="ar">Duration</th><th>When</th></tr></thead>
@@ -8111,7 +8113,7 @@ function cVerify(c){
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("verify")}</span>
    <span class="panel-t">Email Verifier</span><span class="sub">${f(left)} verification credits left this month</span>
-   ${may?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" ${left?"":"disabled"} data-verifyadd="${c.id}">Verify list</button></span>`:""}</div>
+   ${may?`<span class="c-a"><button class="shd-button shd-button--primary" ${left?"":"disabled"} data-verifyadd="${c.id}">Verify list</button></span>`:""}</div>
   ${receiptBar("verify:"+c.id)}
   <div class="tscroll"><table class="organism" style="min-width:640px">
    <thead><tr><th>List</th><th class="ar">Rows</th><th class="ar">Valid</th><th>Run</th><th>Status</th></tr></thead>
@@ -8134,7 +8136,7 @@ function cRadar(c){
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("radar")}</span>
    <span class="panel-t">Inbox Radar</span><span class="sub">${rows.length} mailbox${rows.length===1?"":"es"} tested</span>
-   ${may?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" ${rows.length?"":"disabled"} data-radartest="${c.id}">Run a deliverability test</button></span>`:""}</div>
+   ${may?`<span class="c-a"><button class="shd-button shd-button--primary" ${rows.length?"":"disabled"} data-radartest="${c.id}">Run a deliverability test</button></span>`:""}</div>
   ${receiptBar("radar:"+c.id)}
   <div class="tscroll"><table class="organism" style="min-width:640px">
    <thead><tr><th>Email account</th><th class="ar">Inbox placement</th><th class="ar">Spam placement</th><th>Last tested</th></tr></thead>
@@ -8158,7 +8160,7 @@ function cRefer(c){
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("refer")}</span>
    <span class="panel-t">Refer a Friend</span><span class="sub">${rows.filter(x=>x.status==="Rewarded").length} rewarded</span>
-   ${may?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-referadd="${c.id}">Send an invite</button></span>`:""}</div>
+   ${may?`<span class="c-a"><button class="shd-button shd-button--primary" data-referadd="${c.id}">Send an invite</button></span>`:""}</div>
   ${receiptBar("refer:"+c.id)}
   <div class="tscroll"><table class="organism" style="min-width:520px">
    <thead><tr><th>Referred</th><th>Status</th><th>Date</th></tr></thead>
@@ -8293,11 +8295,11 @@ function cSettings(c){
    <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":u.split("@")[0].replace(/^./,x=>x.toUpperCase())}" placeholder="${noUser?"No one invited yet":""}" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" placeholder="${noUser?"No one invited yet":""}" disabled>
     <p class="sub" style="margin-top:6px">${noUser?"Invite the workspace's first user from People to fill this in.":`Your sign-in. ${AGENCY.name} invited this address; ask them to invite another to change it.`}</p></div>
-   <button class="shd-button shd-button--primary shd-button--sm" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
+   <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Password</span></div><div class="panel-b">
    <div class="field"><label class="flabel" for="cpOld">Current password</label><input type="password" id="cpOld" autocomplete="current-password" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpNew">New password</label><input type="password" id="cpNew" placeholder="At least 8 characters" autocomplete="new-password" ${ro?"disabled":""}></div>
-   <button class="shd-button shd-button--primary shd-button--sm" ${ro?"disabled":""} data-flash="Password changed">Change password</button>
+   <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Password changed">Change password</button>
    <p class="sub" style="margin-top:10px">${AGENCY.name} never sees or holds your password.</p></div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
@@ -8605,7 +8607,7 @@ function cPros(c,owner){
     <td><span style="font-weight:600;color:var(--gray-800)">${p.name}</span><span class="cs" style="display:block">${p.title}</span></td>
     <td>${p.co}</td><td><span class="sub">${p.email}</span></td>
     <td><span class="chip c-${PRO_TONE[p.status]||"mute"}">${p.status}</span></td>
-    <td class="ar colact"><button class="linkbtn" data-prospect="${p.id}">View</button></td></tr>`).join("")
+    <td class="ar colact"><button class="linkbtn linkbtn--sm" data-prospect="${p.id}">View</button></td></tr>`).join("")
    :'<tr><td colspan="5"><span class="sub">No prospects in this workspace yet.</span></td></tr>'}
   </tbody></table></div>
   ${P.length<c.prospects?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
@@ -8713,7 +8715,7 @@ function modalHTML(){
          window are the numbers; the share is the only thing this window sets. -->
     <p class="sub" style="margin:10px 0 0">Every limit in the rows behind this window follows the share, except the ones you typed yourself. Credits stay reserved for ${sc.name.split(" ")[0]} at the new amounts.</p>
    </div>`,
-   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-mconfirm>Apply ${sh}%</button>`,"modal--560");
+   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-mconfirm>Apply ${sh}%</button>`,"modal--560");
  }
  if(modal.kind==="agencyconfirm"){
   const O=AGENCY_OWN;
@@ -10215,7 +10217,6 @@ render();
 .an-table th{white-space:nowrap}
 .an-table td:first-child{min-width:240px;white-space:nowrap}.an-table td:nth-child(2){white-space:nowrap}
 .an-table th.colact{width:44px}
-.chip.c-new{background:#f59e0b;border-color:#f59e0b;color:#fff;height:20px;padding:4px 8px;font-size:11px;font-weight:500;border-radius:4px}
 /* record page: type per the design system (heading-3 20/24 for the page title, caption 12/16 under it; line tabs 14px 500, selected 600, 2px rule) */
 .toolbar .cell-main .semibold-3{font-size:20px;line-height:28px}
 .toolbar .cell-main .cs{font-size:12px;line-height:16px;color:var(--gray-15)}
@@ -10673,7 +10674,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .rs-v .is-none{color:var(--gray-12)}
 .rs-s{font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px;white-space:nowrap}
 .rs-s.is-bad{color:var(--red-18)}.rs-s.is-warn{color:var(--orange-12)}
-.rs-usage .u-head{display:block;font-size:16px;line-height:28px;font-weight:600;margin-top:4px;white-space:nowrap}
+.rs-usage .u-head{display:block;font-size:16px;line-height:28px;font-weight:600;margin-top:4px;white-space:nowrap}.home-tbl .u-head,.home-tbl .meter-t{white-space:normal;overflow:visible;text-overflow:clip}
 .rs-usage .u-sub{display:block;font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px;white-space:nowrap}
 .rs-usage .u-quiet{display:block;font-size:14px;line-height:28px;font-weight:600;color:var(--gray-17);margin-top:4px;white-space:nowrap}
 .rc-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
@@ -10941,6 +10942,95 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .pg-avail .dd{width:auto}.pg-avail .dd-trig{height:auto;border:0;padding:0;font-size:12px;color:#1d4ed8;font-weight:500;background:transparent;box-shadow:none}.pg-avail .dd-trig .dd-val.is-ph{color:#1d4ed8}.pg-avail .dd-trig svg{display:none}.pg-avail .dd-menu{right:0;left:auto;min-width:220px}
 .sa-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}.sa-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#111827}.sa-row .cs{font-size:14px}
 .cp-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 220px;gap:24px;align-items:center;padding:16px 0;border-top:1px solid #f3f4f6}.cp-row:first-child{border-top:0}.cp-v{display:block;font-size:20px;line-height:24px;font-weight:600;color:#111827;margin-top:4px}
+/* ---------------------------------------------------------------------------
+   change 147, 6 Oct 2026: UI polish pass from two measured audits. Spacing,
+   sizing, alignment, type and state consistency only; no behaviour or copy.
+   --------------------------------------------------------------------------- */
+/* 1. .linkbtn: one size; --sm only inside tables and strips */
+.linkbtn,table .linkbtn,.pp-row .linkbtn,.pp-status .linkbtn,.inv-sum .linkbtn,.menu .linkbtn,.nc-hint .linkbtn,.sub .linkbtn,.pp-top .linkbtn,.toast .linkbtn,.msg .linkbtn,.dq-receipt .linkbtn,.dq-receipt--rail .linkbtn,.dash-arrival .linkbtn,.pp-st+.linkbtn,.nc-uline .linkbtn,.nc-uhead .linkbtn,.rs-head .linkbtn,.lm-share .linkbtn,.inv-row .linkbtn,.inv-ed .pp-sec-row .linkbtn,.crumb .linkbtn,.bill-sub .linkbtn,.ob-step .linkbtn,.ob-entry .linkbtn,.pp-toast .linkbtn,.linkbtn.lm-set{font-size:14px;line-height:22px;font-weight:500}
+.ob-step .linkbtn,.ob-entry .linkbtn{font-weight:600} /* onboarding "Create workspace" is product copy; weight kept */
+.linkbtn.linkbtn--sm,table .linkbtn.linkbtn--sm,.msg .linkbtn.linkbtn--sm,.sub .linkbtn.linkbtn--sm,.rs-head .linkbtn.linkbtn--sm,.lm-pace .linkbtn.lm-set{font-size:12px;line-height:16px} /* Set to N is an in-row link */
+/* 9. table heads: one type for every th, the Analytics sort buttons included */
+table.organism th .linkbtn,table.organism th .sortable,.an-table th .sortable{font-size:12px;font-weight:500;line-height:16px}
+/* 2. record Overview cards share the panel padding; billing panels close the head-to-first-row gap */
+.rc-card .panel-h{padding:18px 24px 14px;min-height:52px;align-items:center}
+.rc-card .panel-b{padding:0 24px 16px}
+.rc-card .panel-b>:first-child{margin-top:0;padding-top:0}
+.billpage .panel>.panel-b{padding-top:12px}
+.billpage .sa-grid,.billpage .cp-row:first-child{margin-top:0;padding-top:0}
+/* 3. stacked panel gaps: one value */
+.panel+.panel{margin-top:16px}
+.rec-strip{margin-bottom:16px}
+.rc-group{margin-bottom:16px}
+.billpage{gap:16px}
+/* 4. reading text is never 11px; only uppercase eyebrows stay at 11 */
+td i{font-style:normal;font-size:12px;line-height:16px;color:#6B7280}
+.nc-hint,.sub.nc-hint,p.nc-hint,.nc-ucap,.nc-share-tile span,.nc-capnote,.pp-echip,.u-sub,.hero-pill{font-size:12px;line-height:16px}
+.nc-capnote{margin:6px 0 0}
+/* 5. focus: one treatment */
+input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:0}
+#ncShare:focus-visible,#shShare:focus-visible{outline:2px solid #1D4ED8;outline-offset:4px}
+#ncShare:focus-visible::-webkit-slider-thumb,#shShare:focus-visible::-webkit-slider-thumb{box-shadow:none}
+/* 8. the record kebab is a plain tertiary button with an SVG glyph */
+.rec-kebab{padding:6px 16px;font-weight:500}
+.rec-kebab svg{width:16px;height:16px;flex:none}
+/* 10. tab bars share one height */
+.pp-tabs button{height:48px;padding:12px 2px}
+/* 11. */
+.cs{line-height:16px}
+/* 16. the dash toolbar matches every other toolbar */
+.toolbar--notitle{padding:22px 24px}
+/* 17 / 18. Workspaces list: the usage control never wraps; rows share a height */
+.u-head,.meter-t{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-table .meter.u-usagebtn{min-width:200px;max-width:100%}
+.ws-table td{height:75px}
+/* 19. the record header chip stands at button height */
+.rc-hdrchip{height:32px;padding:0 12px;display:inline-flex;align-items:center}
+/* 20. the ask bar's columns line up across lines */
+.rq-line{grid-template-columns:220px 170px 140px 200px 1fr}
+.rq-under{grid-column:1/-1}
+/* 21 / 22. share header never overflows the modal; the eyebrow sits on the button's centre line */
+.nc-urow .flabel{flex:none;white-space:nowrap}
+.nc-upct{flex-wrap:wrap;justify-content:flex-end;text-align:right;max-width:60%;white-space:normal}
+.nc-upct .sub{white-space:normal}
+.nc-limhead{align-items:center}.nc-limhead .nc-eyebrow{margin-bottom:0}
+/* 24. a stable gutter so Edit limits never shifts the body */
+.dr-b{scrollbar-gutter:stable}
+/* 26. */
+.pp-chip .pp-av{width:18px;height:18px;font-size:9px;line-height:18px}
+/* 27. invite modal: the client picker is one size */
+.modal.inv-b .dd-trig{height:32px;width:100%;margin:0}
+.modal.inv-b .inv-ms{min-height:32px;padding:4px 8px}.modal.inv-b .inv-ms .dd-trig{height:22px;width:100%} /* the chips box is the 32px control; its inner add-more trigger stays inline */
+/* 28. Billing "Set limits" reads like the record card's link */
+.pg-avail .dd-trig{font-size:14px;line-height:22px;font-weight:500;color:#1D4ED8}
+.pg-avail .dd-trig:hover{color:#1e40af;text-decoration:underline}
+/* 31. the sequence table fits the page at 1440 without a horizontal scroll */
+table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-right:8px}
+.an-table td:first-child,table.organism.an-table td:first-child{min-width:200px}
+.an-table th .sortable{gap:4px}
+/* 30. tile percent never runs into the chevron */
+.an-chev{position:static;margin-left:6px;flex:none}
+/* 32. one link style in the Usage & billing action column */
+.cu-act .linkbtn{color:#1D4ED8}
+/* 34 / 35. first-workspace flow: the stage holds its height; every avatar centres its initials */
+.xs-row{min-height:216px}
+.xs-foot>:last-child{min-height:32px;display:inline-flex;align-items:center}
+.xs-av{display:grid;place-items:center;color:#fff}
+/* 36. the Home guide sits on the same x as every other panel */
+.home-guide{margin:0 24px 16px}
+/* 37 / 38. login and invite: no rail margin while the rail is hidden; the system button size */
+.app.invite-mode .main{margin-left:0}
+.invite-form .shd-button{height:32px;font-size:14px}
+/* 40. */
+.asbanner button{font-size:13px;font-weight:500}
+/* 41. */
+#askWhy.is-err,#askWhy.is-err:focus{border-color:#DC2626;box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+/* C. Purchase History carries production's cell borders */
+.inf-table th,.inf-table td{border-right:1px solid var(--gray-13)}
+.inf-table th:last-child,.inf-table td:last-child{border-right:0}
+/* 15. Home: the Yours chip rides the name line */
+.ws-nm{display:inline-flex;align-items:center;gap:6px;min-width:0}.ws-nm .cn{white-space:nowrap}
+.ws-nm .yours{margin-left:0!important}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -11222,7 +11312,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="65c1886";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="bcd195a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
