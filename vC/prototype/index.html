@@ -1638,7 +1638,8 @@ const I={
  dash:['0 0 24 24','<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'],
  back:['0 0 24 24','<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'],
  /* change 139 (Hitesh): a gauge, not a clock */
- usage:['0 0 24 24','<path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15l3.5-4.5"/><circle cx="12" cy="15" r="1.2"/><path d="M2.5 19h19"/>'],
+ /* change 143 (Hitesh): Usage & billing, the wallet */
+ usage:['0 0 24 24','<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'],
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
@@ -1667,7 +1668,7 @@ const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
  /* 'client' scopes an item to a client's own view. Decided 12 Sep 2026: the
     rail is the client's only navigation, so the two screens the tab strip
     used to carry alone live here now. */
- ['usage','Usage',null,'client'],['warmup','Email Warm-up'],['refer','Refer a Friend'],
+ ['usage','Usage & billing',null,'client'],['warmup','Email Warm-up'],['refer','Refer a Friend'],
  ];
 const inAgency=()=>ctx==="agency";
 /* Version C's third persona. A normal user is an account with one workspace and
@@ -3007,7 +3008,7 @@ function renderRail(){
 /* 17 Sep 2026, round 7 (44-ui-audit.md P8): one label map for the modules a
    staff member works in inside a client, used by the crumb and the toolbar. */
 const IN_LBL={sequences:"Sequences",prospects:"Prospects",inbox:"Inbox",accounts:"Email accounts",tmpl:"Templates"};
-const inModLabel=()=>(inMod==="usage"?"Usage":IN_LBL[inMod])||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences");
+const inModLabel=()=>(inMod==="usage"?"Usage & billing":IN_LBL[inMod])||(AGY_MOD[inMod]?AGY_MOD[inMod][0]:"Sequences");
 /* the client's Usage screen from the agency's side: the same rows, named as
    what you allocated, with the way to change them one click away */
 function agencyUsage(c){
@@ -3055,7 +3056,7 @@ function agencyUsage(c){
    <span class="sub">${CYCLE.month} &middot; ${own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
    <span class="c-a">${goBtn("Change limits &rarr;","linkbtn")}</span></div>
   <div class="panel-b cu-rows">${rows}</div>
-  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them lands on your Home, under Needs a decision, and on this workspace's Limits tab."}</span></div></div>`;
+  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them lands on your Home, under Needs a decision, and on this workspace's Limits tab."}</span></div></div>`+mailPurchasesHTML(c);
 }
 /* the workspace-switcher trigger's own markup, captured once so renderShell
    can remove it from the DOM for a client-role session and re-insert the
@@ -3299,7 +3300,7 @@ function vClients(){
    cell:c=>`<td class="ar tnum">${f(c.sent)}</td>`},
   {id:"reply",label:"Reply Rate",ar:true,sort:true,
    cell:c=>`<td class="ar tnum">${c.reply?c.reply.toFixed(1)+"%":"–"}</td>`},
-  {id:"usage",label:"Usage",
+  {id:"usage",label:"Usage & billing",
    /* was a Lead Finder meter, which reported one pool of five and so named the
       wrong emergency whenever a different pool was the binding one */
    cell:c=>`<td>${usageMeterCell(c)}</td>`},
@@ -3635,7 +3636,7 @@ const CLIENT_MODULES=[
  ["radar","Inbox Radar","Deliverability tests for this workspace's mailboxes","Sending","both"],
  ["warmup","Email Warm-up","Keeps their mailboxes' reputation warm","Sending","both"],
  ["analytics","Reports","Results only: sent, replies, meetings booked","Results","both"],
- ["usage","Usage","What you allocated, and what is left of it","Results","client"],
+ ["usage","Usage & billing","What you allocated, what is left of it, and what this workspace bought","Results","client"],
  ["refer","Refer a Friend","Saleshandy's referral programme","Results","both"],
 ];
 /* item 55, 28 Sep 2026: modsFor deleted, unread (one hit, its own
@@ -4206,7 +4207,7 @@ function rMail(c){
   ${filt.length>10?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
     <span class="sub">Showing ${rows.length} of ${filt.length}</span>
     <button class="linkbtn" data-mailall="${mailAll?0:1}" style="margin-left:10px">${mailAll?"Show fewer":"Show all "+filt.length}</button></div>`:""}
- </div>${clientSide?"":mailPurchasesHTML(c)}`;
+ </div>`;
 }
 
 /* "agency" = purchased by the agency; "client" = connected by whoever already
@@ -5780,7 +5781,7 @@ const RAIL2CVIEW={seq:"sequences",inbox:"inbox",crm:"prospects",leads:"leads",
 /* what a client calls each screen. One name per thing, used by the rail, the
    orientation line and the landing rule alike. */
 const CLIENT_LBL={sequences:"Sequences",inbox:"Replies",prospects:"Prospects",leads:"Lead Finder",
- accounts:"Email accounts",analytics:"Reports",usage:"Usage",
+ accounts:"Email accounts",analytics:"Reports",usage:"Usage & billing",
  task:"Tasks",dialer:"Dialer",verify:"Email Verifier",tmpl:"Templates",radar:"Inbox Radar",
  warmup:"Email Warm-up",refer:"Refer a Friend"};
 /* the one line a restricted client's single screen carries, above its content.
@@ -11215,7 +11216,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="2dc726b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="05c58dc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
