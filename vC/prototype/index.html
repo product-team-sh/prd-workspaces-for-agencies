@@ -1696,7 +1696,7 @@ const isNormal=()=>!hasAgency()&&!asClient&&!solo;
    pinned against the rail, which taught nothing and landed badly at every
    width. The explanation belongs in the moment the thing changes, not in a
    tooltip after it has already changed.                                      */
-let xform=null, xformDone=false, xformPending=false, xformLand=null, GUIDE=null;
+let xform=null, xformDone=false, xformPending=false, xformLand=null, GUIDE=null, UB_TAB="allow";
 const REDUCED=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 const XS_WORK=2200;              /* stands in for convert + fetch */
 const XS_BEATS=[900,1100,1100];  /* beat 4 holds until the work is done */
@@ -3051,12 +3051,14 @@ function agencyUsage(c){
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`
    :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`}
  else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
- return `${top}<div class="panel">
+ const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email accounts"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
+ if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
+ return `${top}${tabs}<div class="panel">
   <div class="panel-h"><span class="panel-t">${own?"Your own allowance":"What you allocated to "+c.name}</span>
    <span class="sub">${CYCLE.month} &middot; ${own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
    <span class="c-a">${goBtn("Change limits &rarr;","linkbtn")}</span></div>
   <div class="panel-b cu-rows">${rows}</div>
-  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them lands on your Home, under Needs a decision, and on this workspace's Limits tab."}</span></div></div>`+mailPurchasesHTML(c);
+  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them lands on your Home, under Needs a decision, and on this workspace's Limits tab."}</span></div></div>`;
 }
 /* the workspace-switcher trigger's own markup, captured once so renderShell
    can remove it from the DOM for a client-role session and re-insert the
@@ -3998,10 +4000,12 @@ function cUsage(c){
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.</span></div>`
    :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}</span></div>`}
  else top=`<p class="cu-line">Your outreach is running. Nothing is close to its limit.</p>`;
- return `${top}<div class="panel">
+ const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email accounts"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
+ if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${first} yet.</span></div></div>`}`;
+ return `${top}${tabs}<div class="panel">
   <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
   <div class="panel-b cu-rows cu-rows--noact">${rows}</div>
-  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`+mailPurchasesHTML(c,true);
+  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
 function askNeed(k,cid){const R=RES[k], r=R.rows[cid], pc=paceOf(k,cid), st=R.step||1;
@@ -9768,6 +9772,7 @@ function wire(){
  /* People v2 */
  q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
  q("[data-ptabp]").forEach(b=>b.onclick=()=>{PERSON_TAB=b.dataset.ptabp;render()});
+ q("[data-ubtab]").forEach(b=>b.onclick=()=>{UB_TAB=b.dataset.ubtab;render()}); /* change 146: Usage & billing tabs */
  q("[data-pedit]").forEach(b=>b.onclick=()=>personEdit(b.dataset.pedit));
  q("[data-preset]").forEach(b=>b.onclick=()=>{ppToast(`Reset link sent to ${b.dataset.preset}. It works for 24 hours.`,null,"reset link sent");render()});
  q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
@@ -10623,9 +10628,10 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-share-tiles{display:flex;gap:8px;margin-top:4px}.nc-share-tile{flex:1 1 0;min-width:0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:4px}.nc-share-tile b{display:block;font-size:16px;line-height:22px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}.nc-share-tile span{display:block;font-size:11px;line-height:16px;color:#6b7280}
 .nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-upct{display:flex;align-items:baseline;gap:4px;white-space:nowrap}.nc-upct b{font-weight:600}.nc-upct .sub{font-size:12px}
 .inf-table td,.inf-table th{white-space:nowrap}.inf-prov{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;font-weight:700;font-size:12px;margin-right:4px}.inf-ws{display:inline-flex;align-items:center;gap:8px}
+.ub-tabs{margin:0 0 16px}
 .home-guide{margin-bottom:16px;border-color:#bfdbfe}.hg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.hg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.hg-grid b{display:block;font-weight:500;margin-bottom:2px}.hg-f{display:flex;align-items:center;gap:12px;margin-top:14px}
 .nc-limhead #ncEdit{flex:none;white-space:nowrap;line-height:1}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
-.nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
+.nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;min-height:32px;padding:6px 0 10px}.nc-uhead .linkbtn{flex:none;white-space:nowrap}.nc-uhead .linkbtn{font-size:12px}
 .nc-urow2{display:flex;align-items:center;gap:12px;height:40px}.nc-urow2 .l{flex:1;font-size:13px;font-weight:500;color:#1f2937}.nc-urow2 .sub{white-space:nowrap}.nc-urow2 .sub b{font-weight:600;color:#374151}
 .nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
 /* 2 Oct 2026: Home table per board B3 */
@@ -11216,7 +11222,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6085d13";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="65c1886";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
