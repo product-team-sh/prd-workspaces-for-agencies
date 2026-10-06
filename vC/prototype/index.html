@@ -4001,7 +4001,7 @@ function cUsage(c){
  return `${top}<div class="panel">
   <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
   <div class="panel-b cu-rows cu-rows--noact">${rows}</div>
-  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
+  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`+mailPurchasesHTML(c,true);
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
 function askNeed(k,cid){const R=RES[k], r=R.rows[cid], pc=paceOf(k,cid), st=R.step||1;
@@ -5015,23 +5015,23 @@ const INFRA_BUY=[
  {on:"26 Aug, 2026",ws:"bl",prov:"g",dom:1,domP:"$14 / yearly",mbx:"0",mbxP:"$0 / quarterly",ip:"&ndash;",ipP:"",renew:"05 Sep, 2026",plan:"Quarterly",due:true},
  {on:"01 Sep, 2026",ws:"sf",prov:"g",dom:3,domP:"$42 / yearly",mbx:"9",mbxP:"$107.73 / quarterly",ip:"&ndash;",ipP:"",renew:"30 Nov, 2026",plan:"Quarterly",due:false},
  {on:"03 Sep, 2026",ws:"at",prov:"g",dom:0,domP:"",mbx:"2",mbxP:"$7.00 / monthly",ip:"&ndash;",ipP:"",renew:"03 Oct, 2026",plan:"Monthly",due:false}];
-function mailPurchasesHTML(c){
+function mailPurchasesHTML(c,forClient){
  const prov=p=>p==="g"?'<span class="inf-prov" style="color:#ea4335">G</span>':'<span class="inf-prov" style="background:#111;color:#fff;border-radius:2px">M</span>';
  const mine=INFRA_BUY.filter(r=>r.ws===c.id); if(!mine.length) return "";
  const rows=mine.map(r=>`<tr>
    <td class="tnum">${r.on}</td>
-   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP?` <span class="sub">${r.domP}</span>`:""}</td>
-   <td><b>${r.mbx}</b>${r.mbxP?` <span class="sub">${r.mbxP}</span>`:""}</td>
-   <td><b>${r.ip}</b>${r.ipP?` <span class="sub">${r.ipP}</span>`:""}</td>
+   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP&&!forClient?` <span class="sub">${r.domP}</span>`:""}</td>
+   <td><b>${r.mbx}</b>${r.mbxP&&!forClient?` <span class="sub">${r.mbxP}</span>`:""}</td>
+   <td><b>${r.ip}</b>${r.ipP&&!forClient?` <span class="sub">${r.ipP}</span>`:""}</td>
    <td class="tnum">${r.renew}${r.due?' <span class="chip c-warn" style="margin-left:6px">Renew</span>':""}</td><td>${r.plan}</td>
-   <td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew now</button>':'<button class="linkbtn" data-flash="Opens the billing portal">Manage billing &rarr;</button>'}</td></tr>`).join("");
+   <td class="colact">${forClient?"":r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew now</button>':'<button class="linkbtn" data-flash="Opens the billing portal">Manage billing &rarr;</button>'}</td></tr>`).join("");
  return `<div class="panel">
-  <div class="panel-h"><span class="panel-t">Bought through Saleshandy</span><span class="sub">Domains, email accounts and IPs this workspace sends from, with their renewal dates</span></div>
-  <div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${warnI}<span>Renew before the listed renewal date to keep your domains and email accounts active. We cannot guarantee renewal after this date. Google and Microsoft service provider: <b>$17 / domain / year</b> and <b>$6.50 / email account / month</b>.</span></div></div>
+  <div class="panel-h"><span class="panel-t">${forClient?"Your email accounts":"Bought through Saleshandy"}</span><span class="sub">${forClient?"The domains, email accounts and IPs your outreach sends from, set up by "+AGENCY.name:"Domains, email accounts and IPs this workspace sends from, with their renewal dates"}</span></div>
+  ${forClient?"":`<div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${warnI}<span>Renew before the listed renewal date to keep your domains and email accounts active. We cannot guarantee renewal after this date. Google and Microsoft service provider: <b>$17 / domain / year</b> and <b>$6.50 / email account / month</b>.</span></div></div>`}
   <div class="tscroll"><table class="organism inf-table" style="min-width:900px">
    <thead><tr><th>Purchase date</th><th>Domains</th><th>Email accounts</th><th>IPs / Azure tenants</th><th>Renewal date</th><th>Plan type</th><th class="colact"></th></tr></thead>
    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">Billed to ${AGENCY.name}'s plan. ${c.name.split(" ")[0]}'s people see the accounts, never these prices.</p></div>`;
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${forClient?AGENCY.name+" renews these for you; nothing to do on your side.":"Billed to "+AGENCY.name+"'s plan. "+c.name.split(" ")[0]+"'s people see the accounts, never these prices."}</p></div>`;
 }
 function vAddons(){
  const row=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
@@ -8328,7 +8328,7 @@ function vClientSide(){
      <span class="semibold-3" style="display:block">${c.name}</span>
      <span class="cs">Your workspace</span></span></div>
  </div>
- <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${(u=>u+(u?"":accessNote(c)))(graceNote(c)+(cView==="usage"?"":atLimitBanner(c)))}${
+ <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"?"":atLimitBanner(c)))}${
    granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
      ?`<p class="sub" style="margin:0">${AGENCY.name} shares ${RESTRICT_NOUN[cView]||"this"} here. Ask them if you need more.</p>`:""}${
    cView==="sequences"?cSeq(c)
@@ -11216,7 +11216,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="05c58dc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="d920915";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
