@@ -1694,7 +1694,7 @@ const isNormal=()=>!hasAgency()&&!asClient&&!solo;
    pinned against the rail, which taught nothing and landed badly at every
    width. The explanation belongs in the moment the thing changes, not in a
    tooltip after it has already changed.                                      */
-let xform=null, xformDone=false;
+let xform=null, xformDone=false, xformPending=false, xformLand=null;
 const REDUCED=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 const XS_WORK=2200;              /* stands in for convert + fetch */
 const XS_BEATS=[900,1100,1100];  /* beat 4 holds until the work is done */
@@ -1733,6 +1733,7 @@ function endXform(){
     opens with it: the guide is the act itself, not a tour of where the button
     is.                                                                     */
  xform=null;renderXform();
+ if(xformLand){const c=xformLand;xformLand=null;startHandover(c);return}
  ctx="agency";asClient=false;view={name:"clients"};render();
  /* opened synchronously rather than on a timer. The drawer has its own entrance
     transition, so the staggered feel costs nothing, and sequencing UI on a
@@ -1887,7 +1888,10 @@ const AGENCY={name:"Meridian Growth",initials:"MG",colour:"#1D4ED8",whitelabel:t
 const wlSample=kind=>"data:image/svg+xml;utf8,"+encodeURIComponent(kind==="logo"
  ?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect x="18" y="22" width="56" height="56" rx="14" fill="#1D4ED8"/><text x="46" y="60" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700" fill="#fff">MG</text><text x="88" y="60" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="700" fill="#111827" textLength="196" lengthAdjust="spacingAndGlyphs">Meridian Growth</text></svg>'
  :'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 126 126"><rect width="126" height="126" rx="28" fill="#1D4ED8"/><text x="63" y="80" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="700" fill="#fff">MG</text></svg>');
-const BRAND={companyName:"Meridian Growth",logo:wlSample("logo"),icon:wlSample("icon"),favicon:wlSample("icon"),domain:"app.meridiangrowth.com",domainVerified:true,domainPending:false};
+/* change 124, 6 Oct 2026 (Hitesh): Whitelabel is off by default. The page opens
+   in its empty state; "Choose a file" and the domain step still fill it with the
+   sample brand, so a walkthrough can switch it on in two clicks. */
+const BRAND={companyName:"Meridian Growth",logo:"",icon:"",favicon:"",domain:"",domainVerified:false,domainPending:false};
 const brandOn=()=>AGENCY.whitelabel&&!!BRAND.icon;
 const brandTitle=()=>brandOn()?BRAND.companyName:"Saleshandy \u00b7 version C";
 let wlTab="logo", wlDomainDraft="", wlDomainErr="";
@@ -7772,6 +7776,9 @@ function create(){
  c.share=ncShare();
  nc=NC_INIT();
  drawer=null;renderDrawer();
+ /* change 123: the first workspace plays the four-beat conversion after the form,
+    not before it, and lands in the workspace it just made. */
+ if(xformPending){xformPending=false;xformLand=c;startXform();return}
  /* Version C: the first client is the moment the account becomes a workspace
     model, so it always went to Home to watch it happen rather than to the
     record of the client just made. 21 Sep 2026, delight pass round 5: every
@@ -8840,9 +8847,10 @@ function renderModal(){
  {const sc=L.querySelector("#mscrim"); if(sc&&modal&&(modal.kind==="ppperson"||modal.kind==="pproles")) sc.onclick=e=>{if(e.target===sc){modal=modal.back||null;PP.addws=false;PP.removeConfirm=false;renderModal()}}}
  L.querySelectorAll("[data-agencyok]").forEach(b=>b.onclick=()=>{
    modal=null;renderModal();
-   /* convert the account first, then guide them into adding the client. The
-      other order explained a client they had already created. */
-   if(startXform())return;
+   /* change 123, 6 Oct 2026 (Hitesh): after "Add a workspace?" the form opens
+      at once. The account converts underneath without the four-beat sequence;
+      #transform still plays it for the walkthrough. */
+   if(!xformDone){xformPending=true;agencyMode=true;render()}
    drawer={step:1};renderDrawer()});
  /* the [data-siok] and [data-wsaddok] handlers went with their modals on
     16 Sep. Both wrote PEOPLE directly, and one of them wrote a person with an
@@ -11140,7 +11148,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6170c4b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="2bbcbd5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
