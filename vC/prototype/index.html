@@ -1637,7 +1637,8 @@ const I={
  queue:['0 0 24 24','<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>'],
  dash:['0 0 24 24','<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'],
  back:['0 0 24 24','<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'],
- usage:['0 0 24 24','<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
+ /* change 139 (Hitesh): a gauge, not a clock */
+ usage:['0 0 24 24','<path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15l3.5-4.5"/><circle cx="12" cy="15" r="1.2"/><path d="M2.5 19h19"/>'],
  settings:['0 0 24 24','<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'],
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
@@ -4901,7 +4902,7 @@ let colOpen=false, colDraft=null, colQ="";
    but is no longer in the nav. */
 /* 4 Oct 2026, change 110, Hitesh: "Remove email accounts from Billing & Subscription". Mailboxes are
    bought and managed inside each workspace (D6); their charge rides on the invoice. */
-const BILL_TABS=[["plan","Platform","Plan"],["credits","Credits","Buy"],["addons","Add-ons","Buy"]];
+const BILL_TABS=[["plan","Platform","Plan"],["infra","Email accounts","Buy"],["credits","Credits","Buy"],["addons","Add-ons","Buy"]];
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
@@ -4998,6 +4999,36 @@ function vCreditsBuy(){
      <div><span class="cs" style="display:block">Price</span><b class="cp-v">${CREDIT_PRICE[k]}</b></div>
      <div style="text-align:right"><button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Buy credits</button><span class="cs" style="display:block;margin-top:6px">${CREDIT_LAST[k]}</span></div></div>`}).join("")}</div></div>
   <div class="panel"><div class="panel-b"><span class="sub">Credits are shared by every workspace. How much each one may use is set on its Limits tab, and the picture of who uses what is on Platform.</span></div></div>`}
+/* change 139, 6 Oct 2026 (Hitesh): production's Email Account Infrastructure purchase
+   history, inside Billing, with the workspace each purchase belongs to. Columns and the
+   renewal warning follow production; prices are fixture. */
+const INFRA_BUY=[
+ {on:"22 Dec, 2025",ws:"own",prov:"ms",dom:1,domP:"$14 / yearly",mbx:"&ndash;",mbxP:"",ip:"1",ipP:"$327 / quarterly",renew:"22 Mar, 2026",plan:"Quarterly",due:false},
+ {on:"09 Apr, 2026",ws:"vx",prov:"g",dom:2,domP:"$28 / yearly",mbx:"40",mbxP:"",ip:"2",ipP:"$120 / quarterly",renew:"09 Apr, 2026",plan:"Quarterly",due:false},
+ {on:"27 Apr, 2026",ws:"al",prov:"g",dom:3,domP:"$42 / yearly",mbx:"15",mbxP:"$628.20 / yearly",ip:"&ndash;",ipP:"",renew:"27 Apr, 2027",plan:"Annual Flexi",due:false},
+ {on:"30 Jul, 2026",ws:"nw",prov:"g",dom:2,domP:"$28 / yearly",mbx:"6",mbxP:"$71.82 / quarterly",ip:"&ndash;",ipP:"",renew:"28 Oct, 2026",plan:"Quarterly",due:false},
+ {on:"26 Aug, 2026",ws:"bl",prov:"g",dom:1,domP:"$14 / yearly",mbx:"0",mbxP:"$0 / quarterly",ip:"&ndash;",ipP:"",renew:"05 Sep, 2026",plan:"Quarterly",due:true},
+ {on:"01 Sep, 2026",ws:"sf",prov:"g",dom:3,domP:"$42 / yearly",mbx:"9",mbxP:"$107.73 / quarterly",ip:"&ndash;",ipP:"",renew:"30 Nov, 2026",plan:"Quarterly",due:false},
+ {on:"03 Sep, 2026",ws:"at",prov:"g",dom:0,domP:"",mbx:"2",mbxP:"$7.00 / monthly",ip:"&ndash;",ipP:"",renew:"03 Oct, 2026",plan:"Monthly",due:false}];
+function vInfra(){
+ const prov=p=>p==="g"?'<span class="inf-prov" style="color:#ea4335">G</span>':'<span class="inf-prov" style="background:#111;color:#fff;border-radius:2px">M</span>';
+ const wsCell=id=>{const c=id==="own"?{name:AGENCY.name,colour:AGENCY.colour}:byId[id];return c?`<span class="inf-ws">${av(c,18)}${c.name}</span>`:"&ndash;"};
+ const rows=INFRA_BUY.map(r=>`<tr>
+   <td class="tnum">${r.on}</td><td>${wsCell(r.ws)}</td>
+   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP?` <span class="sub">${r.domP}</span>`:""}</td>
+   <td><b>${r.mbx}</b>${r.mbxP?` <span class="sub">${r.mbxP}</span>`:""}</td>
+   <td><b>${r.ip}</b>${r.ipP?` <span class="sub">${r.ipP}</span>`:""}</td>
+   <td class="tnum">${r.renew}${r.due?' <span class="chip c-warn" style="margin-left:6px">Renew</span>':""}</td><td>${r.plan}</td>
+   <td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew now</button>':'<button class="linkbtn" data-flash="Opens the billing portal">Manage billing &rarr;</button>'}</td></tr>`).join("");
+ return `<div class="panel">
+  <div class="panel-h"><span class="panel-t">Email accounts you bought</span><span class="sub">Domains, email accounts and IPs bought through Saleshandy, by the workspace that sends from them</span>
+   <span class="c-a"><button class="shd-button shd-button--primary shd-button--sm" data-flash="Buy inside the workspace that will send from them">Buy email accounts</button></span></div>
+  <div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${warnI}<span>Renew before the listed renewal date to keep your domains and email accounts active. We cannot guarantee renewal after this date. Google and Microsoft service provider: <b>$17 / domain / year</b> and <b>$6.50 / email account / month</b>.</span></div></div>
+  <div class="tscroll"><table class="organism inf-table" style="min-width:1100px">
+   <thead><tr><th>Purchase date</th><th>Workspace</th><th>Domains</th><th>Email accounts</th><th>IPs / Azure tenants</th><th>Renewal date</th><th>Plan type</th><th class="colact"></th></tr></thead>
+   <tbody>${rows}</tbody></table></div>
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">Buying happens inside a workspace, on its Email accounts page, so every purchase already belongs to the workspace that sends from it. Nothing is pooled or moved.</p></div>`;
+}
 function vAddons(){
  const row=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
@@ -5082,6 +5113,7 @@ function vBilling(){
  const page=billTab==="plan"?vPlatform()
   :billTab==="credits"?vCreditsBuy()
   :billTab==="addons"?vAddons()
+  :billTab==="infra"?vInfra()
   :vCredits().replace('<div class="wrap">','<div class="billpage">');
  /* 4 Oct 2026, change 108, Hitesh: the strip under the header ("Scale (Monthly) · one plan for...",
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
@@ -10587,6 +10619,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-ucap{display:flex;justify-content:space-between;font-size:11px;line-height:16px;color:#6b7280}
 .nc-share-tiles{display:flex;gap:8px;margin-top:4px}.nc-share-tile{flex:1 1 0;min-width:0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:4px}.nc-share-tile b{display:block;font-size:16px;line-height:22px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}.nc-share-tile span{display:block;font-size:11px;line-height:16px;color:#6b7280}
 .nc-usage,.nc-usage *{box-sizing:border-box;max-width:100%}.nc-uline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%}.nc-upct{display:flex;align-items:baseline;gap:4px;white-space:nowrap}.nc-upct b{font-weight:600}.nc-upct .sub{font-size:12px}
+.inf-table td,.inf-table th{white-space:nowrap}.inf-prov{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;font-weight:700;font-size:12px;margin-right:4px}.inf-ws{display:inline-flex;align-items:center;gap:8px}
 .home-guide{margin-bottom:16px;border-color:#bfdbfe}.hg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.hg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.hg-grid b{display:block;font-weight:500;margin-bottom:2px}.hg-f{display:flex;align-items:center;gap:12px;margin-top:14px}
 .nc-limhead #ncEdit{flex:none;white-space:nowrap;line-height:1}.nc-uline .sub{flex:1 1 auto;min-width:0}.nc-uline .linkbtn{flex:0 0 auto;white-space:nowrap;font-size:13px;line-height:18px;padding:0;margin:0;text-align:right}
 .nc-ulist{border-top:1px solid #f3f4f6;margin-top:4px;padding-top:4px}.nc-uhead{display:flex;justify-content:space-between;align-items:baseline;height:32px}.nc-uhead .linkbtn{font-size:12px}
@@ -11180,7 +11213,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="988b506";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="f6cca70";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
