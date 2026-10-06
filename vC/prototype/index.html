@@ -9209,6 +9209,7 @@ const TOUR_N=5;
 const tourWs=()=>TOUR&&byId[TOUR.ws]||null;
 const tourNm=c=>c.name.replace(/\.$/,"");
 const tourOnRec=c=>ctx==="agency"&&!asClient&&view.name==="record"&&view.id===c.id;
+const tourPopOn=()=>popOpen&&el("pop")&&!el("pop").hidden;
 const tourGoRec=(c,t)=>{ORIGIN=null;ctx="agency";asClient=false;view={name:"record",id:c.id};tab=t||"overview";render()};
 /* each step: where the target lives (for the "go back" line), how to get
    there, the target element (null when off screen), the copy, the optional
@@ -9233,10 +9234,15 @@ const TOUR_STEPS={
     target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
     head:c=>`Everything ${tourNm(c)} runs lives inside.`,body:c=>"",act:c=>"Open it.",
     done:c=>ctx===c.id},
+ /* 5a spotlights the switcher tile; 5b, once the popover is open, moves to its
+    account row, and the step completes only back on the admin panel's Home. The
+    popover closing without a pick drops back to 5a on the next tick. */
  5:{where:c=>tourNm(c),go:c=>{ctx=c.id;asClient=false;cView="sequences";inMod="sequences";openProspect=null;openSeq=null;openReply=null;render()},
-    target:c=>(asClient||solo)?null:el("wsBtn"),
-    head:c=>`Move between the account, your own workspace and ${tourNm(c)} here.`,body:c=>"",act:c=>"Try it.",
-    done:c=>popOpen&&el("pop")&&!el("pop").hidden}
+    target:c=>(asClient||solo)?null:tourPopOn()?document.querySelector('#popL [data-go="agency"]'):el("wsBtn"),
+    state:c=>tourPopOn()?"row":"on",
+    head:c=>tourPopOn()?"The account row takes you back to the admin panel, where you run every workspace.":`Move between the account, your own workspace and ${tourNm(c)} here.`,
+    body:c=>"",act:c=>tourPopOn()?`Pick ${AGENCY.name}, the account.`:"Open the switcher.",
+    done:c=>ctx==="agency"&&!asClient&&view.name===homeView().name}
 };
 function tourLayer(){let L=el("tourLayer"); if(!L){L=document.createElement("div");L.id="tourLayer";const M=el("modalLayer");if(M)M.insertAdjacentElement("beforebegin",L);else document.body.appendChild(L)} return L}
 function tourStart(id){
@@ -9275,7 +9281,8 @@ function tourDraw(){
  const step=TOUR.step, done=step>TOUR_N, S=done?null:TOUR_STEPS[step];
  let t=null, sub="";
  if(!done){t=S.target(c); sub=S.sub?S.sub(c):""; if(t&&!tourVisible(t.getBoundingClientRect())&&t.closest("#page")){t.scrollIntoView({block:"center",behavior:"auto"})}}
- const key=[step,done?"done":t?(sub?"tab":"on"):"off"].join("|");
+ const stateKey=done?"done":!t?"off":sub?"tab":S.state?S.state(c):"on";
+ const key=[step,stateKey].join("|");
  if(key!==TOUR_KEY){
    TOUR_KEY=key;
    const nm=tourNm(c);
@@ -9305,7 +9312,7 @@ function tourDraw(){
    if(Q("[data-toursec]")) Q("[data-toursec]").onclick=e=>{e.stopPropagation();if(TOUR){TOUR.secDone=true;tourCheck()}};
    if(Q("[data-tourgo]")) Q("[data-tourgo]").onclick=e=>{e.stopPropagation();const S2=TOUR&&TOUR_STEPS[TOUR.step];const c2=tourWs();if(S2&&c2)S2.go(c2)};
    const sv=Q(".tour-dim"); sv.style.display=(done||t)?"":"none";
-   L.dataset.step=done?"done":String(step); L.dataset.state=done?"done":t?(sub?"tab":"on"):"off";
+   L.dataset.step=done?"done":String(step); L.dataset.state=stateKey;
  }
  tourPlace(t);
 }
@@ -11481,7 +11488,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="86c944b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="3dbc1b5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
