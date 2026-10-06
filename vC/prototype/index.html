@@ -7660,6 +7660,8 @@ function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share=
 function ncDerived(k){const st=ncStep(k),free=compute(k).free;const raw=Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st);return Math.min(raw,Math.floor(free/st)*st)}
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
 const ncDefaultCap=ncDerived;
+function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const st=R.step||1,want=Math.max(st,Math.floor(R.pool*sh/100/st)*st),left=R.pool-(allocOf(k)-r.cap);if(left>0){m=Math.max(m,want/left);if(want>left&&!first)first=k}});
+ return "<b>"+sh+"%</b><span class=\"sub\"> of your plan &middot; "+(first?"past what is left for "+RES[first].label.replace(/ \/ month$/,""):Math.round(m*100)+"% of what is left")+"</span>"}
 /* change 130: the share stays a share of the plan; beside it the form says what that
    is of what is left, and the track greys the part of the plan already given away. */
 const ncUncapped=k=>{const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)};
@@ -8660,7 +8662,7 @@ function modalHTML(){
     (23 §3.2: deleting the only client returns the account to where it was).  */
  if(modal.kind==="share"){
   const sc=c, cur=modal.share!=null?modal.share:(SHARE0[sc.id]||sc.share||NC_SHARE_DEFAULT);
-  const capAt=(k,sh)=>{const st=RES[k].step; return Math.max(RES[k].rows[sc.id].used,Math.max(st,Math.floor(RES[k].pool*sh/100/st)*st))};
+  const capAt=(k,sh)=>{const R=RES[k],st=R.step,r=R.rows[sc.id],left=R.pool-(allocOf(k)-r.cap); return Math.max(r.used,Math.min(Math.floor(left/st)*st,Math.max(st,Math.floor(R.pool*sh/100/st)*st)))};
   let mn=1, mx=100;
   RK.forEach(k=>{const R=RES[k], r=R.rows[sc.id]; if(!r) return;
    mn=Math.max(mn,Math.ceil(r.used/R.pool*100));
@@ -8669,9 +8671,9 @@ function modalHTML(){
   const tight=(()=>{let b=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const v=(R.pool-(allocOf(k)-r.cap))/R.pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""})();
   return card(`Change ${sc.name.split(" ")[0]}'s share of your plan`,`
    <div class="nc-usage" id="shUsage">
-    <div class="nc-urow"><label class="flabel" for="shShare" style="margin:0">How much of your plan ${sc.name.split(" ")[0]} can use each cycle</label><span class="nc-upct" id="shPct">${sh}%</span></div>
-    <input type="range" id="shShare" min="${mn}" max="${mx}" step="1" value="${sh}" style="--p:${mx>mn?Math.round((sh-mn)/(mx-mn)*100):100}%" aria-label="Share of your plan">
-    <div class="nc-ucap"><span>At least ${mn}% today: nothing goes below what is already used.</span><span>100% gives it everything still available.</span></div>
+    <div class="nc-urow"><label class="flabel" for="shShare" style="margin:0">Share of your plan for ${sc.name.split(" ")[0]}</label><span class="nc-upct" id="shPct">${shPctText(sc,sh)}</span></div>
+    <input type="range" id="shShare" min="${mn}" max="100" step="1" value="${sh}" style="--p:${Math.round((sh-mn)/(100-mn)*100)}%;--g:${mx}%" aria-label="Share of your plan">
+    <div class="nc-ucap"><span>At least ${mn}% today: nothing goes below what is already used.</span><span>${100-mx}% of your plan is with other workspaces (grey).</span></div>
     <!-- change 115, 5 Oct 2026, Hitesh: the per-resource tiles were the Add a workspace
          preview copied in (and covered four of six resources). The rows behind this
          window are the numbers; the share is the only thing this window sets. -->
@@ -8961,7 +8963,7 @@ function renderModal(){
  el("mscrim").onclick=e=>{if(e.target.id==="mscrim"){modal=null;renderModal()}};
  {const sl=L.querySelector("#shShare"); if(sl) sl.oninput=()=>{const sh=+sl.value, id=modal.client, mn=+sl.min, mx=+sl.max;
    sl.style.setProperty("--p",(mx>mn?Math.round((sh-mn)/(mx-mn)*100):100)+"%");
-   const p=L.querySelector("#shPct"); if(p) p.textContent=sh+"%";
+   const p=L.querySelector("#shPct"); if(p) p.innerHTML=shPctText(byId[id],sh);
    L.querySelectorAll("[data-shtile]").forEach(b=>{const k=b.dataset.shtile,R=RES[k],st=R.step; b.textContent=f(Math.max(R.rows[id].used,Math.max(st,Math.floor(R.pool*sh/100/st)*st)))});
    const okb=L.querySelector("[data-mconfirm]"); if(okb) okb.textContent="Apply "+sh+"%"}}
 }
@@ -9985,6 +9987,9 @@ function scaleTo(n){
 if(location.hash==="#solo-plain"){const c=byId.solo;
   if(c){solo=true;ctx=c.id;asClient=false;soloMod="seq"}}
 if(location.hash==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={name:"m1"}}
+/* change 131: the hash is read at boot only, so a hash typed into an open page did
+   nothing until a reload. The app never writes the hash itself. */
+window.addEventListener("hashchange",()=>location.reload());
 {const h=decodeURIComponent(location.hash.replace(/^#/,""));
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
@@ -11179,7 +11184,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5091e9a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="5f41630";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
