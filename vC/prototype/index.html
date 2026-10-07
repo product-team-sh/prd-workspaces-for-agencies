@@ -4719,6 +4719,17 @@ function wireDD(L,id,onPick){
  trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
 }
+/* change 153, 7 Oct 2026, Hitesh: "i have added email but still nothing is happening".
+   The address only became a person on Enter, the one hint saying so was the placeholder
+   that vanished on typing, and Send sat disabled with no reason. Now: the helper line
+   says what to do while typing, the footer says why Send waits, and a typed address
+   commits on Enter, Tab, space, comma, click-away or Send itself. */
+const INV_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+function invHintText(d){d=(d||"").trim(); if(!d) return "Each person sets their own password."; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
+function invFootText(d){const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
+ if(!I.emails.length) return "Add at least one email address.";
+ const a=I.emails.find(x=>!invSettled(I.rows[x])); if(!a) return "";
+ const r=I.rows[a]; return r.kind==="client"?`Pick the client for ${a}.`:r.kind==="team"?`Pick clients for ${a}.`:`Say who ${a} is.`}
 function inviteHTML(){
  const I=INV, lock=I.lock&&byId[I.lock], wsList=fundedWorkspaces().filter(x=>!x.own);
  const chips=I.emails.map(e=>`<span class="pp-echip">${e}<button type="button" data-invrm="${e}" aria-label="Remove ${e}">&times;</button></span>`).join("");
@@ -4726,7 +4737,7 @@ function inviteHTML(){
  const allOk=I.emails.length>0&&I.emails.every(a=>invSettled(I.rows[a]));
  const body=`<div class="field"><label class="flabel" for="invEmail">Email addresses</label>
     <div class="pp-emails" data-invfocus>${chips}<input type="text" id="invEmail" value="${I.draft.replace(/"/g,"&quot;")}" placeholder="${I.emails.length?"Add another, then press Enter":"name@company.com, then press Enter"}"></div>
-    <p class="sub nc-hint" style="margin-top:6px">${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:"Each person sets their own password."}</p></div>
+    <p class="sub nc-hint" style="margin-top:6px" data-invhint>${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:invHintText(I.draft)}</p></div>
    ${I.emails.length?`<div class="field"><span class="flabel">${lock?"What they can do in "+lock.name:"They will get"}</span><div class="inv-list">${rows}</div></div>`:""}`;
  const n=I.emails.length;
  /* change 114: Edit from a person's page is this same form for one person */
@@ -4735,7 +4746,7 @@ function inviteHTML(){
    `<span class="sub" style="margin-right:auto">${allOk?"Changes apply on their next request. Undo from the toast.":`<span style="color:var(--orange-12)">${(I.rows[I.emails[0]]||{}).kind==="client"?"Pick the client to save.":"Pick at least one client to save."}</span>`}</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Save changes</button>`,"ac inv-b")}
  const title=lock?`Invite ${lock.name}&rsquo;s people`:"Invite people";
  return card(title,body,
-  `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
+  `<span class="sub" style="margin-right:auto" data-invfoot>${invFootText(I.draft)}</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk||INV_OK.test(I.draft.trim())?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
   .replace(`<span class="semibold-3">${title}</span>`,`<span class="semibold-3">${title}${lock?`<span class="inv-sub">They sign in to ${lock.name} only.</span>`:""}</span>`);
 }
 function invRowHTML(addr,r,n,lock,wsList){
@@ -4843,12 +4854,16 @@ function wirePeopleModal(L){
  const k=modal&&modal.kind; if(!k||!PEOPLE_MODALS[k]) return;
  const rerender=()=>{L.innerHTML=modalHTML();wirePeopleModal(L);L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;INV=null;renderModal()})};
  if(k==="invite"){const inp=L.querySelector("#invEmail")||{value:"",focus(){},oninput:null,onkeydown:null};
-  const commit=()=>{const parts=inp.value.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean); let err="", bad=[];
-    parts.forEach(x=>{if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
-    INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n)n.focus()};
+  const commit=(keep)=>{const parts=inp.value.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean); let err="", bad=[];
+    parts.forEach(x=>{if(!INV_OK.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
+    INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n&&!keep)n.focus()};
+  const sync=()=>{const d=inp.value; const h=L.querySelector("[data-invhint]"); if(h&&!INV.err)h.textContent=invHintText(d);
+    const f=L.querySelector("[data-invfoot]"); if(f)f.textContent=invFootText(d);
+    const sb=L.querySelector("[data-invsend]"); if(sb)sb.disabled=!(INV_OK.test(d.trim())||(INV.emails.length>0&&INV.emails.every(a=>invSettled(INV.rows[a]))))};
   const drop=a=>{INV.emails=INV.emails.filter(x=>x!==a); delete INV.rows[a]};
-  inp.oninput=()=>{INV.draft=inp.value; if(INV.err&&!inp.value.trim()){INV.err="";rerender();L.querySelector("#invEmail").focus()}};
-  inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){drop(INV.emails[INV.emails.length-1]);rerender();L.querySelector("#invEmail").focus()}};
+  inp.oninput=()=>{INV.draft=inp.value; if(INV.err&&!inp.value.trim()){INV.err="";rerender();L.querySelector("#invEmail").focus();return} sync()};
+  inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","||e.key===" "||(e.key==="Tab"&&inp.value.trim())){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){drop(INV.emails[INV.emails.length-1]);rerender();L.querySelector("#invEmail").focus()}};
+  inp.onblur=()=>{if(!INV_OK.test(inp.value.trim()))return; setTimeout(()=>{if(!INV||!modal||modal.kind!=="invite"||INV.edit)return; const n=L.querySelector("#invEmail"); if(n!==inp||document.activeElement===inp)return; commit(true)},150)};
   L.querySelectorAll("[data-invrm]").forEach(b=>b.onclick=()=>{drop(b.dataset.invrm);rerender()});
   const row=a=>INV.rows[a];
   L.querySelectorAll("[data-invchange]").forEach(b=>b.onclick=()=>{INV.emails.forEach(a=>{if(row(a).open){row(a).open=false}}); const r=row(b.dataset.invchange); r.open=true; r.snap=JSON.stringify(r); rerender()});
@@ -11637,7 +11652,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="47b5efc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="f68fdde";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
