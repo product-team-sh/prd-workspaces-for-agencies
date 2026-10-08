@@ -1920,19 +1920,33 @@ const PEOPLE={
     below). Nothing about what someone can do is graded per screen any more. */
  owner:{name:"Alex Meridian",initials:"AM",role:"Owner",email:"alex@meridiangrowth.com",ws:null},
  priya:{name:"Priya Nair",  initials:"PN",role:"Admin",email:"priya@meridiangrowth.com",ws:null},
- sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",ws:["al","nw"],roles:{nw:"Workspace Collaborator",al:"Workspace Collaborator"}},
+ /* change 154: Sam and Tariq share Vertex, so the two reach models differ visibly there */
+ sam:  {name:"Sam Doshi",   initials:"SD",role:"Member",email:"sam@meridiangrowth.com",ws:["vx","nw"],roles:{vx:"Workspace Collaborator",nw:"Workspace Collaborator"}},
  /* 29 Sep 2026, from the People redesign boards */
  dev:  {name:"Dev Kapoor",  initials:"DK",role:"Member",email:"dev@meridiangrowth.com",ws:["nw","bl"],roles:{nw:"Workspace Admin",bl:"Workspace Viewer"}},
  mira: {name:"Mira Chen",   initials:"MC",role:"Member",email:"mira@meridiangrowth.com",ws:["vx"],roles:{vx:"Workspace Collaborator"}},
  /* change 121, 5 Oct 2026: a second Admin, two Members with a different level
     per workspace, one disabled teammate (`disabled`: they keep their rows and
     cannot sign in; Remove still works) and one invite that expired. */
- jonah:{name:"Jonah Reyes", initials:"JR",role:"Admin",email:"jonah@meridiangrowth.com",ws:null},
+ /* change 154: a second Owner, so Transfer ownership and "the last Owner" have a cast */
+ jonah:{name:"Jonah Reyes", initials:"JR",role:"Owner",email:"jonah@meridiangrowth.com",ws:null},
  lena: {name:"Lena Okafor", initials:"LO",role:"Member",email:"lena@meridiangrowth.com",ws:["at","sf","pc"],roles:{at:"Workspace Admin",sf:"Workspace Collaborator",pc:"Workspace Viewer"}},
  tariq:{name:"Tariq Hassan",initials:"TH",role:"Member",email:"tariq@meridiangrowth.com",ws:["vx","at"],roles:{vx:"Workspace Collaborator",at:"Workspace Viewer"}},
  rosa: {name:"Rosa Lindqvist",initials:"RL",role:"Member",email:"rosa@meridiangrowth.com",ws:["ok","al"],roles:{ok:"Workspace Admin",al:"Workspace Collaborator"},disabled:true},
  felix:{name:"Felix Adeyemi",initials:"FA",role:"Member",email:"felix@meridiangrowth.com",ws:["bl"],roles:{bl:"Workspace Collaborator"}},
 };
+/* change 154: ATM-only fixtures. Teams are production's grouping; a Team Manager
+   is a Member who sees the team's records (doc 81 §5). Used only when
+   ACCESS_MODEL is "atm". ATM_LABELS are "No access" client logins: a label the
+   agency groups by, with no sign-in. ACCOUNT_SETTINGS.prospectSharing is the
+   account switch that widens prospect reach for every Member (doc 81 §6a). */
+const TEAMS={tv:{id:"tv",name:"Team Vertex",ws:"vx",manager:"sam",members:["sam","tariq"],created:"12 Aug 2026"}};
+const ATM_LABELS={ok:["lettings@oakridgerealty.co.uk"]};
+const ACCOUNT_SETTINGS={prospectSharing:true};
+const ATM_LEVEL=r=>r==="Workspace Admin"?"Full access":"Limited access";
+const teamsManagedBy=k=>Object.values(TEAMS).filter(t=>t.manager===k);
+const teamReachOf=k=>{const s=new Set([k]);teamsManagedBy(k).forEach(t=>t.members.forEach(m=>s.add(m)));return s};
+const atmRoleOf=k=>{const P=PEOPLE[k];return P&&P.role==="Member"&&teamsManagedBy(k).length?"Team Manager":(P?P.role:"")};
 const CAN={
  /* `destructive` is delete and unlink, which end a relationship and are the
     owner's alone. `disable` is a reversible pause, which 16 §10 gives to the
@@ -1975,6 +1989,20 @@ const ME=()=>PEOPLE[me_];
    array-membership test isMember() already uses correctly, a few lines down. */
 const myClients=()=>{const w=ME().ws;return CLIENTS.filter(x=>!x.deletedOn&&(!w||w.indexOf(x.id)>-1))};
 const canI=k=>CAN[ME().role][k];
+/* change 154: one description of the acting person for both access models.
+   kind, account role, the role they act at inside a workspace, and (ATM only)
+   how far they see inside it: "all" (Workspace model: membership is the
+   boundary), "account", "team", "own", or "ws" for a client login. Every gate
+   added from change 155 on reads this, so a model switch is one branch. */
+function actor(){
+ const client=asClient&&byId[ctx]&&ctx!=="agency"&&ctx!=="own";
+ if(client){const c=byId[ctx],u=actingClientUser(c),r=actingRole(c);
+  return {kind:"client",key:"w:"+c.id+"|"+(u?u[0]:""),role:r,atmRole:ATM_LEVEL(r),email:u?u[0]:null,wsRole:()=>r,reach:()=>isATM()?"ws":"all"}}
+ const P=ME(), k=me_;
+ return {kind:"agency",key:"t:"+k,role:P.role,atmRole:atmRoleOf(k),email:P.email,
+  wsRole:id=>P.role!=="Member"?"Workspace Admin":(P.roles&&P.roles[id])||"Workspace Viewer",
+  reach:()=>!isATM()?"all":P.role!=="Member"?"account":teamsManagedBy(k).length?"team":"own"};
+}
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
    company, not a person, and gave the client nobody to actually reply to. */
@@ -1983,7 +2011,7 @@ const clientContact=()=>Object.values(PEOPLE).find(p=>p.role==="Owner"&&p.email)
 const CLIENTS=[
  {id:"nw",name:"Northwind Logistics",company:"Northwind Logistics Ltd",email:"ops@northwind.co",colour:"#B45309",
   seq:12,mbx:54,prospects:8900,sent:41300,reply:6.2,prev:6.0,pos:2.1,created:"12 Jun, 2026",limitsReviewed:true,
-  users:[["ops@northwind.co","Workspace Admin"]],overrides:{priority:"Balanced Sending"},
+  users:[["ops@northwind.co","Workspace Admin"],["finance@northwind.co","Workspace Collaborator"]],overrides:{priority:"Balanced Sending"},
   mailboxes:[["outreach@northwind-go.com","Disconnected",0,"agency"],["hello@northwind-go.com","Healthy",100,"agency"],["team@nw-reach.com","Warning",60,"agency"]]},
  {id:"vx",name:"Vertex Health",company:"Vertex Health Inc",email:"growth@vertexhealth.io",colour:"#0F766E",
   seq:9,mbx:69,prospects:7350,sent:52800,reply:4.8,prev:6.9,pos:1.4,created:"03 Jul, 2026",limitsReviewed:true,
@@ -2007,7 +2035,7 @@ const CLIENTS=[
     limits rather than a share of the plan (absent from SHARE0, no c.share). */
  {id:"at",name:"Atlas Manufacturing",company:"Atlas Manufacturing plc",email:"marketing@atlasmfg.com",colour:"#047857",
   seq:60,mbx:40,prospects:38500,sent:54000,reply:5.4,prev:5.1,pos:1.6,created:"15 May, 2026",limitsReviewed:true,
-  users:[["marketing@atlasmfg.com","Workspace Admin"],["reports@atlasmfg.com","Workspace Viewer"]],overrides:{priority:"Balanced Sending"},
+  users:[["marketing@atlasmfg.com","Workspace Admin"],["reports@atlasmfg.com","Workspace Viewer"],["finance@northwind.co","Workspace Viewer"]],overrides:{priority:"Balanced Sending"},
   mailboxes:[["outbound@atlas-reach.com","Healthy",100,"agency"],["plants@atlas-reach.com","Healthy",100,"agency"],["connect@atlasmfg-go.com","Healthy",90,"client"]]},
  {id:"sf",name:"Summit Fintech",company:"Summit Fintech Ltd",email:"growth@summitfintech.com",colour:"#0E7490",
   seq:7,mbx:38,prospects:6100,sent:30000,reply:5.9,prev:5.6,pos:1.9,created:"27 Jul, 2026",limitsReviewed:true,
@@ -10069,8 +10097,16 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="chrome"){p[k]=v;return} if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="chrome"||k==="model"){p[k]=v;return} if(!route) route=seg});
  return {route,p}})();
+/* change 154, 8 Oct 2026, Hitesh: "one switch: normal role management as built,
+   and ATM-based role management". `model=atm` in the hash applies production's
+   roles (Owner, Admin, Member, Team Manager, Teams, Full / Limited / No access,
+   own-records reach inside a workspace); anything else is the Workspace model
+   (the PRD). Doc 84 is the cell-by-cell spec. */
+let ACCESS_MODEL=HASHX.p.model==="atm"?"atm":"ws";
+const isATM=()=>ACCESS_MODEL==="atm";
+const MODEL_LABEL={ws:"Workspace roles",atm:"ATM roles"};
 const H0=HASHX.route?"#"+HASHX.route:"";
 if(!H0||/^#(setup|confirm|transform|home|new-agency)$/.test(H0)){resetToNormal();
   ctx="own";inMod="sequences";view={name:"clients"}}
@@ -10240,26 +10276,38 @@ const demoPersonLbl=k=>{const p=PEOPLE[k]; if(p.role!=="Member") return p.name+"
  const ws=(p.ws||[]).map(i=>byId[i]&&!byId[i].deletedOn?byId[i].name.split(/\s+/)[0]:"").filter(Boolean); return p.name+" · Member"+(ws.length?" on "+ws.join(", "):"")};
 /* the session as it is now, for the View as controls and the Now line */
 function demoCurrent(){const c=asClient&&byId[ctx]&&ctx!=="agency"&&ctx!=="own"?byId[ctx]:null;
- if(c){const u=actingClientUser(c); return {mode:"client",ws:c.id,email:u?u[0]:"",role:actingRole(c),name:c.name}}
- return {mode:"agency",key:me_,name:ME().name,role:ME().role}}
+ if(c){const u=actingClientUser(c); return {mode:"client",ws:c.id,email:u?u[0]:"",role:actingRole(c),name:c.name,val:"w:"+c.id+"|"+(u?u[0]:""),model:ACCESS_MODEL}}
+ return {mode:"agency",key:me_,name:ME().name,role:ME().role,val:"t:"+me_,model:ACCESS_MODEL}}
+/* change 154: every person on the account, grouped, for the one View as list */
+function demoWhoGroups(){
+ const atm=(demoVA?demoVA.model:ACCESS_MODEL)==="atm";
+ const ppl=demoAgencyPeople(), g=[["Owners",[]],["Admins",[]],["Members",[]]].concat(atm?[["Team Managers",[]]]:[]);
+ ppl.forEach(k=>{const P=PEOPLE[k]; const grp=P.role==="Owner"?0:P.role==="Admin"?1:(atm&&teamsManagedBy(k).length)?3:2;
+  g[grp][1].push({val:"t:"+k,label:P.name+(k===me_?" · you":"")+(P.role==="Member"?" · "+(P.ws||[]).map(i=>byId[i]&&!byId[i].deletedOn?byId[i].name.split(/\s+/)[0]:"").filter(Boolean).join(", "):"")})});
+ demoClientWs().forEach(c=>{const us=(c.users||[]).map(u=>({val:"w:"+c.id+"|"+u[0],label:u[0]+" · "+(atm?ATM_LEVEL(u[1]):u[1])}));
+  if(atm&&ATM_LABELS[c.id]) ATM_LABELS[c.id].forEach(e=>us.push({val:"",label:e+" · No access (no sign-in)",disabled:true}));
+  if(!us.length) us.push({val:"w:"+c.id+"|",label:"No user yet (previews as "+DEFAULT_CLIENT_ROLE+")"});
+  g.push(["Client users · "+c.name,us])});
+ return g.filter(x=>x[1].length)}
 function demoHash(parts){return parts.filter(Boolean).join("&")}
 function demoGo(hash){const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
 /* the route to keep when only the person changes: the current one, or demo=busy when there is none */
 function demoRoute(){return HASHX.route||""}
 function demoGuideParam(){return GUIDE_ON?"":"guide=off"}
 function demoApplyScn(n){
- if(n==="fresh"){demoGo(demoHash([demoGuideParam()]));return}
- demoGo(demoHash(["demo="+n,demoAsParam(),demoGuideParam()]))}
-function demoAsParam(){const v=demoVA||demoCurrent(); if(v.mode==="client") return v.ws?"as=w:"+v.ws+"|"+(v.email||""):""; return v.key&&v.key!=="owner"?"as=t:"+v.key:""}
-function demoApplyAs(){const r=demoRoute(); demoGo(demoHash([r||"demo=busy",demoAsParam(),demoGuideParam()]))}
+ if(n==="fresh"){demoGo(demoHash([demoModelParam(),demoGuideParam()]));return}
+ demoGo(demoHash(["demo="+n,demoAsParam(),demoModelParam(),demoGuideParam()]))}
+function demoAsParam(){const v=demoVA||demoCurrent(); return v.val&&v.val!=="t:owner"?"as="+v.val:""}
+function demoModelParam(){return (demoVA?demoVA.model:ACCESS_MODEL)==="atm"?"model=atm":""}
+function demoApplyAs(){const r=demoRoute(); demoGo(demoHash([r||"demo=busy",demoAsParam(),demoModelParam(),demoGuideParam()]))}
 function demoToggleGuide(){GUIDE_ON=!GUIDE_ON;
  /* no reload needed: the flag is read at the end of the sequence. The URL is
     rewritten so the next panel navigation, and a browser reload, keep it. */
- const h=demoHash([demoRoute(),HASHX.p.as?"as="+HASHX.p.as:"",demoGuideParam()]);
+ const h=demoHash([demoRoute(),HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam()]);
  history.replaceState(null,"",location.pathname+(h?"#"+h:"")); HASHX.p.guide=GUIDE_ON?undefined:"off"; demoSync()}
 function demoNowLine(){const cur=demoCurrent(),scn=demoScn();
  const who=cur.mode==="client"?cur.name+" · "+(cur.email||"no user yet")+" ("+cur.role+")":"Agency · "+cur.name+" ("+cur.role+")";
- return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+" · "+who+" · guide "+(GUIDE_ON?"on":"off")}
+ return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+" · "+who+" · "+MODEL_LABEL[ACCESS_MODEL]+" · guide "+(GUIDE_ON?"on":"off")}
 function demoSync(){
  let pill=el("demoPill"),P=el("demoPanel");
  if(!pill){pill=document.createElement("button");pill.id="demoPill";pill.type="button";pill.className="shd-button shd-button--tertiary shd-button--sm";pill.setAttribute("aria-haspopup","true");pill.setAttribute("aria-controls","demoPanel");
@@ -10271,22 +10319,19 @@ function demoSync(){
  pill.textContent="Demo"; pill.setAttribute("aria-expanded",demoOpen?"true":"false");
  P.hidden=!demoOpen; if(!demoOpen){P.innerHTML="";return}
  const scn=demoScn(), cur=demoCurrent(); if(!demoVA) demoVA=Object.assign({},cur);
- const va=demoVA, people=demoAgencyPeople(), wss=demoClientWs(), replay=tourReplayId();
- if(va.mode==="client"&&!wss.some(c=>c.id===va.ws)) va.ws=wss.length?wss[0].id:"";
- const wsC=va.mode==="client"?byId[va.ws]:null, users=wsC&&wsC.users||[];
- if(wsC&&!users.some(u=>u[0]===va.email)) va.email=users.length?users[0][0]:"";
- if(va.mode==="agency"&&!PEOPLE[va.key]) va.key=me_;
+ const va=demoVA, replay=tourReplayId(), groups=demoWhoGroups();
+ if(!groups.some(g=>g[1].some(o=>o.val===va.val))) va.val=cur.val;
  const esc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
  const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
   <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">Product guide</div>
    <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON}" data-dpguide aria-label="Guide after the first workspace"></button></div>
    <div class="dp-row" style="margin-top:6px"><span class="sub">Five steps</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay?"":" disabled"} title="${replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
+  <div class="dp-g"><div class="dp-t">Access model</div>
+   <label class="dp-r dp-r2"><input type="radio" name="dpam" value="ws"${va.model!=="atm"?" checked":""}><span><b>Workspace roles</b><i>As built: everyone on a workspace sees all of it; a Member has a level per workspace.</i></span></label>
+   <label class="dp-r dp-r2"><input type="radio" name="dpam" value="atm"${va.model==="atm"?" checked":""}><span><b>ATM roles</b><i>As production today: own records only; Teams and Team Manager; Full, Limited, No access.</i></span></label></div>
   <div class="dp-g"><div class="dp-t">View as</div>
-   <div class="dp-vs"><label class="dp-r"><input type="radio" name="dpva" value="agency"${va.mode==="agency"?" checked":""}><span>Agency</span></label><label class="dp-r"><input type="radio" name="dpva" value="client"${va.mode==="client"?" checked":""}${wss.length?"":" disabled"}><span>Client</span></label></div>
-   ${va.mode==="agency"?`<select class="dp-sel" data-dpkey aria-label="Agency user">${people.map(k=>`<option value="${k}"${va.key===k?" selected":""}>${esc(demoPersonLbl(k))}</option>`).join("")}</select>`
-   :`<select class="dp-sel" data-dpws aria-label="Workspace">${wss.map(c=>`<option value="${c.id}"${va.ws===c.id?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
-     <select class="dp-sel" data-dpemail aria-label="Workspace user"${users.length?"":" disabled"}>${users.length?users.map(u=>`<option value="${esc(u[0])}"${va.email===u[0]?" selected":""}>${esc(u[0])} · ${u[1]}</option>`).join(""):`<option value="">No workspace user yet (previews as ${DEFAULT_CLIENT_ROLE})</option>`}</select>`}
+   <select class="dp-sel" data-dpwho aria-label="Person" style="width:100%">${groups.map(([g,os])=>`<optgroup label="${esc(g)}">${os.map(o=>`<option value="${esc(o.val)}"${o.val===va.val?" selected":""}${o.disabled?" disabled":""}>${esc(o.label)}</option>`).join("")}</optgroup>`).join("")}</select>
    <div class="dp-f"><button type="button" class="shd-button shd-button--primary shd-button--sm" data-dpapply>Apply</button></div></div>
   <div class="dp-g"><div class="dp-t">Now</div><div class="dp-now" id="demoNow">${esc(demoNowLine())}</div></div>`;
  if(P.innerHTML!==html) P.innerHTML=html;
@@ -10294,10 +10339,8 @@ function demoSync(){
  P.querySelectorAll("[name=dpscn]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyScn(r.value)});
  P.querySelector("[data-dpguide]").onclick=demoToggleGuide;
  P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
- P.querySelectorAll("[name=dpva]").forEach(r=>r.onchange=()=>{if(!r.checked) return; va.mode=r.value; if(va.mode==="agency"&&!va.key) va.key=me_; demoSync()});
- const sk=P.querySelector("[data-dpkey]"); if(sk) sk.onchange=()=>{va.key=sk.value;demoSync()};
- const sw=P.querySelector("[data-dpws]"); if(sw) sw.onchange=()=>{va.ws=sw.value;va.email="";demoSync()};
- const se=P.querySelector("[data-dpemail]"); if(se) se.onchange=()=>{va.email=se.value;demoSync()};
+ P.querySelectorAll("[name=dpam]").forEach(r=>r.onchange=()=>{if(r.checked){va.model=r.value;demoSync()}});
+ const sk=P.querySelector("[data-dpwho]"); if(sk) sk.onchange=()=>{va.val=sk.value;demoSync()};
  P.querySelector("[data-dpapply]").onclick=demoApplyAs;
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&demoOpen&&!modal&&!drawer){demoOpen=false;demoSync()}});
@@ -11347,6 +11390,7 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .dp-t{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15);margin:0 0 6px}
 .dp-r{display:flex;align-items:center;gap:8px;min-height:26px;font-size:13px;line-height:18px;color:var(--gray-17);cursor:pointer}
 .dp-r input{margin:0}
+.dp-r2{align-items:flex-start;padding:3px 0}.dp-r2 input{margin-top:3px}.dp-r2 span{display:flex;flex-direction:column}.dp-r2 b{font-weight:500}.dp-r2 i{font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15)}
 .dp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:26px}
 .dp-row>span{flex:1 1 auto;min-width:0}.dp-row>.shd-button,.dp-row>.sw{flex:none;white-space:nowrap}
 .dp-vs{display:flex;gap:16px}
@@ -11652,7 +11696,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f68fdde";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="19dff75";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
