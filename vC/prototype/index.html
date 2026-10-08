@@ -1941,7 +1941,7 @@ const PEOPLE={
    agency groups by, with no sign-in. ACCOUNT_SETTINGS.prospectSharing is the
    account switch that widens prospect reach for every Member (doc 81 §6a). */
 const TEAMS={tv:{id:"tv",name:"Team Vertex",ws:"vx",manager:"sam",members:["sam","tariq"],created:"12 Aug 2026"}};
-const ATM_LABELS={ok:["lettings@oakridgerealty.co.uk"]};
+const ATM_LABELS={ok:["billing@oakridgerealty.co.uk"]};
 const ACCOUNT_SETTINGS={prospectSharing:true};
 const ATM_LEVEL=r=>r==="Workspace Admin"?"Full access":"Limited access";
 const teamsManagedBy=k=>Object.values(TEAMS).filter(t=>t.manager===k);
@@ -3921,7 +3921,7 @@ let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
 /* People revamp, 29 Sep 2026 (Hitesh: "UX is broken, everything has to be revamped"):
    one table and the product's own modals, modelled on Settings > Users and Teams. */
 let PEOPLE_Q="", PEOPLE_ROLE="all", peopleMenu=null, INV=null, DISABLED={};
-const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1,transfer:1,mkowner:1,rmowner:1,pplvl:1};
+const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1,transfer:1,mkowner:1,rmowner:1,pplvl:1,teamedit:1};
 /* change 156, 8 Oct 2026: every role is given from the admin panel (PRD §2.1,
    §3.6; doc 84 rows 14 to 16). Owners: invite as Owner, make an Admin an Owner,
    remove another Owner's role, and Transfer ownership from the Owner's own
@@ -3929,6 +3929,58 @@ const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1,
    control on the page). A Member's level per workspace, and a client user's
    level on each of their workspaces, change in place on the person page. */
 let TRANSFER=null;
+/* change 157, 8 Oct 2026: People and the person page under ATM roles. Teams are
+   production's grouping (doc 81 §5): a named set of agency people, one Team
+   Manager who sees the team's records. People gains a Teams tab; the person
+   page and the invite show role, clients and teams, never a level per client;
+   client levels read Full access / Limited access (stored as the workspace
+   roles underneath, so one fixture serves both models) and No access is a
+   label with no sign-in. The compare sheet shows doc 81 §17 in today's words. */
+const ATM_LEVELS=[["Workspace Admin","Full access","Edits sequences, adds prospects and templates, exports, replies, connects mailboxes."],["Workspace Collaborator","Limited access","Sees their sequences and reports, replies, connects mailboxes. Cannot edit, add prospects, export or verify."]];
+const teamsOf=k=>Object.values(TEAMS).filter(t=>t.members.indexOf(k)>-1);
+const teamPick=k=>Object.fromEntries(teamsOf(k).map(t=>[t.id,t.manager===k?"manager":"member"]));
+function applyTeams(k,pick){pick=pick||{};
+ Object.values(TEAMS).forEach(t=>{const want=pick[t.id]; const has=t.members.indexOf(k)>-1;
+  if(want&&!has) t.members.push(k); if(!want&&has){t.members=t.members.filter(m=>m!==k); if(t.manager===k) t.manager=t.members[0]||""}
+  if(want==="manager") t.manager=k; else if(want==="member"&&t.manager===k) t.manager=t.members.find(m=>m!==k)||""})}
+function teamsPickerHTML(addr,r,n){
+ const T=Object.values(TEAMS), pick=r.teams||{}, left=T.filter(t=>!pick[t.id]);
+ return `<div class="field"><span class="flabel">Teams</span><div class="inv-ms">${T.filter(t=>pick[t.id]).map(t=>`<span class="pp-echip">${t.name}${pick[t.id]==="manager"?" &middot; <b>Manager</b>":""}<button type="button" class="linkbtn" data-invteammgr="${t.id}" data-invaddr="${addr}" style="margin-left:6px;font-size:12px">${pick[t.id]==="manager"?"Make member":"Make manager"}</button><button type="button" data-invteamrm="${t.id}" data-invaddr="${addr}" aria-label="Remove from ${t.name}">&times;</button></span>`).join("")}${left.length?ddHTML("invteam_"+n,"",[{items:left.map(t=>({value:t.id,label:t.name}))}],{placeholder:"Add to a team"}):""}</div>
+   <p class="inv-help">A Team Manager sees the team&rsquo;s records in the clients they share. A plain member sees only their own. Teams add no power over people.</p></div>`;
+}
+function teamEditHTML(){
+ const t=modal.id?TEAMS[modal.id]:null; const d=modal.d=modal.d||(t?{name:t.name,manager:t.manager,members:t.members.slice()}:{name:"",manager:"",members:[]});
+ const ppl=Object.keys(PEOPLE).filter(k=>!PEOPLE[k].disabled&&!INVITED["t:"+k]), left=ppl.filter(k=>d.members.indexOf(k)<0);
+ return card(t?`Edit ${t.name}`:"Create a team",`<div class="field"><label class="flabel" for="teamNm">Name</label><input type="text" id="teamNm" value="${d.name.replace(/"/g,"&quot;")}" placeholder="Team North"></div>
+   <div class="field"><span class="flabel">Members</span><div class="inv-ms">${d.members.map(k=>`<span class="pp-echip">${PEOPLE[k].name}<button type="button" data-teamrm="${k}" aria-label="Remove ${PEOPLE[k].name}">&times;</button></span>`).join("")}${left.length?ddHTML("teamAdd","",[{items:left.map(k=>({value:k,label:PEOPLE[k].name+" · "+PEOPLE[k].role}))}],{placeholder:"Add a person"}):""}</div></div>
+   <div class="field"><span class="flabel">Team Manager</span>${ddHTML("teamMgr",d.manager,[{items:d.members.map(k=>({value:k,label:PEOPLE[k].name}))}],{placeholder:d.members.length?"Pick a manager":"Add members first"})}<p class="inv-help">Sees and edits the records of everyone in this team, inside the clients they share. An Admin as manager gains nothing; an Admin already sees everything.</p></div>`,
+  `${t?`<button class="shd-button shd-button--tertiary pa-danger" data-teamdel style="margin-right:auto">Delete team</button>`:""}<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-teamsave ${d.name.trim()&&d.members.length?"":"disabled"}>${t?"Save changes":"Create team"}</button>`,"ac");
+}
+function teamSave(){const d=modal.d; if(!d||!d.name.trim()||!d.members.length) return; let id=modal.id;
+ if(!id){id="t"+Date.now().toString(36).slice(-4); TEAMS[id]={id,name:d.name.trim(),ws:"",manager:d.manager||d.members[0],members:d.members.slice(),created:TODAY_D}; logAct(null,`created ${d.name.trim()}`); ppToast(`${d.name.trim()} created.`,()=>{delete TEAMS[id]},"team created")}
+ else {const t=TEAMS[id], was=JSON.stringify(t); t.name=d.name.trim(); t.members=d.members.slice(); t.manager=d.members.indexOf(d.manager)>-1?d.manager:d.members[0]; logAct(null,`changed ${t.name}`); ppToast(`${t.name} saved.`,()=>{Object.assign(TEAMS[id],JSON.parse(was))},"team saved")}
+ modal=null; renderModal(); render()}
+function teamDelete(){const t=TEAMS[modal.id]; if(!t) return; const id=modal.id; delete TEAMS[id]; modal=null; renderModal(); logAct(null,`deleted ${t.name}`); ppToast(`${t.name} deleted. Nobody's records changed.`,()=>{TEAMS[id]=t},"team deleted"); render()}
+function atmRolesHTML(){
+ const Y='<span class="rl-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>', N='<span class="rl-no"></span>';
+ const c=v=>`<td class="rl2-c">${v===1?Y:v===0?N:`<span class="rl2-t">${v}</span>`}</td>`;
+ const sec=(t,n)=>`<tr class="rl2-sec"><td colspan="${n}">${t}</td></tr>`;
+ const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
+ const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
+ const R=[["See sequences, prospects, mailboxes, templates, tasks, replies","Own","Team","All","All"],["Create, delete sequences; delete mailboxes","Own","Team","All","All"],["Prospects, while prospect sharing is on","All","All","All","All"],["Buy email accounts","Own","Team","All","All"],["Team reports",0,"Team","All","All"],["Invite people, change roles, teams",0,0,1,1],["Create clients, admin settings, whitelabel",0,0,1,1],["Billing, SSO, delete the account",0,0,0,1]];
+ const C=[["See their sequences, mailboxes, reports, replies",0,1,1],["Pause or resume sequences",1,1,1],["Reply; connect mailboxes",0,1,1],["Edit sequences; templates; add prospects; export",0,0,1],["Create or delete sequences; delete mailboxes; tasks; Lead Finder",0,0,0],["Sign in at all",0,1,1]];
+ return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
+  <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do (ATM, as production today)</span><span class="rl2-sub">You see a record if its owner is within your reach: Own, Team (people in teams you manage), or All.</span></div>
+   <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+  <div class="rl2-b">
+   <div><div class="rl2-cap"><b>Agency roles</b><span>Team Manager is a Member who manages a team; it adds reach, not power over people</span></div>
+    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Member","Own records")}${th("Team Manager","Own plus the team's")}${th("Admin","Everything but money")}${th("Owner","Everything")}</tr></thead>
+    <tbody>${sec("Inside a workspace, by reach",5)}${R.slice(0,5).map(([l,...v])=>row(l,v)).join("")}${sec("Across the account",5)}${R.slice(5).map(([l,...v])=>row(l,v)).join("")}</tbody></table></div>
+   <div><div class="rl2-cap"><b>Client levels</b><span>a client login sees the sequences and mailboxes shared to its client, which is the whole workspace here</span></div>
+    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("No access","A label, no sign-in")}${th("Limited access","Reads and replies")}${th("Full access","Works inside")}</tr></thead>
+    <tbody>${sec("Inside their workspace",4)}${C.map(([l,...v])=>row(l,v)).join("")}</tbody></table></div>
+  </div></div></div>`;
+}
 const ownersOf=()=>Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Owner"&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
 const transferCands=()=>Object.keys(PEOPLE).filter(k=>k!==me_&&(PEOPLE[k].role==="Owner"||PEOPLE[k].role==="Admin")&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
 function transferHTML(){
@@ -4428,6 +4480,8 @@ function ppTeam(){
 function ppClients(){
  const out=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
   out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
+ /* change 157: under ATM, No access logins are labels with no sign-in */
+ if(isATM()) CLIENTS.filter(c=>!c.deletedOn&&ATM_LABELS[c.id]).forEach(c=>ATM_LABELS[c.id].forEach(email=>out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:"Workspace Viewer",label:true,seen:"never",invited:null})));
  return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
 }
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
@@ -4436,9 +4490,10 @@ const ppStatus=r=>r.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</sp
  :r.invited?`<span class="pp-st pp-st--inv"><i></i>${invExpired(r.invited)?"Invite expired":"Invited "+(r.invited==="never"?"":AGE(r.invited))}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
 function ppAccess(r){
  const all=myClients().concat([]);
- if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces &middot; Workspace Admin</span>`;
+ if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces${isATM()?"":" &middot; Workspace Admin"}</span>`;
  if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
- return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,18)}${byId[id].name.split(" ")[0]} <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span></span>`).join("");
+ /* change 157: under ATM a Member has no level per workspace; the chip names the workspace only */
+ return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,18)}${byId[id].name.split(" ")[0]}${isATM()?"":` <span class="sub">&middot; ${ppShort(ppWsRole(r.P,id))}</span>`}</span>`).join("");
 }
 /* 1 Oct 2026, Hitesh: "row 16, A variation, for the People listing page" (the
    canvas board PL-A). One kind of person at a time: tabs Your team, Client
@@ -4462,38 +4517,51 @@ function vPeople(){
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  const teamRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="t:${r.k}">
    <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
-   ${typeCell("Your team")}<span class="pp-roletxt">${r.role}</span>
+   ${typeCell("Your team")}<span class="pp-roletxt">${isATM()?atmRoleOf(r.k):r.role}</span>
    <span class="pp-access">${ppAccess(r)}</span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
-   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?r.role:"Client user"}</span>
-   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
+   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?(isATM()?(r.label?"No access":ATM_LEVEL(r.role)):r.role):"Client user"}</span>
+   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${isATM()?(r.label?"No access":ATM_LEVEL(r.role)):ppShort(r.role)}</span></span></span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
-   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${(isATM()?PP_WS_ROLES.filter(x=>x!=="Workspace Viewer"):PP_WS_ROLES).filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${isATM()?ATM_LEVEL(x):ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
- const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":"Search invites";
+ const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":tab==="teams"?"Search teams":"Search invites";
  const hint=all?""
    :tab==="team"?"Owner and Admins reach every workspace. Members reach only the ones they are added to."
    :tab==="clients"?"Each client user signs in to one workspace and never sees "+AGENCY.name+" or another client."
+   :tab==="teams"?"A Team Manager sees the records of everyone in the teams they manage, inside the clients they share. A plain member gains nothing."
    :"Resend sends the same link again. Each person sets their own password when they accept.";
  const empty=all?"No one matches.":tab==="team"?"No one on your team matches.":tab==="clients"?"No client user matches.":(invAll.length?"No invite matches.":"No invites waiting. Everyone has signed in.");
  const tabBtn=(k,label,n,tone)=>`<button type="button" role="tab" aria-selected="${tab===k}" data-pptab="${k}">${label} <span class="pp-cnt pp-cnt--${tone}">${n}</span></button>`;
  return `<div class="wrap pp-wrap">${receiptBar("people")}
   <div class="pp-top"><span class="sub">Who can open which workspace, and as what &middot; <button class="linkbtn" data-pproles>What each role can do</button></span>
    <span class="tools"><button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button></span></div>
-  <div class="pp-tabs" role="tablist">${tabBtn("all","All users",teamAll.length+clAll.length,"blue")}${tabBtn("team","Your team",teamAll.length,"gray")}${tabBtn("clients","Client users",clAll.length,"gray")}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
+  <div class="pp-tabs" role="tablist">${tabBtn("all","All users",teamAll.length+clAll.length,"blue")}${tabBtn("team","Your team",teamAll.length,"gray")}${tabBtn("clients","Client users",clAll.length,"gray")}${isATM()?tabBtn("teams","Teams",Object.keys(TEAMS).length,"gray"):""}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
   <div class="pp-bar"><span class="pp-filters">
     <span class="search" style="width:260px">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
     ${ddHTML("ppWs",PP.ws,[{items:[{value:"all",label:"Workspace: All"}].concat(wsOpts.map(c=>({value:c.id,label:c.name,avatar:av(c,18)})))}],{})}
     ${tab==="team"?ddHTML("ppRole",PP.role,[{items:[{value:"all",label:"Account role: All"},{value:"Owner",label:"Owner"},{value:"Admin",label:"Admin"},{value:"Member",label:"Member"}]}],{}):""}</span>
    <span class="sub">${hint}</span></div>
-  <section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${empty}</div>`}</section>
-  <span class="sub pp-foot">Showing ${rows.length} of ${total} ${all?"users":tab==="team"?"on your team":tab==="clients"?"client users":"invites"}</span></div>`;
+  ${tab==="teams"?teamsTableHTML(q):`<section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${empty}</div>`}</section>
+  <span class="sub pp-foot">Showing ${rows.length} of ${total} ${all?"users":tab==="team"?"on your team":tab==="clients"?"client users":"invites"}</span>`}</div>`;
+}
+function teamsTableHTML(q){
+ const cols='grid-template-columns:minmax(0,1.6fr) 200px minmax(0,2fr) 140px 44px';
+ const T=Object.values(TEAMS).filter(t=>!q||t.name.toLowerCase().includes(q));
+ const rows=T.map(t=>`<div class="pp-row is-link" style="${cols}" data-teamedit="${t.id}">
+   <span class="pp-person"><span class="avatar av-tint" style="--c:${byId[t.ws]?byId[t.ws].colour:"#0F766E"};width:32px;height:32px;font-size:12px">${initials(t.name.replace(/^Team /,""))}</span><span><b>${t.name}</b><i>${t.members.length} ${t.members.length===1?"person":"people"}${byId[t.ws]?" &middot; works on "+byId[t.ws].name:""}</i></span></span>
+   <span class="pp-roletxt">${PEOPLE[t.manager]?PEOPLE[t.manager].name:"<span class=sub>No manager</span>"}</span>
+   <span class="pp-access">${t.members.map(k=>PEOPLE[k]?`<span class="pp-chip">${PEOPLE[k].name}${k===t.manager?" <span class=sub>&middot; Manager</span>":""}</span>`:"").join("")}</span>
+   <span class="sub">${t.created||""}</span><span class="pp-end"></span></div>`).join("");
+ return `<div class="pp-bar" style="justify-content:flex-end;padding-top:0"><button class="shd-button shd-button--secondary" data-teamnew>Create team</button></div>
+  <section class="pp-sec"><div class="pp-head" style="${cols}"><span>Team</span><span>Team Manager</span><span>Members</span><span>Created</span><span></span></div>${rows||`<div class="pp-empty">${Object.keys(TEAMS).length?"No team matches.":"No teams yet. A team lets one person, its manager, see the records of the others."}</div>`}</section>
+  <span class="sub pp-foot">Showing ${T.length} of ${Object.keys(TEAMS).length} teams</span>`;
 }
 const chevR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
 const peopleI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
@@ -4535,6 +4603,7 @@ let PPI=null;
    Open workspaces row, Run the account, Inside a workspace they can open with
    the Member column spanning one note, and the legend. Rows are data. */
 function ppRolesHTML(){
+ if(isATM()) return atmRolesHTML();
  /* 4 Oct 2026, Hitesh: "what roles can do is not updated; I liked C2" (canvas row 13,
     Roles-C2-Polished). Two tables: workspace roles first, then account roles; the
     Member column reads "Same as workspace roles, one per workspace". */
@@ -4573,7 +4642,7 @@ function personOf(key){
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
   return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,disabled:r.disabled,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
  if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
-  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
+  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour,label:!!r.label}}
  return null;
 }
 /* the invite row this person would have had: one shape before and after Send */
@@ -4581,9 +4650,9 @@ function personInvRow(p){
  if(p.kind==="client") return {kind:"client",ws:p.c.id,wsList:[],level:p.role,from:"pick"};
  const P=p.P; if(P.role!=="Member") return {kind:"admin",ws:null,wsList:[],level:"Workspace Admin",from:"pick"};
  const ws=(P.ws||[]).filter(id=>byId[id]); const lv=ws.length?ppWsRole(P,ws[0]):"Workspace Admin";
- return {kind:"team",ws:null,wsList:ws.slice(),level:lv,from:"pick",mixed:ws.some(id=>ppWsRole(P,id)!==lv)};
+ return {kind:"team",ws:null,wsList:ws.slice(),level:lv,from:"pick",mixed:ws.some(id=>ppWsRole(P,id)!==lv),teams:teamPick(p.k)};
 }
-const personCanEdit=p=>canI("members")&&!p.owner;
+const personCanEdit=p=>canI("members")&&!p.owner&&!p.label;
 function personAccessHTML(p){
  const r=personInvRow(p), wsList=fundedWorkspaces().filter(x=>!x.own);
  let cardHTML=invRowHTML(p.email,r,p.kind==="team"?Object.keys(PEOPLE).indexOf(p.k):1,p.kind==="client"?p.c:null,wsList);
@@ -4594,7 +4663,7 @@ function personAccessHTML(p){
    .replace(/Matched by email domain\. Change it if we got it wrong\./,'');
  if(p.owner) cardHTML=cardHTML.replace('Admin &middot; every client, People and Billing','Owner &middot; everything, including billing. Transferred from your own page, never granted here.');
  if(r.mixed) cardHTML=cardHTML.replace('</div></div>$','')+'';
- const mixedNote=r.mixed?`<p class="sub" style="margin:10px 0 0">${p.first} has a different level in some clients: ${r.wsList.map(id=>byId[id].name+" &middot; "+INV_SHORT[ppWsRole(p.P,id)][0]).join(", ")}.</p>`:"";
+ const mixedNote=r.mixed&&!isATM()?`<p class="sub" style="margin:10px 0 0">${p.first} has a different level in some clients: ${r.wsList.map(id=>byId[id].name+" &middot; "+INV_SHORT[ppWsRole(p.P,id)][0]).join(", ")}.</p>`:"";
  const since=p.disabled?`Disabled; their access is kept but they cannot sign in.`:p.invited?(invExpired(p.invited)?`Invited ${AGE(p.invited)}; the link expired after ${INVITE_DAYS} days.`:`Invited ${AGE(p.invited)}, not accepted yet.`):p.kind==="client"?`${p.c.name}&rsquo;s person since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
    :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
@@ -4603,7 +4672,7 @@ function personAccessHTML(p){
     different level per client is set from their profile") */
  const lvlRows=p.kind==="team"&&p.P.role==="Member"?(p.P.ws||[]).filter(id=>byId[id]&&!byId[id].deletedOn).map(id=>[byId[id],ppWsRole(p.P,id)])
    :p.kind==="client"?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0]===p.email)).map(c=>[c,(c.users.find(u=>u[0]===p.email)||[])[1]]):[];
- const lvlPanel=lvlRows.length&&canI("members")&&!p.disabled?`<div class="panel"><div class="panel-h"><span class="panel-t">Level per workspace</span><span class="sub">Changes apply on their next request. Undo from the toast.</span></div>
+ const lvlPanel=lvlRows.length&&canI("members")&&!p.disabled&&!isATM()?`<div class="panel"><div class="panel-h"><span class="panel-t">Level per workspace</span><span class="sub">Changes apply on their next request. Undo from the toast.</span></div>
    <div class="panel-b" style="padding-top:4px">${lvlRows.map(([c,lv])=>`<div class="prm-row"><span class="prm-ws">${av(c,24)}<span><b>${c.name}</b><i>${c.own?"Your workspace":c.company||""}</i></span></span><span class="prm-to">${ddHTML("pplvl_"+c.id,lv,[{items:roleItems()}],{})}</span></div>`).join("")}</div></div>`:"";
  const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
    <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>${lvlPanel}`;
@@ -4648,8 +4717,8 @@ function personActivityHTML(p){
 function vPerson(){
  if(!canI("members")) return denied("see or manage people");
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
- const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${p.role}`;
- const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
+ const sub=p.kind==="client"?`${p.c.name}&rsquo;s ${p.label?"label":"person"} &middot; ${p.label?"No access, no sign-in":isATM()?ATM_LEVEL(p.role):INV_SHORT[p.role][1]}`:`On your team &middot; ${isATM()?atmRoleOf(p.k):p.role}${isATM()&&teamsOf(p.k).length?" &middot; "+listAnd(teamsOf(p.k).map(t=>t.name)):""}`;
+ const status=p.label?`<span class="pp-st pp-st--off"><i></i>No sign-in</span> &middot; a label the agency groups by`:p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
   :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
  const iOwn=ME().role==="Owner", live=!p.invited&&!p.disabled;
@@ -4661,7 +4730,7 @@ function vPerson(){
    const st=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
    return `<div class="msg m-warn" role="status" style="margin:0 24px 12px">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name} &middot; ${st(TRANSFER.from)} &middot; ${st(TRANSFER.to)}. Nothing changes until both confirm.
      <button class="linkbtn" data-trcancel style="margin-left:8px">Cancel transfer</button><span class="sub" style="margin-left:16px">Demo:</span> ${[TRANSFER.from,TRANSFER.to].filter(k=>!TRANSFER.ok[k]).map(k=>`<button class="linkbtn" data-trconfirm="${k}" style="margin-left:8px">Confirm as ${PEOPLE[k].name.split(" ")[0]}</button>`).join(" ")}</span></div>`})():"";
- const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
+ const reset=p.disabled||p.label?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
@@ -4689,7 +4758,7 @@ function personSave(){
  else {const P=p.P;
   if(r.kind==="client"){const c=byId[r.ws]; delete PEOPLE[p.k]; c.users=c.users||[]; c.users.push([p.email,r.level]); newKey="w:"+c.id+"|"+p.email; what=`${p.name} is now ${c.name}&rsquo;s person, ${INV_SHORT[r.level][1]}.`; logAct(c.id,`${p.name} moved to ${c.name}'s people as ${ppShort(r.level)}`)}
   else if(r.kind==="admin"){if(P.role!=="Admin"){P.role="Admin";P.ws=null; what=`${p.name} is now an Admin: every client, People and Billing.`}}
-  else {const was=P.role; P.role="Member"; P.ws=r.wsList.slice(); P.roles=P.roles||{}; r.wsList.forEach(id=>{P.roles[id]=r.level}); what=`${p.name} works on ${listAnd(r.wsList.map(id=>byId[id].name))} as ${INV_SHORT[r.level][0].toLowerCase()==="run them"?"Workspace Admin":ppShort(r.level)}.`; if(was==="Admin")what=`${p.name} is a Member now: ${what.slice(p.name.length+1)}`; r.wsList.forEach(id=>logAct(id,`${p.name}'s level set to ${ppShort(r.level)}`))}}
+  else {const was=P.role; P.role="Member"; P.ws=r.wsList.slice(); P.roles=P.roles||{}; if(!isATM()) r.wsList.forEach(id=>{P.roles[id]=r.level}); if(isATM()) applyTeams(p.k,r.teams); what=isATM()?`${p.name} works on ${listAnd(r.wsList.map(id=>byId[id].name))}${Object.keys(r.teams||{}).filter(id=>TEAMS[id]).length?" &middot; "+listAnd(Object.keys(r.teams).filter(id=>TEAMS[id]).map(id=>TEAMS[id].name+(r.teams[id]==="manager"?" (manager)":""))):""}.`:`${p.name} works on ${listAnd(r.wsList.map(id=>byId[id].name))} as ${INV_SHORT[r.level][0].toLowerCase()==="run them"?"Workspace Admin":ppShort(r.level)}.`; if(was==="Admin")what=`${p.name} is a Member now: ${what.slice(p.name.length+1)}`; r.wsList.forEach(id=>logAct(id,`${p.name}'s level set to ${ppShort(r.level)}`))}}
  modal=null; INV=null; renderModal();
  if(what) receipt("people",what+" Changes apply on their next request.",restore,`updated ${p.name}'s access`);
  view={name:"person",id:newKey}; render();
@@ -4864,10 +4933,12 @@ function invRowHTML(addr,r,n,lock,wsList){
  const ini=initials(addr.split("@")[0].replace(/[._-]+/g," ")), tint=INV_TINTS[n%INV_TINTS.length];
  const c=r.kind==="client"&&byId[r.ws], names=r.wsList.map(id=>byId[id]&&byId[id].name).filter(Boolean);
  let line, chip, warn=false;
+ const lvlWord=l=>isATM()?ATM_LEVEL(l):INV_SHORT[l][1];
  if(r.kind==="client"&&c&&r.existing&&r.existing.indexOf(c.id)>-1) {line=`Already on ${c.name} &middot; pick another workspace`; chip="Pick another"; warn=true}
- else if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.existing?", also on "+listAnd(r.existing.map(id=>byId[id].name)):r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
+ else if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.existing?", also on "+listAnd(r.existing.map(id=>byId[id].name)):r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=lvlWord(r.level)}
  else if(r.kind==="client"&&r.existing) {line=`Already ${listAnd(r.existing.map(id=>byId[id].name))}&rsquo;s person &middot; which other workspace?`; chip="Pick a workspace"; warn=true}
  else if(r.kind==="client") {line="A client&rsquo;s person &middot; which client?"; chip="Pick a client"; warn=true}
+ else if(r.kind==="team"&&names.length&&isATM()) {const tm=Object.keys(r.teams||{}).filter(id=>TEAMS[id]); const mg=tm.filter(id=>r.teams[id]==="manager"); line=`Your team &middot; Member on ${listAnd(names)}${tm.length?" &middot; "+listAnd(tm.map(id=>TEAMS[id].name+(r.teams[id]==="manager"?" (manager)":""))):""} &middot; own records${mg.length?" plus the team's":""}`; chip=mg.length?"Team Manager":"Member"}
  else if(r.kind==="team"&&names.length) {const verb={"Workspace Admin":"runs","Workspace Collaborator":"does the outreach for","Workspace Viewer":"looks at"}[r.level]; line=`Your team &middot; ${verb} ${listAnd(names)}, sees no other client`; chip=r.level}
  else if(r.kind==="team") {line=`Your team${r.from==="domain"?", matched by email domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
  else if(r.kind==="admin"&&r.asOwner) {line="Owner &middot; everything, including billing, Whitelabel and other Owners"; chip="Owner"}
@@ -4885,8 +4956,8 @@ function invRowHTML(addr,r,n,lock,wsList){
 }
 function invEditorHTML(addr,r,n,lock,wsList){
  const cards=(name,items,cur,attr)=>`<div class="inv-cards" role="radiogroup">${items.map(([v,l,h])=>`<label class="inv-card${cur===v?" is-on":""}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} ${attr}="${addr}"><span><b>${l}</b><i>${h}</i></span></label>`).join("")}</div>`;
- const levels=CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
- const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
+ const levels=isATM()?ATM_LEVELS.map(([v,l])=>[v,l,v]):CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
+ const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,isATM()&&r.level==="Workspace Viewer"?"Workspace Collaborator":r.level,"data-invlevel")}<p class="inv-help">${isATM()?(ATM_LEVELS.find(x=>x[0]===(r.level==="Workspace Viewer"?"Workspace Collaborator":r.level))||ATM_LEVELS[1])[2]:INV_WHY[r.level]}</p></div>`;
  let inner="";
  if(!lock&&!r.existing) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
  /* change 156: only an Owner sees the Owner choice (PRD §3.6 Invite as Owner, PE-14, PE-15) */
@@ -4896,7 +4967,7 @@ function invEditorHTML(addr,r,n,lock,wsList){
  if(r.kind==="client") inner+=lvl(`What can they do in ${byId[r.ws]?byId[r.ws].name:"it"}?`);
  if(r.kind==="team"){const left=wsList.filter(x=>r.wsList.indexOf(x.id)<0);
   inner+=`<div class="field"><span class="flabel">Which clients</span><div class="inv-ms">${r.wsList.map(id=>byId[id]?`<span class="pp-echip">${byId[id].name}<button type="button" data-invrmws="${id}" data-invaddr="${addr}" aria-label="Remove ${byId[id].name}">&times;</button></span>`:"").join("")}${left.length?ddHTML("invadd_"+n,"",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:r.wsList.length?"Add a client":"Pick one or more"}):""}</div><p class="inv-help">Change this later from their profile.</p></div>`;
-  inner+=lvl("How much, in those clients?")}
+  if(isATM()) inner+=teamsPickerHTML(addr,r,n); else inner+=lvl("How much, in those clients?")}
  return `<div class="inv-ed" data-inved="${addr}">${inner}</div>`;
 }
 function inviteSend(){
@@ -4908,7 +4979,8 @@ function inviteSend(){
    const roles={}; if(!admin)r.wsList.forEach(id=>roles[id]=r.level);
    const asOwner=admin&&r.asOwner&&ME().role==="Owner";
    PEOPLE[key]={name:nm,initials:initials(nm),role:asOwner?"Owner":admin?"Admin":"Member",email:addr,ws:admin?null:r.wsList.slice(),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"; lastWhere=""; lastRole=asOwner?"Owner":admin?"Admin":"Member";
-   made.push(()=>{delete PEOPLE[key];delete LASTSEEN[nm];delete INVITED["t:"+key]})}
+   if(isATM()&&!admin&&r.teams) applyTeams(key,r.teams);
+   made.push(()=>{delete PEOPLE[key];delete LASTSEEN[nm];delete INVITED["t:"+key];if(isATM()) applyTeams(key,{})})}
  });
  const n=made.length;
  const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
@@ -4995,6 +5067,9 @@ function wirePeopleModal(L){
     rerender()});
   L.querySelectorAll("[data-invlevel]").forEach(c=>c.onchange=()=>{row(c.dataset.invlevel).level=c.value;rerender()});
   L.querySelectorAll("[data-invown]").forEach(c=>c.onchange=()=>{row(c.dataset.invown).asOwner=c.value==="owner";rerender()});
+  INV.emails.forEach((a,n)=>wireDD(L,"invteam_"+n,v=>{if(v){const r=row(a); r.teams=r.teams||{}; r.teams[v]="member"} rerender()}));
+  L.querySelectorAll("[data-invteamrm]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr); if(r.teams) delete r.teams[b.dataset.invteamrm]; rerender()});
+  L.querySelectorAll("[data-invteammgr]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr), id=b.dataset.invteammgr; r.teams[id]=r.teams[id]==="manager"?"member":"manager"; rerender()});
   L.querySelectorAll("[data-invrmws]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr); r.wsList=r.wsList.filter(x=>x!==b.dataset.invrmws); rerender()});
   INV.emails.forEach((a,n)=>{wireDD(L,"invws_"+n,v=>{if(v){row(a).ws=v;row(a).from="pick"} rerender()}); wireDD(L,"invadd_"+n,v=>{if(v&&row(a).wsList.indexOf(v)<0)row(a).wsList.push(v); rerender()})});
   L.querySelectorAll("[data-inveddone]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.inveddone); if(!invSettled(r))return; r.open=false; delete r.snap; rerender()});
@@ -5009,6 +5084,11 @@ function wirePeopleModal(L){
   const send=L.querySelector("[data-asksend]"); if(send)send.onclick=()=>{if(!send.disabled)askSend()};
   const f1=L.querySelector(`[data-askamt="${modal.pre}"]`)||L.querySelector("#askWhy"); if(f1)f1.focus()}
  if(k==="transfer"){wireDD(L,"trTo",v=>{modal.to=v;rerender()}); const go=L.querySelector("[data-trgo]"); if(go) go.onclick=transferStart}
+ if(k==="teamedit"){const nm=L.querySelector("#teamNm"); if(nm) nm.oninput=()=>{modal.d.name=nm.value; const sv=L.querySelector("[data-teamsave]"); if(sv) sv.disabled=!(nm.value.trim()&&modal.d.members.length)};
+  wireDD(L,"teamAdd",v=>{if(v&&modal.d.members.indexOf(v)<0){modal.d.members.push(v); if(!modal.d.manager) modal.d.manager=v} rerender()});
+  wireDD(L,"teamMgr",v=>{if(v) modal.d.manager=v; rerender()});
+  L.querySelectorAll("[data-teamrm]").forEach(b=>b.onclick=()=>{modal.d.members=modal.d.members.filter(k=>k!==b.dataset.teamrm); if(modal.d.manager===b.dataset.teamrm) modal.d.manager=modal.d.members[0]||""; rerender()});
+  const sv=L.querySelector("[data-teamsave]"); if(sv) sv.onclick=teamSave; const dl=L.querySelector("[data-teamdel]"); if(dl) dl.onclick=teamDelete}
  if(k==="mkowner"||k==="rmowner"){const go=L.querySelector("[data-ownok]"); if(go) go.onclick=ownerRoleGo}
  if(k==="prm"||k==="prmc"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{modal.to[d.id.slice(6)]=v})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=prmGo; L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
@@ -8891,6 +8971,7 @@ function modalHTML(){
  if(modal.kind==="pproles") return ppRolesHTML();
  if(modal.kind==="invite") return inviteHTML();
  if(modal.kind==="transfer") return transferHTML();
+ if(modal.kind==="teamedit") return teamEditHTML();
  if(modal.kind==="mkowner"||modal.kind==="rmowner") return ownerConfirmHTML();
  if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
  if(modal.kind==="ask") return askHTML();
@@ -10105,6 +10186,8 @@ function wire(){
  q("[data-preset]").forEach(b=>b.onclick=()=>{ppToast(`Reset link sent to ${b.dataset.preset}. It works for 24 hours.`,null,"reset link sent");render()});
  q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
  q("[data-transfer]").forEach(b=>b.onclick=()=>{if(b.disabled)return;modal={kind:"transfer"};renderModal()});
+ q("[data-teamnew]").forEach(b=>b.onclick=()=>{modal={kind:"teamedit",id:null};renderModal()});
+ q("[data-teamedit]").forEach(b=>b.onclick=e=>{if(e.target.closest("button,a,select"))return;modal={kind:"teamedit",id:b.dataset.teamedit};renderModal()});
  q("[data-mkowner]").forEach(b=>b.onclick=()=>{modal={kind:"mkowner",key:b.dataset.mkowner};renderModal()});
  q("[data-rmowner]").forEach(b=>b.onclick=()=>{modal={kind:"rmowner",key:b.dataset.rmowner};renderModal()});
  q("[data-trcancel]").forEach(b=>b.onclick=transferCancel);
@@ -11496,6 +11579,7 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .dp-t{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-15);margin:0 0 6px}
 .dp-r{display:flex;align-items:center;gap:8px;min-height:26px;font-size:13px;line-height:18px;color:var(--gray-17);cursor:pointer}
 .dp-r input{margin:0}
+.pp-echip{white-space:nowrap}.pp-echip .linkbtn{white-space:nowrap}.inv-ro [data-invteammgr]{display:none}
 .dp-r2{align-items:flex-start;padding:3px 0}.dp-r2 input{margin-top:3px}.dp-r2 span{display:flex;flex-direction:column}.dp-r2 b{font-weight:500}.dp-r2 i{font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15)}
 .dp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:26px}
 .dp-row>span{flex:1 1 auto;min-width:0}.dp-row>.shd-button,.dp-row>.sw{flex:none;white-space:nowrap}
@@ -11802,7 +11886,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="78c6bd3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="b4fe03d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
