@@ -2008,7 +2008,7 @@ function actor(){
    workspace (Owner, Admin, or a Member whose level there is Workspace Admin).
    clientWsOf: every workspace the acting client user is on (a client user can
    be on several, PRD §2.1). onAccount: is this address already someone here. */
-const agencyFull=c=>!asClient&&actor().wsRole(c.id)==="Workspace Admin";
+const agencyFull=c=>!asClient&&(isATM()||actor().wsRole(c.id)==="Workspace Admin");
 const clientWsOf=()=>ACTING_EMAIL?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===ACTING_EMAIL.toLowerCase())):[];
 const onAccount=email=>{const e=String(email||"").toLowerCase();
  const k=Object.keys(PEOPLE).find(k=>(PEOPLE[k].email||"").toLowerCase()===e); if(k) return {kind:"team",key:k,name:PEOPLE[k].name};
@@ -2016,6 +2016,27 @@ const onAccount=email=>{const e=String(email||"").toLowerCase();
 /* addresses that already own their own Saleshandy account (production refuses
    the invite with "Failed to send invitation"; the need report counts 16 of them) */
 const SH_ACCOUNTS=["founder@acmeoutreach.com"];
+/* change 158, 8 Oct 2026: ATM reach enforced inside a workspace (doc 81 §3, doc
+   84 §4b). Under ATM roles an agency session sees a record only if its owner is
+   within reach: own (a Member), team (a Team Manager: themself plus everyone in
+   the teams they manage), account (Owner, Admin). A client login sees the whole
+   workspace (the association covers it). Prospects widen to the whole workspace
+   while the account's prospect sharing switch is on. Under Workspace roles
+   nothing is filtered: membership is the boundary. */
+function reachNames(){if(!isATM()) return null; const a=actor(); if(a.kind==="client") return null; const r=a.reach(); if(r==="account") return null;
+ const keys=r==="team"?[...teamReachOf(me_)]:[me_]; return new Set(keys.map(k=>PEOPLE[k]&&PEOPLE[k].name).filter(Boolean))}
+const inReach=name=>{const S=reachNames(); return !S||S.has(name)};
+const reachLabel=()=>{const a=actor(), r=a.kind==="client"?"ws":a.reach(); return r==="own"?"you":r==="team"?"you and "+listAnd(teamsManagedBy(me_).map(t=>t.name)):"anyone"};
+const ownerOf=(c,p,i)=>p.owner||(p.owner=(staffOf(c)[i%Math.max(1,staffOf(c).length)]||{name:"the agency"}).name);
+const prospectVisible=(c,p,i)=>!isATM()||ACCOUNT_SETTINGS.prospectSharing||inReach(ownerOf(c,p,i));
+const replyOwner=(c,r,i)=>r.owner||((c.sequences&&c.sequences.length)?c.sequences[i%c.sequences.length].owner:null);
+const mbOwner=(c,m,i)=>m[3]==="client"?null:(staffOf(c)[i%Math.max(1,staffOf(c).length)]||{name:"Alex Meridian"}).name;
+function pshareToggle(){ACCOUNT_SETTINGS.prospectSharing=!ACCOUNT_SETTINGS.prospectSharing; logAct(null,`turned prospect sharing ${ACCOUNT_SETTINGS.prospectSharing?"on":"off"}`); render()}
+const reachNote=(shown,total,what)=>isATM()&&shown<total?`<p class="sub" style="margin:0 0 10px">Showing ${shown} of ${total} ${what}: under ATM roles you see the ones owned by ${reachLabel()}.</p>`:"";
+/* client levels under ATM, line for line from doc 81 §17 (doc 84 §4b) */
+const ATM_ROLE_DEFS={
+ "Full access":{mods:["sequences","inbox","prospects","accounts","tmpl","warmup","analytics","usage","refer"],verbs:["reply","editseq","export","warmup","request"],desc:"Works inside their sequences: edits, adds prospects and templates, exports, replies",banner:`${AGENCY.name} runs your outreach here. With Full access you can edit your sequences, add prospects and templates, export, reply and connect your mailboxes.`},
+ "Limited access":{mods:["sequences","inbox","accounts","warmup","analytics","usage","refer"],verbs:["reply","warmup","request"],desc:"Sees their sequences and reports, replies, connects mailboxes",banner:`${AGENCY.name} runs your outreach here. With Limited access you can see your sequences and reports, reply to prospects and connect your mailboxes.`}};
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
    company, not a person, and gave the client nobody to actually reply to. */
@@ -2316,7 +2337,7 @@ function growProspects(c){
    :status==="Clicked"?[t1,{t:"open",d:d(),s:"",b:""},{t:"click",d:d(),s:"",b:""}]
    :[t1,{t:"open",d:d(),s:"",b:""},
      {t:"reply",d:d(),s:"Re: "+subj,b:PROS_REPLY[Math.floor(r()*PROS_REPLY.length)]}];
-  out.push({id:c.id+"g"+out.length,name:fn+" "+ln,title,co,email,status,trail});
+  out.push({id:c.id+"g"+out.length,name:fn+" "+ln,title,co,email,status,trail,owner:(staffOf(c)[out.length%Math.max(1,staffOf(c).length)]||{name:"the agency"}).name});
  }
  PROSPECTS[c.id]=out;
 }
@@ -3823,7 +3844,7 @@ const isMember=(p,cid)=>p.ws?p.ws.indexOf(cid)>-1:true;
 /* a client user's grant is their role, full stop: no per-user customisation,
    no workspace default to fall back to. u is a [email,role] pair from
    c.users; missing (no user yet) reads as the least access. */
-const userAccessOf=(c,u)=>roleSet(u?u[1]:DEFAULT_CLIENT_ROLE);
+const userAccessOf=(c,u)=>{const r=u?u[1]:DEFAULT_CLIENT_ROLE; return isATM()?Object.assign({},roleSet(r),ATM_ROLE_DEFS[ATM_LEVEL(r)]):roleSet(r)};
 /* the "as client" preview has no user switcher, so it acts as the first user
    on the client, the same one the invite and the record's Members tab lead
    with. Alloy's second user is reachable only by looking at its own row. */
@@ -3878,7 +3899,7 @@ const myClientsForLimits=()=>canI("limits")?myClients():[];
 /* change 155: an agency session inside a workspace acts at the Member's stored
    level there (Owner and Admin are Workspace Admin everywhere); a Member never
    asks for more (PRD §2.3). A client session is unchanged. */
-const canC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).verbs.indexOf(k)>-1:(k!=="request"&&roleSet(actor().wsRole(c.id)).verbs.indexOf(k)>-1);
+const canC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).verbs.indexOf(k)>-1:(k!=="request"&&(isATM()||roleSet(actor().wsRole(c.id)).verbs.indexOf(k)>-1));
 const seesC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).mods.indexOf(k)>-1:true;
 /* the invite sentence is derived from the role, never hand quoted, so it can
    never disagree with roleSet's own one-line description. */
@@ -4313,13 +4334,14 @@ const MB_LABEL=t=>t==="Warming"?"Warming up":t;
    Connect your own only for a client). */
 function rMail(c){
  const clientSide=asClient&&!inAgency();
- const cnt=t=>c.mailboxes.filter(m=>m[1]===t).length;
+ const mine=c.mailboxes.filter((m,i)=>{const o=mbOwner(c,m,i); return !o||inReach(o)});
+ const cnt=t=>mine.filter(m=>m[1]===t).length;
  const summary=[["Healthy",cnt("Healthy")],["Warming",cnt("Warming")],["Warning",cnt("Warning")],
                 ["Disconnected",cnt("Disconnected")]].filter(x=>x[1]);
  /* arriving from the queue, the row the queue was about is first and marked,
     with the action on it. A 54-row list with the broken one on row 31 and no
     Reconnect anywhere was the top queue item's landing. */
- const ordered=focusMb?[...c.mailboxes].sort((a,b)=>(a[0]===focusMb?-1:b[0]===focusMb?1:0)):c.mailboxes;
+ const ordered=focusMb?[...mine].sort((a,b)=>(a[0]===focusMb?-1:b[0]===focusMb?1:0)):mine;
  /* 17 Sep 2026, round 5b: the health summary is a filter now, not a row of chips */
  const filt=mbHealth==="all"?ordered:ordered.filter(m=>m[1]===mbHealth);
  const rows=mailAll?filt:filt.slice(0,10);
@@ -4334,10 +4356,10 @@ function rMail(c){
    :`<button class="shd-button shd-button--primary shd-button--sm" data-buymbx="${c.id}">Buy mailboxes</button>${connectBtn}`;
  return `
  <div class="panel"><div class="panel-h"><span class="panel-t">Email accounts</span>
-   <span class="sub">${c.mailboxes.length} email account${c.mailboxes.length===1?"":"s"}</span>
+   <span class="sub">${isATM()&&mine.length<c.mailboxes.length?`${mine.length} of ${c.mailboxes.length} email accounts, owned by ${reachLabel()}`:`${c.mailboxes.length} email account${c.mailboxes.length===1?"":"s"}`}</span>
    <span class="c-a">${buyActions}</span></div>
   ${receiptBar("mailboxes:"+c.id)}
-  ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",c.mailboxes.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
+  ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",mine.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
     .map(([k,l,n])=>`<button data-mbh="${k}" aria-pressed="${mbHealth===k}">${l}<span class="pn">${n}</span></button>`).join("")}</div></div>`:""}
   <div class="tscroll"><table class="organism" style="min-width:560px">
    <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th>${asClient?"":"<th></th>"}</tr></thead>
@@ -6707,7 +6729,7 @@ function vInClient(){
  const own=!!c.own;
  const inboxRows=own
   ?AGENCY_OWN.replies.map(([from,snippet,age,positive])=>({from,snippet,age,positive}))
-  :REPLIES.filter(r=>r.client===c.id);
+  :REPLIES.filter(r=>r.client===c.id).filter((r,i)=>inReach(replyOwner(c,r,i)));
  const parked=AGY_MOD[inMod]&&!RAIL2MOD[inMod]?AGY_MOD[inMod][0]:null;
  const pnote=SCOPE_NOTE[Object.keys(AGY_MOD).find(x=>x===inMod)];
  const body=parked?`<div class="panel">
@@ -7278,6 +7300,7 @@ function vSettings(){
       <div class="k">Where it is set</div><div>${where}</div>
       <div class="k">${isNormal()?"What you can do":agency?"What the account can do":"What this workspace can do"}</div><div>${cando}</div>
       ${isNormal()?"":`<div class="k">The rule</div><div>${sel[4]}</div>`}
+      ${sel[0]==="admin"&&isATM()&&!asC?`<div class="k">Prospect sharing</div><div><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span>Allow team members to see prospects of each other</span><button type="button" class="sw" role="switch" aria-checked="${ACCOUNT_SETTINGS.prospectSharing}" data-pshare onclick="pshareToggle()" aria-label="Allow team members to see prospects of each other"></button></div><p class="sub" style="margin:6px 0 0">On: every Member sees every prospect in each workspace. Off: Members see their own prospects and colleagues&rsquo; prospects in their own sequences. One switch for the account, as in production (doc 81 §6a).</p></div>`:""}
      </div>
     </div>
    </div>
@@ -8128,8 +8151,8 @@ function rSettings(c){
     </div>
     <div class="lockctl">
       <span class="${pill[x.src][0]}">${pill[x.src][1]}</span>
-      <button class="sw" role="switch" aria-checked="${x.val?x.val!=="Off":x.acc==="On"}"
-        ${x.src==="locked"?'disabled style="opacity:.45;cursor:not-allowed"':''} aria-label="${x.label}"></button>
+      <button class="sw" role="switch" aria-checked="${x.k==="teamvis"&&isATM()?ACCOUNT_SETTINGS.prospectSharing:x.val?x.val!=="Off":x.acc==="On"}"
+        ${x.src==="locked"?'disabled style="opacity:.45;cursor:not-allowed"':''} ${x.k==="teamvis"&&isATM()?'data-pshare':''} aria-label="${x.label}"></button>
     </div></div>`).join("")}</div></div>`;
 }
 
@@ -8170,7 +8193,7 @@ function cInbox(c){
     prototype"; it now opens a real thread, kept for the same client so a
     stale id from another workspace never leaks a reply that is not theirs. */
  if(openReply){const r=REPLIES.find(x=>x.id===openReply&&x.client===c.id); if(r) return cReplyThread(c,r)}
- const rows=REPLIES.filter(r=>r.client===c.id), canReply=canC(c,"reply");
+ const rows=REPLIES.filter(r=>r.client===c.id).filter((r,i)=>inReach(replyOwner(c,r,i))), canReply=canC(c,"reply");
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Your replies</span>
    <span class="sub">${rows.length} from your campaigns</span></div>
   <div class="tscroll"><table class="organism" style="min-width:700px">
@@ -8270,13 +8293,13 @@ const TASK_KIND=["Follow-up","Call back","Send pricing","Check in","Book the dem
 function taskRowsFor(c){
  const key=c.id; if(TASK_ROWS[key]) return TASK_ROWS[key];
  const P=(PROSPECTS[c.id]||[]).slice(0,5), r=rng("task:"+key), due=["today","tomorrow","this week","overdue"];
- const out=P.map((p,i)=>({id:key+"t"+i, who:p.name, co:p.co,
+ const out=P.map((p,i)=>({id:key+"t"+i, who:p.name, co:p.co, owner:ownerOf(c,p,i),
    what:TASK_KIND[Math.floor(r()*TASK_KIND.length)]+(p.co?" – "+p.co:""),
    due:due[Math.floor(r()*due.length)], done:r()<0.3}));
  TASK_ROWS[key]=out; return out;
 }
 function cTasks(c){
- const rows=taskRowsFor(c), may=canC(c,"modact"), open=rows.filter(t=>!t.done).length;
+ const rows=taskRowsFor(c).filter(t=>inReach(t.owner)), may=canC(c,"modact"), open=rows.filter(t=>!t.done).length;
  return `<div class="panel"><div class="panel-h">
    <span style="width:20px;height:20px;flex:none;display:flex;color:var(--blue-15)">${svg("task")}</span>
    <span class="panel-t">Tasks</span><span class="sub">${open} open</span>
@@ -8631,10 +8654,11 @@ function seqStats(c,q){
 }
 function seqTable(c,owner){
  const may=owner||canC(c,"editseq");
- const roleNote=(!owner&&!canC(c,"editseq"))
+ const seqReach=reachNote((c.sequences||[]).filter(q=>inReach(q.owner)).length,(c.sequences||[]).length,"sequences");
+ const roleNote=seqReach+((!owner&&!canC(c,"editseq"))
    ?(()=>{const role=actingRole(c);
-     return `<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. As a ${role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
-   :"";
+     return `<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. ${isATM()&&asClient?"With "+ATM_LEVEL(role):"As a "+role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
+   :"");
  const I={search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
   chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>',
@@ -8649,7 +8673,7 @@ function seqTable(c,owner){
   thumb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v11M2 10h5l3-7a2 2 0 0 1 2 2v5h6a2 2 0 0 1 2 2l-1.5 7a2 2 0 0 1-2 1H7"/></svg>'};
  const toolbar=`<div class="sq-tb"><div class="l">
    <div class="search" style="min-width:200px">${I.search}<input type="text" placeholder="Search" data-flash="Not in this prototype"></div>
-   <button class="sq-dd" data-flash="Not in this prototype">${I.user}Sequence Owner ${I.chev}</button>
+   <button class="sq-dd" data-flash="${isATM()?"Reach under ATM roles: "+reachLabel():"Not in this prototype"}">${I.user}Sequence Owner${isATM()?": "+reachLabel():""} ${I.chev}</button>
    <button class="sq-dd" data-flash="Not in this prototype">Status (All) <span style="width:40px"></span>${I.chev}</button>
    <button class="sq-ic" title="Pause selected" data-flash="Select a sequence first">${I.pause}</button>
    <button class="sq-ic" title="Resume selected" data-flash="Select a sequence first">${I.play}</button></div>
@@ -8657,7 +8681,8 @@ function seqTable(c,owner){
  const ring=(pct)=>{const r=14,cf=2*Math.PI*r,off=cf*(1-Math.min(100,pct)/100);
    return `<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="${r}" fill="none" stroke="var(--gray-13)" stroke-width="3"/><circle cx="18" cy="18" r="${r}" fill="none" stroke="${pct?"var(--blue-11)":"var(--gray-13)"}" stroke-width="3" stroke-dasharray="${cf}" stroke-dashoffset="${off}" transform="rotate(-90 18 18)" stroke-linecap="round"/><text x="18" y="21" text-anchor="middle" font-size="8" fill="${pct?"var(--blue-11)":"var(--gray-11)"}" font-weight="600">${pct}%</text></svg>`};
  const dash='<span class="sq-num mute">–</span>';
- const rows=(c.sequences||[]).map(q=>{const key=c.id+"|"+q.name,asking=seqConfirm===key,st=grace()&&q.state==="Active"?"Paused":q.state,S=seqStats(c,q),draft=st==="Draft";
+ const seen=(c.sequences||[]).filter(q=>inReach(q.owner));
+ const rows=seen.map(q=>{const key=c.id+"|"+q.name,asking=seqConfirm===key,st=grace()&&q.state==="Active"?"Paused":q.state,S=seqStats(c,q),draft=st==="Draft";
    const sc=S.score<30?"lo":S.score<70?"mid":"hi";
    return `<tr>
      <td class="c1"><input type="checkbox" aria-label="Select ${q.name}" ${may?"":"disabled"}></td>
@@ -8809,7 +8834,7 @@ function cTmpl(c){
    this workspace is visible to any other workspace, including the wording it has changed.</span></div></div>`;
 }
 function cPros(c,owner){
- const P=PROSPECTS[c.id]||[];
+ const PA=PROSPECTS[c.id]||[], P=PA.filter((p,i)=>prospectVisible(c,p,i));
  /* item 22, 28 Sep 2026: canC(c,"export") resolves against the acting CLIENT
     user, which for a workspace with none yet (including the agency's own,
     which has no `users` array at all) falls back to DEFAULT_CLIENT_ROLE and
@@ -8817,7 +8842,7 @@ function cPros(c,owner){
     view (`owner`); cPros gets the same bypass, so the agency's Owner and
     other staff never see "Export is with <agency>" about their own data. */
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Prospects</span>
-   <span class="sub">${f(c.prospects)} in your workspace</span>
+   <span class="sub">${f(c.prospects)} in your workspace${isATM()&&P.length<PA.length?` &middot; you see the ones owned by ${reachLabel()} (prospect sharing is off)`:""}</span>
    <span class="c-a">${owner||canC(c,"export")
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Export started">Export CSV</button>'
      :`<span class="sub" title="${AGENCY.name} keeps the list on the platform. Ask them if you need a copy.">Export is with ${AGENCY.name}</span>`}</span></div>
@@ -10187,6 +10212,7 @@ function wire(){
  q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
  q("[data-transfer]").forEach(b=>b.onclick=()=>{if(b.disabled)return;modal={kind:"transfer"};renderModal()});
  q("[data-teamnew]").forEach(b=>b.onclick=()=>{modal={kind:"teamedit",id:null};renderModal()});
+ q("[data-pshare]").forEach(b=>b.onclick=pshareToggle);
  q("[data-teamedit]").forEach(b=>b.onclick=e=>{if(e.target.closest("button,a,select"))return;modal={kind:"teamedit",id:b.dataset.teamedit};renderModal()});
  q("[data-mkowner]").forEach(b=>b.onclick=()=>{modal={kind:"mkowner",key:b.dataset.mkowner};renderModal()});
  q("[data-rmowner]").forEach(b=>b.onclick=()=>{modal={kind:"rmowner",key:b.dataset.rmowner};renderModal()});
@@ -10217,7 +10243,7 @@ function wire(){
     It is a gap in the agency's OWN coverage, so it skips the picker straight to that path. */
  q("[data-fixgaps]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:uncovered().map(c=>c.id)}));
  q("[data-gotoc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.gotoc};tab="members";render()});
- q(".page .sw:not([data-viewas]):not([data-warmup]):not([data-webhookon])").forEach(b=>{
+ q(".page .sw:not([data-viewas]):not([data-warmup]):not([data-webhookon]):not([data-pshare])").forEach(b=>{
    if(b.id!=="bifSw")b.onclick=()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")==="true"?"false":"true")});
 }
 /* hover expands on a pointer device. Where there is no hover, a click has to do
@@ -11886,7 +11912,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b4fe03d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="8f1b194";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
