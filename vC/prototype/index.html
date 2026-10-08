@@ -3921,7 +3921,48 @@ let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
 /* People revamp, 29 Sep 2026 (Hitesh: "UX is broken, everything has to be revamped"):
    one table and the product's own modals, modelled on Settings > Users and Teams. */
 let PEOPLE_Q="", PEOPLE_ROLE="all", peopleMenu=null, INV=null, DISABLED={};
-const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1};
+const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,ask:1,transfer:1,mkowner:1,rmowner:1,pplvl:1};
+/* change 156, 8 Oct 2026: every role is given from the admin panel (PRD §2.1,
+   §3.6; doc 84 rows 14 to 16). Owners: invite as Owner, make an Admin an Owner,
+   remove another Owner's role, and Transfer ownership from the Owner's own
+   page, both sides confirming (the prototype fakes the emails with a demo
+   control on the page). A Member's level per workspace, and a client user's
+   level on each of their workspaces, change in place on the person page. */
+let TRANSFER=null;
+const ownersOf=()=>Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Owner"&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
+const transferCands=()=>Object.keys(PEOPLE).filter(k=>k!==me_&&(PEOPLE[k].role==="Owner"||PEOPLE[k].role==="Admin")&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
+function transferHTML(){
+ const cands=transferCands(); modal.to=modal.to||(cands[0]||""); const to=PEOPLE[modal.to];
+ return card("Hand the account to",`<div class="field"><label class="flabel">Who</label>${ddHTML("trTo",modal.to,[{items:cands.map(k=>({value:k,label:PEOPLE[k].name+" · "+PEOPLE[k].role}))}],{placeholder:"Pick an Admin or Owner"})}</div>
+   <p class="sub" style="margin:12px 0 0">You both confirm by email. Until then nothing changes. After it, ${to?to.name.split(" ")[0]:"they"} own${to?"s":""} the account and you are an Admin: no Billing, no Whitelabel, no Owner changes.</p>
+   <p class="sub" style="margin:8px 0 0">Either of you can cancel from your person page until the second confirmation.</p>`,
+  `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-trgo ${modal.to?"":"disabled"}>Send both confirmations</button>`,"ac");
+}
+function transferStart(){const to=modal.to; if(!to||!PEOPLE[to]) return; TRANSFER={from:me_,to,ok:{}}; modal=null; renderModal();
+ logAct(null,`started handing the account to ${PEOPLE[to].name}`); ppToast(`Confirmation emails sent to you and ${PEOPLE[to].name}. Nothing changes until you both confirm.`,null,"transfer started"); render()}
+function transferConfirm(k){if(!TRANSFER) return; TRANSFER.ok[k]=true;
+ if(TRANSFER.ok[TRANSFER.from]&&TRANSFER.ok[TRANSFER.to]){const F=PEOPLE[TRANSFER.from],T=PEOPLE[TRANSFER.to],fromK=TRANSFER.from,toK=TRANSFER.to,wasT=T.role; T.role="Owner";T.ws=null; F.role="Admin";F.ws=null; TRANSFER=null;
+  logAct(null,`handed the account to ${T.name}; ${F.name} is an Admin`); ppToast(`${T.name} owns the account. ${F.name} is now an Admin.`,()=>{T.role=wasT;F.role="Owner"},"ownership transferred")}
+ render()}
+function transferCancel(){if(!TRANSFER) return; const T=PEOPLE[TRANSFER.to]; TRANSFER=null; logAct(null,`cancelled handing the account to ${T.name}`); ppToast(`Transfer to ${T.name} cancelled. Nothing changed.`,null,"transfer cancelled"); render()}
+function ownerConfirmHTML(){
+ const p=personOf(modal.key); if(!p) return ""; const mk=modal.kind==="mkowner";
+ return card(mk?`Make ${p.first} an Owner`:`Remove ${p.first}&rsquo;s Owner role`,mk
+  ?`<p class="ac-lead">${p.name} gets everything, including Billing, Whitelabel and the right to invite and remove Owners. You stay an Owner too; neither of you can remove the other except by Transfer ownership.</p>`
+  :`<p class="ac-lead">${p.name} becomes an Admin: every workspace, People and Analytics, no Billing, no Whitelabel, no Owner changes. ${ownersOf().length-1===1?"You will be the only Owner.":""}</p>`,
+  `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button ${mk?"shd-button--primary":"shd-button--danger"}" data-ownok>${mk?"Make Owner":"Remove Owner role"}</button>`,"ac");
+}
+function ownerRoleGo(){const p=personOf(modal.key); if(!p||p.kind!=="team") return; const P=p.P, was=P.role, mk=modal.kind==="mkowner";
+ if(!mk&&ownersOf().length<2) return;
+ P.role=mk?"Owner":"Admin"; P.ws=null; modal=null; renderModal();
+ logAct(null,mk?`made ${p.name} an Owner`:`removed ${p.name}'s Owner role`);
+ ppToast(mk?`${p.name} is now an Owner.`:`${p.name} is now an Admin.`,()=>{P.role=was},mk?"owner added":"owner role removed"); render()}
+/* a level changed in place on the person page: a Member's level on one
+   workspace, or a client user's level on one of theirs */
+function levelInPlace(key,wsId,level){const p=personOf(key), c=byId[wsId]; if(!p||!c) return;
+ if(p.kind==="team"){const P=p.P, was=P.roles&&P.roles[wsId]; P.roles=P.roles||{}; P.roles[wsId]=level; logAct(wsId,`${p.name}'s level set to ${ppShort(level)}`); ppToast(`${p.name} is now ${INV_SHORT[level][1]} in ${c.name}.`,()=>{if(was)P.roles[wsId]=was;else delete P.roles[wsId]},"level changed")}
+ else {const u=(c.users||[]).find(x=>x[0]===p.email); if(!u) return; const was=u[1]; u[1]=level; logAct(wsId,`${p.email}'s level set to ${ppShort(level)}`); ppToast(`${p.name} is now ${INV_SHORT[level][1]} in ${c.name}.`,()=>{u[1]=was},"level changed")}
+ render()}
 /* an upgrade (or a lateral Owner<->Admin change) confirms inline before it
    writes; {key,to,from}. A downgrade to Member is a different shape, because
    it turns an enumerated-nowhere ws:null into a real list someone has to
@@ -4558,8 +4599,15 @@ function personAccessHTML(p){
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
    :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
- return `<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
-   <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>
+ /* change 156: the level on each workspace changes in place (PRD §3.6: "a
+    different level per client is set from their profile") */
+ const lvlRows=p.kind==="team"&&p.P.role==="Member"?(p.P.ws||[]).filter(id=>byId[id]&&!byId[id].deletedOn).map(id=>[byId[id],ppWsRole(p.P,id)])
+   :p.kind==="client"?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0]===p.email)).map(c=>[c,(c.users.find(u=>u[0]===p.email)||[])[1]]):[];
+ const lvlPanel=lvlRows.length&&canI("members")&&!p.disabled?`<div class="panel"><div class="panel-h"><span class="panel-t">Level per workspace</span><span class="sub">Changes apply on their next request. Undo from the toast.</span></div>
+   <div class="panel-b" style="padding-top:4px">${lvlRows.map(([c,lv])=>`<div class="prm-row"><span class="prm-ws">${av(c,24)}<span><b>${c.name}</b><i>${c.own?"Your workspace":c.company||""}</i></span></span><span class="prm-to">${ddHTML("pplvl_"+c.id,lv,[{items:roleItems()}],{})}</span></div>`).join("")}</div></div>`:"";
+ const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
+   <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>${lvlPanel}`;
+ return html0+`
   ${/* change 119, 5 Oct 2026: the Sign-in card is gone. The header carries the
      state (Active / Invited · Resend), the reset link and, for a client user on a
      brand domain, where they sign in. The card repeated all of it with the action
@@ -4604,14 +4652,22 @@ function vPerson(){
  const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
   :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
- const rm=p.owner?`<span class="sub">The Owner is transferred from your own page.</span>`:p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
+ const iOwn=ME().role==="Owner", live=!p.invited&&!p.disabled;
+ const ownerBtn=!iOwn||p.kind!=="team"?"":p.owner&&p.me?`<button class="shd-button shd-button--secondary" data-transfer ${transferCands().length&&!TRANSFER?"":"disabled"} title="${transferCands().length?"":"Needs an Admin or another Owner to hand to"}">Transfer ownership</button>`
+   :p.owner&&live&&ownersOf().length>1?`<button class="shd-button shd-button--tertiary pa-danger" data-rmowner="${p.key}">Remove Owner role</button>`
+   :p.role==="Admin"&&live?`<button class="shd-button shd-button--secondary" data-mkowner="${p.key}">Make Owner</button>`:"";
+ const rm=p.owner?(p.me?"":`<span class="sub">An Owner is removed by Transfer ownership or Remove Owner role.</span>`):p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
+ const tr=TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)?(()=>{const F=PEOPLE[TRANSFER.from],T=PEOPLE[TRANSFER.to];
+   const st=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
+   return `<div class="msg m-warn" role="status" style="margin:0 24px 12px">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name} &middot; ${st(TRANSFER.from)} &middot; ${st(TRANSFER.to)}. Nothing changes until both confirm.
+     <button class="linkbtn" data-trcancel style="margin-left:8px">Cancel transfer</button><span class="sub" style="margin-left:16px">Demo:</span> ${[TRANSFER.from,TRANSFER.to].filter(k=>!TRANSFER.ok[k]).map(k=>`<button class="linkbtn" data-trconfirm="${k}" style="margin-left:8px">Confirm as ${PEOPLE[k].name.split(" ")[0]}</button>`).join(" ")}</span></div>`})():"";
  const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
    ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email} &middot; ${sub} &middot; ${status}${signsAt}</span></span></div>
-  <div class="tools">${reset}${rm}</div></div>
- ${receiptBar("people")}
+  <div class="tools">${reset}${ownerBtn}${rm}</div></div>
+ ${receiptBar("people")}${tr}
  <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
 }
@@ -4814,6 +4870,7 @@ function invRowHTML(addr,r,n,lock,wsList){
  else if(r.kind==="client") {line="A client&rsquo;s person &middot; which client?"; chip="Pick a client"; warn=true}
  else if(r.kind==="team"&&names.length) {const verb={"Workspace Admin":"runs","Workspace Collaborator":"does the outreach for","Workspace Viewer":"looks at"}[r.level]; line=`Your team &middot; ${verb} ${listAnd(names)}, sees no other client`; chip=r.level}
  else if(r.kind==="team") {line=`Your team${r.from==="domain"?", matched by email domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
+ else if(r.kind==="admin"&&r.asOwner) {line="Owner &middot; everything, including billing, Whitelabel and other Owners"; chip="Owner"}
  else if(r.kind==="admin") {line="Admin &middot; every client, People and Billing"; chip="Admin"}
  else {line="We cannot tell from the address"; chip="Who is this?"; warn=true}
  /* 4 Oct 2026, Hitesh: "show at least this much per user": every person's choice
@@ -4832,6 +4889,8 @@ function invEditorHTML(addr,r,n,lock,wsList){
  const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
  let inner="";
  if(!lock&&!r.existing) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
+ /* change 156: only an Owner sees the Owner choice (PRD §3.6 Invite as Owner, PE-14, PE-15) */
+ if(r.kind==="admin"&&!lock&&INV&&!INV.edit&&ME().role==="Owner") inner+=`<div class="field"><span class="flabel">As what?</span>${cards("invown_"+n,[["admin","As an Admin","Every client, People and Billing read. No money."],["owner","As an Owner","Everything, including billing, Whitelabel and other Owners."]],r.asOwner?"owner":"admin","data-invown")}<p class="inv-help">Only an Owner sees this choice. An Admin&rsquo;s invite makes an Admin.</p></div>`;
  if(r.existing&&!lock) inner+=`<p class="inv-help" style="margin:0">Already a client user on ${listAnd(r.existing.map(id=>byId[id].name))}. This adds another workspace to the same sign-in.</p>`;
  if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.filter(x=>!(r.existing&&r.existing.indexOf(x.id)>-1)).map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Matched by email domain. Change it if we got it wrong.</p>`:""}</div>`;
  if(r.kind==="client") inner+=lvl(`What can they do in ${byId[r.ws]?byId[r.ws].name:"it"}?`);
@@ -4847,7 +4906,8 @@ function inviteSend(){
   else {let key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
    const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), admin=r.kind==="admin";
    const roles={}; if(!admin)r.wsList.forEach(id=>roles[id]=r.level);
-   PEOPLE[key]={name:nm,initials:initials(nm),role:admin?"Admin":"Member",email:addr,ws:admin?null:r.wsList.slice(),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"; lastWhere=""; lastRole=admin?"Admin":"Member";
+   const asOwner=admin&&r.asOwner&&ME().role==="Owner";
+   PEOPLE[key]={name:nm,initials:initials(nm),role:asOwner?"Owner":admin?"Admin":"Member",email:addr,ws:admin?null:r.wsList.slice(),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"; lastWhere=""; lastRole=asOwner?"Owner":admin?"Admin":"Member";
    made.push(()=>{delete PEOPLE[key];delete LASTSEEN[nm];delete INVITED["t:"+key]})}
  });
  const n=made.length;
@@ -4934,6 +4994,7 @@ function wirePeopleModal(L){
     if(r.kind==="team"){if(!r.wsList.length&&INV.preset)r.wsList=INV.preset.wsList.slice(); r.level="Workspace Admin"}
     rerender()});
   L.querySelectorAll("[data-invlevel]").forEach(c=>c.onchange=()=>{row(c.dataset.invlevel).level=c.value;rerender()});
+  L.querySelectorAll("[data-invown]").forEach(c=>c.onchange=()=>{row(c.dataset.invown).asOwner=c.value==="owner";rerender()});
   L.querySelectorAll("[data-invrmws]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr); r.wsList=r.wsList.filter(x=>x!==b.dataset.invrmws); rerender()});
   INV.emails.forEach((a,n)=>{wireDD(L,"invws_"+n,v=>{if(v){row(a).ws=v;row(a).from="pick"} rerender()}); wireDD(L,"invadd_"+n,v=>{if(v&&row(a).wsList.indexOf(v)<0)row(a).wsList.push(v); rerender()})});
   L.querySelectorAll("[data-inveddone]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.inveddone); if(!invSettled(r))return; r.open=false; delete r.snap; rerender()});
@@ -4947,6 +5008,8 @@ function wirePeopleModal(L){
   const w=L.querySelector("#askWhy"); if(w)w.oninput=()=>{modal.why=w.value; upd()};
   const send=L.querySelector("[data-asksend]"); if(send)send.onclick=()=>{if(!send.disabled)askSend()};
   const f1=L.querySelector(`[data-askamt="${modal.pre}"]`)||L.querySelector("#askWhy"); if(f1)f1.focus()}
+ if(k==="transfer"){wireDD(L,"trTo",v=>{modal.to=v;rerender()}); const go=L.querySelector("[data-trgo]"); if(go) go.onclick=transferStart}
+ if(k==="mkowner"||k==="rmowner"){const go=L.querySelector("[data-ownok]"); if(go) go.onclick=ownerRoleGo}
  if(k==="prm"||k==="prmc"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{modal.to[d.id.slice(6)]=v})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=prmGo; L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
@@ -8827,6 +8890,8 @@ function modalHTML(){
  if(modal.kind==="ppperson") return ppPanelHTML();
  if(modal.kind==="pproles") return ppRolesHTML();
  if(modal.kind==="invite") return inviteHTML();
+ if(modal.kind==="transfer") return transferHTML();
+ if(modal.kind==="mkowner"||modal.kind==="rmowner") return ownerConfirmHTML();
  if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
  if(modal.kind==="ask") return askHTML();
  if(modal.kind==="chrole") return chroleHTML();
@@ -10039,6 +10104,12 @@ function wire(){
  q("[data-pedit]").forEach(b=>b.onclick=()=>personEdit(b.dataset.pedit));
  q("[data-preset]").forEach(b=>b.onclick=()=>{ppToast(`Reset link sent to ${b.dataset.preset}. It works for 24 hours.`,null,"reset link sent");render()});
  q("[data-prm]").forEach(b=>b.onclick=()=>{modal={kind:"prm",key:b.dataset.prm,to:{}};renderModal()});
+ q("[data-transfer]").forEach(b=>b.onclick=()=>{if(b.disabled)return;modal={kind:"transfer"};renderModal()});
+ q("[data-mkowner]").forEach(b=>b.onclick=()=>{modal={kind:"mkowner",key:b.dataset.mkowner};renderModal()});
+ q("[data-rmowner]").forEach(b=>b.onclick=()=>{modal={kind:"rmowner",key:b.dataset.rmowner};renderModal()});
+ q("[data-trcancel]").forEach(b=>b.onclick=transferCancel);
+ q("[data-trconfirm]").forEach(b=>b.onclick=()=>transferConfirm(b.dataset.trconfirm));
+ document.querySelectorAll(".dd[id^=pplvl_]").forEach(d=>wireDD(document,d.id,v=>{if(v&&view.name==="person")levelInPlace(view.id,d.id.slice(6),v)}));
  q("[data-prmc]").forEach(b=>b.onclick=()=>{modal={kind:"prmc",key:b.dataset.prmc};renderModal()});
  q("[data-openrec]").forEach(b=>b.onclick=()=>{view={name:"record",id:b.dataset.openrec};render()});
  wireDD(document,"paKind",v=>{PA_KIND=v;render()});
@@ -11731,7 +11802,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9762167";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="78c6bd3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
