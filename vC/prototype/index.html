@@ -2000,9 +2000,22 @@ function actor(){
   return {kind:"client",key:"w:"+c.id+"|"+(u?u[0]:""),role:r,atmRole:ATM_LEVEL(r),email:u?u[0]:null,wsRole:()=>r,reach:()=>isATM()?"ws":"all"}}
  const P=ME(), k=me_;
  return {kind:"agency",key:"t:"+k,role:P.role,atmRole:atmRoleOf(k),email:P.email,
-  wsRole:id=>P.role!=="Member"?"Workspace Admin":(P.roles&&P.roles[id])||"Workspace Viewer",
+  wsRole:id=>P.role!=="Member"?"Workspace Admin":(P.roles&&P.roles[id])||(id==="own"?"Workspace Admin":"Workspace Viewer"),
   reach:()=>!isATM()?"all":P.role!=="Member"?"account":teamsManagedBy(k).length?"team":"own"};
 }
+/* change 155: the Workspace model enforced everywhere (PRD §4.3's list).
+   agencyFull: an agency session that acts as Workspace Admin inside this
+   workspace (Owner, Admin, or a Member whose level there is Workspace Admin).
+   clientWsOf: every workspace the acting client user is on (a client user can
+   be on several, PRD §2.1). onAccount: is this address already someone here. */
+const agencyFull=c=>!asClient&&actor().wsRole(c.id)==="Workspace Admin";
+const clientWsOf=()=>ACTING_EMAIL?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===ACTING_EMAIL.toLowerCase())):[];
+const onAccount=email=>{const e=String(email||"").toLowerCase();
+ const k=Object.keys(PEOPLE).find(k=>(PEOPLE[k].email||"").toLowerCase()===e); if(k) return {kind:"team",key:k,name:PEOPLE[k].name};
+ const ws=CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===e)); if(ws.length) return {kind:"client",ws:ws.map(c=>c.id)}; return null};
+/* addresses that already own their own Saleshandy account (production refuses
+   the invite with "Failed to send invitation"; the need report counts 16 of them) */
+const SH_ACCOUNTS=["founder@acmeoutreach.com"];
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
    company, not a person, and gave the client nobody to actually reply to. */
@@ -2906,7 +2919,7 @@ function renderRail(){
       scope 'agency' is satisfied by either.                                 */
    return (!sc||inAgency()||(isNormal()&&sc==="agency"))&&(k!=="dash"||(canI("dashboard")&&hasAgency()))
      &&(k!=="queue"||hasAgency())
-     &&(k!=="billing"||canI("billing"))&&(k!=="whitelabel"||canI("billing"))&&(k!=="clients"||(canI("members")&&hasAgency()))
+     &&(k!=="billing"||canI("billing"))&&(k!=="whitelabel"||canI("billing"))&&(k!=="clients"||hasAgency())
      /* the estate is the account's procurement surface and denies an operator,
         so it must not be offered to one either */
      &&(k!=="mail"||!inAgency()||canI("members"))
@@ -3114,7 +3127,7 @@ function renderShell(){
     re-inserted (with its click handler re-wired) the moment the session
     leaves that state, so a client session has no switcher trigger at all
     rather than an inert one that still answers to the DOM. */
- if(asClient||solo){const b=el("wsBtn"); if(b) b.remove();
+ if(solo||(asClient&&clientWsOf().length<2)){const b=el("wsBtn"); if(b) b.remove();
    /* 25 Sep 2026: the header still names the workspace for a client session; it is a
       label, not a trigger (no button, no chevron, no popover). */
    const w=solo?byId[ctx]:c;
@@ -3125,7 +3138,7 @@ function renderShell(){
  else {const st=el("wsStatic"); if(st) st.remove();
    if(!el("wsBtn")){
      el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
-     el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
+     el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2))return;popOpen?closePop():openPop()};
    }
  }
  if(solo){const o=byId[ctx].email,loc=o.split("@")[0];
@@ -3144,14 +3157,14 @@ function renderShell(){
  {const badge=document.querySelector(".ubadge"); if(badge) badge.hidden=asClient&&inC;}
  /* wsAv/wsNm live inside wsBtn, which does not exist in the DOM for a
     client-role or solo session (fix #20 above) - nothing to set them to. */
- if(!asClient&&!solo){
+ if(!solo&&el("wsBtn")){
    el("wsAv").textContent=inC?initials(c.name):AGENCY.initials;
    el("wsAv").style.setProperty("--c",inC?c.colour:AGENCY.colour);
    el("wsNm").textContent=inC?c.name:AGENCY.name;
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
  /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
- el("popAddWrap").hidden=!canI("billing");
+ el("popAddWrap").hidden=asClient||!canI("limits");
  /* nothing to search through when there is one workspace and no clients */
  el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
  /* A client with one workspace has nothing to switch to, and must never be
@@ -3206,7 +3219,6 @@ function renderShell(){
 function renderPop(q=""){
  /* defence in depth: never render the account or any other workspace into a
     popover a workspace-user session could somehow reach. */
- if(asClient){el("popL").innerHTML="";return}
  const t=q.trim().toLowerCase();
  /* 28 Sep 2026, Hitesh, D14: one list. The account row is pinned first, with
     an icon rather than an avatar so it cannot be mistaken for the workspace
@@ -3218,6 +3230,15 @@ function renderPop(q=""){
  const row=(id,lead,name,tag,cur)=>`<button class="pop-r" data-go="${id}" aria-current="${cur}">${lead}<span class="t">${name}</span>${cur?checkI:tag?`<span class="pop-tag${tag.tone?" pop-tag--"+tag.tone:""}">${tag.text}</span>`:""}</button>`;
  const av=(ini,col)=>`<span class="avatar av-tint" style="--c:${col}">${ini}</span>`;
  const attention=c=>{const st=lf(c.id).s; if(c.sent===0) return {text:"Not set up"}; if(st.tone==="bad") return {text:"At limit",tone:"bad"}; if(st.tone==="warn") return {text:"Near limit",tone:"warn"}; return null};
+ /* change 155: a client user on two or more workspaces gets a switcher of those
+    only (PRD §2.2): no account row, no Add. One workspace keeps the identity
+    tile and no trigger at all. */
+ if(asClient){const mine=clientWsOf().filter(c=>!t||c.name.toLowerCase().includes(t));
+  if(clientWsOf().length<2){el("popL").innerHTML="";return}
+  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">No workspaces found</p>`);
+  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{const id=b.dataset.go,cc=byId[id]; if(!cc) return; ctx=id;openProspect=null;openSeq=null;openReply=null;
+   const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1); cView=first?first[0]:"settings"; closePop();render()});
+  return}
  if(isNormal()){
   el("popL").innerHTML=row("agency",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,true);
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{closePop()});
@@ -3229,7 +3250,7 @@ function renderPop(q=""){
   +`<div class="pop-h">Your workspaces</div>`
   +(ownMatch?row("own",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,ctx==="own"):"")
   /* change 132 (Hitesh): no attention tags in the switcher; it lists places, Home carries the state */
-  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,null,ctx===c.id)).join("")
+  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join("")
    :ownMatch?"":`<p class="sub" style="padding:8px">No workspaces found</p>`);
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
@@ -3358,7 +3379,7 @@ function vClients(){
     a sliver at the top of a blank page. Now it is the confirmation card's own
     picture, the invitation, and the three things that appear, centred. */
  if(CLIENTS.length===0){
-  const O=AGENCY_OWN, can=canI("billing");
+  const O=AGENCY_OWN, can=canI("limits");
   const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
   /* fix 25 Sep review #10: Work queue is Coming soon on the admin panel, so
      it came out of this first-run mock rail and its "what you get" cards
@@ -3412,7 +3433,7 @@ function vClients(){
   <div class="tools">
    ${colSel(COLS)}
    ${canI("billing")?'<button class="shd-button shd-button--tertiary" id="toCredits">Credits &amp; Limits</button>':""}
-   ${canI("billing")?'<button class="shd-button shd-button--primary" id="addClient">Add a workspace</button>':""}</div>
+   ${canI("limits")?'<button class="shd-button shd-button--primary" id="addClient">Add a workspace</button>':""}</div>
  </div>
  <div class="wrap">
   ${graceBanner()}
@@ -3854,8 +3875,11 @@ const myClientsForLimits=()=>canI("limits")?myClients():[];
 /* a client user's whole grant is their role. Resolved against the acting
    user (actingClientUser, above) rather than a workspace default: two users
    on the same client can hold two different roles now (Alloy does). */
-const canC=(c,k)=>userAccessOf(c,actingClientUser(c)).verbs.indexOf(k)>-1;
-const seesC=(c,k)=>userAccessOf(c,actingClientUser(c)).mods.indexOf(k)>-1;
+/* change 155: an agency session inside a workspace acts at the Member's stored
+   level there (Owner and Admin are Workspace Admin everywhere); a Member never
+   asks for more (PRD §2.3). A client session is unchanged. */
+const canC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).verbs.indexOf(k)>-1:(k!=="request"&&roleSet(actor().wsRole(c.id)).verbs.indexOf(k)>-1);
+const seesC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).mods.indexOf(k)>-1:true;
 /* the invite sentence is derived from the role, never hand quoted, so it can
    never disagree with roleSet's own one-line description. */
 function inviteCopy(c){
@@ -4702,13 +4726,16 @@ const INV_LEVEL_DEFAULT="Workspace Viewer";
 const agencyDomains=()=>{const d=new Set(); (AGENCY_OWN.mailboxes||[]).forEach(m=>{const x=(m[0].split("@")[1]||"").toLowerCase(); if(x)d.add(x)}); return d};
 function invPropose(addr){
  const d=(addr.split("@")[1]||"").toLowerCase();
+ /* change 155: an address already on the account as a client user is added to
+    another workspace (PRD §2.1 flow); an agency user is refused in commit() */
+ const ex=onAccount(addr); if(ex&&ex.kind==="client") return {kind:"client",ws:INV.lock&&ex.ws.indexOf(INV.lock)<0?INV.lock:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"existing",existing:ex.ws,open:false};
  if(INV.lock) return {kind:"client",ws:INV.lock,wsList:[],level:INV_LEVEL_DEFAULT,from:"lock",open:false};
  if(agencyDomains().has(d)) return {kind:"team",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],level:"Workspace Admin",from:"domain",open:false};
  const g=invGuessWs(addr); if(g) return {kind:"client",ws:g,wsList:[],level:INV_LEVEL_DEFAULT,from:"domain",open:false};
  if(INV.preset) return {kind:"team",ws:"",wsList:INV.preset.wsList.slice(),level:"Workspace Admin",from:"preset",open:false};
  return {kind:null,ws:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"none",open:false};
 }
-const invSettled=r=>r.kind==="admin"||(r.kind==="client"&&!!r.ws)||(r.kind==="team"&&r.wsList.length>0);
+const invSettled=r=>r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0);
 const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["View only","View only"]};
 const INV_WHY={"Workspace Admin":"Edits sequences, adds prospects and templates, exports, reveals leads against the limit.","Workspace Collaborator":"Reads everything, replies, connects their own email accounts. Changing what goes out stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
 const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the clients you pick."],["client","Use their own client workspace","A client&rsquo;s person. One workspace, nothing of your agency."],["admin","Run the agency with me","An Admin. Every client, People and Billing."]];
@@ -4781,7 +4808,9 @@ function invRowHTML(addr,r,n,lock,wsList){
  const ini=initials(addr.split("@")[0].replace(/[._-]+/g," ")), tint=INV_TINTS[n%INV_TINTS.length];
  const c=r.kind==="client"&&byId[r.ws], names=r.wsList.map(id=>byId[id]&&byId[id].name).filter(Boolean);
  let line, chip, warn=false;
- if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
+ if(r.kind==="client"&&c&&r.existing&&r.existing.indexOf(c.id)>-1) {line=`Already on ${c.name} &middot; pick another workspace`; chip="Pick another"; warn=true}
+ else if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.existing?", also on "+listAnd(r.existing.map(id=>byId[id].name)):r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=INV_SHORT[r.level][1]}
+ else if(r.kind==="client"&&r.existing) {line=`Already ${listAnd(r.existing.map(id=>byId[id].name))}&rsquo;s person &middot; which other workspace?`; chip="Pick a workspace"; warn=true}
  else if(r.kind==="client") {line="A client&rsquo;s person &middot; which client?"; chip="Pick a client"; warn=true}
  else if(r.kind==="team"&&names.length) {const verb={"Workspace Admin":"runs","Workspace Collaborator":"does the outreach for","Workspace Viewer":"looks at"}[r.level]; line=`Your team &middot; ${verb} ${listAnd(names)}, sees no other client`; chip=r.level}
  else if(r.kind==="team") {line=`Your team${r.from==="domain"?", matched by email domain":""} &middot; which clients?`; chip="Pick clients"; warn=true}
@@ -4802,8 +4831,9 @@ function invEditorHTML(addr,r,n,lock,wsList){
  const levels=CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
  const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
  let inner="";
- if(!lock) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
- if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Matched by email domain. Change it if we got it wrong.</p>`:""}</div>`;
+ if(!lock&&!r.existing) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
+ if(r.existing&&!lock) inner+=`<p class="inv-help" style="margin:0">Already a client user on ${listAnd(r.existing.map(id=>byId[id].name))}. This adds another workspace to the same sign-in.</p>`;
+ if(r.kind==="client"&&!lock) inner+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invws_"+n,r.ws,[{items:wsList.filter(x=>!(r.existing&&r.existing.indexOf(x.id)>-1)).map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${r.from==="domain"&&r.ws?`<p class="inv-help">Matched by email domain. Change it if we got it wrong.</p>`:""}</div>`;
  if(r.kind==="client") inner+=lvl(`What can they do in ${byId[r.ws]?byId[r.ws].name:"it"}?`);
  if(r.kind==="team"){const left=wsList.filter(x=>r.wsList.indexOf(x.id)<0);
   inner+=`<div class="field"><span class="flabel">Which clients</span><div class="inv-ms">${r.wsList.map(id=>byId[id]?`<span class="pp-echip">${byId[id].name}<button type="button" data-invrmws="${id}" data-invaddr="${addr}" aria-label="Remove ${byId[id].name}">&times;</button></span>`:"").join("")}${left.length?ddHTML("invadd_"+n,"",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:r.wsList.length?"Add a client":"Pick one or more"}):""}</div><p class="inv-help">Change this later from their profile.</p></div>`;
@@ -4883,7 +4913,11 @@ function wirePeopleModal(L){
  const rerender=()=>{L.innerHTML=modalHTML();wirePeopleModal(L);L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{modal=null;INV=null;renderModal()})};
  if(k==="invite"){const inp=L.querySelector("#invEmail")||{value:"",focus(){},oninput:null,onkeydown:null};
   const commit=(keep)=>{const parts=inp.value.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean); let err="", bad=[];
-    parts.forEach(x=>{if(!INV_OK.test(x)){err="That is not an email address: "+x;bad.push(x);return} if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
+    parts.forEach(x=>{if(!INV_OK.test(x)){err="That is not an email address: "+x;bad.push(x);return}
+      const ex=onAccount(x); if(ex&&ex.kind==="team"){err=x+" is already on this account as a teammate";bad.push(x);return}
+      if(ex&&ex.kind==="client"&&INV.lock&&ex.ws.indexOf(INV.lock)>-1){err=x+" is already on "+byId[INV.lock].name;bad.push(x);return}
+      if(SH_ACCOUNTS.indexOf(x.toLowerCase())>-1){err=x+" already owns a Saleshandy account. Ask them to close it, or use another address.";bad.push(x);return}
+      if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
     INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n&&!keep)n.focus()};
   const sync=()=>{const d=inp.value; const h=L.querySelector("[data-invhint]"); if(h&&!INV.err)h.textContent=invHintText(d);
     const f=L.querySelector("[data-invfoot]"); if(f)f.textContent=invFootText(d);
@@ -6540,7 +6574,7 @@ function vInClient(){
        :"The existing Saleshandy module, scoped to this workspace."}</p>
       <p class="sub" style="margin:0">Everything here belongs to ${c.name}'s workspace and appears in no other.</p>
      </div></div>`
-  :inMod==="prospects"?(openProspect?cProspect(c):cPros(c,true))
+  :inMod==="prospects"?(openProspect?cProspect(c):cPros(c,agencyFull(c)))
   :inMod==="tmpl"?(own?ownTmpl():cTmpl(c))
   :inMod==="accounts"?rMail(c)
   :inMod==="usage"?agencyUsage(c)
@@ -6549,7 +6583,7 @@ function vInClient(){
      ${inboxRows.length?inboxRows.map(r=>`<tr><td style="font-weight:500">${r.from}</td><td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
        <td class="ar colact"><span class="chip ${r.positive?"c-ok":"c-mute"}">${r.positive?"Interested":"Reply"}</span></td></tr>`).join("")
       :'<tr><td colspan="4"><span class="sub">No replies yet'+(own?" on your own campaigns":" for "+c.name)+'.</span></td></tr>'}</tbody></table></div></div>`
-  :openSeq&&openSeq.split("|")[0]===c.id?seqDetail(c,true):seqTable(c,true);
+  :openSeq&&openSeq.split("|")[0]===c.id?seqDetail(c,agencyFull(c)):seqTable(c,agencyFull(c));
  /* the live Sequences page has no page header of its own; the normal account
     matches it exactly. Inside a workspace of a multi-workspace account the
     header stays, since it names where you are. Its search box is dropped on
@@ -6655,7 +6689,8 @@ const PACE_DAYS=3;   /* under this many days of runway, pacing stops being a car
 const GRACE={on:false,failedOn:"7 Sep",daysLeft:5};
 /* item 55, 28 Sep 2026: canViewAs deleted, unread (one hit, its own
    definition; always returned true and nothing called it). */
-const viewAsBtn=(c,cls)=>`<button class="${cls}" data-asclient="${c.id}">${c.forClient===false?"View as its users":"View as client"}</button>`;
+/* change 155: View as client is Owner and Admin only (PRD §3.5, doc 84 row 10) */
+const viewAsBtn=(c,cls)=>canI("members")?`<button class="${cls}" data-asclient="${c.id}">${c.forClient===false?"View as its users":"View as client"}</button>`:"";
 const grace=()=>GRACE.on;
 const graceBanner=()=>grace()?`<div class="msg m-bad grace" style="margin-bottom:20px">${warnI}<span><strong>Payment failed on ${GRACE.failedOn}.</strong>
   ${GRACE.daysLeft} days to update the card before the account pauses. Everyone keeps reading their workspaces; nothing is sending.
@@ -10046,7 +10081,7 @@ el("meBtn").onclick=e=>{
   mePopOpen?closeMePop():openMePop()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
 el("popQ").oninput=e=>renderPop(e.target.value);
-el("popAdd").onclick=()=>{if(!canI("billing"))return;closePop();
+el("popAdd").onclick=()=>{if(!canI("limits"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
     their own workspace before they have agreed to any of this is the wrong
     order. Ask first, from where they are. */
@@ -11696,7 +11731,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="19dff75";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="9762167";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
