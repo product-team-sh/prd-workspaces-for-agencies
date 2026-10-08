@@ -1735,7 +1735,8 @@ function endXform(){
  xform=null;renderXform();
  /* change 148: the one-time guide card is gone. The sequence lands on Home as
     before and the learn-by-doing tour starts there, on the row it just made. */
- if(xformLand){const c=xformLand;xformLand=null;ctx="agency";asClient=false;view=homeView();if(GUIDE_ON) tourStart(c.id); else render();return}
+ /* change 159: the learn-by-doing tour teaches the Workspace model; under ATM roles it does not run */
+ if(xformLand){const c=xformLand;xformLand=null;ctx="agency";asClient=false;view=homeView();if(GUIDE_ON&&!isATM()) tourStart(c.id); else render();return}
  ctx="agency";asClient=false;view={name:"clients"};render();
  /* opened synchronously rather than on a timer. The drawer has its own entrance
     transition, so the staggered feel costs nothing, and sequencing UI on a
@@ -10540,8 +10541,8 @@ function demoSync(){
  const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
   <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">Product guide</div>
-   <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON}" data-dpguide aria-label="Guide after the first workspace"></button></div>
-   <div class="dp-row" style="margin-top:6px"><span class="sub">Five steps</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay?"":" disabled"} title="${replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
+   <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON&&!isATM()}" data-dpguide${isATM()?" disabled":""} aria-label="Guide after the first workspace"></button></div>
+   <div class="dp-row" style="margin-top:6px"><span class="sub">${isATM()?"The tour teaches the Workspace model":"Five steps"}</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay&&!isATM()?"":" disabled"} title="${isATM()?"Switch to Workspace roles to run it":replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
   <div class="dp-g"><div class="dp-t">Access model</div>
    <label class="dp-r dp-r2"><input type="radio" name="dpam" value="ws"${va.model!=="atm"?" checked":""}><span><b>Workspace roles</b><i>As built: everyone on a workspace sees all of it; a Member has a level per workspace.</i></span></label>
    <label class="dp-r dp-r2"><input type="radio" name="dpam" value="atm"${va.model==="atm"?" checked":""}><span><b>ATM roles</b><i>As production today: own records only; Teams and Team Manager; Full, Limited, No access.</i></span></label></div>
@@ -10552,7 +10553,7 @@ function demoSync(){
  if(P.innerHTML!==html) P.innerHTML=html;
  P.querySelector("[data-dpclose]").onclick=()=>{demoOpen=false;demoSync()};
  P.querySelectorAll("[name=dpscn]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyScn(r.value)});
- P.querySelector("[data-dpguide]").onclick=demoToggleGuide;
+ P.querySelector("[data-dpguide]").onclick=()=>{if(!isATM()) demoToggleGuide()};
  P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
  P.querySelectorAll("[name=dpam]").forEach(r=>r.onchange=()=>{if(r.checked){va.model=r.value;demoSync()}});
  const sk=P.querySelector("[data-dpwho]"); if(sk) sk.onchange=()=>{va.val=sk.value;demoSync()};
@@ -11912,7 +11913,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8f1b194";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="5b2e4a1";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
