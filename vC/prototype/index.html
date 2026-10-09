@@ -2036,7 +2036,7 @@ function pshareToggle(){ACCOUNT_SETTINGS.prospectSharing=!ACCOUNT_SETTINGS.prosp
 const reachNote=(shown,total,what)=>isATM()&&shown<total?`<p class="sub" style="margin:0 0 10px">Showing ${shown} of ${total} ${what}: under ATM roles you see the ones owned by ${reachLabel()}.</p>`:"";
 /* client levels under ATM, line for line from doc 81 §17 (doc 84 §4b) */
 const ATM_ROLE_DEFS={
- "Full access":{mods:["sequences","inbox","prospects","accounts","tmpl","warmup","analytics","usage","refer"],verbs:["reply","editseq","export","warmup","request"],desc:"Works inside their sequences: edits, adds prospects and templates, exports, replies",banner:`${AGENCY.name} runs your outreach here. With Full access you can edit your sequences, add prospects and templates, export, reply and connect your mailboxes.`},
+ "Full access":{mods:["sequences","inbox","prospects","accounts","tmpl","warmup","analytics","usage","refer"],verbs:["reply","editseq","warmup","request"],desc:"Works inside their sequences: edits, adds prospects and templates, replies",banner:`${AGENCY.name} runs your outreach here. With Full access you can edit your sequences, add prospects and templates, reply and connect your mailboxes.`},
  "Limited access":{mods:["sequences","inbox","accounts","warmup","analytics","usage","refer"],verbs:["reply","warmup","request"],desc:"Sees their sequences and reports, replies, connects mailboxes",banner:`${AGENCY.name} runs your outreach here. With Limited access you can see your sequences and reports, reply to prospects and connect your mailboxes.`}};
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
@@ -3958,7 +3958,7 @@ let TRANSFER=null;
    client levels read Full access / Limited access (stored as the workspace
    roles underneath, so one fixture serves both models) and No access is a
    label with no sign-in. The compare sheet shows doc 81 §17 in today's words. */
-const ATM_LEVELS=[["Workspace Admin","Full access","Edits sequences, adds prospects and templates, exports, replies, connects mailboxes."],["Workspace Collaborator","Limited access","Sees their sequences and reports, replies, connects mailboxes. Cannot edit, add prospects, export or verify."]];
+const ATM_LEVELS=[["Workspace Admin","Full access","Edits sequences, adds prospects and templates, replies, connects mailboxes."],["Workspace Collaborator","Limited access","Sees their sequences and reports, replies, connects mailboxes. Cannot edit, add prospects, export or verify."]];
 const teamsOf=k=>Object.values(TEAMS).filter(t=>t.members.indexOf(k)>-1);
 const teamPick=k=>Object.fromEntries(teamsOf(k).map(t=>[t.id,t.manager===k?"manager":"member"]));
 function applyTeams(k,pick){pick=pick||{};
@@ -3990,7 +3990,13 @@ function atmRolesHTML(){
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
  const R=[["See sequences, prospects, mailboxes, templates, tasks, replies","Own","Team","All","All"],["Create, delete sequences; delete mailboxes","Own","Team","All","All"],["Prospects, while prospect sharing is on","All","All","All","All"],["Buy email accounts","Own","Team","All","All"],["Team reports",0,"Team","All","All"],["Invite people, change roles, teams",0,0,1,1],["Create clients, admin settings, whitelabel",0,0,1,1],["Billing, SSO, delete the account",0,0,0,1]];
- const C=[["See their sequences, mailboxes, reports, replies",0,1,1],["Pause or resume sequences",1,1,1],["Reply; connect mailboxes",0,1,1],["Edit sequences; templates; add prospects; export",0,0,1],["Create or delete sequences; delete mailboxes; tasks; Lead Finder",0,0,0],["Sign in at all",0,1,1]];
+ /* change 160, 9 Oct 2026, Hitesh: "we need to be 100% sure on this". Every cell
+    below is a permission string the role holds in production's system_role rows on
+    plan 1149 (81a permission-matrix.md, read 8 Oct). Export is not a string any
+    client role holds, so it is gone. Limited holds SEQUENCE_STEP.UPDATE, so it can
+    edit a step's content even though the help centre says it cannot edit. No access
+    is a real user row with a random password nobody is given (s5 row 100). */
+ const C=[["See their sequences, mailboxes, reports, replies",0,1,1],["Pause or resume sequences",1,1,1],["Reply; connect mailboxes",0,1,1],["Edit a step&rsquo;s content",0,1,1],["Edit sequence settings; create and delete steps; templates; add prospects",0,0,1],["Export; create or delete sequences; delete mailboxes; tasks; Lead Finder",0,0,0],["Given a password to sign in",0,1,1]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do (ATM, as production today)</span><span class="rl2-sub">You see a record if its owner is within your reach: Own, Team (people in teams you manage), or All.</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
@@ -4000,7 +4006,8 @@ function atmRolesHTML(){
     <tbody>${sec("Inside a workspace, by reach",5)}${R.slice(0,5).map(([l,...v])=>row(l,v)).join("")}${sec("Across the account",5)}${R.slice(5).map(([l,...v])=>row(l,v)).join("")}</tbody></table></div>
    <div><div class="rl2-cap"><b>Client levels</b><span>a client login sees the sequences and mailboxes shared to its client, which is the whole workspace here</span></div>
     <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("No access","A label, no sign-in")}${th("Limited access","Reads and replies")}${th("Full access","Works inside")}</tr></thead>
-    <tbody>${sec("Inside their workspace",4)}${C.map(([l,...v])=>row(l,v)).join("")}</tbody></table></div>
+    <tbody>${sec("Inside their workspace",4)}${C.map(([l,...v])=>row(l,v)).join("")}</tbody></table>
+    <p class="sub" style="margin:10px 0 0">Each tick is a permission string the role holds in production&rsquo;s role table (plan 1149, read 8 Oct 2026). A string held is not always an endpoint enforced (doc 81 §24).</p></div>
   </div></div></div>`;
 }
 const ownersOf=()=>Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Owner"&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
@@ -11913,7 +11920,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5b2e4a1";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="eea3ac9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
