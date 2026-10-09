@@ -1096,7 +1096,12 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .nc-limhead{margin-bottom:14px}
 /* change 162: the label and Learn more on one line; Edit limits ends the tiles row; the context box */
 .nc-ulab{display:flex;align-items:baseline;gap:8px;min-width:0}.nc-ulab .linkbtn{font-size:13px;line-height:18px;padding:0;white-space:nowrap}
-.nc-share-tiles #ncEdit{flex:none;align-self:center;white-space:nowrap}.nc-share-tiles .nc-share-tile{padding:10px;min-width:84px}.nc-share-tiles{flex-wrap:wrap}
+.nc-sum{display:grid;grid-template-columns:1fr 1fr;margin-top:4px;border:1px solid #e5e7eb;border-radius:4px;background:#fff}
+.nc-sum-r{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0;height:36px;padding:0 12px;border-bottom:1px solid #f3f4f6;font-size:13px;line-height:18px;color:#4b5563}
+.nc-sum-r:nth-child(odd){border-right:1px solid #f3f4f6}.nc-sum-r span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nc-sum-r b{flex:none;font-weight:600;color:#111827;font-variant-numeric:tabular-nums}
+.nc-sum-f{grid-column:1/-1;display:flex;justify-content:flex-end;padding:8px 12px}.nc-sum-f #ncEdit{white-space:nowrap}
+@media (max-width:520px){.nc-sum{grid-template-columns:1fr}.nc-sum-r:nth-child(odd){border-right:0}.nc-sum-pad{display:none}}
 #ncShare{background:linear-gradient(to right,#1d4ed8 0 var(--p),#e5e7eb var(--p) 100%)!important;background-size:100% 100%!important}
 .nc-utools{display:flex;align-items:center;gap:12px;flex:none}
 .nc-learn{margin:4px 0 12px;padding:10px 12px;border-radius:4px;background:#f9fafb;border:1px solid #e5e7eb}.nc-learn p{margin:0;font-size:12px;line-height:18px;color:#4b5563}.nc-learn p+p{margin-top:6px}
@@ -7960,14 +7965,21 @@ function ncLearnHTML(){const who=(nc.name||"this workspace").trim(), sh=ncShare(
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
- const tile=(k,l)=>`<div class="nc-share-tile"><b data-tile="${k}">${f(ncCapFor(k))}</b><span data-tilel="${k}" data-l="${l}">${l}</span></div>`;
+ /* change 163, 9 Oct 2026, Hitesh: "work on UI here". The four bordered tiles read
+    as four buttons, wrapped their labels and showed four of the six resources the
+    slider sets. One panel now lists every resource the account holds, label left,
+    number right, two per row, in the edit rows' own words; Edit limits sits alone
+    at its foot and turns the same list into fields. */
+ const SUM_L={sends:"Emails a month",lead_finder:"Lead Finder credits",verification:"Verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
+ const sumKeys=RK.filter(k=>RES[k].pool>0);
+ const sumRow=k=>`<div class="nc-sum-r"><span>${SUM_L[k]||RES[k].label}</span><b data-tile="${k}">${f(ncCapFor(k))}</b></div>`;
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage" id="ncUsage">
   <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ncLearn" aria-expanded="${nc.learn?"true":"false"}" aria-controls="ncLearnBox">${nc.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
   <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available">
   ${nc.learn?`<div class="nc-learn" id="ncLearnBox">${ncLearnHTML()}</div>`:""}
-  ${nc.open?"":`<div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}<button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">Edit limits</button></div>`}
+  ${nc.open?"":`<div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}<div class="nc-sum-f"><button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">Edit limits</button></div></div>`}
   ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it.</span><span class="nc-utools"><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button><button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">Done</button></span></div>${RK.map(row).join("")}</div>`:""}
   ${nc.err?`<p class="nc-limsay is-err" id="ncUerr"><span>${nc.err}</span></p>`:""}
  </div>`;
@@ -11921,7 +11933,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0fce103";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="5b03bcb";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
