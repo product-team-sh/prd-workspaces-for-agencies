@@ -2873,6 +2873,31 @@ function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
   +'<span class="u-sub">'+(rest?rest+' other'+(rest>1?'s':'')+' near a limit'
     :'the other '+(u.length-1)+' are fine')+'</span>'}
 
+/* change 169, 9 Oct 2026 (Hitesh): Home's Usage column takes the Workspaces
+   list's meter (bar, the binding resource, its state word) and replaces
+   "+N more" with one line on the rest: which are at a limit, which are near,
+   how many are fine. "Use minimal colors": only the bar and the at-limit and
+   near-limit words carry colour; one name when one resource, a count when more,
+   every resource in full on hover. Opens that resource on the Limits tab. */
+function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
+ if(u.every(y=>y.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
+ /* the column is 150px, so each line is built to fit it: the bar carries the
+    percentage, the line under it names the binding resource and its state, the
+    last line the rest. Colour sits on the state words only. */
+ const x=u[0],p=Math.min(100,Math.round(x.pct*100)), bad=y=>y.tone==="bad", warn=y=>y.tone==="warn";
+ const sw=y=>y.room===0?(y.storage?"full":"at limit"):y.draw===0?"pool empty":"near limit";
+ const st=(t,y)=>'<span style="color:'+METER_TXT[y.tone]+'">'+t+'</span>';
+ const head=bad(x)||warn(x)?x.short+' '+st(sw(x),x):p+'% '+x.short;
+ const rest=u.slice(1), at=rest.filter(bad), near=rest.filter(warn), more=bad(x)||warn(x)?' more':'';
+ const both=at.length&&near.length;
+ const grp=(g,w)=>g.length===1&&!both?g[0].short+' '+st(sw(g[0]),g[0]):g.length+(both?'':more)+' '+st(w,g[0]);
+ const parts=[]; if(at.length) parts.push(grp(at,"at limit")); if(near.length) parts.push(grp(near,"near limit"));
+ const line=parts.length?parts.join(' &middot; '):rest.length?'Other '+rest.length+(rest.length===1?' is':' are')+' fine':'';
+ return '<button type="button" class="meter u-usagebtn u-home" data-goclim="'+c.id+'|'+x.k+'" aria-label="Open '+c.name+'\u2019s limits. '+usageTip(u)+'" title="'+usageTip(u)+'">'
+  +'<div class="track"><span style="width:'+p+'%;background:'+barCol(x.tone)+'"></span></div>'
+  +'<span class="meter-t tnum">'+head+'</span>'
+  +(line?'<span class="u-sub u-rest">'+line+'</span>':'')+'</button>'}
+
 const sortI=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5 8 4l2.5 2.5M5.5 9.5 8 12l2.5-2.5"/></svg>`;
 const warnI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>`;
 const infoI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>`;
@@ -5787,7 +5812,7 @@ function vDash(){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
    +wsCells(c).map(num).join("")
-   +'<td>'+usageBrief(c)+'</td>'
+   +'<td>'+usageHomeCell(c)+'</td>'
    +'<td class="ar colact">'+(fresh||c.disabled?'':'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</td></tr>'};
 
@@ -5959,7 +5984,7 @@ function heroCards(mine,tch,rep,items){
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
- const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>kf(x[0])+" "+x[1]).join(" &middot; ");
+ const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+kf(x[0])+" "+x[1]+'</span>').join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
@@ -5970,7 +5995,7 @@ function heroCards(mine,tch,rep,items){
     `<span class="hero-v">${f(active)}</span>`,
     `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
   ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last cycle"),
-    `<span class="hero-vrow"><span class="hero-v">${f(reached)}</span>${spark}</span>`,`<span>This cycle${chan?", via "+chan:""}</span>`)}
+    `<span class="hero-vrow"><span class="hero-v">${f(reached)}</span>${spark}</span>`,`<span class="hero-f-wrap">This cycle${chan?", via "+chan:""}</span>`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -11245,6 +11270,12 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .nc-urow2 .numin input{width:150px;height:32px;padding-right:72px}.nc-urow2 .numin input.is-custom{border-color:#1d4ed8}
 /* 2 Oct 2026: Home table per board B3 */
 .hero{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* change 170, 9 Oct 2026 (Hitesh): below 960px the three cards stack, and the
+   Prospects contacted footer may wrap instead of running out of its card */
+@media (max-width:959px){.hero{grid-template-columns:minmax(0,1fr)}}
+.hero-h{flex-wrap:wrap;row-gap:4px}
+.hero-f>span.hero-f-wrap{white-space:normal}
+.u-home{min-width:0;width:100%}.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ws-sub{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}.ws-sub .cs{min-width:0;overflow:hidden;text-overflow:ellipsis}
 /* the master prototype's effect: on hover the email line gives way to the four borderless shortcuts, so the row never changes height */
@@ -11966,7 +11997,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d142f3b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="f6375a9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
