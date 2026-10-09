@@ -1094,6 +1094,12 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 /* the 720px wizard: Access in two columns, Limits as a small table */
 .nc-cols{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:24px;align-items:start}
 .nc-limhead{margin-bottom:14px}
+/* change 162: the label and Learn more on one line; Edit limits ends the tiles row; the context box */
+.nc-ulab{display:flex;align-items:baseline;gap:8px;min-width:0}.nc-ulab .linkbtn{font-size:13px;line-height:18px;padding:0;white-space:nowrap}
+.nc-share-tiles #ncEdit{flex:none;align-self:center;white-space:nowrap}.nc-share-tiles .nc-share-tile{padding:10px;min-width:84px}.nc-share-tiles{flex-wrap:wrap}
+#ncShare{background:linear-gradient(to right,#1d4ed8 0 var(--p),#e5e7eb var(--p) 100%)!important;background-size:100% 100%!important}
+.nc-utools{display:flex;align-items:center;gap:12px;flex:none}
+.nc-learn{margin:4px 0 12px;padding:10px 12px;border-radius:4px;background:#f9fafb;border:1px solid #e5e7eb}.nc-learn p{margin:0;font-size:12px;line-height:18px;color:#4b5563}.nc-learn p+p{margin-top:6px}
 .nc-limtbl{table-layout:fixed}
 .nc-limtbl td{height:auto;padding:10px 12px;white-space:normal}
 .nc-limtbl tr.grouprow td{height:32px;padding:0 12px;font-size:12px;font-weight:600;color:var(--gray-15);background:var(--gray-19);border-right:0}
@@ -1938,13 +1944,14 @@ const PEOPLE={
 };
 /* change 154: ATM-only fixtures. Teams are production's grouping; a Team Manager
    is a Member who sees the team's records (doc 81 §5). Used only when
-   ACCESS_MODEL is "atm". ATM_LABELS are "No access" client logins: a label the
-   agency groups by, with no sign-in. ACCOUNT_SETTINGS.prospectSharing is the
-   account switch that widens prospect reach for every Member (doc 81 §6a). */
+   ACCESS_MODEL is "atm". ACCOUNT_SETTINGS.prospectSharing is the account switch
+   that widens prospect reach for every Member (doc 81 §6a).
+   change 161, 9 Oct 2026, Hitesh: the ATM switch changes the agency side only.
+   Client users are the Workspace model's in both models (Workspace Admin,
+   Collaborator, Viewer, invited by email); production's Full / Limited / No
+   access and Client Management are not carried over. */
 const TEAMS={tv:{id:"tv",name:"Team Vertex",ws:"vx",manager:"sam",members:["sam","tariq"],created:"12 Aug 2026"}};
-const ATM_LABELS={ok:["billing@oakridgerealty.co.uk"]};
 const ACCOUNT_SETTINGS={prospectSharing:true};
-const ATM_LEVEL=r=>r==="Workspace Admin"?"Full access":"Limited access";
 const teamsManagedBy=k=>Object.values(TEAMS).filter(t=>t.manager===k);
 const teamReachOf=k=>{const s=new Set([k]);teamsManagedBy(k).forEach(t=>t.members.forEach(m=>s.add(m)));return s};
 const atmRoleOf=k=>{const P=PEOPLE[k];return P&&P.role==="Member"&&teamsManagedBy(k).length?"Team Manager":(P?P.role:"")};
@@ -1998,7 +2005,7 @@ const canI=k=>CAN[ME().role][k];
 function actor(){
  const client=asClient&&byId[ctx]&&ctx!=="agency"&&ctx!=="own";
  if(client){const c=byId[ctx],u=actingClientUser(c),r=actingRole(c);
-  return {kind:"client",key:"w:"+c.id+"|"+(u?u[0]:""),role:r,atmRole:ATM_LEVEL(r),email:u?u[0]:null,wsRole:()=>r,reach:()=>isATM()?"ws":"all"}}
+  return {kind:"client",key:"w:"+c.id+"|"+(u?u[0]:""),role:r,atmRole:r,email:u?u[0]:null,wsRole:()=>r,reach:()=>isATM()?"ws":"all"}}
  const P=ME(), k=me_;
  return {kind:"agency",key:"t:"+k,role:P.role,atmRole:atmRoleOf(k),email:P.email,
   wsRole:id=>P.role!=="Member"?"Workspace Admin":(P.roles&&P.roles[id])||(id==="own"?"Workspace Admin":"Workspace Viewer"),
@@ -2034,10 +2041,6 @@ const replyOwner=(c,r,i)=>r.owner||((c.sequences&&c.sequences.length)?c.sequence
 const mbOwner=(c,m,i)=>m[3]==="client"?null:(staffOf(c)[i%Math.max(1,staffOf(c).length)]||{name:"Alex Meridian"}).name;
 function pshareToggle(){ACCOUNT_SETTINGS.prospectSharing=!ACCOUNT_SETTINGS.prospectSharing; logAct(null,`turned prospect sharing ${ACCOUNT_SETTINGS.prospectSharing?"on":"off"}`); render()}
 const reachNote=(shown,total,what)=>isATM()&&shown<total?`<p class="sub" style="margin:0 0 10px">Showing ${shown} of ${total} ${what}: under ATM roles you see the ones owned by ${reachLabel()}.</p>`:"";
-/* client levels under ATM, line for line from doc 81 §17 (doc 84 §4b) */
-const ATM_ROLE_DEFS={
- "Full access":{mods:["sequences","inbox","prospects","accounts","tmpl","warmup","analytics","usage","refer"],verbs:["reply","editseq","warmup","request"],desc:"Works inside their sequences: edits, adds prospects and templates, replies",banner:`${AGENCY.name} runs your outreach here. With Full access you can edit your sequences, add prospects and templates, reply and connect your mailboxes.`},
- "Limited access":{mods:["sequences","inbox","accounts","warmup","analytics","usage","refer"],verbs:["reply","warmup","request"],desc:"Sees their sequences and reports, replies, connects mailboxes",banner:`${AGENCY.name} runs your outreach here. With Limited access you can see your sequences and reports, reply to prospects and connect your mailboxes.`}};
 /* who a client should write back to: the owner if they carry an address, else
    the first admin who does. 21 Sep round 2: "Sent by Meridian Growth" named a
    company, not a person, and gave the client nobody to actually reply to. */
@@ -3845,7 +3848,7 @@ const isMember=(p,cid)=>p.ws?p.ws.indexOf(cid)>-1:true;
 /* a client user's grant is their role, full stop: no per-user customisation,
    no workspace default to fall back to. u is a [email,role] pair from
    c.users; missing (no user yet) reads as the least access. */
-const userAccessOf=(c,u)=>{const r=u?u[1]:DEFAULT_CLIENT_ROLE; return isATM()?Object.assign({},roleSet(r),ATM_ROLE_DEFS[ATM_LEVEL(r)]):roleSet(r)};
+const userAccessOf=(c,u)=>roleSet(u?u[1]:DEFAULT_CLIENT_ROLE);
 /* the "as client" preview has no user switcher, so it acts as the first user
    on the client, the same one the invite and the record's Members tab lead
    with. Alloy's second user is reachable only by looking at its own row. */
@@ -3958,7 +3961,6 @@ let TRANSFER=null;
    client levels read Full access / Limited access (stored as the workspace
    roles underneath, so one fixture serves both models) and No access is a
    label with no sign-in. The compare sheet shows doc 81 §17 in today's words. */
-const ATM_LEVELS=[["Workspace Admin","Full access","Edits sequences, adds prospects and templates, replies, connects mailboxes."],["Workspace Collaborator","Limited access","Sees their sequences and reports, replies, connects mailboxes. Cannot edit, add prospects, export or verify."]];
 const teamsOf=k=>Object.values(TEAMS).filter(t=>t.members.indexOf(k)>-1);
 const teamPick=k=>Object.fromEntries(teamsOf(k).map(t=>[t.id,t.manager===k?"manager":"member"]));
 function applyTeams(k,pick){pick=pick||{};
@@ -3990,13 +3992,7 @@ function atmRolesHTML(){
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
  const R=[["See sequences, prospects, mailboxes, templates, tasks, replies","Own","Team","All","All"],["Create, delete sequences; delete mailboxes","Own","Team","All","All"],["Prospects, while prospect sharing is on","All","All","All","All"],["Buy email accounts","Own","Team","All","All"],["Team reports",0,"Team","All","All"],["Invite people, change roles, teams",0,0,1,1],["Create clients, admin settings, whitelabel",0,0,1,1],["Billing, SSO, delete the account",0,0,0,1]];
- /* change 160, 9 Oct 2026, Hitesh: "we need to be 100% sure on this". Every cell
-    below is a permission string the role holds in production's system_role rows on
-    plan 1149 (81a permission-matrix.md, read 8 Oct). Export is not a string any
-    client role holds, so it is gone. Limited holds SEQUENCE_STEP.UPDATE, so it can
-    edit a step's content even though the help centre says it cannot edit. No access
-    is a real user row with a random password nobody is given (s5 row 100). */
- const C=[["See their sequences, mailboxes, reports, replies",0,1,1],["Pause or resume sequences",1,1,1],["Reply; connect mailboxes",0,1,1],["Edit a step&rsquo;s content",0,1,1],["Edit sequence settings; create and delete steps; templates; add prospects",0,0,1],["Export; create or delete sequences; delete mailboxes; tasks; Lead Finder",0,0,0],["Given a password to sign in",0,1,1]];
+ const C=[["See everything in the workspace",[1,1,1]],["Reply to prospects; connect their own email accounts",[0,1,1]],["Ask for more allowance",[0,1,1]],["Create, launch and pause sequences",[0,0,1]],["Add prospects and templates; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do (ATM, as production today)</span><span class="rl2-sub">You see a record if its owner is within your reach: Own, Team (people in teams you manage), or All.</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
@@ -4004,10 +4000,10 @@ function atmRolesHTML(){
    <div><div class="rl2-cap"><b>Agency roles</b><span>Team Manager is a Member who manages a team; it adds reach, not power over people</span></div>
     <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Member","Own records")}${th("Team Manager","Own plus the team's")}${th("Admin","Everything but money")}${th("Owner","Everything")}</tr></thead>
     <tbody>${sec("Inside a workspace, by reach",5)}${R.slice(0,5).map(([l,...v])=>row(l,v)).join("")}${sec("Across the account",5)}${R.slice(5).map(([l,...v])=>row(l,v)).join("")}</tbody></table></div>
-   <div><div class="rl2-cap"><b>Client levels</b><span>a client login sees the sequences and mailboxes shared to its client, which is the whole workspace here</span></div>
-    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("No access","A label, no sign-in")}${th("Limited access","Reads and replies")}${th("Full access","Works inside")}</tr></thead>
-    <tbody>${sec("Inside their workspace",4)}${C.map(([l,...v])=>row(l,v)).join("")}</tbody></table>
-    <p class="sub" style="margin:10px 0 0">Each tick is a permission string the role holds in production&rsquo;s role table (plan 1149, read 8 Oct 2026). A string held is not always an endpoint enforced (doc 81 §24).</p></div>
+   <div><div class="rl2-cap"><b>Workspace roles for client users</b><span>the same three in both models; production&rsquo;s Full, Limited and No access are not carried over</span></div>
+    <table class="rl2"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Viewer","Reads only")}${th("Collaborator","Does outreach")}${th("Workspace Admin","Runs it")}</tr></thead>
+    <tbody>${sec("Inside the workspace",4)}${C.map(([l,v])=>row(l,v)).join("")}</tbody></table>
+    <p class="sub" style="margin:10px 0 0">The agency table is from production&rsquo;s role table (plan 1149, read 8 Oct 2026). A string held is not always an endpoint enforced (doc 81 §24).</p></div>
   </div></div></div>`;
 }
 const ownersOf=()=>Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Owner"&&!PEOPLE[k].disabled&&!INVITED["t:"+k]);
@@ -4510,8 +4506,6 @@ function ppTeam(){
 function ppClients(){
  const out=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
   out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
- /* change 157: under ATM, No access logins are labels with no sign-in */
- if(isATM()) CLIENTS.filter(c=>!c.deletedOn&&ATM_LABELS[c.id]).forEach(c=>ATM_LABELS[c.id].forEach(email=>out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:"Workspace Viewer",label:true,seen:"never",invited:null})));
  return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
 }
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
@@ -4554,11 +4548,11 @@ function vPeople(){
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
-   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?(isATM()?(r.label?"No access":ATM_LEVEL(r.role)):r.role):"Client user"}</span>
-   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${isATM()?(r.label?"No access":ATM_LEVEL(r.role)):ppShort(r.role)}</span></span></span>
+   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?r.role:"Client user"}</span>
+   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
-   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${(isATM()?PP_WS_ROLES.filter(x=>x!=="Workspace Viewer"):PP_WS_ROLES).filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${isATM()?ATM_LEVEL(x):ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${ppShort(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
  const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":tab==="teams"?"Search teams":"Search invites";
@@ -4672,7 +4666,7 @@ function personOf(key){
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
   return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,disabled:r.disabled,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
  if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
-  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour,label:!!r.label}}
+  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
  return null;
 }
 /* the invite row this person would have had: one shape before and after Send */
@@ -4682,7 +4676,7 @@ function personInvRow(p){
  const ws=(P.ws||[]).filter(id=>byId[id]); const lv=ws.length?ppWsRole(P,ws[0]):"Workspace Admin";
  return {kind:"team",ws:null,wsList:ws.slice(),level:lv,from:"pick",mixed:ws.some(id=>ppWsRole(P,id)!==lv),teams:teamPick(p.k)};
 }
-const personCanEdit=p=>canI("members")&&!p.owner&&!p.label;
+const personCanEdit=p=>canI("members")&&!p.owner;
 function personAccessHTML(p){
  const r=personInvRow(p), wsList=fundedWorkspaces().filter(x=>!x.own);
  let cardHTML=invRowHTML(p.email,r,p.kind==="team"?Object.keys(PEOPLE).indexOf(p.k):1,p.kind==="client"?p.c:null,wsList);
@@ -4747,8 +4741,8 @@ function personActivityHTML(p){
 function vPerson(){
  if(!canI("members")) return denied("see or manage people");
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
- const sub=p.kind==="client"?`${p.c.name}&rsquo;s ${p.label?"label":"person"} &middot; ${p.label?"No access, no sign-in":isATM()?ATM_LEVEL(p.role):INV_SHORT[p.role][1]}`:`On your team &middot; ${isATM()?atmRoleOf(p.k):p.role}${isATM()&&teamsOf(p.k).length?" &middot; "+listAnd(teamsOf(p.k).map(t=>t.name)):""}`;
- const status=p.label?`<span class="pp-st pp-st--off"><i></i>No sign-in</span> &middot; a label the agency groups by`:p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
+ const sub=p.kind==="client"?`${p.c.name}&rsquo;s person &middot; ${INV_SHORT[p.role][1]}`:`On your team &middot; ${isATM()?atmRoleOf(p.k):p.role}${isATM()&&teamsOf(p.k).length?" &middot; "+listAnd(teamsOf(p.k).map(t=>t.name)):""}`;
+ const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
   :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
  const iOwn=ME().role==="Owner", live=!p.invited&&!p.disabled;
@@ -4760,7 +4754,7 @@ function vPerson(){
    const st=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
    return `<div class="msg m-warn" role="status" style="margin:0 24px 12px">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name} &middot; ${st(TRANSFER.from)} &middot; ${st(TRANSFER.to)}. Nothing changes until both confirm.
      <button class="linkbtn" data-trcancel style="margin-left:8px">Cancel transfer</button><span class="sub" style="margin-left:16px">Demo:</span> ${[TRANSFER.from,TRANSFER.to].filter(k=>!TRANSFER.ok[k]).map(k=>`<button class="linkbtn" data-trconfirm="${k}" style="margin-left:8px">Confirm as ${PEOPLE[k].name.split(" ")[0]}</button>`).join(" ")}</span></div>`})():"";
- const reset=p.disabled||p.label?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
+ const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
@@ -4963,7 +4957,7 @@ function invRowHTML(addr,r,n,lock,wsList){
  const ini=initials(addr.split("@")[0].replace(/[._-]+/g," ")), tint=INV_TINTS[n%INV_TINTS.length];
  const c=r.kind==="client"&&byId[r.ws], names=r.wsList.map(id=>byId[id]&&byId[id].name).filter(Boolean);
  let line, chip, warn=false;
- const lvlWord=l=>isATM()?ATM_LEVEL(l):INV_SHORT[l][1];
+ const lvlWord=l=>INV_SHORT[l][1];
  if(r.kind==="client"&&c&&r.existing&&r.existing.indexOf(c.id)>-1) {line=`Already on ${c.name} &middot; pick another workspace`; chip="Pick another"; warn=true}
  else if(r.kind==="client"&&c) {line=lock?INV_WHY[r.level]:`${c.name}&rsquo;s person${r.existing?", also on "+listAnd(r.existing.map(id=>byId[id].name)):r.from==="domain"?", matched by email domain":""} &middot; sees nothing else`; chip=lvlWord(r.level)}
  else if(r.kind==="client"&&r.existing) {line=`Already ${listAnd(r.existing.map(id=>byId[id].name))}&rsquo;s person &middot; which other workspace?`; chip="Pick a workspace"; warn=true}
@@ -4986,8 +4980,8 @@ function invRowHTML(addr,r,n,lock,wsList){
 }
 function invEditorHTML(addr,r,n,lock,wsList){
  const cards=(name,items,cur,attr)=>`<div class="inv-cards" role="radiogroup">${items.map(([v,l,h])=>`<label class="inv-card${cur===v?" is-on":""}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} ${attr}="${addr}"><span><b>${l}</b><i>${h}</i></span></label>`).join("")}</div>`;
- const levels=isATM()?ATM_LEVELS.map(([v,l])=>[v,l,v]):CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
- const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,isATM()&&r.level==="Workspace Viewer"?"Workspace Collaborator":r.level,"data-invlevel")}<p class="inv-help">${isATM()?(ATM_LEVELS.find(x=>x[0]===(r.level==="Workspace Viewer"?"Workspace Collaborator":r.level))||ATM_LEVELS[1])[2]:INV_WHY[r.level]}</p></div>`;
+ const levels=CLIENT_ROLES.map(x=>[x,INV_SHORT[x][r.kind==="client"?1:0],x]);
+ const lvl=lab=>`<div class="field"><div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${cards("invlevel_"+n,levels,r.level,"data-invlevel")}<p class="inv-help">${INV_WHY[r.level]}</p></div>`;
  let inner="";
  if(!lock&&!r.existing) inner+=`<div class="field"><span class="flabel">What will they do?</span>${cards("invkind_"+n,INV_PURPOSE,r.kind,"data-invkind")}</div>`;
  /* change 156: only an Owner sees the Owner choice (PRD §3.6 Invite as Owner, PE-14, PE-15) */
@@ -7915,8 +7909,7 @@ function drawerHTML(){
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
-  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16);display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span><button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">${nc.open?"Done":"Edit limits"}</button></div>${ncUsageHTML()}
-  <div class="msg m-info" style="margin-top:16px">${infoI}<span>You will be switched into the new workspace right after. Invite the client&rsquo;s people once it is ready for them.</span></div>`;
+  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16);display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span></div>${ncUsageHTML()}`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
   <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
@@ -7942,18 +7935,28 @@ const ncStep=k=>{const p=RES[k].pool;return p>=100000?500:p>=5000?50:p>=1000?10:
 function ncShareMax(){return 100}
 function ncTightest(){let b=null;RK.forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
 function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share==null?NC_SHARE_DEFAULT:nc.share))}
-function ncDerived(k){const st=ncStep(k),free=compute(k).free;const raw=Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st);return Math.min(raw,Math.floor(free/st)*st)}
+/* change 162, 9 Oct 2026, Hitesh (feedback on the slider: "too many things we are
+   trying to convey; just how much of available you're assigning, with learn more
+   for the rest"): the share is now a share of what is AVAILABLE, per resource, so
+   the one number shown is the one the slider sets and no limit can be capped.
+   Replaces the share-of-plan rule of 2 Oct (board row 03, C2) and change 130. */
+function ncDerived(k){const st=ncStep(k),free=compute(k).free;if(free<st)return 0;return Math.max(st,Math.floor(free*ncShare()/100/st)*st)}
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
 const ncDefaultCap=ncDerived;
 function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const st=R.step||1,want=Math.max(st,Math.floor(R.pool*sh/100/st)*st),left=R.pool-(allocOf(k)-r.cap);if(left>0){m=Math.max(m,want/left);if(want>left&&!first)first=k}});
  return "<b>"+sh+"%</b><span class=\"sub\"> of your plan &middot; "+(first?"past what is left for "+RES[first].label.replace(/ \/ month$/,"").replace(/^Lead Finder credits$/,"Lead Finder"):Math.round(m*100)+"% of what is left")+"</span>"}
 /* change 130: the share stays a share of the plan; beside it the form says what that
    is of what is left, and the track greys the part of the plan already given away. */
-const ncUncapped=k=>{const st=ncStep(k);return Math.max(st,Math.floor(RES[k].pool*ncShare()/100/st)*st)};
-const ncCapped=k=>ncCapFor(k)<ncUncapped(k);
+const ncUncapped=k=>ncDerived(k);
+const ncCapped=k=>false;
 function ncLeftPct(){let m=0,first=null;RK.forEach(k=>{const free=compute(k).free,u=ncUncapped(k);if(ncCapped(k)&&!first)first=k;if(free>0)m=Math.max(m,u/free);else if(u>0)m=Math.max(m,2)});return {pct:Math.round(m*100),capped:first}}
 function ncGivenPct(){let g=0;RK.forEach(k=>{const m=compute(k);g=Math.max(g,Math.round((1-m.free/RES[k].pool)*100))});return Math.min(99,Math.max(0,g))}
-function ncPctText(){const share=ncShare(),custom=ncIsCustom();if(custom)return "Custom";const L=ncLeftPct();return "<b>"+share+"%</b><span class=\"sub\"> of your plan &middot; "+(L.capped?"past what is left for "+RES[L.capped].label.replace(/ \/ month$/,"").replace(/^Lead Finder credits$/,"Lead Finder"):L.pct+"% of what is left")+"</span>"}
+function ncPctText(){return ncIsCustom()?"Custom":"<b>"+ncShare()+"%</b>"}
+/* the context the slider used to carry on its face, now behind Learn more */
+function ncLearnHTML(){const who=(nc.name||"this workspace").trim(), sh=ncShare(), g=ncGivenPct();
+ return `<p>What&rsquo;s available is your plan minus what other workspaces already have${g?"":"; nothing is given out yet, so today it is your whole plan"}. The slider sets every limit at once, each as ${sh}% of what&rsquo;s available for it, so a workspace never takes more than is left.</p>
+  <p>Edit limits shows what&rsquo;s available of each and lets you set any number yourself.</p>
+  <p>Emails are a monthly limit. Lead Finder credits come for the whole plan term; verification and AI credits are a one-time balance. Credits given here are set aside for ${who}.</p>`}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
@@ -7961,13 +7964,11 @@ function ncUsageHTML(){
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage" id="ncUsage">
-  <div class="nc-urow"><label class="flabel" for="ncShare" style="margin:0">Share of your plan for ${who}</label><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
-  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:${100-ncGivenPct()}%" aria-label="Share of your plan">
-  <div class="nc-ucap"><span>1%</span><span>${ncGivenPct()?ncGivenPct()+"% of your plan is already given out (grey).":"Nothing is given out yet."}</span></div>
-  ${nc.open?"":`<div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}</div>
-  <p class="sub nc-capnote" id="ncCapNote" style="${anyCapped?"":"display:none"}">Some numbers are capped at what is left on your plan.</p>
-  <div class="nc-uline"><span class="sub">The slider sets every limit at once. Edit limits to set any of them yourself.</span></div>`}
-  ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it. Emails are a monthly limit; credits come with the plan and are reserved for ${who} from your balance.</span><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button></div>${RK.map(row).join("")}</div>`:""}
+  <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ncLearn" aria-expanded="${nc.learn?"true":"false"}" aria-controls="ncLearnBox">${nc.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
+  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available">
+  ${nc.learn?`<div class="nc-learn" id="ncLearnBox">${ncLearnHTML()}</div>`:""}
+  ${nc.open?"":`<div class="nc-share-tiles">${tile("sends","emails a month")}${tile("lead_finder","Lead Finder credits")}${tile("verification","verification credits")}${tile("ai","AI credits")}<button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">Edit limits</button></div>`}
+  ${nc.open?`<div class="nc-ulist"><div class="nc-uhead"><span class="sub">Each number follows the slider until you type over it.</span><span class="nc-utools"><button type="button" class="linkbtn" id="ncReset" style="${custom?"":"display:none"}">Reset to ${share}%</button><button type="button" class="shd-button shd-button--secondary shd-button--sm" id="ncEdit">Done</button></span></div>${RK.map(row).join("")}</div>`:""}
   ${nc.err?`<p class="nc-limsay is-err" id="ncUerr"><span>${nc.err}</span></p>`:""}
  </div>`;
 }
@@ -7977,7 +7978,7 @@ function ncPaintUsage(){
  const sl=el("ncShare"); if(sl){sl.style.setProperty("--p",(mx>1?Math.round((share-1)/(mx-1)*100):100)+"%")}
  const pct=el("ncPct"); if(pct)pct.innerHTML=ncPctText();
  document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
- document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const n=el("ncCapNote");if(n)n.style.display=RK.some(ncCapped)?"":"none"}
+ document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}
  document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",!!(nc.custom&&nc.custom[k]!=null))});
  const rs=el("ncReset"); if(rs){rs.style.display=custom?"":"none";rs.textContent="Reset to "+share+"%"}
 }
@@ -8031,7 +8032,7 @@ function renderDrawer(){
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
- {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="Share of your plan for "+who;const lh=document.querySelector(".nc-uhead .sub");if(lh)lh.textContent="Each number follows the slider until you type over it. Emails are a monthly limit; credits come with the plan and are reserved for "+who+" from your balance."}}
+ {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}}
  /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
     then paintPrev() rebinds it on every repaint after */
  L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
@@ -8044,11 +8045,12 @@ function renderDrawer(){
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
  /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
  {const sl=el("ncShare");if(sl)sl.oninput=()=>{nc.share=+sl.value;nc.custom={};nc.err=null;const e=el("ncUerr");if(e)e.remove();ncPaintUsage()}}
- {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const eb=document.querySelector(".nc-limhead .nc-eyebrow");if(eb)eb.textContent="Usage for "+(a.value.trim()||"this workspace");const lb=document.querySelector('label[for="ncShare"]');if(lb)lb.textContent="How much of your plan "+(a.value.trim()||"this workspace")+" can use each cycle";
+ {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const eb=document.querySelector(".nc-limhead .nc-eyebrow");if(eb)eb.textContent="Usage for "+(a.value.trim()||"this workspace");const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML();
   /* the name error clears as soon as a name is typed; it never waits for the next Add */
   if(nc.nameErr&&a.value.trim()){nc.nameErr=null;a.classList.remove("is-err");a.setAttribute("aria-invalid","false");const fe=document.querySelector(".nc-fielderr");if(fe){fe.outerHTML='<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>'}}}}}
  {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
  {const b=el("ncReset");if(b)b.onclick=()=>{cap();nc.custom={};nc.err=null;renderDrawer()}}
+ {const b=el("ncLearn");if(b)b.onclick=()=>{cap();nc.learn=!nc.learn;renderDrawer()}}
  L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>i.oninput=()=>{nc.custom=nc.custom||{};nc.custom[i.dataset.cap]=num(i.value);i.classList.remove("is-err");ncPaintUsage()});
  el("scrim").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
  el("drX").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
@@ -8665,7 +8667,7 @@ function seqTable(c,owner){
  const seqReach=reachNote((c.sequences||[]).filter(q=>inReach(q.owner)).length,(c.sequences||[]).length,"sequences");
  const roleNote=seqReach+((!owner&&!canC(c,"editseq"))
    ?(()=>{const role=actingRole(c);
-     return `<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. ${isATM()&&asClient?"With "+ATM_LEVEL(role):"As a "+role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
+     return `<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. As a ${role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
    :"");
  const I={search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
@@ -10507,8 +10509,7 @@ function demoWhoGroups(){
  const ppl=demoAgencyPeople(), g=[["Owners",[]],["Admins",[]],["Members",[]]].concat(atm?[["Team Managers",[]]]:[]);
  ppl.forEach(k=>{const P=PEOPLE[k]; const grp=P.role==="Owner"?0:P.role==="Admin"?1:(atm&&teamsManagedBy(k).length)?3:2;
   g[grp][1].push({val:"t:"+k,label:P.name+(k===me_?" · you":"")+(P.role==="Member"?" · "+(P.ws||[]).map(i=>byId[i]&&!byId[i].deletedOn?byId[i].name.split(/\s+/)[0]:"").filter(Boolean).join(", "):"")})});
- demoClientWs().forEach(c=>{const us=(c.users||[]).map(u=>({val:"w:"+c.id+"|"+u[0],label:u[0]+" · "+(atm?ATM_LEVEL(u[1]):u[1])}));
-  if(atm&&ATM_LABELS[c.id]) ATM_LABELS[c.id].forEach(e=>us.push({val:"",label:e+" · No access (no sign-in)",disabled:true}));
+ demoClientWs().forEach(c=>{const us=(c.users||[]).map(u=>({val:"w:"+c.id+"|"+u[0],label:u[0]+" · "+u[1]}));
   if(!us.length) us.push({val:"w:"+c.id+"|",label:"No user yet (previews as "+DEFAULT_CLIENT_ROLE+")"});
   g.push(["Client users · "+c.name,us])});
  return g.filter(x=>x[1].length)}
@@ -11920,7 +11921,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="eea3ac9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="0fce103";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
