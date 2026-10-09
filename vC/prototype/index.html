@@ -1809,13 +1809,14 @@ function renderXform(){
    +(b<XS_CAPS.length-1
      ?'' /* change 151 (Hitesh): no Skip on the sequence */
      :xform.ready
-       ?(nw?'<span class="xs-wait">Opening your admin panel</span>':'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>')
+       ?(nw?'<button class="shd-button shd-button--primary" data-xsgo>Open admin panel</button>':'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>')
        :'<span class="xs-wait"><span class="xs-spin"></span>Setting up your account</span>')
   +'</div></div></div>';
  L.querySelectorAll("[data-xsskip],[data-xsgo]").forEach(x=>x.onclick=endXform);
- /* change 127: with a workspace just made the sequence ends on its own and lands
-    on the admin panel; no click to find. */
- if(nw&&b>=XS_CAPS.length-1&&xform.ready&&!xform.auto) xform.auto=setTimeout(endXform,1400);
+ /* change 166, 9 Oct 2026 (Hitesh): the sequence no longer ends on its own
+    (change 127). The last beat holds with Open admin panel, so the user reads
+    it and steps in when ready; focus sits on the button, so Enter works too. */
+ {const go=L.querySelector("[data-xsgo]");if(go&&!xform.focused){xform.focused=true;go.focus({preventScroll:true})}}
 }
 /* 21 Sep 2026, delight pass round 5: the moment after Add Client, on the
    create path (Connect has its own confirmation and its own receipt, on the
@@ -5896,9 +5897,11 @@ function vDash(){
      return '<span class="sub dash-arrival">'+M[mi]+' so far, 1 to '+CYCLE.day+' '+cur+'. Changes are compared with 1 to '+CYCLE.day+' '+prev+'.</span>'})())
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
-   +'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">'
-     +(norm?'New &#9662;':'New in a workspace &#9662;')+'</button>'+newMenuHTML()+'</div>'
-   +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd">Add a workspace</button>':"")
+   /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
+      workspace (creating happens inside a workspace) and Add a workspace gets
+      the + icon. The single-workspace Home keeps its New menu. */
+   +(norm?'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>':'')
+   +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add a workspace</button>':"")
   +'</div></div>'
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
@@ -5944,10 +5947,15 @@ function heroCards(mine,tch,rep,items){
  const active=seqs.filter(x=>x.q.state==="Active").length, sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
  /* a pill only when there is a real comparison: growth in workspaces, and a
     cycle with sends behind it. A fresh account shows the numbers alone. */
- const dClients=mine.length>LAST.clients?mine.length-LAST.clients:null, dTouch=tch.total?pctDelta(tch.total,LAST.touches):null, dRep=rep?pctDelta(rep,LAST.replies):null;
+ /* change 167, 9 Oct 2026 (Hitesh): "Outreach this cycle" read vague. The card
+    now counts people, not steps: prospects contacted this cycle, the same
+    figure Analytics calls Contacted (each sequence's contacted, summed). The
+    steps that reached them stay underneath, by channel. */
+ const reached=mine.reduce((t,c)=>t+(c.sequences||[]).reduce((x,q)=>x+(q.contacted||0),0),0);
+ const dClients=mine.length>LAST.clients?mine.length-LAST.clients:null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
  const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
- const spark=`<span class="hero-spark" aria-label="Daily outreach, last 14 days">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i===days.length-1?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
+ const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i===days.length-1?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
@@ -5961,8 +5969,8 @@ function heroCards(mine,tch,rep,items){
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
     `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Outreach this cycle",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last"),
-    `<span class="hero-vrow"><span class="hero-v">${f(tch.total)}</span>${spark}</span>`,`<span>${chan}</span>`)}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last cycle"),
+    `<span class="hero-vrow"><span class="hero-v">${f(reached)}</span>${spark}</span>`,`<span>This cycle${chan?", via "+chan:""}</span>`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -6984,7 +6992,7 @@ function attention(c){
    reply rate on this screen.                                                    */
 
 /* last cycle, for the comparison line on each tile */
-let LAST={clients:9, sent:98400, touches:133400, replies:6900};   /* change 121: Cascade is the one workspace added this month */
+let LAST={clients:9, sent:98400, touches:133400, replies:6900, contacted:25000};   /* contacted: change 167, people reached last cycle */   /* change 121: Cascade is the one workspace added this month */
 const DASH_ROWS=10;  /* the dashboard ranks; the full list lives in Clients. Change 121: ten, so the seeded book shows whole */
 /* 2 Oct 2026, Hitesh (board row 04, B3): the Home table shows counted numbers only.
    Per workspace this cycle: prospects added, emails sent and its delta, bounce
@@ -7975,10 +7983,11 @@ function ncSetLine(){const ks=RK.filter(ncIsSet);return ks.length===1?`${NC_SUM_
 function ncAddWhy(){const ks=RK.filter(ncOver);return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(compute(ks[0]).free)} left. Lower it to add the workspace.`:""}
 function ncPctText(){const n=ncSetCount();return "<b>"+ncShare()+"%</b>"+(n?`<span class="sub"> &middot; ${n} set by hand</span>`:"")}
 /* the context the slider used to carry on its face, now behind Learn more */
+/* change 165, 9 Oct 2026 (Hitesh): shorter and crisper. Two lines: what
+   available means and what the slider does; then how each kind renews. */
 function ncLearnHTML(){const who=(nc.name||"this workspace").trim(), sh=ncShare(), g=ncGivenPct();
- return `<p>What&rsquo;s available is your plan minus what other workspaces already have${g?"":"; nothing is given out yet, so today it is your whole plan"}. The slider sets every limit at once, each as ${sh}% of what&rsquo;s available for it, so a workspace never takes more than is left.</p>
-  <p>Click any number to set it yourself; what is left of it shows while you type.</p>
-  <p>Emails are a monthly limit. Lead Finder credits come for the whole plan term; verification and AI credits are a one-time balance. Credits given here are set aside for ${who}.</p>`}
+ return `<p>Available is your plan minus what other workspaces already have${g?"":" (today, all of it)"}. The slider gives ${who} ${sh}% of each; click any number to set your own.</p>
+  <p>Emails are a monthly limit. Credits are a balance, set aside for ${who}.</p>`}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
@@ -10346,7 +10355,7 @@ function resetToNormal(){
  /* the month-on-month baselines are the seeded agency's history. Against a
     workspace that has just gained its first client they read as a 94% collapse
     in sending and four clients lost. An account with no history has no deltas. */
- LAST.clients=0; LAST.sent=0; LAST.touches=0; LAST.replies=0;
+ LAST.clients=0; LAST.sent=0; LAST.touches=0; LAST.replies=0; LAST.contacted=0;
 }
 /* Version C boots as a normal user: one workspace, no clients, landing on
    Sequences, which is where the real product puts a new account (app.tsx:314
@@ -11957,7 +11966,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a42fa6f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="d142f3b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
