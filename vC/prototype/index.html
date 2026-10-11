@@ -3413,7 +3413,7 @@ function vClients(){
      ${av(c)}<span style="min-width:0"><button class="cn" data-manage="${c.id}">${c.name}</button>${yoursTag(c)}
      <span class="cs">${c.email}</span></span></div></td>`},
   {id:"seq",label:"Active Sequences",def:false,ar:true,sort:true,
-   cell:c=>`<td class="ar tnum">${c.seq}</td>`},
+   cell:c=>`<td class="ar tnum">${activeSeqs(c)}</td>`},
   {id:"mbx",label:"Email Accounts",ar:true,sort:true,
    cell:c=>`<td class="ar tnum">${c.mbx}</td>`},
   {id:"prospects",label:"Total Prospects",def:false,ar:true,sort:true,
@@ -5975,7 +5975,7 @@ function heroCards(mine,tch,rep,items){
  const running=mine.filter(c=>c.sent>0&&!(attention(c)&&attention(c).pin)&&!c.disabled).length,
        atLimit=mine.filter(c=>lf(c.id).s.tone==="bad").length, fresh=mine.filter(c=>c.sent===0).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
- const active=seqs.filter(x=>x.q.state==="Active").length, sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
+ const active=mine.reduce((t,c)=>t+activeSeqs(c),0), sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
  /* a pill only when there is a real comparison: growth in workspaces, and a
     cycle with sends behind it. A fresh account shows the numbers alone. */
  /* change 167, 9 Oct 2026 (Hitesh): "Outreach this cycle" read vague. The card
@@ -7072,6 +7072,11 @@ function hpSeqStates(c){
  let n=c.disabled?0:M.sysPaused;
  for(const pass of ["Paused","Active"]) S.forEach(x=>{if(n>0&&x.q.state===pass){x.st="Paused by the system";x.tone="bad";n--}});
  return S}
+/* change 177, 11 Oct 2026 (Hitesh): "we are saying active sequence but we
+   showing all sequence". Active means running: Active, not paused by the
+   system, in a workspace that is not disabled. Home's column, its card and the
+   Workspaces list's Active Sequences column all count this. */
+const activeSeqs=c=>c.disabled?0:hpSeqStates(c).filter(x=>x.st==="Active").length;
 function hpData(c,k){
  const M=hm(c), live=!c.disabled;
  const seqGo=q=>live?"seq|"+c.id+"|"+q.name:"";
@@ -7119,7 +7124,7 @@ function hpOpen(btn){
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
- L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+'</span><span class="hp-c">'+rows.length+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="ar tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
@@ -7156,7 +7161,7 @@ function wsCells(c){
   /* a disabled workspace says so in the two cells that stopped: nothing is
      sending and every sequence is paused (Home has no Status column, B3) */
   {l:"Email accounts",v:c.mbx,d:"",line:c.disabled?"not sending, disabled":fresh&&!c.mbx?"none yet":M.disc?M.disc+" disconnected":M.paused?M.paused+" paused":"all sending",cls:c.disabled||M.disc?"is-bad":M.paused?"is-warn":""},
-  {l:"Active sequences",v:c.seq,d:"",line:c.disabled?"all paused, disabled":M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,cls:c.disabled||M.sysPaused?"is-bad":""},
+  {l:"Active sequences",v:fresh?c.seq:activeSeqs(c),d:"",line:c.disabled?"all paused, disabled":M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,cls:c.disabled||M.sysPaused?"is-bad":""},
   {l:"Prospects added",v:fresh?null:M.pa,d:D(M.pad),line:"",cls:""},
   {l:"Emails sent",v:fresh?null:c.sent,d:D(M.sd),line:fresh?"":"bounce "+M.bounce.toFixed(1)+"%",cls:M.bounce>=3?"is-bad":""},
   {l:"Replies",v:fresh?null:repOf(c),d:D(rd),line:fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate",cls:""},
@@ -12125,7 +12130,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e62269e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="274e816";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
