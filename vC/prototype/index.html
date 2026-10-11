@@ -4951,7 +4951,7 @@ function ddHTML(id,value,groups,o){
  const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
  const chk='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
  return `<div class="dd${o.disabled?" is-disabled":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
-  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}><span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
+  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}>${o.icon||""}<span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
   <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.desc}</span>`:x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
 }
 function wireDD(L,id,onPick){
@@ -5933,7 +5933,7 @@ function vDash(){
       the + icon. The single-workspace Home keeps its New menu. */
    +(norm?'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>':'')
    /* change 182: the period picker the whole Home follows */
-   +(norm?'':ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{}))
+   +(norm?'':ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'}))
    +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add a workspace</button>':"")
   +'</div></div>'
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
@@ -6921,9 +6921,12 @@ const GRACE={on:false,failedOn:"7 Sep",daysLeft:5};
 /* change 155: View as client is Owner and Admin only (PRD §3.5, doc 84 row 10) */
 const viewAsBtn=(c,cls)=>canI("members")?`<button class="${cls}" data-asclient="${c.id}">${c.forClient===false?"View as its users":"View as client"}</button>`:"";
 const grace=()=>GRACE.on;
-const graceBanner=()=>grace()?`<div class="msg m-bad grace" style="margin-bottom:20px">${warnI}<span><strong>Payment failed on ${GRACE.failedOn}.</strong>
-  ${GRACE.daysLeft} days to update the card before the account pauses. Everyone keeps reading their workspaces; nothing is sending.
-  ${canI("billing")?'<button class="linkbtn" data-gobill>Update payment</button>':"An owner updates the card."}</span></div>`:"";
+/* change 185, 11 Oct 2026 (Hitesh: "This notice banner needs to improve ui"): one
+   size of type, what happened and what it means first in bold, the deadline after,
+   and the action as a button at the end instead of a larger link inside the text. */
+const graceBanner=()=>grace()?`<div class="msg m-bad grace grace-bar" style="margin-bottom:20px" role="alert">${warnI}<span class="grace-t"><strong>Payment failed on ${GRACE.failedOn}. Sending is paused in every workspace.</strong>
+  Update the card within ${GRACE.daysLeft} days, or the account pauses.</span>
+  ${canI("billing")?'<button class="shd-button shd-button--primary shd-button--sm grace-go" data-gobill>Update payment</button>':'<span class="grace-who">An owner can update the card.</span>'}</div>`:"";
 const graceNote=c=>grace()?`<div class="msg m-warn grace" style="margin-bottom:16px">${warnI}<span>Sending is paused by ${AGENCY.name}.
   You can see everything as usual; your sequences resume when they restart them.</span></div>`:"";
 /* headroom in days at the burn rate observed so far this cycle */
@@ -11483,7 +11486,11 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl .th-u{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--gray-12);margin-top:1px}
 .home-tbl th:nth-child(n+3):nth-child(-n+9),.home-tbl td:nth-child(n+3):nth-child(-n+9){padding-left:12px;padding-right:12px}
 .hero-u{font-size:14px;font-weight:500;color:var(--gray-12);margin-left:4px}
-#homeWin{width:148px;flex:none}
+#homeWin{width:160px;flex:none;margin-right:4px}#homeWin .dd-ic{width:16px;height:16px;flex:none;color:var(--gray-12)}
+.grace-bar{align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:13px;line-height:20px;font-weight:400;color:var(--gray-17)}.grace-bar .grace-t{flex:1;min-width:0}.grace-bar strong{font-weight:600}
+.grace-bar .grace-go{flex:none;margin:0}.grace-bar .grace-who{flex:none;color:var(--gray-15)}
+@media (max-width:640px){.grace-bar{flex-wrap:wrap;align-items:flex-start}.grace-bar>svg{margin-top:2px}.grace-bar .grace-t{flex:1 1 calc(100% - 28px)}.grace-bar .grace-go,.grace-bar .grace-who{margin-left:28px}}
+.home-tbl thead th{color:var(--gray-15);font-weight:500}.home-tbl thead th .th-u{color:var(--gray-11)}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -12208,7 +12215,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7bc2d59";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="575c6b7";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
