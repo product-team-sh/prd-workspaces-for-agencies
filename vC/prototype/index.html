@@ -5837,14 +5837,15 @@ function vDash(){
      +'<span class="cs">'+c.email+'</span></span></div></td>'
      +wsStatusCell(c)+'<td colspan="8">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
-  +'<div class="c-h"><span class="c-t">Workspaces<span class="sub w7-sub">Last 7 days, '+W7.cur+', compared with '+W7.prev+'. Usage is this billing cycle.</span></span>'
+  +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
-  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1248px;width:100%;table-layout:fixed">'
+  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1258px;width:100%;table-layout:fixed">'
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
-   +'<thead><tr><th style="width:230px">Workspace</th><th style="width:104px">Status</th><th style="width:112px">Prospects added</th><th style="width:108px">Leads revealed</th><th style="width:126px">Emails sent</th><th style="width:72px">Bounce</th><th style="width:112px">Reply rate</th><th style="width:108px">Calls made</th><th style="width:112px">Positive call outcomes</th><th style="width:164px">Usage</th></tr></thead>'
+   /* change 179 (Hitesh: "check styling and column header"): one line per header, centred; "Positive call outcomes" is "Positive calls" with its definition on hover */
+   +'<thead><tr><th style="width:234px">Workspace</th><th style="width:102px">Status</th><th style="width:120px">Prospects added</th><th style="width:116px">Leads revealed</th><th style="width:122px">Emails sent</th><th style="width:70px">Bounce</th><th style="width:106px">Reply rate</th><th style="width:104px">Calls made</th><th style="width:120px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected</th><th style="width:164px">Usage</th></tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
@@ -5922,7 +5923,7 @@ function vDash(){
  return '<div class="toolbar dash-toolbar" style="position:relative">'
   +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
   +(norm?'':(()=>{const M=["January","February","March","April","May","June","July","August","September","October","November","December"],mi=M.indexOf(CYCLE.month.split(" ")[0]),cur=M[mi].slice(0,3),prev=M[(mi+11)%12].slice(0,3);
-     return '<span class="sub dash-arrival">'+M[mi]+' so far, 1 to '+CYCLE.day+' '+cur+'. Changes are compared with 1 to '+CYCLE.day+' '+prev+'.</span>'})())
+     return '<span class="sub dash-arrival">Last 7 days, '+W7.cur+', compared with '+W7.prev+'. Usage is this billing cycle.</span>'})())
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
@@ -5980,25 +5981,31 @@ function heroCards(mine,tch,rep,items){
     figure Analytics calls Contacted (each sequence's contacted, summed). The
     steps that reached them stay underneath, by channel. */
  const reached=mine.reduce((t,c)=>t+(c.sequences||[]).reduce((x,q)=>x+(q.contacted||0),0),0);
- const dClients=mine.length>LAST.clients?mine.length-LAST.clients:null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
+ /* change 180, 11 Oct 2026 (Hitesh): "full page should indicate same window". The
+    cards read the table's clock: workspaces added in the last 7 days, prospects
+    contacted in the last 7 days against the 7 before (the cycle figures scaled
+    the same way as the table). Active sequences is a count of now. */
+ const inW7=c=>{const d=c.created?new Date(c.created.replace(",","")):null;if(!d||isNaN(d))return false;const end=new Date(2026,8,CYCLE.day),start=new Date(end.getTime()-6*864e5);return d>=start&&d<=end};
+ const added7=mine.filter(inW7).length;
+ const dClients=added7||null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
  const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
- const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i===days.length-1?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
+ const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the last 7 are the window">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-7?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
- const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+kf(x[0])+" "+x[1]+'</span>').join(" &middot; ");
+ const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+kf(wk(x[0]))+" "+x[1]+'</span>').join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
-  ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" this month"),
+  ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" in last 7 days"),
     `<span class="hero-v">${f(mine.length)}</span>`,
     `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
     `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs last cycle"),
-    `<span class="hero-vrow"><span class="hero-v">${f(reached)}</span>${spark}</span>`,`<span class="hero-f-wrap">This cycle${chan?", via "+chan:""}</span>`)}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs previous 7 days"),
+    `<span class="hero-vrow"><span class="hero-v">${f(wk(reached))}</span>${spark}</span>`,`<span class="hero-f-wrap">Last 7 days${chan?", via "+chan:""}</span>`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -7082,20 +7089,23 @@ const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 const W7=(()=>{const end=new Date(2026,8,CYCLE.day), at=x=>new Date(end.getTime()-x*864e5),
   rng=(a,b)=>a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
   return {cur:rng(at(6),at(0)),prev:rng(at(13),at(7))}})();
-/* [calls change %, positive call outcomes in the last 7 days, their change %]: calls whose logged outcome has positive sentiment (Interested, Follow-up, custom positive) */
-const CALL_W={own:[4,6,2],sf:[6,14,4],al:[-12,9,-38],vx:[3,31,-3],at:[5,42,6],nw:[2,22,1],pc:[0,3,0]};
+/* [calls made change %, connect rate %, calls connected change %]. Change 180 (Hitesh): "We can shows calls
+   connected - it's okay, remove positive call outcomes": Calls connected is the Dialer's own Call Reports
+   measure (calls the prospect answered), with its change against the previous period. */
+const CALL_W={own:[4,24,2],sf:[6,28,4],al:[-12,19,-31],vx:[3,22,-3],at:[5,31,6],nw:[2,26,1],pc:[0,21,0]};
 function wk7(c){const M=hm(c), cw=CALL_W[c.id]||[null,0,null], prevOf=(v,d)=>d==null?null:v/(1+d/100);
  const r={pa:wk(M.pa),paD:M.pad,leads:wk(M.leads),ldD:M.ld,sent:wk(c.sent),sdD:M.sd,bounce:M.bounce,
   rate:c.reply,rateD:c.reply&&c.prev?Math.round((c.reply-c.prev)/c.prev*100):null,
-  calls:wk(chanOf(c).call),callD:cw[0],pos:cw[1],posD:cw[2]};
- r.prev={pa:prevOf(r.pa,r.paD),leads:prevOf(r.leads,r.ldD),sent:prevOf(r.sent,r.sdD),calls:prevOf(r.calls,r.callD),pos:prevOf(r.pos,r.posD),rate:99};
+  calls:wk(chanOf(c).call),callD:cw[0]};
+ r.conn=Math.round(r.calls*(cw[1]||0)/100); r.connD=cw[2];
+ r.prev={pa:prevOf(r.pa,r.paD),leads:prevOf(r.leads,r.ldD),sent:prevOf(r.sent,r.sdD),calls:prevOf(r.calls,r.callD),conn:prevOf(r.conn,r.connD),rate:99};
  return r}
 const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
  const D=(d,prev)=>d==null?"":'<span class="dlt w7d'+(W7_RED(d,prev)?' is-red':'')+'">'+(d>0?'+':'')+d+'%</span>';
  const cell=(k,label,html)=>({k,label,html});
- if(off) return [["pa","Prospects added"],["leads","Leads revealed"],["sent","Emails sent"],[null,"Bounce"],["rep","Reply rate"],[null,"Calls made"],[null,"Positive call outcomes"]].map(([k,l])=>cell(null,l,dash));
+ if(off) return [["pa","Prospects added"],["leads","Leads revealed"],["sent","Emails sent"],[null,"Bounce"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"]].map(([k,l])=>cell(null,l,dash));
  const n=(v,d,prev)=>'<span class="tnum stackv">'+f(v)+D(d,prev)+'</span>';
  return [
   cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
@@ -7104,7 +7114,7 @@ function homeCells(c){
   cell(w.sent?"sent":null,"Bounce",'<span class="tnum stackv'+(w.bounce>=3?' w7-bad':'')+'">'+w.bounce.toFixed(1)+'%</span>'),
   cell(w.sent?"rep":null,"Reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
   cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
-  cell(null,"Positive call outcomes",w.calls?n(w.pos,w.posD,w.prev.pos):dash)]}
+  cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash)]}
 /* change 177, 11 Oct 2026 (Hitesh): "we are saying active sequence but we
    showing all sequence". Active means running: Active, not paused by the
    system, in a workspace that is not disabled. Home's column, its card and the
@@ -11445,7 +11455,8 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
 .home-tbl .dlt.w7d{color:var(--gray-12);margin-left:6px;font-size:12px}.home-tbl .dlt.w7d.is-red{color:var(--red-18)}.home-tbl .w7-bad{color:var(--red-18)}
 .c-t .w7-sub{display:block;font-size:12px;font-weight:400;line-height:18px;color:var(--gray-12);margin-top:2px}
-.home-tbl thead th{white-space:normal;line-height:16px;vertical-align:bottom}
+.home-tbl thead th{white-space:nowrap;vertical-align:middle}
+.home-tbl th:nth-child(n+3):nth-child(-n+9),.home-tbl td:nth-child(n+3):nth-child(-n+9){padding-left:12px;padding-right:12px}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -12170,7 +12181,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="eeae69b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="9ce4726";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
