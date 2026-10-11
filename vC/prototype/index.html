@@ -3484,9 +3484,14 @@ const wsHeadHTML=()=>'<thead><tr class="th-units"><th style="width:234px">Worksp
    +'<th style="width:122px">Emails sent<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:106px">Reply rate<span class="th-u">of contacted</span></th><th style="width:164px">Usage<span class="th-u">this cycle</span></th></tr></thead>';
 const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
 const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
-const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:1142px;width:100%;table-layout:fixed">';
+const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:1122px;width:100%;table-layout:fixed">';
+/* change 200, 12 Oct 2026 (Hitesh: "fix workspace column header man! it looks so bad";
+   doc 91, H1 "let's go with what you reccomend"): one line per header at one height,
+   no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
+   Bounce rate, and what each rate is of is said in its pop-up. */
 const homeHeadHTML=()=>''
-   +'<thead><tr class="th-units"><th style="width:234px">Workspace</th><th style="width:102px">Status</th><th style="width:120px">Prospects added<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:122px">Emails sent<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:70px">Bounce<span class="th-u">of sent</span></th><th style="width:106px">Reply rate<span class="th-u">of contacted</span></th><th style="width:104px">Calls made<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:120px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:164px">Usage<span class="th-u">this cycle</span></th></tr></thead>';
+   +'<thead><tr class="th-one"><th style="width:236px">Workspace</th><th style="width:104px">Status</th><th style="width:124px">Prospects added</th><th style="width:110px">Emails sent</th><th style="width:92px" title="Emails that bounced, as a share of emails sent">Bounce rate</th><th style="width:96px" title="Replies, as a share of prospects contacted">Reply rate</th><th style="width:92px">Calls made</th><th style="width:124px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected</th><th style="width:144px" title="Average share used across every limited resource, this billing cycle">Usage</th></tr></thead>';
+const homeWinLine=()=>win().label+(perDay()?", a day on average":"")+" &middot; Usage is this billing cycle";
 function vClients(){
  /* A1 carries more than the eight columns the live screen has, because the two
     outcome columns are the point of the redesign (01 §2). Eleven columns
@@ -6023,8 +6028,8 @@ function vDash(){
      +'<span class="cs">'+c.email+'</span></span></div></td>'
      +wsStatusCell(c)+'<td colspan="7">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
-  +'<div class="c-h"><span class="c-t">Workspaces</span>'
-   +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
+  +'<div class="c-h"><span class="c-t">Workspaces<span class="c-win">'+homeWinLine()+'</span></span>'
+   +'<span class="c-a"><button class="linkbtn" data-nav2="clients">View all '+myWorkspaces().length+' &rarr;</button></span></div>'
   +homeTableOpen()
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
@@ -7404,6 +7409,8 @@ function hpOpen(btn){
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1&&!D.left?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="'+(D.left?'':'ar ')+'tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
+  /* change 200: the header no longer says what a rate is of, so its pop-up does */
+  +(k==="sent"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':k==="rep"?'<p class="hp-note">Reply rate is replies as a share of prospects contacted.</p>':'')
   +'<div class="hp-f">'+(k==="people"?'<button type="button" class="linkbtn" data-hpgo="mem|'+c.id+'|">Manage members of '+c.name+' &rarr;</button>':c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
     :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+' &rarr;</button>')+'</div>';
  L.classList.toggle("hpop--wide",k==="people"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
@@ -11736,6 +11743,10 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hp-nm{display:block;overflow:hidden;text-overflow:ellipsis;color:var(--gray-17)}
 .hp-st{display:inline-block;font-size:12px;line-height:18px;padding:0 8px;border-radius:4px;background:#f3f4f6;color:var(--gray-15);white-space:nowrap}.hp-st.is-bad{color:var(--red-12)}.hp-st.is-warn{color:var(--orange-12)}
 .hp-f{padding:10px 16px;border-top:1px solid #f3f4f6}
+.hp-note{margin:0;padding:8px 16px;border-top:1px solid #f3f4f6;font-size:12px;line-height:16px;color:var(--gray-15)}
+/* change 200 */
+.c-win{font-size:12px;font-weight:400;color:var(--gray-15);margin-left:10px}
+.home-tbl thead tr.th-one th{height:40px;vertical-align:middle!important;padding-top:0!important;padding-bottom:0!important}
 @media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
 .home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
 .home-tbl .dlt.w7d{color:var(--gray-12);margin-left:6px;font-size:12px}.home-tbl .dlt.w7d.is-red{color:var(--red-18)}.home-tbl .w7-bad{color:var(--red-18)}
@@ -12512,7 +12523,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="4dd8680";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="d4edfa0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
