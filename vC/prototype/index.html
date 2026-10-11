@@ -5818,6 +5818,7 @@ function vDash(){
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
+   +wsStatusCell(c)
    +wsCells(c).map((x,i)=>num(x,i)).join("")
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'};
@@ -5836,16 +5837,16 @@ function vDash(){
    return '<tr class="crow" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
-     +'<td colspan="7">'+setupHtml+'</td></tr>'})();
+     +wsStatusCell(c)+'<td colspan="7">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
-  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1100px;width:100%;table-layout:fixed">'
+  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1256px;width:100%;table-layout:fixed">'
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
-   +'<thead><tr><th style="width:236px">Workspace</th><th style="width:116px">Email accounts</th><th style="width:174px">Active sequences</th><th style="width:118px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:128px">Replies</th><th style="width:124px">Leads revealed</th><th style="width:150px">Usage</th>'
+   +'<thead><tr><th style="width:240px">Workspace</th><th style="width:104px">Status</th><th style="width:112px">Email accounts</th><th style="width:154px">Active sequences</th><th style="width:114px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:128px">Replies</th><th style="width:116px">Leads revealed</th><th style="width:164px">Usage</th>'
       +'</tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
@@ -7050,6 +7051,16 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
    prospect-row sequence popover, a small table with a link in the first column
    and a status chip. One builder per counted column, so each popover adds up to
    the number in its cell; problems sort first; colour only on what is wrong. */
+/* change 175, 11 Oct 2026 (Hitesh): "we should have column for workspace
+   status", after asking why a disabled workspace had no open arrow. The B3 rule
+   (no Status column, the red cells say what is wrong) told you a cell was in
+   trouble but never that the whole workspace was off. Three states, a dot and a
+   word, New in the Workspaces card's own word; since when under Disabled (who
+   is on its record). */
+function wsStatusCell(c){
+ const [t,dot,sub]=c.disabled?["Disabled","var(--gray-11)","since "+(c.disabledOn||TODAY_D)]
+   :c.sent===0?["New","var(--blue-11)",""]:["Active","var(--green-16)",""];
+ return '<td><span class="ws-stat'+(c.disabled?' is-off':'')+'"><i style="background:'+dot+'"></i>'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_KINDS=["mbx","seq","pa","sent","rep","leads"];
 const HP_TITLE={mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",rep:"Replies",leads:"Leads revealed"};
 const HP_MOD={mbx:["accounts","Email accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
@@ -11384,8 +11395,10 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hp-st{display:inline-block;font-size:12px;line-height:18px;padding:0 8px;border-radius:4px;background:#f3f4f6;color:var(--gray-15);white-space:nowrap}.hp-st.is-bad{color:var(--red-12)}.hp-st.is-warn{color:var(--orange-12)}
 .hp-f{padding:10px 16px;border-top:1px solid #f3f4f6}
 @media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
-.home-tbl .ws-go{width:24px;height:24px;flex:none;visibility:hidden}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
-.u-home{min-width:0;width:100%}.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
+.ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
+.home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
+.u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ws-sub{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}.ws-sub .cs{min-width:0;overflow:hidden;text-overflow:ellipsis}
 /* the master prototype's effect: on hover the email line gives way to the four borderless shortcuts, so the row never changes height */
@@ -12107,7 +12120,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c519c77";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="3144b01";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
