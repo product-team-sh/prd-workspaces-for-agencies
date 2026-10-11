@@ -2888,8 +2888,14 @@ function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
 const USE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--green-16)",info:"var(--green-16)"};
 function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  if(u.every(y=>y.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
- const top=[...u].sort((a,b)=>(b.room===0)-(a.room===0)||b.pct-a.pct)[0], p=Math.min(100,Math.round(top.pct*100)), col=USE_COL[top.tone]||USE_COL.ok;
- return '<button type="button" class="meter u-usagebtn u-home hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% of '+RES[top.k].label+'. Show every resource" title="'+usageTip(u)+'">'
+ /* change 196, 11 Oct 2026 (Hitesh): "show overall usage percentage not any single even if it's
+    near limit ... change color if any one of the limit is near". The number is the average of
+    every limited resource's share used; the colour is the worst resource's state (usageOf
+    sorts worst first): red when one is at its limit, orange when one is near, green otherwise. */
+ const lim=u.filter(y=>y.cap>0), p=lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0;
+ const top=u[0], col=USE_COL[top.tone]||USE_COL.ok;
+ const why=top.tone==="bad"?" "+RES[top.k].label+" is at its limit.":top.tone==="warn"?" "+RES[top.k].label+" is near its limit.":"";
+ return '<button type="button" class="meter u-usagebtn u-home hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
   +'<div class="track"><span style="width:'+p+'%;background:'+col+'"></span></div>'
   +'<span class="meter-t tnum"><b class="u-pct" style="color:'+(top.tone==="ok"||top.tone==="info"?"var(--gray-17)":col)+'">'+p+'% used</b></span>'
   /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
@@ -12320,7 +12326,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e4e1020";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="06ab619";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
