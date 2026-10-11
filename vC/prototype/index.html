@@ -5923,13 +5923,15 @@ function vDash(){
  return '<div class="toolbar dash-toolbar" style="position:relative">'
   +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
   +(norm?'':(()=>{const M=["January","February","March","April","May","June","July","August","September","October","November","December"],mi=M.indexOf(CYCLE.month.split(" ")[0]),cur=M[mi].slice(0,3),prev=M[(mi+11)%12].slice(0,3);
-     return '<span class="sub dash-arrival">Daily average over the last 7 days ('+W7.cur+'), compared with '+W7.prev+'. Usage is this billing cycle.</span>'})())
+     return (()=>{const R=winRange();return '<span class="sub dash-arrival">Daily average over '+win().lower+' ('+R.cur+'), compared with '+R.prev+'. Usage is this billing cycle.</span>'})()})())
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
       workspace (creating happens inside a workspace) and Add a workspace gets
       the + icon. The single-workspace Home keeps its New menu. */
    +(norm?'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>':'')
+   /* change 182: the period picker the whole Home follows */
+   +(norm?'':ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{}))
    +(owner&&!norm?'<button class="shd-button shd-button--primary" id="dashAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add a workspace</button>':"")
   +'</div></div>'
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
@@ -5985,27 +5987,27 @@ function heroCards(mine,tch,rep,items){
     cards read the table's clock: workspaces added in the last 7 days, prospects
     contacted in the last 7 days against the 7 before (the cycle figures scaled
     the same way as the table). Active sequences is a count of now. */
- const inW7=c=>{const d=c.created?new Date(c.created.replace(",","")):null;if(!d||isNaN(d))return false;const end=new Date(2026,8,CYCLE.day),start=new Date(end.getTime()-6*864e5);return d>=start&&d<=end};
+ const inW7=c=>{const d=c.created?new Date(c.created.replace(",","")):null;if(!d||isNaN(d))return false;const R=winRange();return d>=new Date(R.start.toDateString())&&d<=R.end};
  const added7=mine.filter(inW7).length;
  const dClients=added7||null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
  const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
- const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the last 7 are the window">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-7?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
+ const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the period is in full blue">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-Math.min(14,win().days)?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
- const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+kf(Math.round(wk(x[0])/7))+" "+x[1]+'</span>').join(" &middot; ");
+ const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+kf(Math.round(winTot(x[0],dTouch)/win().days))+" "+x[1]+'</span>').join(" &middot; ");
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
-  ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" in last 7 days"),
+  ${card("clients",I('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),"Workspaces",pill(dClients,f(Math.abs(dClients))+" "+win().added),
     `<span class="hero-v">${f(mine.length)}</span>`,
     `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
     `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(dTouch,Math.round(Math.abs(dTouch))+"% vs previous 7 days"),
-    `<span class="hero-vrow"><span class="hero-v">${pd(wk(reached))}<span class="hero-u"> a day</span></span>${spark}</span>`,`<span class="hero-f-wrap">A day, via ${chan||"nothing yet"}</span>`)}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(winD(dTouch==null?null:Math.round(dTouch)),Math.abs(winD(Math.round(dTouch||0)))+"% vs previous "+win().days+" days"),
+    `<span class="hero-vrow"><span class="hero-v">${pd(winTot(reached,dTouch))}<span class="hero-u"> a day</span></span>${spark}</span>`,`<span class="hero-f-wrap">A day, via ${chan||"nothing yet"}</span>`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -7084,20 +7086,34 @@ function hpSeqStates(c){
    days had at least 10, and bounce at 3% or more. The seed holds cycle totals, so
    the last 7 days are 7/9 of them and the earlier 7 follow from the existing
    changes; calls and positive call outcomes come from CALL_W. */
-const WK=7/CYCLE.day, wk=n=>Math.round((n||0)*WK);
+/* change 182, 11 Oct 2026 (Hitesh approved doc 87 #1 to #3): Home has a period
+   picker, Last 7 days (default), Last 30 days, This month. The whole page follows
+   it, and the comparison is always the same number of days immediately before
+   (Optmyzr's rule; Google Ads compares 7 days with the 7 prior). The seed holds
+   this cycle's totals only, so a window's total is the cycle's daily pace times
+   its days, leaning the longer windows toward the earlier pace by the metric's
+   own change; the changes shrink for longer windows. Illustrative, like the seed. */
+let HOME_WIN="7d";
+const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",added:"in last 7 days",days:7,f:d=>1,dd:d=>d},
+ "30d":{label:"Last 30 days",lower:"the last 30 days",added:"in last 30 days",days:30,f:d=>d==null?1:1/(1+d/200),dd:d=>d==null?null:Math.round(d*0.6)},
+ "mtd":{label:"This month",lower:"this month",added:"this month",days:CYCLE.day,f:d=>d==null?1:1-d/600,dd:d=>d==null?null:Math.round(d*0.8)}};
+const win=()=>WINS[HOME_WIN]||WINS["7d"];
+const winTot=(cycle,d)=>Math.round((cycle||0)/CYCLE.day*win().days*win().f(d));
+const winD=d=>win().dd(d);
+const wk=n=>winTot(n,null);
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const W7=(()=>{const end=new Date(2026,8,CYCLE.day), at=x=>new Date(end.getTime()-x*864e5),
+const winRange=()=>{const n=win().days,end=new Date(2026,8,CYCLE.day), at=x=>new Date(end.getTime()-x*864e5),
   rng=(a,b)=>a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
-  return {cur:rng(at(6),at(0)),prev:rng(at(13),at(7))}})();
+  return {cur:rng(at(n-1),at(0)),prev:rng(at(2*n-1),at(n)),start:at(n-1),end}};
 /* [calls made change %, connect rate %, calls connected change %]. Change 180 (Hitesh): "We can shows calls
    connected - it's okay, remove positive call outcomes": Calls connected is the Dialer's own Call Reports
    measure (calls the prospect answered), with its change against the previous period. */
 const CALL_W={own:[4,24,2],sf:[6,28,4],al:[-12,19,-31],vx:[3,22,-3],at:[5,31,6],nw:[2,26,1],pc:[0,21,0]};
 function wk7(c){const M=hm(c), cw=CALL_W[c.id]||[null,0,null], prevOf=(v,d)=>d==null?null:v/(1+d/100);
- const r={pa:wk(M.pa),paD:M.pad,leads:wk(M.leads),ldD:M.ld,sent:wk(c.sent),sdD:M.sd,bounce:M.bounce,
-  rate:c.reply,rateD:c.reply&&c.prev?Math.round((c.reply-c.prev)/c.prev*100):null,
-  calls:wk(chanOf(c).call),callD:cw[0]};
- r.conn=Math.round(r.calls*(cw[1]||0)/100); r.connD=cw[2];
+ const r={pa:winTot(M.pa,M.pad),paD:winD(M.pad),leads:winTot(M.leads,M.ld),ldD:winD(M.ld),sent:winTot(c.sent,M.sd),sdD:winD(M.sd),bounce:M.bounce,
+  rate:c.reply,rateD:winD(c.reply&&c.prev?Math.round((c.reply-c.prev)/c.prev*100):null),
+  calls:winTot(chanOf(c).call,cw[0]),callD:winD(cw[0]),rep:winTot(repOf(c),repDelta(c))};
+ r.conn=Math.round(r.calls*(cw[1]||0)/100); r.connD=winD(cw[2]);
  r.prev={pa:prevOf(r.pa,r.paD),leads:prevOf(r.leads,r.ldD),sent:prevOf(r.sent,r.sdD),calls:prevOf(r.calls,r.callD),conn:prevOf(r.conn,r.connD),rate:99};
  return r}
 const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
@@ -7105,7 +7121,7 @@ const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
    count on Home is the daily average of the last 7 days (the 7-day total over 7).
    The window, the changes and the red rule (on the 7-day totals) are unchanged.
    Under 10 a day shows one decimal, so 3 calls in a week reads 0.4, not 0. */
-const pd=n=>{const v=(n||0)/7;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
+const pd=n=>{const v=(n||0)/win().days;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
  const D=(d,prev)=>d==null?"":'<span class="dlt w7d'+(W7_RED(d,prev)?' is-red':'')+'">'+(d>0?'+':'')+d+'%</span>';
@@ -7143,18 +7159,18 @@ function hpData(c,k){
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
-  const PA=wk(M.pa); left=PA;
+  const PA=wk7(c).pa; left=PA;
   const rows=S.map((x,i)=>{const v=i===S.length-1?left:Math.round(PA*(x.q.prospects||0)/tot);left-=v;return {name:x.q.name,st:x.st,tone:x.tone,cells:[pd(Math.max(0,v))],n:v,go:seqGo(x.q)}}).filter(r=>r.n>0);
   return {cols:["Sequence","Status","Added a day"],rows,num:true}}
- if(k==="sent"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk(c.sent));
+ if(k==="sent"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent);
   const rows=R.map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
    return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[pd(SW[i]),b.toFixed(1)+"%"],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Sent a day","Bounce"],rows,num:true}}
- if(k==="rep"){const tot=wk(repOf(c)); let left=tot;
-  const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk(c.sent)), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(SW[i]*(x.q.reply||0)/100));left-=v;
+ if(k==="rep"){const tot=wk7(c).rep; let left=tot;
+  const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(SW[i]*(x.q.reply||0)/100));left-=v;
    return {name:x.q.name,st:x.st,tone:x.tone,cells:[pd(Math.max(0,v)),(SW[i]?(Math.max(0,v)/SW[i]*100).toFixed(1):"0.0")+"%"],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Replies a day","Rate"],rows,num:true}}
- if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4), LW=wk(M.leads); if(!who.length||!LW) return {cols:[],rows:[]};
+ if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4), LW=wk7(c).leads; if(!who.length||!LW) return {cols:[],rows:[]};
   let left=LW; const W=[.46,.3,.16,.08];
   const rows=who.map((u,i)=>{const v=i===who.length-1?left:Math.round(LW*W[i]);left-=v;return {name:u[0],st:u[1]||"",tone:"mute",cells:[pd(v)],n:v,go:live?"mod|"+c.id+"|leads":""}}).filter(r=>r.n>0);
   return {cols:["Revealed by","Role","Leads a day"],rows,num:true}}
@@ -7176,7 +7192,7 @@ function hpOpen(btn){
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
- L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","rep","leads"].includes(k)?' &middot; a day, last 7 days':'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","rep","leads"].includes(k)?' &middot; a day, '+win().lower:'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="ar tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
@@ -9881,6 +9897,7 @@ const tourReplayId=()=>TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TO
 
 function wire(){
  const q=s=>document.querySelectorAll(s);
+ if(document.getElementById("homeWin")) wireDD(document,"homeWin",v=>{HOME_WIN=v;render()});
  if(HPOP) hpClose();
  q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
@@ -11463,6 +11480,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl thead th{white-space:nowrap;vertical-align:middle}
 .home-tbl th:nth-child(n+3):nth-child(-n+9),.home-tbl td:nth-child(n+3):nth-child(-n+9){padding-left:12px;padding-right:12px}
 .hero-u{font-size:14px;font-weight:500;color:var(--gray-12);margin-left:4px}
+#homeWin{width:148px;flex:none}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -12187,7 +12205,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c76c1d5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="51f74e7";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
