@@ -7141,11 +7141,17 @@ addEventListener("resize",()=>{if(HPOP)hpPlace()});
 /* 2 Oct 2026 (S2, doc 65 §5): the six counted cells of a workspace, in the
    owner's question order, built once so Home's row and the record's strip can
    never disagree. Same definitions as PRD §8.2. */
+function repDelta(c){const M=hm(c), prevSent=M.sd!=null?c.sent/(1+M.sd/100):null, prevRep=prevSent&&c.prev?prevSent*c.prev/100:null;
+ return prevRep?Math.round((repOf(c)-prevRep)/prevRep*100):null}
 function wsCells(c){
  const M=hm(c), fresh=c.sent===0;
  const D=v=>v==null?"":'<span class="dlt'+(v<0?' is-down':v>0?' is-up':'')+'">'+(v>0?'+':'')+v+'%</span>';
- const pts=(c.reply&&c.prev)?+(c.reply-c.prev).toFixed(1):null;
- const Dp=pts==null?"":'<span class="dlt'+(pts<0?' is-down':pts>0?' is-up':'')+'">'+(pts===0?'&plusmn;0':(pts>0?'+':'')+pts+' pts')+'</span>';
+ /* change 176, 11 Oct 2026 (Hitesh): "everywhere we have % and in replies pts?
+    ... keep everywhere consistent". The Replies change was the reply rate's move
+    in points, beside a count. It is now the reply count's percent change, like
+    every other column: last period's replies are its sends (this period's less
+    the Emails sent change) times its reply rate. */
+ const rd=repDelta(c);
  return [
   /* a disabled workspace says so in the two cells that stopped: nothing is
      sending and every sequence is paused (Home has no Status column, B3) */
@@ -7153,7 +7159,7 @@ function wsCells(c){
   {l:"Active sequences",v:c.seq,d:"",line:c.disabled?"all paused, disabled":M.sysPaused?M.sysPaused+" paused by the system":fresh?(4-doneN(c))+" of 4 setup steps left":"last sent "+M.last,cls:c.disabled||M.sysPaused?"is-bad":""},
   {l:"Prospects added",v:fresh?null:M.pa,d:D(M.pad),line:"",cls:""},
   {l:"Emails sent",v:fresh?null:c.sent,d:D(M.sd),line:fresh?"":"bounce "+M.bounce.toFixed(1)+"%",cls:M.bounce>=3?"is-bad":""},
-  {l:"Replies",v:fresh?null:repOf(c),d:Dp,line:fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate",cls:""},
+  {l:"Replies",v:fresh?null:repOf(c),d:D(rd),line:fresh||!c.reply?"":c.reply.toFixed(1)+"% reply rate",cls:""},
   {l:"Leads revealed",v:fresh?null:M.leads,d:D(M.ld),line:fresh?"":f(M.leads)+" credits",cls:""}];
 }
 const MONTHS_L=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -8679,10 +8685,9 @@ const chartLegend=()=>`<span class="c-a" style="display:flex;gap:14px;font-size:
      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-14);vertical-align:-1px;margin-right:6px"></span>Replies</span></span>`;
 function cReports(c){
  const rep=Math.round(c.sent*c.reply/100), pos=positives(c), mt=meetings(c);
- const d=c.reply-c.prev;
  return `<div class="kpis" style="margin-bottom:20px">
    ${kpi("Emails sent",f(c.sent),null,CYCLE.month+", so far")}
-   ${kpi("Replies",f(rep),c.prev?d:null,"Reply rate "+c.reply.toFixed(1)+"%"+(c.prev?", was "+c.prev.toFixed(1)+"% last cycle":""),false,(d>=0?"":"")+d.toFixed(1)+" pts")}
+   ${kpi("Replies",f(rep),repDelta(c),"Reply rate "+c.reply.toFixed(1)+"%"+(c.prev?", was "+c.prev.toFixed(1)+"% last cycle":""))}
    ${kpi("Positive replies",f(pos),null,c.sent?(c.pos.toFixed(1)+"% of sent"):"No sending yet")}
    ${kpi("Meetings booked",f(mt),null,pos?("From "+f(pos)+" positive replies"):"None yet")}
   </div>
@@ -12120,7 +12125,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3144b01";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="e62269e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
