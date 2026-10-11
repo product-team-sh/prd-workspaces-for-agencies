@@ -5806,15 +5806,18 @@ function vDash(){
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
   const num=x=>'<td><span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'')+'</td>';
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
-   +'<span class="ws-nm"><button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'+yoursTag(c)+'</span>'
+   /* change 171, 9 Oct 2026 (Hitesh): the open-workspace arrow sits beside the
+      name and shows on row hover; the last column it lived in is gone */
+   +'<span class="ws-nm"><button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'+yoursTag(c)
+     +(fresh||c.disabled?'':'<button class="ubtn wsgo ws-go" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</span>'
    +'<span class="ws-sub">'+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
    +wsCells(c).map(num).join("")
    +'<td>'+usageHomeCell(c)+'</td>'
-   +'<td class="ar colact">'+(fresh||c.disabled?'':'<button class="ubtn wsgo" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
-      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</td></tr>'};
+   +'</tr>'};
 
  /* 21 Sep, delight pass round 4: one client, never sent. The row that would
     otherwise be a single blank line becomes that client's own setup, reusing
@@ -5830,8 +5833,7 @@ function vDash(){
    return '<tr class="crow" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
-     +'<td colspan="7">'+setupHtml+'</td>'
-     +'<td class="ar colact"><button class="linkbtn linkbtn--sm" data-manage="'+c.id+'">Manage</button></td></tr>'})();
+     +'<td colspan="7">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Workspaces</span>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
@@ -5841,7 +5843,7 @@ function vDash(){
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
    +'<thead><tr><th style="width:236px">Workspace</th><th style="width:116px">Email accounts</th><th style="width:174px">Active sequences</th><th style="width:118px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:128px">Replies</th><th style="width:124px">Leads revealed</th><th style="width:150px">Usage</th>'
-      +'<th class="colact" style="width:56px"></th></tr></thead>'
+      +'</tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
@@ -11275,6 +11277,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 @media (max-width:959px){.hero{grid-template-columns:minmax(0,1fr)}}
 .hero-h{flex-wrap:wrap;row-gap:4px}
 .hero-f>span.hero-f-wrap{white-space:normal}
+.home-tbl .ws-go{width:24px;height:24px;flex:none;visibility:hidden}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ws-sub{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}.ws-sub .cs{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -11997,7 +12000,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f6375a9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="9701d57";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
