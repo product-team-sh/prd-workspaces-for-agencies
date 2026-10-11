@@ -3414,7 +3414,7 @@ const QA=[["sequences","Sequences","M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"],
     working (Replies, rate under it), what it costs (Leads revealed), is it about
     to stop (Usage), go (Open). The four shortcuts sit under the name, on hover.
     No Status column: the cells that can go red say what is wrong. */
-function homeRow(c){
+function homeRow(c,mode){
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
   /* change 173: a counted cell opens its line items (hpop below); change 178: the cells are homeCells(), last 7 days */
   const num=x=>'<td>'+(x.k&&hpData(c,x.k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+x.k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.label+' for '+c.name+', last 7 days: show each">'+x.html+'</button>':x.html)+'</td>';
@@ -3429,9 +3429,59 @@ function homeRow(c){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
    +wsStatusCell(c)
-   +homeCells(c).map(num).join("")
+   /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
+   +(mode==="ws"?'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>'+[homeCells(c)[2],homeCells(c)[4]].map(num).join(""):homeCells(c).map(num).join(""))
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'}
+/* ═══ change 197, 11 Oct 2026: people on the Workspaces page ═══
+   Hitesh: "on workspace page, in workspace table - we need to remove few columns
+   and add information related to users(all types) in the workspace"; R from doc 89
+   ("your recommendation looks perfect here, let's build this"). Two columns:
+   the client's users (Workspace Admin, Collaborator, Viewer) and the teammates
+   added to the workspace (Members, with their workspace role). Owners and Admins
+   reach every workspace, so they are said once above the table, not on ten rows.
+   Each cell is faces plus one line that names what needs doing, with the fix. */
+function wsPeopleOf(c){
+ const client=ppClients().filter(u=>u.c.id===c.id).map(u=>({key:u.key,name:u.email,ini:u.initials,role:u.role,seen:u.seen,
+   invited:!!u.invited,expired:!!u.invited&&invExpired(u.invited),disabled:false,side:"Client"}));
+ const team=ppTeam().filter(t=>t.role==="Member"&&t.ws&&t.ws.includes(c.id)).map(t=>({key:t.k,name:t.name,first:t.name.split(" ")[0],ini:t.initials,
+   role:ppWsRole(t.P,c.id),seen:t.seen,invited:!!t.invited,expired:!!t.invited&&invExpired(t.invited),disabled:t.disabled,side:"Your team"}));
+ return {client,team};
+}
+const wsOA=()=>ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").map(t=>({name:t.name,ini:t.initials,invited:false,disabled:t.disabled}));
+function wsFaces(list,col){
+ const n=4, face=x=>'<span class="wsp-f'+(x.disabled?' is-off':'')+'">'+ppAv(x.ini,col,24,x.invited)+'</span>';
+ return '<span class="wsp-faces">'+list.slice(0,n).map(face).join("")+(list.length>n?'<span class="wsp-more">+'+(list.length-n)+'</span>':'')+'</span>';
+}
+function wsPeopleCell(c,side){
+ const P=wsPeopleOf(c), L=side==="client"?P.client:P.team;
+ if(side==="client"&&c.own) return '<span class="cs">Your own workspace</span>';
+ if(!L.length) return side==="client"
+   ?'<span class="wsp-l"><span class="cs">No one invited yet</span>'+(canI("members")&&!c.disabled?'<button type="button" class="linkbtn linkbtn--sm" data-invite="'+c.id+'">Invite</button>':'')+'</span>'
+   :'<span class="cs">Owners and Admins only</span>';
+ let line, fix="";
+ if(side==="client"){
+  const on=L.filter(x=>!x.invited), exp=L.filter(x=>x.expired), inv=L.filter(x=>x.invited&&!x.expired);
+  const resend=x=>canI("members")?'<button type="button" class="linkbtn linkbtn--sm" data-ppresend="'+x.key+'">Resend</button>':'';
+  if(exp.length){line='<span class="cs is-warn">Invite expired</span>';fix=resend(exp[0])}
+  else if(!on.length){line='<span class="cs">Not joined yet</span>';fix=resend(inv[0])}
+  else line='<span class="cs">'+on.length+' user'+(on.length===1?'':'s')+(inv.length?' &middot; '+inv.length+' invited':'')+'</span>';
+ } else {
+  const on=L.filter(x=>!x.invited&&!x.disabled).map(x=>x.first), inv=L.filter(x=>x.invited), off=L.filter(x=>x.disabled);
+  const extra=[].concat(inv.length?[inv[0].first+(inv[0].expired?"'s invite expired":" invited")]:[],off.length?[off[0].first+" disabled"]:[]);
+  const names=on.slice(0,2).join(", ")+(on.length>2?" +"+(on.length-2):"");
+  line='<span class="cs">'+[names].concat(extra).filter(Boolean).join(" &middot; ")+'</span>';
+ }
+ const tip=L.map(x=>x.name+", "+ppShort(x.role)+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", not joined yet":"")).join(". ");
+ return '<button type="button" class="hp-cell wsp" data-hpop="'+c.id+'|people" aria-haspopup="dialog" aria-expanded="false" aria-label="'+(side==="client"?"Client users":"Your team")+' in '+c.name+': '+tip+'. Show everyone" title="'+tip+'">'
+   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</button><span class="wsp-l">'+line+fix+'</span>';
+}
+function wsOANote(){const O=wsOA(); if(!O.length) return "";
+ const names=O.map(x=>x.name.split(" ")[0]), list=names.length>1?names.slice(0,-1).join(", ")+" and "+names[names.length-1]:names[0];
+ return '<span class="ws-oa">'+wsFaces(O,AGENCY.colour)+'<span>'+list+' (Owners and Admins) reach every workspace. Your team lists the teammates added to each.</span></span>'}
+const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-tbl" style="min-width:1112px;width:100%;table-layout:fixed">';
+const wsHeadHTML=()=>'<thead><tr class="th-units"><th style="width:234px">Workspace</th><th style="width:102px">Status</th><th style="width:200px">Client users</th><th style="width:184px">Your team</th>'
+   +'<th style="width:122px">Emails sent<span class="th-u">'+(perDay()?'a day':'total')+'</span></th><th style="width:106px">Reply rate<span class="th-u">of contacted</span></th><th style="width:164px">Usage<span class="th-u">this cycle</span></th></tr></thead>';
 const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
 const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
 const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:1258px;width:100%;table-layout:fixed">';
@@ -3546,9 +3596,9 @@ function vClients(){
    const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn linkbtn--sm" id="toCredits2">Review</button></span></div>`:""})()}
-  <p class="sub ws-win">${(()=>{const R=winRange();return R.cur+", compared with "+R.prev})()}</p>
-  <div class="panel">${homeTableOpen()}${homeHeadHTML()}
-   <tbody>${all.slice(pg.from,pg.to).map(homeRow).join("")||`<tr><td colspan="10"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
+  <div class="ws-meta"><p class="sub ws-win">${(()=>{const R=winRange();return R.cur+", compared with "+R.prev})()}</p>${wsOANote()}</div>
+  <div class="panel">${wsTableOpen()}${wsHeadHTML()}
+   <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="7"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
  </div>`;
 }
 
@@ -7100,7 +7150,7 @@ function wsStatusCell(c){
  const [t,dot,sub]=c.disabled?["Disabled","var(--gray-11)","since "+(c.disabledOn||TODAY_D)]
    :c.sent===0?["New","var(--blue-11)",""]:["Active","var(--green-16)",""];
  return '<td><span class="ws-stat'+(c.disabled?' is-off':'')+'"><i style="background:'+dot+'"></i>'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
-const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",rep:"Replies",leads:"Leads revealed"};
+const HP_TITLE={people:"People",usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",rep:"Replies",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
 const HP_RANK={bad:0,warn:1,info:2,ok:3,mute:4};
@@ -7201,6 +7251,11 @@ function hpData(c,k){
   return {cols:["Resource","Status","Used of limit","%"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
    return {name:y.short,st:y.room===0?(y.storage?"Full":"At limit"):y.draw===0?"Pool empty":y.tone==="warn"?"Near limit":"Fine",tone:y.tone==="bad"?"bad":y.tone==="warn"?"warn":"ok",
     cells:[f(y.used)+" of "+f(y.cap),pc+"%"],go:"lim|"+c.id+"|"+y.k}})}}
+ if(k==="people"){const P=wsPeopleOf(c), L=P.client.concat(P.team);
+  return {cols:["Person","Status","Side","Role","Last signed in"],left:true,rows:L.map(x=>({name:x.name,
+   st:x.disabled?"Disabled":x.expired?"Invite expired":x.invited?"Not joined yet":"Joined",tone:x.disabled?"mute":x.expired?"bad":x.invited?"warn":"ok",
+   cells:[x.side,ppShort(x.role),x.invited||x.disabled||/unknown/.test(x.seen)?"&ndash;":x.seen.charAt(0).toUpperCase()+x.seen.slice(1)],
+   go:"per|"+c.id+"|"+(x.side==="Client"?x.key:"t:"+x.key)}))}}
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
@@ -7237,16 +7292,18 @@ function hpOpen(btn){
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
- L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","rep","leads"].includes(k)?' &middot; '+(perDay()?'a day, ':'')+win().lower:k==="usage"?' &middot; this cycle':'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","rep","leads"].includes(k)?' &middot; '+(perDay()?'a day, ':'')+win().lower:k==="usage"?' &middot; this cycle':'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:k==="people"?rows.length+(rows.length===1?' person':' people'):rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
-  +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
-  +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="ar tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
-  +'<div class="hp-f">'+(c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
+  +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1&&!D.left?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
+  +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="'+(D.left?'':'ar ')+'tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
+  +'<div class="hp-f">'+(k==="people"?'<button type="button" class="linkbtn" data-hpgo="mem|'+c.id+'|">Manage members of '+c.name+' &rarr;</button>':c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
     :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+' &rarr;</button>')+'</div>';
- L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
+ L.classList.toggle("hpop--wide",k==="people"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
  hpPlace();
  L.querySelector("[data-hpx]").onclick=()=>{hpClose();btn.focus()};
- L.querySelectorAll("[data-hpgo]").forEach(b=>b.onclick=()=>{const [kind,wid,arg]=b.dataset.hpgo.split("|");hpClose();qFrom=null;
+ L.querySelectorAll("[data-hpgo]").forEach(b=>b.onclick=()=>{const [kind,wid,...rest]=b.dataset.hpgo.split("|"), arg=rest.join("|");hpClose();qFrom=null;
+   if(kind==="mem"){ORIGIN=null;ctx="agency";view={name:"record",id:wid};tab="members";render();return}
+   if(kind==="per"){ctx="agency";view={name:"person",id:arg};PERSON_TAB="access";render();return}
    if(kind==="seq"){ctx=wid;asClient=false;inMod="sequences";openProspect=null;openReply=null;focusMb=null;openSeq=wid+"|"+arg;seqTab="steps";render();return}
    if(kind==="acc"){gotoClient(wid,"accounts",arg);return}
    if(kind==="lim"){ORIGIN=null;ctx="agency";view={name:"record",id:wid};tab="limits";FOCUS_LIM=arg;render();const row=el("rlim-"+arg);if(row)row.scrollIntoView({block:"center"});return}
@@ -11558,6 +11615,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hero-f>span.hero-f-wrap{white-space:normal}
 .hp-cell{display:block;width:calc(100% + 12px);margin:-6px -6px;padding:6px;background:none;border:0;border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .hp-cell:hover,.hp-cell[aria-expanded="true"]{background:#f3f4f6}.hp-cell:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
+.hpop.hpop--wide{width:640px}
 .hpop{position:fixed;z-index:1000;width:480px;max-width:calc(100vw - 32px);background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(17,24,39,.18),0 0 0 1px rgba(17,24,39,.06);overflow:hidden}
 .hpop[hidden]{display:none}
 .hp-h{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 16px;border-bottom:1px solid #f3f4f6;font-size:13px;color:var(--gray-15)}.hp-h b{font-weight:600;color:var(--gray-17)}.hp-h>span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -11585,6 +11643,14 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl thead th{color:var(--gray-15);font-weight:500}.home-tbl thead th .th-u{color:var(--gray-11)}
 .u-home .u-pct{font-weight:600}
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
+/* change 197: people on the Workspaces page */
+.ws-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 8px}.ws-meta .ws-win{margin:0}
+.ws-oa{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-15)}.ws-oa .wsp-faces{margin:0;flex:none}
+.ws-tbl .hp-cell.wsp{display:inline-block;width:auto;margin:-4px -6px 0;padding:4px 6px}
+.wsp-faces{display:flex;align-items:center}.wsp-f{display:inline-flex;flex:none;border:2px solid var(--gray-1);border-radius:999px}.wsp-f+.wsp-f{margin-left:-7px}.wsp-f.is-off{opacity:.45;filter:grayscale(1)}
+.wsp-f .pp-av{font-size:9px!important}.wsp-more{font-size:11px;color:var(--gray-15);margin-left:4px}
+.wsp-l{display:flex;align-items:baseline;gap:6px;min-width:0;margin-top:2px}.wsp-l .cs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.wsp-l .cs.is-warn{color:var(--orange-14)}.wsp-l .linkbtn{flex:none}
+td>.cs:only-child{display:block}
 /* change 191 (Hitesh: "This is looking odd - up, down"): the record's three cards sit in a grid, so the stacked-panel gap must not apply; same top, same height */
 .rc-cards{align-items:stretch!important}.rc-cards>.panel{margin-top:0!important}
 /* change 193: the Limits table (doc 88, P11 with V3). One alignment, left, for every header and cell. */
@@ -12326,7 +12392,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="06ab619";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="d1d4789";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
