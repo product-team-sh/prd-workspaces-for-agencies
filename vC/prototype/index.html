@@ -10822,7 +10822,38 @@ function demoWhoGroups(){
   g.push(["Client users · "+c.name,us])});
  return g.filter(x=>x[1].length)}
 function demoHash(parts){return parts.filter(Boolean).join("&")}
-function demoGo(hash){const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
+/* change 195, 11 Oct 2026 (Hitesh): "When we change anything in demo panel - screens
+   should not be switched, user should stay on same with applied changes". Every
+   panel change reloads through the hash, so the screen is kept in sessionStorage
+   just before it and put back after the boot below, when the new person and
+   fixtures can still reach it (demoRestoreScreen). */
+const DEMO_KEEP="demoKeepScreen";
+function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HOME_WIN,HOME_UNIT,cliQ,
+ client:CLIENT_SESSION,acting:ACTING_EMAIL,preview:PREVIEW,scroll:(el("page")||{}).scrollTop||0}))}catch(e){}}
+function demoGo(hash){demoSaveScreen();const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
+function demoRestoreScreen(){
+ let S=null; try{S=JSON.parse(sessionStorage.getItem(DEMO_KEEP)||"null");sessionStorage.removeItem(DEMO_KEEP)}catch(e){}
+ if(!S||!S.view) return;
+ /* the workspace side and a client user's side are two products: crossing
+    between them keeps the landing the product gives that person */
+ if(!!S.client!==!!CLIENT_SESSION) return;
+ HOME_WIN=S.HOME_WIN||HOME_WIN; HOME_UNIT=S.HOME_UNIT||HOME_UNIT; cliQ=S.cliQ||"";
+ if(CLIENT_SESSION){
+  if(S.ctx!==ctx||!S.cView) return;
+  const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings") return;
+  cView=S.cView; openSeq=S.openSeq; seqTab=S.seqTab||seqTab; demoKeepScroll=S.scroll; return}
+ const reach=id=>id==="agency"||myWorkspaces().some(c=>c.id===id);
+ const v=S.view;
+ if(!reach(S.ctx)) return;
+ if(v.name==="dash"&&!canI("dashboard")) return;
+ if(v.name==="credits"&&!canI("billing")) return;
+ if(v.name==="record"&&!(byId[v.id]&&!byId[v.id].deletedOn&&reach(v.id))) return;
+ if(v.name==="person"&&!personOf(v.id)) return;
+ if((v.name==="people")&&!canI("members")) return;
+ ctx=S.ctx; view=v; tab=S.tab||tab; inMod=S.inMod; asClient=!!S.asClient&&ctx!=="agency"; PREVIEW=asClient&&!!S.preview;
+ cView=S.cView||cView; openSeq=S.openSeq; seqTab=S.seqTab||seqTab; billTab=S.billTab||billTab; solo=!!S.solo; soloMod=S.soloMod||soloMod;
+ PEOPLE_TAB=S.PEOPLE_TAB||PEOPLE_TAB; PERSON_TAB=S.PERSON_TAB||PERSON_TAB; if(S.ppTab) PP.tab=S.ppTab; demoKeepScroll=S.scroll}
+let demoKeepScroll=0;
 /* the route to keep when only the person changes: the current one, or demo=busy when there is none */
 function demoRoute(){return HASHX.route||""}
 function demoGuideParam(){return GUIDE_ON?"":"guide=off"}
@@ -10900,8 +10931,9 @@ window.addEventListener("hashchange",()=>location.reload());
     first render, nothing else changes. */
  /* change 134 had a demo start in the own workspace on Sequences. Change 174,
     11 Oct 2026 (Hitesh): "it should stay at home page in workspace admin
-    space", so a scenario, and every Demo panel Apply, lands on the admin panel
-    Home (Workspaces for someone with no Home). */
+    space", so a cold #demo= link lands on the admin panel Home (Workspaces
+    for someone with no Home). Change 195: a Demo panel change keeps the
+    screen it was made on instead (demoRestoreScreen, end of this block). */
  if(k==="demo"){demoScenario(v||"busy");ctx="agency";asClient=false;inMod=null;view=homeView()}
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,settings:1,invite:1,whitelabel:1,login:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
@@ -10952,8 +10984,10 @@ window.addEventListener("hashchange",()=>location.reload());
   if(a.indexOf("t:")===0&&PEOPLE[a.slice(2)]){me_=a.slice(2);ctx="agency";asClient=false;PREVIEW=false;inMod=null;view=homeView()}
   if(a.indexOf("w:")===0){const [id,email]=a.slice(2).split("|"),cc=byId[id];
    if(cc&&!cc.deletedOn){ctx=id;asClient=true;PREVIEW=false;CLIENT_SESSION=true;ACTING_EMAIL=email||null;openProspect=null;openSeq=null;openReply=null;
-    const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);cView=first?first[0]:"settings"}}}}
+    const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);cView=first?first[0]:"settings"}}}
+ demoRestoreScreen()}
 render();
+if(demoKeepScroll){const pg=el("page");setTimeout(()=>{pg.scrollTop=demoKeepScroll},260)}
 demoSync();
 </script>
 
@@ -12286,7 +12320,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dc73617";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="e4e1020";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
