@@ -5804,10 +5804,8 @@ function vDash(){
     No Status column: the cells that can go red say what is wrong. */
  const crow=({c,a})=>{
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
-  /* change 173: every counted cell opens its line items (hpop below) */
-  const num=(x,i)=>{const inner='<span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'');
-   const k=HP_KINDS[i];
-   return '<td>'+(x.v!=null&&k&&hpData(c,k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.l+' for '+c.name+': show each">'+inner+'</button>':inner)+'</td>'};
+  /* change 173: a counted cell opens its line items (hpop below); change 178: the cells are homeCells(), last 7 days */
+  const num=x=>'<td>'+(x.k&&hpData(c,x.k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+x.k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.label+' for '+c.name+', last 7 days: show each">'+x.html+'</button>':x.html)+'</td>';
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
    /* change 171, 9 Oct 2026 (Hitesh): the open-workspace arrow sits beside the
       name and shows on row hover; the last column it lived in is gone */
@@ -5819,7 +5817,7 @@ function vDash(){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
    +wsStatusCell(c)
-   +wsCells(c).map((x,i)=>num(x,i)).join("")
+   +homeCells(c).map(num).join("")
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'};
 
@@ -5837,17 +5835,16 @@ function vDash(){
    return '<tr class="crow" data-crow="'+c.id+'"><td><div class="cell-main">'+av(c)+'<span style="min-width:0">'
      +'<button class="cn" data-manage="'+c.id+'">'+c.name+'</button>'
      +'<span class="cs">'+c.email+'</span></span></div></td>'
-     +wsStatusCell(c)+'<td colspan="7">'+setupHtml+'</td></tr>'})();
+     +wsStatusCell(c)+'<td colspan="8">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
-  +'<div class="c-h"><span class="c-t">Workspaces</span>'
+  +'<div class="c-h"><span class="c-t">Workspaces<span class="sub w7-sub">Last 7 days, '+W7.cur+', compared with '+W7.prev+'. Usage is this billing cycle.</span></span>'
    +'<span class="c-a"><button class="linkbtn" data-nav2="clients">Workspaces &rarr;</button></span></div>'
-  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1256px;width:100%;table-layout:fixed">'
+  +'<div class="tscroll"><table class="organism home-tbl" style="min-width:1248px;width:100%;table-layout:fixed">'
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
       over it has to agree - "Setup" spanning the same four, not four labels
       for columns that row does not have. */
-   +'<thead><tr><th style="width:240px">Workspace</th><th style="width:104px">Status</th><th style="width:112px">Email accounts</th><th style="width:154px">Active sequences</th><th style="width:114px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:128px">Replies</th><th style="width:116px">Leads revealed</th><th style="width:164px">Usage</th>'
-      +'</tr></thead>'
+   +'<thead><tr><th style="width:230px">Workspace</th><th style="width:104px">Status</th><th style="width:112px">Prospects added</th><th style="width:108px">Leads revealed</th><th style="width:126px">Emails sent</th><th style="width:72px">Bounce</th><th style="width:112px">Reply rate</th><th style="width:108px">Calls made</th><th style="width:112px">Positive call outcomes</th><th style="width:164px">Usage</th></tr></thead>'
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
@@ -7061,7 +7058,6 @@ function wsStatusCell(c){
  const [t,dot,sub]=c.disabled?["Disabled","var(--gray-11)","since "+(c.disabledOn||TODAY_D)]
    :c.sent===0?["New","var(--blue-11)",""]:["Active","var(--green-16)",""];
  return '<td><span class="ws-stat'+(c.disabled?' is-off':'')+'"><i style="background:'+dot+'"></i>'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
-const HP_KINDS=["mbx","seq","pa","sent","rep","leads"];
 const HP_TITLE={mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",rep:"Replies",leads:"Leads revealed"};
 const HP_MOD={mbx:["accounts","Email accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
@@ -7072,11 +7068,50 @@ function hpSeqStates(c){
  let n=c.disabled?0:M.sysPaused;
  for(const pass of ["Paused","Active"]) S.forEach(x=>{if(n>0&&x.q.state===pass){x.st="Paused by the system";x.tone="bad";n--}});
  return S}
+/* change 178, 11 Oct 2026 (Hitesh, doc 86 board P and its definitions): the Home
+   workspace table shows ten columns on one clock. Every figure is the last 7 days
+   as a total, compared with the 7 days before; Usage alone is this billing cycle,
+   because limits reset with it. A change sits beside the figure it describes: a
+   count's change is the count's, a rate's change is the rate's own relative move
+   (4.1% to 4.6% is +12%). Red only for a fall of 25% or more where the previous 7
+   days had at least 10, and bounce at 3% or more. The seed holds cycle totals, so
+   the last 7 days are 7/9 of them and the earlier 7 follow from the existing
+   changes; calls and positive call outcomes come from CALL_W. */
+const WK=7/CYCLE.day, wk=n=>Math.round((n||0)*WK);
+const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const W7=(()=>{const end=new Date(2026,8,CYCLE.day), at=x=>new Date(end.getTime()-x*864e5),
+  rng=(a,b)=>a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
+  return {cur:rng(at(6),at(0)),prev:rng(at(13),at(7))}})();
+/* [calls change %, positive call outcomes in the last 7 days, their change %]: calls whose logged outcome has positive sentiment (Interested, Follow-up, custom positive) */
+const CALL_W={own:[4,6,2],sf:[6,14,4],al:[-12,9,-38],vx:[3,31,-3],at:[5,42,6],nw:[2,22,1],pc:[0,3,0]};
+function wk7(c){const M=hm(c), cw=CALL_W[c.id]||[null,0,null], prevOf=(v,d)=>d==null?null:v/(1+d/100);
+ const r={pa:wk(M.pa),paD:M.pad,leads:wk(M.leads),ldD:M.ld,sent:wk(c.sent),sdD:M.sd,bounce:M.bounce,
+  rate:c.reply,rateD:c.reply&&c.prev?Math.round((c.reply-c.prev)/c.prev*100):null,
+  calls:wk(chanOf(c).call),callD:cw[0],pos:cw[1],posD:cw[2]};
+ r.prev={pa:prevOf(r.pa,r.paD),leads:prevOf(r.leads,r.ldD),sent:prevOf(r.sent,r.sdD),calls:prevOf(r.calls,r.callD),pos:prevOf(r.pos,r.posD),rate:99};
+ return r}
+const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
+function homeCells(c){
+ const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
+ const D=(d,prev)=>d==null?"":'<span class="dlt w7d'+(W7_RED(d,prev)?' is-red':'')+'">'+(d>0?'+':'')+d+'%</span>';
+ const cell=(k,label,html)=>({k,label,html});
+ if(off) return [["pa","Prospects added"],["leads","Leads revealed"],["sent","Emails sent"],[null,"Bounce"],["rep","Reply rate"],[null,"Calls made"],[null,"Positive call outcomes"]].map(([k,l])=>cell(null,l,dash));
+ const n=(v,d,prev)=>'<span class="tnum stackv">'+f(v)+D(d,prev)+'</span>';
+ return [
+  cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
+  cell(w.leads?"leads":null,"Leads revealed",n(w.leads,w.ldD,w.prev.leads)),
+  cell(w.sent?"sent":null,"Emails sent",n(w.sent,w.sdD,w.prev.sent)),
+  cell(w.sent?"sent":null,"Bounce",'<span class="tnum stackv'+(w.bounce>=3?' w7-bad':'')+'">'+w.bounce.toFixed(1)+'%</span>'),
+  cell(w.sent?"rep":null,"Reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
+  cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
+  cell(null,"Positive call outcomes",w.calls?n(w.pos,w.posD,w.prev.pos):dash)]}
 /* change 177, 11 Oct 2026 (Hitesh): "we are saying active sequence but we
    showing all sequence". Active means running: Active, not paused by the
    system, in a workspace that is not disabled. Home's column, its card and the
    Workspaces list's Active Sequences column all count this. */
 const activeSeqs=c=>c.disabled?0:hpSeqStates(c).filter(x=>x.st==="Active").length;
+/* change 178: a cycle-total split scaled to the last 7 days, the last row taking the rounding */
+const hpWeek=(parts,total)=>{const sum=parts.reduce((a,b)=>a+b,0)||1;let left=total;return parts.map((p,i)=>{const v=i===parts.length-1?left:Math.round(total*p/sum);left-=v;return Math.max(0,v)})};
 function hpData(c,k){
  const M=hm(c), live=!c.disabled;
  const seqGo=q=>live?"seq|"+c.id+"|"+q.name:"";
@@ -7093,18 +7128,20 @@ function hpData(c,k){
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
-  const rows=S.map((x,i)=>{const v=i===S.length-1?left:Math.round(M.pa*(x.q.prospects||0)/tot);left-=v;return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v))],n:v,go:seqGo(x.q)}}).filter(r=>r.n>0);
+  const PA=wk(M.pa); left=PA;
+  const rows=S.map((x,i)=>{const v=i===S.length-1?left:Math.round(PA*(x.q.prospects||0)/tot);left-=v;return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v))],n:v,go:seqGo(x.q)}}).filter(r=>r.n>0);
   return {cols:["Sequence","Status","Added"],rows,num:true}}
- if(k==="sent"){const rows=S.filter(x=>x.q.sent>0).map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
-   return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[f(x.q.sent),b.toFixed(1)+"%"],go:seqGo(x.q)}});
+ if(k==="sent"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk(c.sent));
+  const rows=R.map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
+   return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[f(SW[i]),b.toFixed(1)+"%"],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Sent","Bounce"],rows,num:true}}
- if(k==="rep"){const tot=repOf(c); let left=tot;
-  const R=S.filter(x=>x.q.sent>0), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(x.q.sent*(x.q.reply||0)/100));left-=v;
-   return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v)),(x.q.sent?(Math.max(0,v)/x.q.sent*100).toFixed(1):"0.0")+"%"],go:seqGo(x.q)}});
+ if(k==="rep"){const tot=wk(repOf(c)); let left=tot;
+  const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk(c.sent)), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(SW[i]*(x.q.reply||0)/100));left-=v;
+   return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v)),(SW[i]?(Math.max(0,v)/SW[i]*100).toFixed(1):"0.0")+"%"],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Replies","Rate"],rows,num:true}}
- if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4); if(!who.length||!M.leads) return {cols:[],rows:[]};
-  let left=M.leads; const W=[.46,.3,.16,.08];
-  const rows=who.map((u,i)=>{const v=i===who.length-1?left:Math.round(M.leads*W[i]);left-=v;return {name:u[0],st:u[1]||"",tone:"mute",cells:[f(v)],n:v,go:live?"mod|"+c.id+"|leads":""}}).filter(r=>r.n>0);
+ if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4), LW=wk(M.leads); if(!who.length||!LW) return {cols:[],rows:[]};
+  let left=LW; const W=[.46,.3,.16,.08];
+  const rows=who.map((u,i)=>{const v=i===who.length-1?left:Math.round(LW*W[i]);left-=v;return {name:u[0],st:u[1]||"",tone:"mute",cells:[f(v)],n:v,go:live?"mod|"+c.id+"|leads":""}}).filter(r=>r.n>0);
   return {cols:["Revealed by","Role","Leads"],rows,num:true}}
  return {cols:[],rows:[]}}
 /* follows its cell when the page scrolls, and closes once the cell leaves the screen */
@@ -7124,7 +7161,7 @@ function hpOpen(btn){
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
- L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","rep","leads"].includes(k)?' &middot; last 7 days':'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="ar tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
@@ -11406,6 +11443,9 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hp-f{padding:10px 16px;border-top:1px solid #f3f4f6}
 @media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
 .home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
+.home-tbl .dlt.w7d{color:var(--gray-12);margin-left:6px;font-size:12px}.home-tbl .dlt.w7d.is-red{color:var(--red-18)}.home-tbl .w7-bad{color:var(--red-18)}
+.c-t .w7-sub{display:block;font-size:12px;font-weight:400;line-height:18px;color:var(--gray-12);margin-top:2px}
+.home-tbl thead th{white-space:normal;line-height:16px;vertical-align:bottom}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -12130,7 +12170,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="274e816";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="eeae69b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
