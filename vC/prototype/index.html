@@ -2892,7 +2892,8 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  return '<button type="button" class="meter u-usagebtn u-home hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% of '+RES[top.k].label+'. Show every resource" title="'+usageTip(u)+'">'
   +'<div class="track"><span style="width:'+p+'%;background:'+col+'"></span></div>'
   +'<span class="meter-t tnum"><b class="u-pct" style="color:'+(top.tone==="ok"||top.tone==="info"?"var(--gray-17)":col)+'">'+p+'% used</b></span>'
-  +'<span class="u-sub u-rest">'+top.short+'</span></button>'}
+  /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
+  +'</button>'}
 
 const sortI=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5 8 4l2.5 2.5M5.5 9.5 8 12l2.5-2.5"/></svg>`;
 const warnI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>`;
@@ -3568,7 +3569,7 @@ const rcHdrChip=c=>{
  if(!at.length&&!rq.length) return "";
  const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
  return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
-let RC_REFUSED=null, PREVIEW=false;
+let RC_REFUSED=null, PREVIEW=false, LM_MENU=null, LM_DECL=null;
 function rSoon(title,line,c,icon,bullets){
  return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
 }
@@ -4366,27 +4367,45 @@ function rLimits(c){
     status line, amber for "runs out", red only when the limit is reached now.
     Set to N raises the limit to the pace in one click, capped by the plan. The
     give-more chips are gone; − and + stay on hover. */
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), st=rowState(k,c.id,m), pc=paceOf(k,c.id);
-  const atNow=st.room===0, proj=pc?pc.proj:r.used, scale=Math.max(r.cap,proj,1)*1.08;
-  const wUsed=Math.min(100,r.used/scale*100), wCap=r.cap/scale*100, wPace=Math.min(100,proj/scale*100);
-  const fill=atNow?"var(--red-18)":"var(--blue-11)";
-  const verb=k==="sends"?"Hits the limit around ":"Runs out around ";
-  const target=pc&&pc.hits&&!atNow?Math.min(proj,r.cap+m.free):0;
-  const setTo=canEdit&&target>r.cap?` &middot; <button class="linkbtn lm-set" data-rlset="${k}|${target}">Set to ${f(target)}</button>`:"";
-  const status=!pc?"":atNow?`<b class="is-bad">At the limit</b>${setTo}`:pc.hits?`<span class="is-warn">${verb}${pc.when} at this pace</span>${setTo}`:`<span>Lasts the cycle</span>`;
-  const ctl=`<span class="lm-ctl">${canEdit?`<button class="lm-step" data-rlstep="${k}|-1" aria-label="${f(R.step)} less">&minus;</button>`:""}${numIn(r.cap,R.unit,`data-lim="${k}" data-fld="cap" aria-label="${R.label} limit"${dis}`)}${canEdit?`<button class="lm-step" data-rlstep="${k}|1" aria-label="${f(R.step)} more">+</button>`:""}</span>`;
-  return `<div class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
-   <span class="lm-name"><b>${R.label}</b></span>
-   <span class="lm-in">${ctl}<span class="sub lm-avail">${f(m.free)} available in the plan</span></span>
-   <span class="lm-use"><span class="lm-bar2"><span class="lm-b-cap" style="width:${wCap.toFixed(1)}%"></span><span class="lm-b-over" style="left:${wCap.toFixed(1)}%;width:${Math.max(0,wPace-wCap).toFixed(1)}%"></span><span class="lm-b-used" style="width:${wUsed.toFixed(1)}%;background:${fill}"></span><span class="lm-b-tick" style="left:${wCap.toFixed(1)}%"></span></span>
-   <span class="lm-line"><span class="sub"><b class="tnum" style="color:${atNow?"var(--red-18)":"var(--gray-17)"}">${f(r.used)}</b> used${pc?` &middot; on pace for ${f(proj)} this cycle`:""}</span><span class="sub lm-pace">${status}</span></span></span></div>`}).join("");
+ /* change 193, 11 Oct 2026 (Hitesh, doc 88: P11 with V3; "V3 looks good - let's build it").
+    One table, one place per resource, every header and cell left-aligned:
+    Resource (and what the plan has available), Used (one bar in one colour and
+    "41,300 used"), Limit (the number you click to change; saves as you leave it,
+    Undo in the toast), Asked (the client's ask on its own row as a split button,
+    "Approve +20,000", with Decline and Set a different limit in its menu; an ask
+    larger than the plan reads "Approve +960", all the plan has), Status (on a
+    row that runs out, "Raise to 130,000" as a split button with the date under
+    it). The yellow request panel, the projected overlay, the per-row "Set to"
+    links, the steppers and the footer sentence are gone. The client's note
+    shows once above the table; the share sits in the card header. */
+ const askL=ask&&!ro?Object.fromEntries(ask.lines.map(x=>[x.res,x])):{};
+ const caret='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+ const menu=(id,items)=>LM_MENU===id?`<div class="menu lm-menu" role="menu">${items.join("")}</div>`:"";
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), pc=paceOf(k,c.id), atNow=r.cap>0&&r.used>=r.cap;
+  const risk=atNow||(pc&&pc.hits), pct=r.cap?Math.min(100,Math.round(r.used/r.cap*100)):0, col=risk?(atNow?"var(--red-18)":"var(--orange-14)"):"var(--blue-11)";
+  const lim=`<input type="text" inputmode="numeric" class="lm-num" data-lim="${k}" data-fld="cap" value="${f(r.cap)}" aria-label="${R.label} limit"${dis}>`;
+  const q=askL[k];
+  const asked=!q||!canEdit?"":LM_DECL===k?`<div class="pri2 lm-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note ${first} reads (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div>`:(()=>{const free=m.free, ok=free>=q.amount, amt=ok?q.amount:free;
+   if(amt<=0) return `<div class="pri2 lm-split"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button></div><span class="sub lm-under">Asked for ${f(q.amount)}; nothing left in the plan</span>`;
+   return `<div class="pri2 lm-split"><button class="shd-button shd-button--primary shd-button--sm lm-main" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button><button class="shd-button shd-button--primary shd-button--sm lm-caret" data-lmmenu="ask-${k}" aria-haspopup="menu" aria-expanded="${LM_MENU==="ask-"+k}" aria-label="More choices for this ask">${caret}</button>
+     ${menu("ask-"+k,[`<button class="menu-i" role="menuitem" data-lmdecl="${k}"><span class="menu-l">Decline</span><span class="menu-d">${first} keeps ${f(r.cap)}; you can add a note.</span></button>`,`<button class="menu-i" role="menuitem" data-lmedit="${k}"><span class="menu-l">Set a different limit</span><span class="menu-d">Type it in the Limit column.</span></button>`])}</div>${ok?"":`<span class="sub lm-under">Asked for ${f(q.amount)}; the plan has ${f(free)}</span>`}`})();
+  const target=pc&&!atNow?Math.min(pc.proj,r.cap+m.free):Math.min(r.cap+m.free,Math.max(r.cap,pc?pc.proj:r.cap));
+  const when=atNow?`<span class="lm-st is-bad">At the limit</span>`:pc&&pc.hits?`<span class="lm-st">${k==="sends"?"Hits the limit":"Runs out"} ${pc.when}</span>`:"";
+  const status=!risk?"":(canEdit&&target>r.cap?`<div class="pri2 lm-split"><button class="shd-button shd-button--secondary shd-button--sm lm-main" data-rlset="${k}|${target}">Raise to ${f(target)}</button><button class="shd-button shd-button--secondary shd-button--sm lm-caret" data-lmmenu="raise-${k}" aria-haspopup="menu" aria-expanded="${LM_MENU==="raise-"+k}" aria-label="More choices">${caret}</button>
+     ${menu("raise-"+k,[`<button class="menu-i" role="menuitem" data-lmedit="${k}"><span class="menu-l">Set a different limit</span><span class="menu-d">Type it in the Limit column.</span></button>`])}</div>`:"")+when;
+  return `<tr class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
+   <td><span class="lm-nm">${R.label}</span><span class="sub">${f(m.free)} available in the plan</span></td>
+   <td><span class="lm-bar"><i style="width:${pct}%;background:${col}"></i></span><span class="sub">${f(r.used)} used</span></td>
+   <td>${lim}</td><td>${asked}</td><td>${status}</td></tr>`}).join("");
+ const note=ask&&!ro?`<p class="lm-asknote"><b>${first} asked ${AGE(ask.when).toLowerCase()}:</b>${ask.note?` &ldquo;${ask.note}&rdquo;`:` ${listAnd(ask.lines.map(x=>f(x.amount)+" more "+RES[x.res].unit))}`}</p>`:"";
+ const shareTxt=share?`${share}% of your plan since ${c.created.replace(/,?\s*20\d\d$/,"")}`:`${first} has its own limits`;
  return `
- ${reqBar}<div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
+ <div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
    ${ro?`<span class="sub">Read only while the workspace is ${c.deletedOn?"deleted":"disabled"}.</span>`:""}
-   <span class="c-a"><button class="linkbtn" data-goalloc="${FOCUS_LIM||'sends'}">All workspaces &rarr;</button></span></div>
-  ${shareLine}${ansLine}
-  <div class="lm-rows" id="rcLimTable">${rows}</div>
-  <div class="panel-b rc-limsay"><p class="nc-limsay" id="rcLimSay" aria-live="polite">${rcLimSentence(c)} ${RK.some(k=>RES[k].floors&&RES[k].rows[c.id])?"Credits are reserved for "+first+" at these amounts.":""}</p>${ro?"":`<span class="sub lm-saves">Numbers save as you leave them. Undo from the toast.</span>`}</div>
+   <span class="c-a lm-share-h"><span class="sub">${shareTxt}</span>${canEdit&&share?`<span class="sub">&middot;</span><button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span></div>
+  ${note}${ansLine}
+  <div class="tscroll"><table class="lm-t" id="rcLimTable"><thead><tr><th style="width:26%">Resource</th><th style="width:25%">Used</th><th style="width:13%">Limit</th><th style="width:18%">Asked</th><th style="width:18%">Status</th></tr></thead>
+  <tbody>${rows}</tbody></table></div>
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
 }
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
@@ -7229,6 +7248,8 @@ function hpOpen(btn){
  (L.querySelector(".hp-go,.hp-f .linkbtn")||L.querySelector("[data-hpx]")).focus({preventScroll:true});
 }
 document.addEventListener("click",e=>{if(HPOP&&!e.target.closest("#hpop")&&!e.target.closest("[data-hpop]")) hpClose()},true);
+document.addEventListener("click",e=>{if(LM_MENU&&!e.target.closest(".lm-split")){LM_MENU=null;render()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&LM_MENU){LM_MENU=null;render()}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&HPOP){const b=HPOP.btn;hpClose();if(b&&b.isConnected)b.focus();e.stopPropagation()}},true);
 document.addEventListener("scroll",e=>{if(HPOP&&!(e.target.closest&&e.target.closest("#hpop"))) hpPlace()},true);
 addEventListener("resize",()=>{if(HPOP)hpPlace()});
@@ -9771,7 +9792,7 @@ const TOUR_STEPS={
  3:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"limits"),
     target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector('.lm-row[data-rl="sends"]')||document.querySelector(".lm-row")):document.querySelector('.tabbar [data-tab="limits"]'),
     sub:c=>tourOnRec(c)&&tab!=="limits"?"Open the Limits tab.":"",
-    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Change any number here; ${tourNm(c)} asks for more from its side.`,act:c=>"Change the Emails limit.",
+    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Click a number in Limit to change it; ${tourNm(c)} asks for more from its side.`,act:c=>"Change the Emails limit.",
     sec:"Got it",done:c=>!!(TOUR&&(TOUR.limitDone||TOUR.secDone))},
  4:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c),
     target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
@@ -10420,7 +10441,8 @@ function wire(){
    setLimit(k,view.id,num(i.value)); render()});
  q("[data-rlstep]").forEach(b=>b.onclick=()=>{const [k,d]=b.dataset.rlstep.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+RES[k].step*(+d)); render()});
  q("[data-rlgive]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlgive.split("|"); const r=RES[k].rows[view.id]; if(!r) return; setLimit(k,view.id,r.cap+(+n)); render()});
- q("[data-rlset]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlset.split("|"); setLimit(k,view.id,+n,"set to this cycle's pace"); render()});
+ q("[data-rlset]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlset.split("|"); LM_MENU=null; setLimit(k,view.id,+n,"set to this cycle's pace"); render()});
+ q("input.lm-num").forEach(i=>{i.onfocus=()=>{i.value=String(num(i.value));i.select()};i.onkeydown=e=>{if(e.key==="Enter")i.blur();if(e.key==="Escape"){i.value=f(RES[i.dataset.lim].rows[view.id].cap);i.blur()}};i.onblur=()=>{if(/^\d+$/.test(i.value))i.value=f(num(i.value))}});
  q("[data-share]").forEach(b=>b.onclick=()=>{modal={kind:"share",client:b.dataset.share,share:null};renderModal()});
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
  q("[data-dapply]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.dapply.split("|");
@@ -10463,7 +10485,20 @@ function wire(){
    receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
      ()=>{REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Declined &middot; ${c.name} &middot; limit stays ${f(R.rows[r.client].cap)}`)})};
- q("[data-no]").forEach(b=>b.onclick=()=>declineReq(b,b.dataset.no));
+ q("[data-no]").forEach(b=>b.onclick=()=>{LM_MENU=null;LM_DECL=null;declineReq(b,b.dataset.no)});
+ /* change 193: an ask larger than the plan is approved for all the plan has; the rest of the ask is closed with it */
+ q("[data-okpart]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.okpart); if(!r) return; const free=compute(r.res).free; if(free<=0) return;
+  decide(b,()=>{const c=byId[r.client],R=RES[r.res]; R.rows[r.client].cap+=free; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
+   const ans=Object.assign({},r,{state:"approved",on:TODAY_D,amount:free,asked:r.amount,to:R.rows[r.client].cap}); ANSWERS.push(ans);
+   logAct(c.id,`Approved ${f(free)} of the ${f(r.amount)} more ${R.unit} asked; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
+   receipt("queue",`Approved ${f(free)} of ${f(r.amount)}, all the plan had. ${c.name}'s ${R.label.toLowerCase()} limit is ${f(R.rows[r.client].cap)}.`,
+     ()=>{R.rows[r.client].cap-=free; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `approved ${f(free)} of ${c.name}'s request`,
+     `Approved ${f(free)} of ${f(r.amount)} &middot; ${c.name}`)})});
+ /* change 193: the split buttons' menus, and "Set a different limit" puts the cursor in the Limit cell */
+ q("[data-lmmenu]").forEach(b=>b.onclick=e=>{e.stopPropagation();LM_MENU=LM_MENU===b.dataset.lmmenu?null:b.dataset.lmmenu;render()});
+ q("[data-lmdecl]").forEach(b=>b.onclick=e=>{e.stopPropagation();LM_MENU=null;LM_DECL=b.dataset.lmdecl;render();const i=document.querySelector(".lm-note");if(i)i.focus()});
+ q("[data-lmdeclx]").forEach(b=>b.onclick=()=>{LM_DECL=null;render()});
+ q("[data-lmedit]").forEach(b=>b.onclick=()=>{const k=b.dataset.lmedit;LM_MENU=null;render();const i=document.querySelector(`input.lm-num[data-lim="${k}"]`);if(i){i.focus();i.select()}});
  /* change 117: the whole ask at once */
  q("[data-okall]").forEach(b=>b.onclick=()=>{const L=askLines(b.dataset.okall); if(!L.length) return; if(L.some(r=>compute(r.res).free<r.amount)) return;
   const c=byId[b.dataset.okall], undo=[]; L.forEach(r=>{const R=RES[r.res]; R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans); undo.push(()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); ANSWERS.splice(ANSWERS.indexOf(ans),1)}); logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`)});
@@ -11512,6 +11547,21 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
 /* change 191 (Hitesh: "This is looking odd - up, down"): the record's three cards sit in a grid, so the stacked-panel gap must not apply; same top, same height */
 .rc-cards{align-items:stretch!important}.rc-cards>.panel{margin-top:0!important}
+/* change 193: the Limits table (doc 88, P11 with V3). One alignment, left, for every header and cell. */
+.lm-t{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}.lm-t th{text-align:left;font-size:12px;font-weight:500;color:var(--gray-15);background:#f9fafb;padding:10px 16px;border-bottom:1px solid var(--gray-13)}
+.lm-t td{text-align:left;padding:12px 16px;border-bottom:1px solid #f3f4f6;vertical-align:middle}.lm-t tr:last-child td{border-bottom:0}.lm-t td>.sub{display:block;font-size:12px;line-height:16px;margin-top:2px}
+.lm-t .lm-nm{display:block;font-size:14px;font-weight:500;color:var(--gray-17)}.lm-t tr.is-focus td{background:#eff6ff}
+.lm-bar{display:block;height:4px;border-radius:4px;background:#f3f4f6;overflow:hidden;max-width:260px}.lm-bar i{display:block;height:100%;border-radius:4px}
+.lm-t input.lm-num{field-sizing:content;min-width:3ch;width:auto;height:24px;padding:0;margin:0;border:0;border-bottom:1px dashed #9ca3af;border-radius:0;background:transparent;font:inherit;font-size:17px;font-weight:600;color:var(--gray-17);outline:none}
+.lm-t input.lm-num:hover{border-bottom-color:var(--blue-11);color:var(--blue-11)}.lm-t input.lm-num:focus{border-bottom:1px solid var(--blue-11)}.lm-t input.lm-num:disabled{border-bottom-color:transparent;color:var(--gray-15)}
+.lm-split{position:relative;display:inline-flex}.lm-split .lm-main{border-radius:4px 0 0 4px;margin:0}.lm-split .lm-caret{border-radius:0 4px 4px 0;margin:0;padding:0 6px;min-width:0;border-left:1px solid rgba(255,255,255,.35)}.lm-split .shd-button--secondary.lm-caret{border-left:0}
+.lm-split .lm-caret svg{width:14px;height:14px}.lm-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:30;width:240px;padding:6px}
+.lm-st{display:block;font-size:12px;line-height:16px;margin-top:4px;color:var(--orange-14)}.lm-st.is-bad{color:var(--red-18)}.lm-under{display:block;margin-top:4px}
+.lm-t .pri2.lm-split{display:inline-flex;gap:0;padding:0;margin:0;border:0;align-items:stretch;vertical-align:middle}
+.lm-t tr.lm-row{display:table-row;margin:0;padding:0;border:0;gap:0;grid-template-columns:none;background:none}.lm-t tr.lm-row:hover td,.lm-t tr.lm-row:focus-within td{background:#f9fafb}
+.lm-t th:first-child,.lm-t td:first-child{padding-left:24px}.lm-t th:last-child,.lm-t td:last-child{padding-right:24px}
+.lm-decl{display:flex;flex-direction:column;gap:6px;padding:0;border:0;max-width:240px}.lm-decl .lm-note{height:32px;padding:0 10px;border:1px solid #d1d5db;border-radius:4px;font:inherit;font-size:13px}.lm-decl-b{display:flex;align-items:center;gap:12px}
+.lm-asknote{margin:0;padding:12px 24px 4px;font-size:13px;color:var(--gray-15)}.lm-asknote b{color:var(--gray-17);font-weight:600}.lm-share-h{display:inline-flex;align-items:center;gap:6px}.lm-share-h .sub{font-size:13px}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -12236,7 +12286,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9b46f6d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="dc73617";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
