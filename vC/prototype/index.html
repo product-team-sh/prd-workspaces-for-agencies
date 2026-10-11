@@ -5804,7 +5804,10 @@ function vDash(){
     No Status column: the cells that can go red say what is wrong. */
  const crow=({c,a})=>{
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
-  const num=x=>'<td><span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'')+'</td>';
+  /* change 173: every counted cell opens its line items (hpop below) */
+  const num=(x,i)=>{const inner='<span class="tnum stackv">'+(x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||""))+'</span>'+(x.line?'<span class="cs stackb'+(x.cls?' '+x.cls:'')+'">'+x.line+'</span>':'');
+   const k=HP_KINDS[i];
+   return '<td>'+(x.v!=null&&k&&hpData(c,k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.l+' for '+c.name+': show each">'+inner+'</button>':inner)+'</td>'};
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
    /* change 171, 9 Oct 2026 (Hitesh): the open-workspace arrow sits beside the
       name and shows on row hover; the last column it lived in is gone */
@@ -5815,7 +5818,7 @@ function vDash(){
    +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
    +'</span></div></td>'
-   +wsCells(c).map(num).join("")
+   +wsCells(c).map((x,i)=>num(x,i)).join("")
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'};
 
@@ -7040,6 +7043,90 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
   leads:m.leads!=null?m.leads:(L.r.used||0),ld:m.ld!=null?m.ld:null,last:m.last||"today",
   disc:(c.mailboxes||[]).filter(x=>x[1]==="Disconnected").length,paused:m.mpaused||0,
   sysPaused:m.sysp!=null?m.sysp:(L.s.tone==="bad"?Math.max(1,pz):0)}}
+/* change 173, 11 Oct 2026 (Hitesh): "all metrics we are showing on homepage
+   with details like not sending, paused etc. should come in pop-up at click
+   with full information fetching each line item and their status and user can
+   click and go that item" (the workspace table). Pattern: the product's own
+   prospect-row sequence popover, a small table with a link in the first column
+   and a status chip. One builder per counted column, so each popover adds up to
+   the number in its cell; problems sort first; colour only on what is wrong. */
+const HP_KINDS=["mbx","seq","pa","sent","rep","leads"];
+const HP_TITLE={mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",rep:"Replies",leads:"Leads revealed"};
+const HP_MOD={mbx:["accounts","Email accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
+let HPOP=null;
+const HP_RANK={bad:0,warn:1,info:2,ok:3,mute:4};
+function hpSeqStates(c){
+ /* the cell's "N paused by the system" names real rows: paused ones first, then active */
+ const M=hm(c), S=(c.sequences||[]).map(q=>({q,st:c.disabled?"Paused, disabled":q.state,tone:c.disabled?"bad":q.state==="Active"?"ok":"mute"}));
+ let n=c.disabled?0:M.sysPaused;
+ for(const pass of ["Paused","Active"]) S.forEach(x=>{if(n>0&&x.q.state===pass){x.st="Paused by the system";x.tone="bad";n--}});
+ return S}
+function hpData(c,k){
+ const M=hm(c), live=!c.disabled;
+ const seqGo=q=>live?"seq|"+c.id+"|"+q.name:"";
+ if(k==="mbx"){let paused=M.paused;
+  const rows=(c.mailboxes||[]).map(m=>{let st,tone;
+   if(c.disabled){st="Not sending";tone="bad"}
+   else if(m[1]==="Disconnected"){st="Disconnected";tone="bad"}
+   else if(m[1]==="Healthy"&&paused>0){paused--;st="Paused";tone="warn"}
+   else if(m[1]==="Warning"){st="Low health";tone="warn"}
+   else if(m[1]==="Warming"){st="Warming up";tone="info"}
+   else {st="Sending";tone="ok"}
+   return {name:m[0],cells:[m[1]==="Disconnected"?"&ndash;":Math.min(100,m[2])+"%"],st,tone,go:live?"acc|"+c.id+"|"+m[0]:""}});
+  return {cols:["Email account","Status","Health"],rows}}
+ if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
+ const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
+ if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
+  const rows=S.map((x,i)=>{const v=i===S.length-1?left:Math.round(M.pa*(x.q.prospects||0)/tot);left-=v;return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v))],n:v,go:seqGo(x.q)}}).filter(r=>r.n>0);
+  return {cols:["Sequence","Status","Added"],rows,num:true}}
+ if(k==="sent"){const rows=S.filter(x=>x.q.sent>0).map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
+   return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[f(x.q.sent),b.toFixed(1)+"%"],go:seqGo(x.q)}});
+  return {cols:["Sequence","Status","Sent","Bounce"],rows,num:true}}
+ if(k==="rep"){const tot=repOf(c); let left=tot;
+  const R=S.filter(x=>x.q.sent>0), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(x.q.sent*(x.q.reply||0)/100));left-=v;
+   return {name:x.q.name,st:x.st,tone:x.tone,cells:[f(Math.max(0,v)),(x.q.sent?(Math.max(0,v)/x.q.sent*100).toFixed(1):"0.0")+"%"],go:seqGo(x.q)}});
+  return {cols:["Sequence","Status","Replies","Rate"],rows,num:true}}
+ if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4); if(!who.length||!M.leads) return {cols:[],rows:[]};
+  let left=M.leads; const W=[.46,.3,.16,.08];
+  const rows=who.map((u,i)=>{const v=i===who.length-1?left:Math.round(M.leads*W[i]);left-=v;return {name:u[0],st:u[1]||"",tone:"mute",cells:[f(v)],n:v,go:live?"mod|"+c.id+"|leads":""}}).filter(r=>r.n>0);
+  return {cols:["Revealed by","Role","Leads"],rows,num:true}}
+ return {cols:[],rows:[]}}
+/* follows its cell when the page scrolls, and closes once the cell leaves the screen */
+function hpPlace(){const L=el("hpop"); if(!HPOP||!L) return; const r=HPOP.btn.getBoundingClientRect(), W=L.offsetWidth, H=L.offsetHeight, vw=innerWidth, vh=innerHeight;
+ if(!HPOP.btn.isConnected||r.bottom<0||r.top>vh){hpClose();return}
+ let x=Math.min(r.left-8,vw-W-16); x=Math.max(16,x);
+ let y=r.bottom+6; if(y+H>vh-12&&r.top-H-6>12) y=r.top-H-6;
+ L.style.left=x+"px"; L.style.top=y+"px"}
+function hpClose(){const L=el("hpop"); if(L){L.hidden=true;L.innerHTML=""} if(HPOP&&HPOP.btn){HPOP.btn.setAttribute("aria-expanded","false")} HPOP=null}
+function hpOpen(btn){
+ const [id,k]=btn.dataset.hpop.split("|"), c=byId[id]; if(!c) return;
+ if(HPOP&&HPOP.btn===btn){hpClose();btn.focus();return}
+ hpClose();
+ let L=el("hpop"); if(!L){L=document.createElement("div");L.id="hpop";L.className="hpop";L.setAttribute("role","dialog");document.body.appendChild(L)}
+ const D=hpData(c,k), rows=[...D.rows].sort((a,b)=>HP_RANK[a.tone]-HP_RANK[b.tone]);
+ const st=r=>r.st?'<span class="hp-st'+(r.tone==="bad"?" is-bad":r.tone==="warn"?" is-warn":"")+'">'+r.st+'</span>':"";
+ const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
+ const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
+ L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+'</span><span class="hp-c">'+rows.length+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+  +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
+  +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map((h,i)=>'<th'+(i>1?' class="ar"':'')+'>'+h+'</th>').join("")+'</tr></thead><tbody>'
+  +rows.map(r=>'<tr><td>'+nm(r)+'</td><td>'+st(r)+'</td>'+r.cells.map(x=>'<td class="ar tnum">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
+  +'<div class="hp-f">'+(c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
+    :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+' &rarr;</button>')+'</div>';
+ L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
+ hpPlace();
+ L.querySelector("[data-hpx]").onclick=()=>{hpClose();btn.focus()};
+ L.querySelectorAll("[data-hpgo]").forEach(b=>b.onclick=()=>{const [kind,wid,arg]=b.dataset.hpgo.split("|");hpClose();qFrom=null;
+   if(kind==="seq"){ctx=wid;asClient=false;inMod="sequences";openProspect=null;openReply=null;focusMb=null;openSeq=wid+"|"+arg;seqTab="steps";render();return}
+   if(kind==="acc"){gotoClient(wid,"accounts",arg);return}
+   gotoClient(wid,arg)});
+ (L.querySelector(".hp-go,.hp-f .linkbtn")||L.querySelector("[data-hpx]")).focus({preventScroll:true});
+}
+document.addEventListener("click",e=>{if(HPOP&&!e.target.closest("#hpop")&&!e.target.closest("[data-hpop]")) hpClose()},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&HPOP){const b=HPOP.btn;hpClose();if(b&&b.isConnected)b.focus();e.stopPropagation()}},true);
+document.addEventListener("scroll",e=>{if(HPOP&&!(e.target.closest&&e.target.closest("#hpop"))) hpPlace()},true);
+addEventListener("resize",()=>{if(HPOP)hpPlace()});
 /* 2 Oct 2026 (S2, doc 65 §5): the six counted cells of a workspace, in the
    owner's question order, built once so Home's row and the record's strip can
    never disagree. Same definitions as PRD §8.2. */
@@ -9721,6 +9808,8 @@ const tourReplayId=()=>TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TO
 
 function wire(){
  const q=s=>document.querySelectorAll(s);
+ if(HPOP) hpClose();
+ q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
    if(view.name==="settings")view={name:"clients"}; cView="sequences"; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; render()});
  /* `update`, `overview` and `limits` are agency-side record tabs, not client
@@ -11277,6 +11366,21 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 @media (max-width:959px){.hero{grid-template-columns:minmax(0,1fr)}}
 .hero-h{flex-wrap:wrap;row-gap:4px}
 .hero-f>span.hero-f-wrap{white-space:normal}
+.hp-cell{display:block;width:calc(100% + 12px);margin:-6px -6px;padding:6px;background:none;border:0;border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.hp-cell:hover,.hp-cell[aria-expanded="true"]{background:#f3f4f6}.hp-cell:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
+.hpop{position:fixed;z-index:1000;width:480px;max-width:calc(100vw - 32px);background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(17,24,39,.18),0 0 0 1px rgba(17,24,39,.06);overflow:hidden}
+.hpop[hidden]{display:none}
+.hp-h{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 16px;border-bottom:1px solid #f3f4f6;font-size:13px;color:var(--gray-15)}.hp-h b{font-weight:600;color:var(--gray-17)}.hp-h>span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-c{font-size:12px;color:var(--gray-12);white-space:nowrap}.hp-x{width:24px;height:24px;flex:none}.hp-x svg{width:14px;height:14px}
+.hp-b{max-height:320px;overflow:auto}
+.hp-t{width:100%;border-collapse:collapse;font-size:13px}.hp-t th{position:sticky;top:0;background:#fff;text-align:left;font-size:12px;font-weight:500;color:var(--gray-12);padding:8px 16px 6px;white-space:nowrap}
+.hp-t td{padding:7px 16px;border-top:1px solid #f9fafb;vertical-align:middle;white-space:nowrap}.hp-t th.ar,.hp-t td.ar{text-align:right}
+.hp-t td:first-child{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.hp-go{background:none;border:0;padding:0;font:inherit;color:var(--blue-11);cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:left}.hp-go:hover{text-decoration:underline}
+.hp-nm{display:block;overflow:hidden;text-overflow:ellipsis;color:var(--gray-17)}
+.hp-st{display:inline-block;font-size:12px;line-height:18px;padding:0 8px;border-radius:4px;background:#f3f4f6;color:var(--gray-15);white-space:nowrap}.hp-st.is-bad{color:var(--red-12)}.hp-st.is-warn{color:var(--orange-12)}
+.hp-f{padding:10px 16px;border-top:1px solid #f3f4f6}
+@media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
 .home-tbl .ws-go{width:24px;height:24px;flex:none;visibility:hidden}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -12000,7 +12104,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="bdccc3e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="27f0890";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
