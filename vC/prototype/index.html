@@ -5016,6 +5016,10 @@ function vPeopleOld(){
 const INV_BLANK=()=>({emails:[],draft:"",err:"",rows:{},lock:null,preset:null,edit:null});
 function openInvite(o){o=o||{}; INV=INV_BLANK(); INV.lock=o.lock||null;
  const pre=Array.isArray(o.ws)?o.ws:(o.ws?Object.keys(o.ws):null); if(pre&&pre.length)INV.preset={kind:"team",wsList:pre.filter(id=>byId[id])};
+ /* change 198: one set of choices for every address in the send (INV.f), open from the start */
+ const lv={}; (INV.preset?INV.preset.wsList:[]).forEach(id=>lv[id]="Workspace Admin");
+ INV.f=INV.lock?{kind:"client",acc:"pick",ws:INV.lock,wsList:[],lv:{},level:INV_LEVEL_DEFAULT,asOwner:false,teams:{},from:"lock"}
+   :{kind:"team",acc:"pick",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],lv,level:"Workspace Admin",asOwner:false,teams:{},from:"default"};
  modal={kind:"invite"}; renderModal()}
 const INV_LEVEL_DEFAULT="Workspace Viewer";
 const agencyDomains=()=>{const d=new Set(); (AGENCY_OWN.mailboxes||[]).forEach(m=>{const x=(m[0].split("@")[1]||"").toLowerCase(); if(x)d.add(x)}); return d};
@@ -5030,7 +5034,7 @@ function invPropose(addr){
  if(INV.preset) return {kind:"team",ws:"",wsList:INV.preset.wsList.slice(),level:"Workspace Admin",from:"preset",open:false};
  return {kind:null,ws:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"none",open:false};
 }
-const invSettled=r=>r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0);
+const invSettled=r=>!r.blocked&&(r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0));
 const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["View only","View only"]};
 const INV_WHY={"Workspace Admin":"Edits sequences, adds prospects and templates, exports, reveals leads against the limit.","Workspace Collaborator":"Reads everything, replies, connects their own email accounts. Changing what goes out stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
 const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the clients you pick."],["client","Use their own client workspace","A client&rsquo;s person. One workspace, nothing of your agency."],["admin","Run the agency with me","An Admin. Every client, People and Billing."]];
@@ -5059,6 +5063,13 @@ function ddHTML(id,value,groups,o){
   <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}>${o.icon||""}<span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
   <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.desc}</span>`:x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
 }
+/* change 198: inside the invite form, a menu that would be cut off by the bottom of
+   the scrolling modal body opens upward instead (the per-client role menus) */
+function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(!dd.closest(".inv-form")) return;
+ let sc=dd.parentElement; while(sc&&sc!==document.body){const o=getComputedStyle(sc).overflowY; if(o==="auto"||o==="scroll") break; sc=sc.parentElement}
+ const box=sc&&sc!==document.body?sc.getBoundingClientRect():{top:0,bottom:innerHeight}, t=dd.getBoundingClientRect();
+ const below=Math.min(box.bottom,innerHeight)-t.bottom, above=t.top-Math.max(box.top,0), h=menu.offsetHeight+8;
+ if(h>below&&above>below) dd.classList.add("dd-up")}
 function wireDD(L,id,onPick){
  const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
  if(dd.classList.contains("is-open")){if(window.__ddAway)document.removeEventListener("mousedown",window.__ddAway,true);
@@ -5066,7 +5077,7 @@ function wireDD(L,id,onPick){
   menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)})}
  const close=()=>{dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",away,true);document.removeEventListener("keydown",esc,true)};
  const away=e=>{if(!dd.contains(e.target))close()}, esc=e=>{if(e.key==="Escape"){e.stopPropagation();close();trig.focus()}};
- trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
+ trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;ddFlip(dd,menu);trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
 }
 /* change 153, 7 Oct 2026, Hitesh: "i have added email but still nothing is happening".
@@ -5077,10 +5088,92 @@ function wireDD(L,id,onPick){
 const INV_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 function invHintText(d){d=(d||"").trim(); if(!d) return "Each person sets their own password."; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
 function invFootText(d){const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
+ if(I.f&&!I.edit) return invFormFoot();
  if(!I.emails.length) return "Add at least one email address.";
  const a=I.emails.find(x=>!invSettled(I.rows[x])); if(!a) return "";
  const r=I.rows[a]; return r.kind==="client"?`Pick the client for ${a}.`:r.kind==="team"?`Pick clients for ${a}.`:`Say who ${a} is.`}
+/* ═══ change 198, 11 Oct 2026: Invite people, two kinds, open from the start ═══
+   Feedback Hitesh received: "we can show this opened pop-up instead of showing only
+   email box - also we need to simplify, User belongs to your team, clients user";
+   then "consider one scenario where if someone wants to assign different access
+   for different clients"; then "Round 2, P1 was perfect ... this kind of cta, what
+   each can do which opens banner we have prepared"; "let's build this" (doc 90).
+   One form for every address in the send. Who are you inviting (Your team, A
+   client's people) comes first and every field for it is already open. Admin is
+   no longer a third kind: it is Access, Every client, under Your team. Clients I
+   pick is a list, one row per client with its own role; a new row takes the role
+   of the row above, and Set all to changes every row. What each role can do opens
+   the roles sheet. The person page's Edit access keeps the row form below. */
+const INV_LV_LABEL=x=>INV_SHORT[x][1];
+const invLvItems=()=>CLIENT_ROLES.map(x=>({value:x,label:INV_LV_LABEL(x),desc:INV_WHY[x]}));
+const INV_F=()=>INV.f;
+function invApply(){const I=INV, f=I.f; if(!f||I.edit) return;
+ /* until the owner picks a kind by hand, the addresses pick it: a client's domain, or
+    someone already a client user, means A client's people; otherwise Your team */
+ const exOf=a=>{const ex=onAccount(a); return ex&&ex.kind==="client"?ex.ws:[]};
+ if(!I.lock&&!f.kindPicked&&I.emails.length){const cl=I.emails.some(a=>exOf(a).length||invGuessWs(a)); f.kind=cl?"client":(f.acc==="all"?"admin":"team"); if(cl&&f.from==="default")f.level=INV_LEVEL_DEFAULT}
+ if(f.kind==="client"&&!I.lock&&f.from!=="pick"){const g=I.emails.map(a=>{const w=invGuessWs(a);return w&&exOf(a).indexOf(w)<0?w:""}).find(Boolean); if(g&&g!==f.ws){f.ws=g;f.from="domain"}}
+ I.emails.forEach(a=>{const r=I.rows[a]; if(!r) return; const ex=onAccount(a);
+  r.kind=f.kind; r.ws=f.kind==="client"?f.ws:""; r.wsList=f.kind==="team"?f.wsList.slice():[]; r.lv=Object.assign({},f.lv); r.level=f.kind==="client"?f.level:(f.wsList.length?f.lv[f.wsList[0]]:f.level)||f.level;
+  r.asOwner=f.kind==="admin"&&f.asOwner; r.teams=Object.assign({},f.teams); r.existing=ex&&ex.kind==="client"?ex.ws:null;
+  r.blocked=f.kind!=="client"&&!!r.existing})}
+function invFormFoot(){const I=INV, f=I.f, n=I.emails.length;
+ if(!n) return "Add at least one email address.";
+ const blk=I.emails.find(a=>I.rows[a]&&I.rows[a].blocked); if(blk) return `${blk} is a client user of ${listAnd(I.rows[blk].existing.map(id=>byId[id].name))}. Invite them as a client&rsquo;s people.`;
+ if(f.kind==="client"){const c=byId[f.ws]; if(!c) return "Pick the client.";
+  const dup=I.emails.find(a=>I.rows[a]&&I.rows[a].existing&&I.rows[a].existing.indexOf(f.ws)>-1); if(dup) return `${dup} is already on ${c.name}.`;
+  const verb={"Workspace Admin":["runs","run"],"Workspace Collaborator":["does the outreach for","do the outreach for"],"Workspace Viewer":["views","view"]}[f.level][n===1?0:1];
+  return `${n===1?I.emails[0]:n+" people"} ${verb} ${c.name} only.`}
+ const who=invNames(I);
+ if(f.kind==="admin") return f.asOwner?`${who} ${n===1?"becomes an Owner":"become Owners"}: everything, including billing.`:`${who} ${n===1?"gets":"get"} every client, People and Billing.`;
+ if(!f.wsList.length) return "Pick at least one client.";
+ if(isATM()) return `${who} ${n===1?"works":"work"} on ${listAnd(f.wsList.map(id=>byId[id].name))} only.`;
+ const V={"Workspace Admin":["runs","run"],"Workspace Collaborator":["does the outreach for","do the outreach for"],"Workspace Viewer":["views","view"]};
+ const by={}; f.wsList.forEach(id=>{const l=f.lv[id]||f.level;(by[l]=by[l]||[]).push(byId[id].name.split(/\s+/)[0])});
+ const parts=CLIENT_ROLES.filter(l=>by[l]).map(l=>V[l][n===1?0:1]+" "+listAnd(by[l]));
+ return `${who} ${listAnd(parts)}.`}
+function inviteFormHTML(){
+ const I=INV, f=I.f, lock=I.lock&&byId[I.lock], wsList=fundedWorkspaces().filter(x=>!x.own), n=I.emails.length;
+ invApply();
+ const cards=(name,items,cur,attr)=>`<div class="inv-cards" role="radiogroup">${items.map(([v,l,h])=>`<label class="inv-card${cur===v?" is-on":""}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} ${attr}><span><b>${l}</b><i>${h}</i></span></label>`).join("")}</div>`;
+ const rolesLink=`<button type="button" class="linkbtn" data-pproles>What each role can do</button>`;
+ const head=(lab,link)=>`<div class="pp-sec-row"><span class="flabel" style="margin:0">${lab}</span>${link?rolesLink:""}</div>`;
+ const chips=I.emails.map(e=>`<span class="pp-echip">${e}<button type="button" data-invrm="${e}" aria-label="Remove ${e}">&times;</button></span>`).join("");
+ const team=f.kind!=="client";
+ let body="";
+ if(!lock) body+=`<div class="field"><span class="flabel">Who are you inviting?</span>${cards("invfkind",[["team","Your team",`People who work at ${AGENCY.name}`],["client","A client&rsquo;s people","Someone from a client, into their workspace only"]],team?"team":"client","data-invfkind")}</div>`;
+ body+=`<div class="field"><label class="flabel" for="invEmail">Email addresses</label>
+    <div class="pp-emails" data-invfocus>${chips}<input type="text" id="invEmail" value="${I.draft.replace(/"/g,"&quot;")}" placeholder="${n?"Add another, then press Enter":"name@company.com, then press Enter"}"></div>
+    <p class="sub nc-hint" style="margin-top:6px" data-invhint>${I.err?`<span style="color:var(--red-12)">${I.err}</span>`:invHintText(I.draft)}</p></div>`;
+ if(team){
+  body+=`<div class="field"><span class="flabel">Access</span>${cards("invfacc",[["pick","Clients I pick","A Member. Works only in the clients you choose."],["all","Every client","An Admin. Every client, People and Billing."]],f.kind==="admin"?"all":"pick","data-invfacc")}</div>`;
+  /* change 156 kept: only an Owner sees the Owner choice */
+  if(f.kind==="admin"&&ME().role==="Owner") body+=`<div class="field"><span class="flabel">As what?</span>${cards("invfown",[["admin","As an Admin","Every client, People and Billing read. No money."],["owner","As an Owner","Everything, including billing, Whitelabel and other Owners."]],f.asOwner?"owner":"admin","data-invfown")}</div>`;
+  if(f.kind==="team"){const left=wsList.filter(x=>f.wsList.indexOf(x.id)<0), atm=isATM();
+   const rowH=id=>{const c=byId[id]; return `<div class="invl-r">${av(c,24)}<span class="invl-n">${c.name}</span>${atm?"":ddHTML("invlv_"+id,f.lv[id]||f.level,[{items:invLvItems()}])}<button type="button" class="ubtn invl-x" data-invfrm="${id}" aria-label="Remove ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`};
+   body+=`<div class="field">${head(atm?"Clients":"Clients and what they can do in each",!atm)}<div class="invl">`
+    +(f.wsList.length>1&&!atm?`<div class="invl-h"><span>${f.wsList.length} clients</span><span class="invl-sa">Set all to</span>${ddHTML("invlvall","",[{items:invLvItems()}],{placeholder:"Choose"})}</div>`:"")
+    +f.wsList.map(rowH).join("")
+    +(left.length?`<div class="invl-add">${ddHTML("invfadd","",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:f.wsList.length?"Add another client":"Add a client"})}</div>`:"")
+    +`</div>${f.wsList.length&&!atm?`<p class="inv-help">A new client takes the role of the one above it. Change any row on its own.</p>`:""}</div>`;
+   if(atm) body+=teamsPickerHTML("__f",f,"f");
+  }
+ } else {
+  const exAll=I.emails.map(a=>(I.rows[a]&&I.rows[a].existing)||[]), onAll=id=>exAll.length&&exAll.every(e=>e.indexOf(id)>-1);
+  const exHere=I.emails.filter(a=>I.rows[a]&&I.rows[a].existing);
+  if(!lock) body+=`<div class="field"><span class="flabel">Which client</span>${ddHTML("invfws",f.ws,[{items:wsList.filter(x=>!onAll(x.id)).map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:"Pick a client"})}${exHere.length?`<p class="inv-help">${exHere.length===1?exHere[0]+" is":exHere.length+" of them are"} already a client user on ${listAnd([...new Set(exHere.flatMap(a=>I.rows[a].existing))].map(id=>byId[id].name))}. This adds another workspace to the same sign-in.</p>`:f.from==="domain"&&f.ws?`<p class="inv-help">Matched by the email domain.</p>`:""}</div>`;
+  const c=byId[f.ws];
+  body+=`<div class="field">${head(`What they can do${c?" in "+c.name:""}`,true)}${ddHTML("invflevel",f.level,[{items:invLvItems()}])}</div>`;
+ }
+ const allOk=n>0&&I.emails.every(a=>invSettled(I.rows[a]));
+ const title=lock?`Invite ${lock.name}&rsquo;s people`:"Invite people";
+ const foot=invFootText(I.draft), warn=!allOk&&!INV_OK.test(I.draft.trim())&&n>0;
+ return card(title,`<div class="inv-form">${body}</div>`,
+  `<span class="sub inv-foot${warn?" is-warn":""}" style="margin-right:auto" data-invfoot>${foot}</span><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-invsend ${allOk||INV_OK.test(I.draft.trim())?"":"disabled"}>Send ${n>1?n+" invites":"invite"}</button>`,"ac inv-b")
+  .replace(`<span class="semibold-3">${title}</span>`,`<span class="semibold-3">${title}${lock?`<span class="inv-sub">They sign in to ${lock.name} only.</span>`:""}</span>`);
+}
 function inviteHTML(){
+ if(INV.f&&!INV.edit) return inviteFormHTML();
  const I=INV, lock=I.lock&&byId[I.lock], wsList=fundedWorkspaces().filter(x=>!x.own);
  const chips=I.emails.map(e=>`<span class="pp-echip">${e}<button type="button" data-invrm="${e}" aria-label="Remove ${e}">&times;</button></span>`).join("");
  const rows=I.emails.map((addr,n)=>invRowHTML(addr,I.rows[addr],n,lock,wsList)).join("");
@@ -5141,12 +5234,12 @@ function invEditorHTML(addr,r,n,lock,wsList){
  return `<div class="inv-ed" data-inved="${addr}">${inner}</div>`;
 }
 function inviteSend(){
- const I=INV, made=[]; let lastWhere="", lastRole="";
+ invApply(); const I=INV, made=[]; let lastWhere="", lastRole="";
  I.emails.forEach(addr=>{const r=I.rows[addr]; if(!r||!invSettled(r))return;
   if(r.kind==="client"){const c=byId[r.ws]; if(!c)return; const row=[addr,r.level]; c.users=c.users||[]; c.users.push(row); LASTSEEN[addr]="never"; INVITED["w:"+c.id+"|"+addr]="just now"; lastWhere=" to "+c.name; lastRole=r.level; made.push(()=>{const i=c.users.indexOf(row); if(i>-1)c.users.splice(i,1); delete INVITED["w:"+c.id+"|"+addr]})}
   else {let key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
    const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), admin=r.kind==="admin";
-   const roles={}; if(!admin)r.wsList.forEach(id=>roles[id]=r.level);
+   const roles={}; if(!admin)r.wsList.forEach(id=>roles[id]=(r.lv&&r.lv[id])||r.level);
    const asOwner=admin&&r.asOwner&&ME().role==="Owner";
    PEOPLE[key]={name:nm,initials:initials(nm),role:asOwner?"Owner":admin?"Admin":"Member",email:addr,ws:admin?null:r.wsList.slice(),roles}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"; lastWhere=""; lastRole=asOwner?"Owner":admin?"Admin":"Member";
    if(isATM()&&!admin&&r.teams) applyTeams(key,r.teams);
@@ -5229,7 +5322,7 @@ function wirePeopleModal(L){
   inp.onkeydown=e=>{if(e.key==="Enter"||e.key===","||e.key===" "||(e.key==="Tab"&&inp.value.trim())){e.preventDefault();commit()} if(e.key==="Backspace"&&!inp.value&&INV.emails.length){drop(INV.emails[INV.emails.length-1]);rerender();L.querySelector("#invEmail").focus()}};
   inp.onblur=()=>{if(!INV_OK.test(inp.value.trim()))return; setTimeout(()=>{if(!INV||!modal||modal.kind!=="invite"||INV.edit)return; const n=L.querySelector("#invEmail"); if(n!==inp||document.activeElement===inp)return; commit(true)},150)};
   L.querySelectorAll("[data-invrm]").forEach(b=>b.onclick=()=>{drop(b.dataset.invrm);rerender()});
-  const row=a=>INV.rows[a];
+  const row=a=>a==="__f"?INV.f:INV.rows[a];
   L.querySelectorAll("[data-invchange]").forEach(b=>b.onclick=()=>{INV.emails.forEach(a=>{if(row(a).open){row(a).open=false}}); const r=row(b.dataset.invchange); r.open=true; r.snap=JSON.stringify(r); rerender()});
   L.querySelectorAll("[data-invkind]").forEach(c=>c.onchange=()=>{const r=row(c.dataset.invkind); r.kind=c.value; r.from="pick";
     if(r.kind==="client"&&!r.ws){const g=invGuessWs(c.dataset.invkind); if(g){r.ws=g;r.from="domain"} r.level=INV_LEVEL_DEFAULT}
@@ -5242,6 +5335,21 @@ function wirePeopleModal(L){
   L.querySelectorAll("[data-invteammgr]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr), id=b.dataset.invteammgr; r.teams[id]=r.teams[id]==="manager"?"member":"manager"; rerender()});
   L.querySelectorAll("[data-invrmws]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.invaddr); r.wsList=r.wsList.filter(x=>x!==b.dataset.invrmws); rerender()});
   INV.emails.forEach((a,n)=>{wireDD(L,"invws_"+n,v=>{if(v){row(a).ws=v;row(a).from="pick"} rerender()}); wireDD(L,"invadd_"+n,v=>{if(v&&row(a).wsList.indexOf(v)<0)row(a).wsList.push(v); rerender()})});
+  /* change 198: the form-level choices */
+  if(INV.f&&!INV.edit){const f=INV.f;
+   /* a click on the already-checked card still counts as the owner's pick */
+   L.querySelectorAll("[data-invfkind]").forEach(c=>c.addEventListener("click",()=>{f.kindPicked=true}));
+   L.querySelectorAll("[data-invfkind]").forEach(c=>c.onchange=()=>{f.kindPicked=true;if(c.value==="client"){f.kind="client";f.from=f.ws?f.from:"default";if(!f.level||f.from==="default")f.level=INV_LEVEL_DEFAULT}else f.kind=f.acc==="all"?"admin":"team"; rerender()});
+   L.querySelectorAll("[data-invfacc]").forEach(c=>c.onchange=()=>{f.acc=c.value; f.kind=c.value==="all"?"admin":"team"; rerender()});
+   L.querySelectorAll("[data-invfown]").forEach(c=>c.onchange=()=>{f.asOwner=c.value==="owner"; rerender()});
+   L.querySelectorAll("[data-invfrm]").forEach(b=>b.onclick=()=>{const id=b.dataset.invfrm; f.wsList=f.wsList.filter(x=>x!==id); delete f.lv[id]; rerender()});
+   wireDD(L,"invfadd",v=>{if(v&&f.wsList.indexOf(v)<0){const last=f.wsList[f.wsList.length-1]; f.lv[v]=last?f.lv[last]:"Workspace Admin"; f.wsList.push(v)} rerender()});
+   f.wsList.forEach(id=>wireDD(L,"invlv_"+id,v=>{if(v)f.lv[id]=v; rerender()}));
+   wireDD(L,"invlvall",v=>{if(v){f.wsList.forEach(id=>f.lv[id]=v); f.level=v} rerender()});
+   wireDD(L,"invfws",v=>{if(v){f.ws=v;f.from="pick"} rerender()});
+   wireDD(L,"invflevel",v=>{if(v)f.level=v; rerender()});
+   wireDD(L,"invteam_f",v=>{if(v){f.teams=f.teams||{}; f.teams[v]="member"} rerender()});
+  }
   L.querySelectorAll("[data-inveddone]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.inveddone); if(!invSettled(r))return; r.open=false; delete r.snap; rerender()});
   L.querySelectorAll("[data-invedcancel]").forEach(b=>b.onclick=()=>{const a=b.dataset.invedcancel, r=row(a); const back=r.snap?JSON.parse(r.snap):r; back.open=false; delete back.snap; INV.rows[a]=back; rerender()});
  L.querySelectorAll("[data-invfocus]").forEach(d=>d.onclick=e=>{if(e.target===d){const n=L.querySelector("#invEmail");if(n)n.focus()}});
@@ -11850,6 +11958,18 @@ td>.cs:only-child{display:block}
 .inv-card input{appearance:none;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;border:1px solid #9ca3af;margin:0;flex:none;background:#fff;box-sizing:border-box;cursor:pointer}.inv-card input:checked{border:6px solid #1d4ed8}.inv-card input:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
 .inv-card>span{display:flex;flex-direction:column;gap:2px;min-width:0}.inv-card b{font-size:14px;line-height:20px;font-weight:500;color:#111827}.inv-card i{font-style:normal;font-size:12px;line-height:18px;color:#6b7280}
 .inv-help{margin:6px 0 0;font-size:12px;line-height:16px;color:#6b7280}
+/* change 198: the invite form */
+.inv-form{display:flex;flex-direction:column;gap:16px}.inv-form>.field{margin:0}.inv-form .flabel{display:block;margin-bottom:6px}
+.inv-form .pp-sec-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.inv-form .pp-sec-row{gap:12px}.inv-form .pp-sec-row .linkbtn{font-size:13px;font-weight:500;white-space:nowrap;flex:none}
+.inv-form .inv-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.invl{border:1px solid #e5e7eb;border-radius:4px;background:#fff}
+.invl-h{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280}.invl-h>span:first-child{flex:1}.invl-h .dd{width:170px}
+.invl-r{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-bottom:1px solid #e5e7eb}.invl-n{flex:1;min-width:0;font-size:14px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.invl-r .dd{width:170px;flex:none}.invl-x{flex:none;width:28px;height:28px;color:#6b7280}.invl-x svg{width:14px;height:14px}
+.invl-add{padding:8px 12px}.invl-add .dd{width:100%}.invl-add .dd-trig{border-style:dashed}
+.inv-form .dd-menu{min-width:300px}.inv-form .dd.dd-up .dd-menu{top:auto;bottom:calc(100% + 4px)}.inv-form p.nc-hint{margin-bottom:0}.invl-r .dd-menu,.invl-h .dd-menu{right:0;left:auto}
+.inv-foot{font-size:12px;line-height:16px;max-width:300px}.inv-foot.is-warn{color:var(--orange-12)}
+@media (max-width:600px){.inv-form .inv-cards{grid-template-columns:1fr}.invl-r .dd,.invl-h .dd{width:140px}}
 .inv-ed .dd{width:100%}.inv-ed .field{margin:0}
 .inv-ms{min-height:32px;border:1px solid #d1d5db;border-radius:4px;background:#fff;padding:4px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;box-sizing:border-box}
 .inv-ms .dd{width:auto;flex:1 1 140px;min-width:140px}.inv-ms .dd-trig{height:22px;border:0!important;box-shadow:none!important;padding:0 6px;font-size:13px;color:#1d4ed8;background:transparent}.inv-ms .dd-trig .dd-val.is-ph{color:#1d4ed8}
@@ -12392,7 +12512,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d1d4789";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="1cbec79";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
