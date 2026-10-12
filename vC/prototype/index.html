@@ -1114,6 +1114,22 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .nc-share-tiles #ncEdit{flex:none;align-self:center;white-space:nowrap}.nc-share-tiles .nc-share-tile{padding:10px;min-width:84px}.nc-share-tiles{flex-wrap:wrap}
 #ncShare{background:linear-gradient(to right,#1d4ed8 0 var(--p),#e5e7eb var(--p) 100%)!important;background-size:100% 100%!important}
 .nc-utools{display:flex;align-items:center;gap:12px;flex:none}
+/* change 205: the two modes of the usage block. Slider: the values are plain text and take no clicks. Edit values:
+   each value is a field, the slider is grey and takes no input. */
+.nc-modebtn{flex:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}.nc-modebtn svg{width:14px;height:14px;flex:none}
+#ncUsage.is-slider .nc-sum-r{cursor:default;pointer-events:none}#ncUsage.is-slider .nc-sum-r label{cursor:default}
+#ncUsage.is-slider input.nc-num{border-bottom:0!important;cursor:default}
+#ncUsage.is-edit input.nc-num,#ncUsage.is-edit .nc-sum-r:hover input.nc-num:not(:focus){min-width:80px;height:28px!important;padding:0 8px!important;border:1px solid #d1d5db!important;border-radius:4px!important;background:#fff!important;font-weight:500;color:#111827}
+#ncUsage.is-edit .nc-sum-r:hover input.nc-num:not(:focus){border-color:#9ca3af!important}
+#ncUsage.is-edit .nc-sum-r{min-height:56px}#ncUsage.is-edit .nc-sum-r label{white-space:normal}#ncUsage.is-edit .nc-sum-h{display:block}
+#ncUsage.is-edit input.nc-num,#ncUsage.is-edit .nc-sum-r.is-over input.nc-num{min-width:64px!important}
+.nc-upct .nc-off{font-size:13px;font-weight:400;color:#6b7280;white-space:nowrap}
+#ncUsage .nc-urow{flex-wrap:wrap;row-gap:2px}.nc-limhead{gap:12px}
+#ncUsage.is-edit input.nc-num:focus{border:1.5px solid #1d4ed8!important;box-shadow:0 0 0 3px #dbeafe!important;font-weight:400}
+#ncShare:disabled{cursor:not-allowed;background:linear-gradient(to right,#9ca3af 0 var(--p),#e5e7eb var(--p) 100%)!important}
+#ncShare:disabled::-webkit-slider-thumb{border-color:#9ca3af;cursor:not-allowed;box-shadow:none}
+#ncShare:disabled::-moz-range-thumb{border-color:#9ca3af;cursor:not-allowed;box-shadow:none}
+#ncUsage.is-edit .nc-ulab .flabel{color:#9ca3af}
 .nc-learn{margin:4px 0 12px;padding:10px 12px;border-radius:4px;background:#f9fafb;border:1px solid #e5e7eb}.nc-learn p{margin:0;font-size:12px;line-height:18px;color:#4b5563}.nc-learn p+p{margin-top:6px}
 .nc-limtbl{table-layout:fixed}
 .nc-limtbl td{height:auto;padding:10px 12px;white-space:normal}
@@ -1563,6 +1579,14 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
 /* item 61, 28 Sep 2026: .xs-pips/.xs-pip* deleted, unemitted - plain dots for
    the beat count, replaced by the labelled steps .xs-steps renders instead. */
 .xs-steps{padding:0}
+/* change 206, 12 Oct 2026 (Hitesh): "Fix each step number alignment, padding etc.". The number sits on the
+   circle's optical centre (line-height 1, tabular figures), every circle is 24px, every label 13px on a 24px
+   line, and the joins are 24px rules with 12px either side, so no join reads as a dash between two words. */
+.xs-steps{gap:12px}
+.xs-steps li{gap:8px;font-size:13px;line-height:24px}
+.xs-steps .st-n{width:24px;height:24px;box-sizing:border-box;font-size:12px;line-height:1;font-variant-numeric:tabular-nums;padding:0}
+.xs-steps li[data-done="1"] .st-n svg{width:12px;height:12px;display:block}
+.xs-steps .st-line{flex:none;width:24px;min-width:0}
 .xs-wait{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-11)}
 .xs-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--gray-13);border-top-color:var(--blue-11);
   animation:xsSpin .7s linear infinite}
@@ -1736,7 +1760,9 @@ const XS_CAPS=[
 const XS_TICK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 /* short enough to sit one to a line at 760px; the full sentence stays put in
    the caption above, which is the only place that ever needed to say it in full. */
-const XS_STEP_LBL=["One place","Now a workspace","Nothing crosses","A level above"];
+/* change 207, 12 Oct 2026 (Hitesh): "We can follow camel casing here, it will look better: A Level Above". The
+   step labels and the button that ends the sequence are in Title Case, as production's buttons are. */
+const XS_STEP_LBL=["One Place","Now a Workspace","Nothing Crosses","A Level Above"];
 function startXform(){
  if(xformDone) return false;
  xformDone=true;
@@ -1809,7 +1835,7 @@ function renderXform(){
    +(b<XS_CAPS.length-1
      ?'' /* change 151 (Hitesh): no Skip on the sequence */
      :xform.ready
-       ?(nw?'<button class="shd-button shd-button--primary" data-xsgo>Open admin panel</button>':'<button class="shd-button shd-button--primary" data-xsgo>Add a workspace</button>')
+       ?(nw?'<button class="shd-button shd-button--primary" data-xsgo>Open Admin Panel</button>':'<button class="shd-button shd-button--primary" data-xsgo>'+ADD_I+'Add a workspace</button>')
        :'<span class="xs-wait"><span class="xs-spin"></span>Setting up your account</span>')
   +'</div></div></div>';
  L.querySelectorAll("[data-xsskip],[data-xsgo]").forEach(x=>x.onclick=endXform);
@@ -2895,14 +2921,22 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  const lim=u.filter(y=>y.cap>0), p=lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0;
  const top=u[0], col=USE_COL[top.tone]||USE_COL.ok;
  const why=top.tone==="bad"?" "+RES[top.k].label+" is at its limit.":top.tone==="warn"?" "+RES[top.k].label+" is near its limit.":"";
- return '<button type="button" class="meter u-usagebtn u-home hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
+ /* change 210, 12 Oct 2026 (Hitesh): "Everywhere we are saying 60% used, 50% used: repetitive, not required; the
+    % can be shown towards the right side of the usage indicator". Production's Email Accounts "Emails sent"
+    cell: the bar, then the figure to its right, 12px apart (email-sent-field.tsx, .email-sent-field). The
+    column header already says Usage, so the figure is the percentage alone. */
+ return '<button type="button" class="meter u-usagebtn u-home u-row hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
   +'<div class="track"><span style="width:'+p+'%;background:'+col+'"></span></div>'
-  +'<span class="meter-t tnum"><b class="u-pct" style="color:'+(top.tone==="ok"||top.tone==="info"?"var(--gray-17)":col)+'">'+p+'% used</b></span>'
+  +'<span class="meter-t tnum"><b class="u-pct" style="color:'+(top.tone==="ok"||top.tone==="info"?"var(--gray-17)":col)+'">'+p+'%</b></span>'
   /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
   +'</button>'}
 
 const sortI=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5 8 4l2.5 2.5M5.5 9.5 8 12l2.5-2.5"/></svg>`;
 const warnI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>`;
+/* change 211, 12 Oct 2026 (Hitesh): "Add + icon in this button everywhere it is used: + Add a workspace". Every
+   button that opens Add a workspace carries it (the Invite people button's own 16px plus); the modal's submit
+   and the first-workspace confirm keep plain words, since they finish the act rather than start it. */
+const ADD_I='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;flex:none"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
 const infoI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>`;
 const srchI=`<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.5 2a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM1 6.5a5.5 5.5 0 1110.743 1.629l2.864 2.864a.75.75 0 01-1.06 1.06l-2.864-2.864A5.5 5.5 0 011 6.5z"/></svg>`;
 /* initials come off word boundaries. "Northwind Logistics" is NL, not NO: an
@@ -3572,7 +3606,7 @@ function vClients(){
      <p class="cempty-p">${can
        ?"Their sequences, prospects, mailboxes and replies live in a workspace of their own, never mixed with yours or anyone else's."
        :"An account owner adds the first workspace. Once one exists, this is where every workspace you work on will be."}</p>
-     ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">Add a workspace</button></div>`:""}
+     ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">${ADD_I}Add a workspace</button></div>`:""}
     </div>
     ${pic}
    </div>
@@ -3593,15 +3627,23 @@ function vClients(){
 </div>
   <div class="tools">
    ${canI("billing")?'<button class="shd-button shd-button--tertiary" id="toCredits">Credits &amp; Limits</button>':""}
-   ${canI("limits")?'<button class="shd-button shd-button--primary" id="addClient">Add a workspace</button>':""}</div>
+   ${canI("limits")?'<button class="shd-button shd-button--primary" id="addClient">'+ADD_I+'Add a workspace</button>':""}</div>
  </div>
  <div class="wrap">
   ${graceBanner()}
   ${receiptBar("clients")}
   ${(()=>{/* change 121: one ask can carry several lines, so count workspaces, not lines */
-   const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));return mine.length?
-   `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
-    <button class="linkbtn linkbtn--sm" id="toCredits2">Review</button></span></div>`:""})()}
+   /* change 214, 12 Oct 2026 (Hitesh): "For multiple usage requests, how are we handling it so the user can check
+      all requests raised? When I click on this I am redirected to one workspace's request; what about others".
+      Review opened REQUESTS[0]'s workspace only. Now, as seqAskBanner does for launch asks, the line names every
+      workspace that asked, with what it asked for, and each name opens that workspace's Limits tab, where the
+      ask is decided. One workspace keeps the single Review link. */
+   const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));
+   const ask=id=>`<span class="sub">(${linesText(askLines(id))})</span>`;
+   return mine.length===1?
+   `<div class="msg m-info">${infoI}<span>${byId[mine[0]].name} has requested more capacity ${ask(mine[0])}.
+    <button class="linkbtn linkbtn--sm" data-reqws="${mine[0]}">Review</button></span></div>`
+   :mine.length?`<div class="msg m-info">${infoI}<span>${mine.length} workspaces have requested more capacity: ${mine.map(id=>`<button class="linkbtn linkbtn--sm" data-reqws="${id}">${byId[id].name}</button> ${ask(id)}`).join(", ")}.</span></div>`:""})()}
   ${seqAskBanner()}
   <div class="ws-meta">${wsOANote()}</div>
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
@@ -3874,6 +3916,10 @@ const CLIENT_VERBS=[
  ["pause","Pause and resume sequences","Stops and restarts sending, nothing else; you are told","sequences"],
  ["draft","Write sequences","Creates sequences and templates and sends test emails; you launch them","sequences"],
  ["editseq","Launch and edit sequences","Changes what goes out, without asking you","sequences"],
+ /* change 215, 12 Oct 2026 (Hitesh): "we need to change collaborator access: give prospect and Lead Finder access,
+    also access to run sequences". Adding prospects is its own verb, apart from export, which still takes the
+    list off the platform and stays with Workspace Admin. */
+ ["addpros","Add and import prospects","Adds prospects by hand or from a CSV, into this workspace only","prospects"],
  ["export","Export prospects","Takes the list off the platform","prospects"],
  ["reveal","Reveal leads","Spends your Lead Finder credits, against this workspace's cap","leads"],
  ["warmup","Pause and resume warm-up","Starts and stops warm-up on mailboxes they connected themselves","warmup"],
@@ -3887,7 +3933,7 @@ const CLIENT_VERBS=[
     Inbox Radar and Refer a Friend's new real screens carries (add a task, log
     a call, verify a list, run a placement test, send a referral). None of the
     five change what goes out any more than Pause/Edit does, so this sits with
-    editseq: Admin only. Not added to Collaborator; worth a second look if
+    editseq: Admin only (change 215 gave Collaborator editseq, not this). Worth a second look if
     Refer a Friend in particular turns out to want a wider grant. */
  ["modact","Act in these modules","Tasks, Dialer, Email Verifier, Inbox Radar and Refer a Friend's one action each","various"],
 ];
@@ -3901,14 +3947,18 @@ const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=
    grant, and changing it is picking a different row of this table. */
 const CLIENT_ROLE_DEFS={
  "Workspace Admin":{mods:ALL_MODS, verbs:ALL_VERBS,
-   desc:"Edits campaigns, adds prospects, exports, and spends against the cap",
+   desc:"Everything a Collaborator can, plus export, settings, buying and who can do what",
    banner:`${AGENCY.name} runs your outreach here. As a Workspace Admin you can see and change everything in this workspace: edit sequences, add prospects and templates, export prospects, and reveal leads against your cap.`,
    wizTail:"can do everything there, including spending against the cap."},
- "Workspace Collaborator":{mods:ALL_MODS, verbs:["reply","warmup","request","pause","draft"],
-   desc:"Writes sequences for you to launch, replies, pauses; cannot launch or change what goes out",
-   banner:`${AGENCY.name} runs your outreach here. As a Workspace Collaborator you can write sequences for ${AGENCY.name} to launch, pause and resume running ones, reply to prospects and connect email accounts for them to send from. Launching and changing what goes out stays with ${AGENCY.name}.`,
+ /* change 215, 12 Oct 2026 (Hitesh): the Collaborator runs the outreach end to end: adds and imports prospects,
+    reveals leads against the workspace's limit, writes, launches, edits and pauses sequences, replies, connects
+    email accounts. Workspace Admin keeps export, settings, buying and who can do what. Reverses change 204's
+    "a Collaborator prepares, a Workspace Admin launches" (doc 92 round 2). */
+ "Workspace Collaborator":{mods:ALL_MODS, verbs:["reply","warmup","request","pause","draft","editseq","addpros","reveal"],
+   desc:"Adds prospects, reveals leads, runs sequences and replies; no export, settings, buying or roles",
+   banner:`${AGENCY.name} runs your outreach here. As a Workspace Collaborator you can add and import prospects, reveal leads against your cap, write, launch and pause sequences, reply to prospects and connect email accounts. Exporting, settings, buying and who can do what stay with a Workspace Admin.`,
    wizTail:"sees everything in the workspace.",
-   wizExtra:`They can write sequences for you to launch, pause, reply and connect email accounts; launching stays with ${AGENCY.name}.`},
+   wizExtra:`They can add prospects, reveal leads, run sequences, reply and connect email accounts; export, settings, buying and roles stay with a Workspace Admin.`},
  /* 24 Sep 2026, Hitesh: a Viewer sees every screen and changes nothing (was Reports and Usage). */
  "Workspace Viewer":{mods:ALL_MODS, verbs:[],
    desc:"Sees everything in the workspace and changes nothing",
@@ -3920,8 +3970,9 @@ const roleSet=role=>CLIENT_ROLE_DEFS[role]||CLIENT_ROLE_DEFS["Workspace Viewer"]
    One line per workspace role, the same line in the radio list (a form field) and
    in the dropdown (a role in a row), written from CLIENT_ROLE_DEFS and §8.5. */
 const WS_ROLE_LINE={
- "Workspace Admin":"Runs the workspace: edits sequences, adds prospects and templates, exports, reveals leads against the limit.",
- "Workspace Collaborator":`Does the outreach: reads everything, replies, connects their own email accounts. Changing what goes out stays with ${AGENCY.name}.`,
+ /* change 215: the two lines say where the line between the roles now falls */
+ "Workspace Admin":"Runs the workspace: everything a Collaborator does, plus export, settings, buying and who can do what.",
+ "Workspace Collaborator":"Does the outreach: adds prospects, reveals leads, writes, launches and pauses sequences, replies.",
  "Workspace Viewer":"Looks only: sees every screen and the allowance, changes nothing.",
 };
 const roleLine=r=>WS_ROLE_LINE[r]||"";
@@ -4136,7 +4187,8 @@ function atmRolesHTML(){
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
  const R=[["See sequences, prospects, mailboxes, templates, tasks, replies","Own","Team","All","All"],["Create, delete sequences; delete mailboxes","Own","Team","All","All"],["Prospects, while prospect sharing is on","All","All","All","All"],["Buy email accounts","Own","Team","All","All"],["Team reports",0,"Team","All","All"],["Invite people, change roles, teams",0,0,1,1],["Create clients, admin settings, whitelabel",0,0,1,1],["Billing, SSO, delete the account",0,0,0,1]];
- const C=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Launch sequences; change a running one",[0,0,1]],["Add prospects; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
+ /* change 215: Collaborator adds prospects, reveals leads and launches */
+ const C=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Add and import prospects; reveal leads",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Launch sequences; change a running one",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Export prospects",[0,0,1]],["Buy email accounts; change settings; set who can do what",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do (ATM, as production today)</span><span class="rl2-sub">You see a record if its owner is within your reach: Own, Team (people in teams you manage), or All.</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
@@ -4798,7 +4850,8 @@ function ppRolesHTML(){
  const sec=(t,n)=>`<tr class="rl2-sec"><td colspan="${n}">${t}</td></tr>`;
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
- const WS=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Launch sequences; change a running one",[0,0,1]],["Add prospects; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
+ /* change 215: Collaborator adds prospects, reveals leads and launches */
+ const WS=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Add and import prospects; reveal leads",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Launch sequences; change a running one",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Export prospects",[0,0,1]],["Buy email accounts; change settings; set who can do what",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
  const AC=[["Open workspaces",['<span class="rl2-t">The ones you add them to</span>',1,1]],["Add workspaces, set limits, approve requests",[0,1,1]],["Invite people, set roles",[0,1,1]],["See Analytics across workspaces",[0,1,1]],["Billing; delete a workspace",[0,0,1]],["Transfer ownership, close the account",[0,0,1]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span><span class="rl2-sub">Account role: which workspaces. Workspace role: what they can do inside.</span></div>
@@ -5052,7 +5105,8 @@ function invPropose(addr){
 }
 const invSettled=r=>!r.blocked&&(r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0));
 const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["View only","View only"]};
-const INV_WHY={"Workspace Admin":"Launches and edits sequences, adds prospects, exports, reveals leads against the limit.","Workspace Collaborator":"Writes sequences for you to launch, replies, pauses and resumes, connects email accounts. Launching stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
+/* change 215 */
+const INV_WHY={"Workspace Admin":"Everything a Collaborator does, plus export, settings, buying and who can do what.","Workspace Collaborator":"Adds prospects, reveals leads against the limit, writes, launches and pauses sequences, replies.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
 const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the clients you pick."],["client","Use their own client workspace","A client&rsquo;s person. One workspace, nothing of your agency."],["admin","Run the agency with me","An Admin. Every client, People and Billing."]];
 const INV_TINTS=["#b91c1c","#1d4ed8","#0f766e","#6d28d9","#c2410c","#0e7490"];
 const invFirst=e=>{const n=e.split("@")[0].split(/[._-]/)[0];return n?n.charAt(0).toUpperCase()+n.slice(1):"They"};
@@ -5469,8 +5523,9 @@ function blWsBar(k){
 function poolBar(k,opts){
  const R=RES[k],m=compute(k),p=Math.min(100,Math.round(m.used/R.pool*100)),over=m.caps>R.pool;
  const agency=!isNormal();
+ /* change 210: "used" once, after the counts, not again after the percentage */
  return `<div class="ub"><div class="ub-h"><span class="ub-t">${(opts&&opts.title)||R.label}</span>
-   <span class="ub-r tnum">${f(m.used)} of ${f(R.pool)} <span class="sub">(${p}% used)</span></span></div>
+   <span class="ub-r tnum">${f(m.used)} of ${f(R.pool)} used <span class="sub">(${p}%)</span></span></div>
   <div class="ub-track"><span style="width:${p}%;background:${p>=90?"var(--red-12)":p>=75?"var(--orange-14)":"var(--blue-11)"}"></span>
    ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for workspaces"></span>`:""}</div>
   ${agency?blWsBar(k):""}
@@ -6040,7 +6095,10 @@ function vDash(){
      +wsStatusCell(c)+'<td colspan="7">'+setupHtml+'</td></tr>'})();
  const tableCard='<div class="card">'
   +'<div class="c-h"><span class="c-t">Workspaces<span class="c-win">'+homeWinLine()+'</span></span>'
-   +'<span class="c-a"><button class="linkbtn" data-nav2="clients">View all '+myWorkspaces().length+' &rarr;</button></span></div>'
+   /* change 212, 12 Oct 2026 (Hitesh, on "View all 10 \u2192": "Change this, even arrow is not proper"). The text
+      arrow sat below the line and "View all 10" promised more than the 10 rows already on screen. It names where
+      it goes, with a drawn arrow centred on the text; the pager under the table still counts when rows are cut. */
+   +'<span class="c-a"><button class="linkbtn ws-all" data-nav2="clients">Go to Workspaces<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></span></div>'
   +homeTableOpen()
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
@@ -6089,7 +6147,7 @@ function vDash(){
    +'<p class="semibold-3" style="margin:0 0 4px">Running outreach for more than one business, or for clients?</p>'
    +'<p class="sub" style="margin:0 0 12px;max-width:62ch">Give each its own workspace: its own '
    +'sequences, prospects and mailboxes, separate from yours and from each other.</p>'
-   +'<div class="tools"><button class="shd-button shd-button--primary shd-button--sm" id="dashAdd">Add a workspace</button>'
+   +'<div class="tools"><button class="shd-button shd-button--primary shd-button--sm" id="dashAdd">'+ADD_I+'Add a workspace</button>'
    +'<button class="shd-button shd-button--tertiary shd-button--sm" data-addcardoff>Not now</button></div>'
    +'</div></div>':'';
 
@@ -6136,7 +6194,7 @@ function vDash(){
    +(norm?'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>':'')
    /* change 182: the period picker the whole Home follows */
    +(norm?'':homeUnitHTML()+homeWinHTML())
-   +(owner&&!norm?/* change 202 (Hitesh: "buttons should consistent"): no + icon, as on the Workspaces page */'<button class="shd-button shd-button--primary" id="dashAdd">Add a workspace</button>':"")
+   +(owner&&!norm?/* change 202 (Hitesh: "buttons should consistent"); change 211: the + icon, here and on the Workspaces page alike */'<button class="shd-button shd-button--primary" id="dashAdd">'+ADD_I+'Add a workspace</button>':"")
   +'</div></div>'
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
@@ -6171,8 +6229,8 @@ function homeGroupEmpty(tab,cnt){
  if(tab==="run") return E("No workspace is sending yet","A workspace moves here once its first sequence starts sending.",
    cnt("new")?go("new","See the "+cnt("new")+" new workspace"+(cnt("new")===1?"":"s")):cnt("att")?go("att","See what needs attention"):"");
  if(tab==="att") return E("Nothing needs attention","Limits reached, disconnected mailboxes and unread replies land here.",go("all","See all workspaces"));
- if(tab==="new") return E("No new workspaces","Every workspace has started sending.",'<button class="shd-button shd-button--tertiary" data-newws>Add a workspace</button>');
- return E("No workspaces yet","Add the first one to see it here.",'<button class="shd-button shd-button--primary" data-newws>Add a workspace</button>');
+ if(tab==="new") return E("No new workspaces","Every workspace has started sending.",'<button class="shd-button shd-button--tertiary" data-newws>'+ADD_I+'Add a workspace</button>');
+ return E("No workspaces yet","Add the first one to see it here.",'<button class="shd-button shd-button--primary" data-newws>'+ADD_I+'Add a workspace</button>');
 }
 function heroCards(mine,tch,rep,items){
  const kf=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"k":f(n);
@@ -7388,12 +7446,16 @@ function hpData(c,k){
   return {cols:["Sequence","Status",(perDay()?"Added a day":"Added")],rows,num:true}}
  if(k==="sent"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent);
   const rows=R.map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
-   return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[pd(SW[i]),b.toFixed(1)+"%"],go:seqGo(x.q)}});
-  return {cols:["Sequence","Status",(perDay()?"Sent a day":"Sent"),"Bounce rate"],rows,num:true}}
+   /* change 208, 12 Oct 2026 (Hitesh): "Remove bounce rate from this pop-up". The column and its note go; a
+      sequence at 3% or more still reads High bounce in Status, as the Dashboard's Bounce rate cell is red there. */
+   return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[pd(SW[i])],go:seqGo(x.q)}});
+  return {cols:["Sequence","Status",(perDay()?"Sent a day":"Sent")],rows,num:true}}
  if(k==="rep"){const tot=wk7(c).rep; let left=tot;
   const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent), rows=R.map((x,i)=>{const v=i===R.length-1?left:Math.min(left,Math.round(SW[i]*(x.q.reply||0)/100));left-=v;
-   return {name:x.q.name,st:x.st,tone:x.tone,cells:[pd(Math.max(0,v)),(SW[i]?(Math.max(0,v)/SW[i]*100).toFixed(1):"0.0")+"%"],go:seqGo(x.q)}});
-  return {cols:["Sequence","Status",(perDay()?"Replies a day":"Replies"),"Rate"],rows,num:true}}
+   /* change 209, 12 Oct 2026 (Hitesh): "add emails sent field, remove rate column and show rate in Replies
+      column in bracket like 412 (30%)". Emails sent sits before Replies; the rate rides in the Replies cell. */
+   return {name:x.q.name,st:x.st,tone:x.tone,cells:[pd(SW[i]),pd(Math.max(0,v))+' <span class="hp-rate">('+(SW[i]?(Math.max(0,v)/SW[i]*100).toFixed(1):"0.0")+'%)</span>'],go:seqGo(x.q)}});
+  return {cols:["Sequence","Status",(perDay()?"Sent a day":"Emails sent"),(perDay()?"Replies a day":"Replies")],rows,num:true}}
  if(k==="leads"){const who=(c.staff||[]).concat(c.users||[]).slice(0,4), LW=wk7(c).leads; if(!who.length||!LW) return {cols:[],rows:[]};
   let left=LW; const W=[.46,.3,.16,.08];
   const rows=who.map((u,i)=>{const v=i===who.length-1?left:Math.round(LW*W[i]);left-=v;return {name:u[0],st:u[1]||"",tone:"mute",cells:[pd(v)],n:v,go:live?"mod|"+c.id+"|leads":""}}).filter(r=>r.n>0);
@@ -7439,7 +7501,7 @@ function hpOpen(btn){
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map(h=>'<th>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
   /* change 200: the header no longer says what a rate is of, so its pop-up does */
-  +(k==="sent"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':k==="rep"?'<p class="hp-note">Reply rate is replies as a share of prospects contacted.</p>':'')
+  +(k==="rep"?'<p class="hp-note">Reply rate is replies as a share of prospects contacted.</p>':'')
   +'<div class="hp-f">'+(k==="people"?'<button type="button" class="linkbtn" data-hpgo="mem|'+c.id+'|">Manage members of '+c.name+' &rarr;</button>':c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
     :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+' &rarr;</button>')+'</div>';
  L.classList.toggle("hpop--wide",k==="people"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
@@ -8393,7 +8455,7 @@ function drawerHTML(){
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
-  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16);display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow">Usage for ${(nc.name||"this workspace").trim()}</span></div>${ncUsageHTML()}`;
+  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16);display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow" style="margin:0">Usage for ${(nc.name||"this workspace").trim()}</span>${ncModeBtnHTML()}</div>${ncUsageHTML()}`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
   <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
@@ -8438,16 +8500,27 @@ function ncGivenPct(){let g=0;RK.forEach(k=>{const m=compute(k);g=Math.max(g,Mat
 const ncIsSet=k=>!!nc.custom&&nc.custom[k]!=null;
 const ncOver=k=>ncIsSet(k)&&nc.custom[k]>compute(k).free;
 const ncSetCount=()=>RK.filter(ncIsSet).length;
-const ncHintText=k=>ncOver(k)?`Only ${f(compute(k).free)} left`:`of ${f(compute(k).free)} available`;
+/* change 205: "N available" under every field while editing (was "of N available", which crowded the labels) */
+const ncHintText=k=>ncOver(k)?`Only ${f(compute(k).free)} left`:`${f(compute(k).free)} available`;
 const NC_SUM_L={sends:"Emails a month",lead_finder:"Lead Finder credits",verification:"Verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
 function ncSetLine(){const ks=RK.filter(ncIsSet);return ks.length===1?`${NC_SUM_L[ks[0]]||RES[ks[0]].label} set by hand; the rest follow the slider.`:`${ks.length} set by hand; the rest follow the slider.`}
 function ncAddWhy(){const ks=RK.filter(ncOver);return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(compute(ks[0]).free)} left. Lower it to add the workspace.`:""}
-function ncPctText(){const n=ncSetCount();return "<b>"+ncShare()+"%</b>"+(n?`<span class="sub"> &middot; ${n} set by hand</span>`:"")}
+function ncPctText(){if(nc.edit) return '<span class="nc-off">Off while you edit values</span>';const n=ncSetCount();return "<b>"+ncShare()+"%</b>"+(n?`<span class="sub"> &middot; ${n} set by hand</span>`:"")}
+/* change 205, 12 Oct 2026 (Hitesh): "give explicit button which enables edit with pencil icon ... one will be
+   disabled ... if you want to change individual then slider will not available to use ... how we can define which
+   values to keep same". Two modes, one at a time. The slider sets every value and the values are plain text; Edit
+   values (pencil) turns each value into a field and switches the slider off; Use the slider puts every value back
+   on the slider's share. Replaces change 164's click-a-number-while-the-slider-runs. */
+const NC_PEN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const NC_SLI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><circle cx="9" cy="12" r="3" fill="#fff"/></svg>';
+function ncModeBtnHTML(){return nc.edit
+ ?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ncEditVals" aria-pressed="true" title="Every value goes back to ${ncShare()}% of what is available">${NC_SLI}Use the slider</button>`
+ :`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ncEditVals" aria-pressed="false">${NC_PEN}Edit values</button>`}
 /* the context the slider used to carry on its face, now behind Learn more */
 /* change 165, 9 Oct 2026 (Hitesh): shorter and crisper. Two lines: what
    available means and what the slider does; then how each kind renews. */
 function ncLearnHTML(){const who=(nc.name||"this workspace").trim(), sh=ncShare(), g=ncGivenPct();
- return `<p>Available is your plan minus what other workspaces already have${g?"":" (today, all of it)"}. The slider gives ${who} ${sh}% of each; click any number to set your own.</p>
+ return `<p>Available is your plan minus what other workspaces already have${g?"":" (today, all of it)"}. The slider gives ${who} ${sh}% of each. To set each value yourself, use Edit values; the slider is off while you do.</p>
   <p>Emails are a monthly limit. Credits are a balance, set aside for ${who}.</p>`}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
@@ -8461,14 +8534,14 @@ function ncUsageHTML(){
     is left says so as you type and holds Add back. There is no Edit limits mode. */
  const SUM_L={sends:"Emails a month",lead_finder:"Lead Finder credits",verification:"Verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
  const sumKeys=RK.filter(k=>RES[k].pool>0);
- const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k}" autocomplete="off"></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span></div>`;
+ const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span></div>`;
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
- return `<div class="nc-usage" id="ncUsage">
+ return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
   <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ncLearn" aria-expanded="${nc.learn?"true":"false"}" aria-controls="ncLearnBox">${nc.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
-  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available">
+  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available"${nc.edit?" disabled":""}>
   ${nc.learn?`<div class="nc-learn" id="ncLearnBox">${ncLearnHTML()}</div>`:""}
-  <div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}<div class="nc-sum-f" id="ncSumF"${ncSetCount()?"":" hidden"}><span class="nc-sum-fn" id="ncSumN">${ncSetLine()}</span><button type="button" class="linkbtn" id="ncReset">Reset to ${share}%</button></div></div>
+  <div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
  </div>`;
 }
 /* repaints only the values, so the slider keeps the drag and a row keeps its caret */
@@ -8480,8 +8553,6 @@ function ncPaintUsage(){
  document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}
  document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",ncIsSet(k))});
  document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k)});
- const ff=el("ncSumF"); if(ff){ff.hidden=!ncSetCount();const n=el("ncSumN");if(n)n.textContent=ncSetLine()}
- const rs=el("ncReset"); if(rs)rs.textContent="Reset to "+share+"%";
  const why=ncAddWhy(), dn=el("drDone"), aw=el("ncAddWhy"); if(dn){dn.disabled=!!why;dn.title=why} if(aw)aw.textContent=why;
 }
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
@@ -8551,7 +8622,9 @@ function renderDrawer(){
   /* the name error clears as soon as a name is typed; it never waits for the next Add */
   if(nc.nameErr&&a.value.trim()){nc.nameErr=null;a.classList.remove("is-err");a.setAttribute("aria-invalid","false");const fe=document.querySelector(".nc-fielderr");if(fe){fe.outerHTML='<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Workspace users see it too.</p>'}}}}}
  {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
- {const b=el("ncReset");if(b)b.onclick=()=>{cap();nc.custom={};nc.err=null;renderDrawer();const s2=el("ncShare");if(s2)s2.focus()}}
+ /* change 205: Edit values and Use the slider swap the mode; leaving Edit puts every value back on the slider */
+ {const b=el("ncEditVals");if(b)b.onclick=()=>{cap();if(nc.edit){nc.edit=false;nc.custom={}}else nc.edit=true;nc.err=null;renderDrawer();
+  const go=nc.edit?document.querySelector("#ncUsage input.nc-num"):el("ncShare");if(go)go.focus()}}
  {const b=el("ncLearn");if(b)b.onclick=()=>{cap();nc.learn=!nc.learn;renderDrawer()}}
  L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap;
   i.onfocus=()=>{i.dataset.was=ncIsSet(k)?String(nc.custom[k]):"";setTimeout(()=>{try{i.select()}catch(e){}},0)};
@@ -9188,10 +9261,15 @@ function seqAskBanner(){
 }
 const seqWho=c=>asClient?((actingClientUser(c)||[])[0]||"A client user"):ME().name;
 const seqStLabel=(q,st)=>st==="Draft"&&q.ask?(asClient?"Waiting for "+AGENCY.name:"Waiting for launch"):st;
+/* change 215: Launch / Send back for whoever holds editseq (Workspace Admin and Collaborator); Ask to launch only
+   for a role with draft and without editseq, which no fixed role is since 215 */
 function seqActs(c,q,may,mayDraft,big){
  if(q.state!=="Draft") return "";
  const key=c.id+"|"+q.name, B=(cls,attr,l)=>big?`<button class="shd-button shd-button--sm shd-button--${cls}" ${attr}>${l}</button>`:`<button class="linkbtn linkbtn--sm" ${attr}>${l}</button>`;
  if(may&&q.ask) return `<span class="sq-acts">${B("tertiary",`data-seqreturn="${key}"`,"Send back")}${B("primary",`data-seqlaunch="${key}"`,"Launch")}</span>`;
+ /* change 215: a draft nobody asked about can be launched by whoever holds editseq, so running a sequence is
+    something a Collaborator can see and do, not only a tick on the roles sheet */
+ if(may) return `<span class="sq-acts">${B("primary",`data-seqlaunch="${key}"`,"Launch")}</span>`;
  if(!may&&mayDraft) return `<span class="sq-acts">${q.ask?B("tertiary",`data-seqwithdraw="${key}"`,"Withdraw"):B("primary",`data-seqlaunchask="${key}"`,`Ask ${AGENCY.name} to launch`)}</span>`;
  return "";
 }
@@ -9199,7 +9277,10 @@ function seqTable(c,owner){
  const may=owner||canC(c,"editseq"), mayPause=may||canC(c,"pause"), mayDraft=may||canC(c,"draft");
  const seqReach=reachNote((c.sequences||[]).filter(q=>inReach(q.owner)).length,(c.sequences||[]).length,"sequences");
  /* change 204: a Collaborator writes drafts and pauses; launching stays with
-    whoever holds editseq, so the note says what they can do, not only what not */
+    whoever holds editseq, so the note says what they can do, not only what not.
+    Change 215: a Collaborator holds editseq, so only a Viewer reads a note here;
+    the draft-only branch is kept for a role that writes but cannot launch, and
+    no fixed role does today. */
  const roleNote=seqReach+(!may
    ?(()=>{const role=actingRole(c);
      return mayDraft
@@ -9390,7 +9471,7 @@ function cPros(c,owner){
     other staff never see "Export is with <agency>" about their own data. */
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Prospects</span>
    <span class="sub">${f(c.prospects)} in your workspace${isATM()&&P.length<PA.length?` &middot; you see the ones owned by ${reachLabel()} (prospect sharing is off)`:""}</span>
-   <span class="c-a">${owner||canC(c,"export")
+   <span class="c-a">${/* change 215: Add Prospects for whoever holds addpros (Workspace Admin, Collaborator) */owner||canC(c,"addpros")?`<button class="shd-button shd-button--primary shd-button--sm" data-flash="Add by hand or import a CSV: not in this prototype">${ADD_I}Add Prospects</button>`:""}${owner||canC(c,"export")
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Export started">Export CSV</button>'
      :`<span class="sub" title="${AGENCY.name} keeps the list on the platform. Ask them if you need a copy.">Export is with ${AGENCY.name}</span>`}</span></div>
   <div class="tscroll"><table class="organism" style="min-width:760px">
@@ -10475,7 +10556,8 @@ function wire(){
  q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
    const s=(byId[id].sequences||[]).find(x=>x.name===name); if(!s) return;
    const was=s.state, wasBy=s.pausedBy, c=byId[id]; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
-   /* change 204: a pause by someone who cannot launch is news to the agency */
+   /* change 204: a pause from outside the agency's Workspace Admins is news to the agency (change 215: a client
+      Collaborator can launch now, and their pause is still flagged, as every client pause is) */
    if(s.state==="Paused"&&!agencyFull(c)) {s.pausedBy={by:seqWho(c),client:asClient}; seqAct(c,`paused ${s.name}`)} else delete s.pausedBy;
    receipt("client:"+id,was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.${s.pausedBy?" "+AGENCY.name+" is told.":""}`,
      ()=>{s.state=was;if(wasBy)s.pausedBy=wasBy;else delete s.pausedBy;render()});
@@ -10499,7 +10581,7 @@ function wire(){
    delete s.ask; receipt("client:"+c.id,`Withdrawn. ${s.name} is a draft you can keep working on.`,()=>{s.ask=was;render()}); render()});
  q("[data-seqlaunch]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunch); if(!s) return; const was=s.ask;
    s.state="Active"; delete s.ask; seqAct(c,`launched ${s.name}`);
-   receipt("client:"+c.id,`${s.name} launched. ${was.by} sees it running.`,()=>{s.state="Draft";s.ask=was;render()},"launched a sequence");
+   receipt("client:"+c.id,was?`${s.name} launched. ${was.by} sees it running.`:`${s.name} launched. ${s.prospects?f(s.prospects)+" prospects starting.":"It sends once prospects are added."}`,()=>{s.state="Draft";if(was)s.ask=was;render()},"launched a sequence");
    render()});
  q("[data-seqreturn]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqreturn); if(!s) return; const was=s.ask;
    delete s.ask; seqAct(c,`sent ${s.name} back to ${was.by}`);
@@ -10608,6 +10690,8 @@ function wire(){
    render()});
  const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;PREVIEW=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
+ /* change 214: each workspace named in the capacity line opens its own Limits tab */
+ q("[data-reqws]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.reqws};tab="limits";render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
    if(canI("billing")){ctx="agency"; if(REQUESTS.length){view={name:"record",id:REQUESTS[0].client};tab="limits"} else {view={name:"credits"};billTab="plan"}}
    else{ctx="agency";view=homeView()}
@@ -11827,6 +11911,13 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hp-cell{display:block;width:calc(100% + 12px);margin:-6px -6px;padding:6px;background:none;border:0;border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .hp-cell:hover,.hp-cell[aria-expanded="true"]{background:#f3f4f6}.hp-cell:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
 .hpop.hpop--wide{width:640px}
+.hp-rate{color:#6b7280}
+/* change 212 */
+.linkbtn.ws-all{display:inline-flex;align-items:center;gap:4px;font-size:14px;line-height:20px;font-weight:500;white-space:nowrap}
+.linkbtn.ws-all svg{width:16px;height:16px;flex:none;transition:transform .14s}.linkbtn.ws-all:hover{color:#1e40af}.linkbtn.ws-all:hover svg{transform:translateX(2px)}
+.linkbtn.ws-all:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:2px}
+/* change 213, 12 Oct 2026 (Hitesh): "This arrow should be blue". The open-workspace arrow beside a name */
+.home-tbl .ws-go{color:var(--blue-11)}.home-tbl .ws-go:hover{background:var(--blue-13);color:var(--blue-11)}
 .hpop{position:fixed;z-index:1000;width:480px;max-width:calc(100vw - 32px);background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(17,24,39,.18),0 0 0 1px rgba(17,24,39,.06);overflow:hidden}
 .hpop[hidden]{display:none}
 .hp-h{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 16px;border-bottom:1px solid #f3f4f6;font-size:13px;color:var(--gray-15)}.hp-h b{font-weight:600;color:var(--gray-17)}.hp-h>span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -11868,6 +11959,10 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 @media (max-width:640px){.grace-bar{flex-wrap:wrap;align-items:flex-start}.grace-bar>svg{margin-top:2px}.grace-bar .grace-t{flex:1 1 calc(100% - 28px)}.grace-bar .grace-go,.grace-bar .grace-who{margin-left:28px}}
 .home-tbl thead th{color:var(--gray-15);font-weight:500}.home-tbl thead th .th-u{color:var(--gray-11)}
 .u-home .u-pct{font-weight:600}
+/* change 210: bar, then the figure to its right, as production's .email-sent-field (gap .75rem, bar .375rem high) */
+.hp-cell.u-home.u-row{display:flex;flex-direction:row;align-items:center;gap:12px}
+.u-home.u-row .track{flex:1 1 auto;min-width:40px;height:6px;border-radius:8px}.u-home.u-row .track>span{border-radius:8px}
+.u-home.u-row .meter-t{flex:none;width:auto;font-size:14px;line-height:18px;overflow:visible}.u-home.u-row .u-pct{font-weight:500}
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
 /* change 197: people on the Workspaces page */
 .ws-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 8px}.ws-meta .ws-win{margin:0}
@@ -12630,7 +12725,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="23097a0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="2865681";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
