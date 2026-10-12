@@ -914,7 +914,7 @@ table.sqt td.c1{width:28px;padding-right:0}table.sqt td.c2{width:44px}
 table.sqt .sq-name{font-size:16px;font-weight:600;color:var(--gray-17);max-width:330px;overflow:hidden;text-overflow:ellipsis;display:block}
 table.sqt .sq-st{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-15);margin-top:4px}
 table.sqt .sq-st i{width:6px;height:6px;border-radius:50%;background:var(--gray-11);display:inline-block}
-table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{background:var(--orange-14)}
+table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{background:var(--orange-14)}table.sqt .sq-st.wt i{background:var(--blue-11)}table.sqt .sq-acts{display:inline-flex;gap:14px;white-space:nowrap}.panel-h .sq-acts{display:inline-flex;gap:8px;white-space:nowrap}table.sqt .sq-acts{display:flex;margin-top:4px}.panel-h .sq-acts{margin-right:12px}
 .sq-ring{display:inline-flex;align-items:center;gap:8px}
 .sq-ring svg{width:36px;height:36px}
 .sq-ring b{font-weight:600}.sq-ring b span{font-weight:400;color:var(--gray-15)}
@@ -3602,6 +3602,7 @@ function vClients(){
    const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));return mine.length?
    `<div class="msg m-info">${infoI}<span>${mine.length} workspace${mine.length===1?"":"s"} ${mine.length===1?"has":"have"} requested more capacity.
     <button class="linkbtn linkbtn--sm" id="toCredits2">Review</button></span></div>`:""})()}
+  ${seqAskBanner()}
   <div class="ws-meta">${wsOANote()}</div>
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
    <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="5"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
@@ -3764,6 +3765,8 @@ function rOverview(c){
    approved or declined, disabled or enabled, previewed as client, deleted or
    restored). No engagement here: sending and replies are Analytics' job. */
 function logAct(cid,text){ACTIVITY.unshift({client:cid,who:ME().name,when:"just now",text,at:Date.now()})}
+/* change 204: the same entry, named for whoever is acting, client sessions included */
+function seqAct(c,text){ACTIVITY.unshift({client:c.id,who:seqWho(c),when:"just now",text,at:Date.now()})}
 function rActivity(c){
  const rows=ACTIVITY.filter(a=>a.client===c.id).map(a=>({who:a.who,when:a.when,text:a.text,at:a.at||0}));
  REQUESTS.filter(q=>q.client===c.id).forEach(q=>rows.push({who:c.name,when:AGE(q.when),text:`Asked for ${f(q.amount)} more ${RES[q.res].unit}`,at:1}));
@@ -3863,7 +3866,14 @@ const CLIENT_MODULES=[
    render code in two places and remembering the second one. */
 const CLIENT_VERBS=[
  ["reply","Reply to prospects","Sends email from their own mailbox, in their own name","inbox"],
- ["editseq","Pause and edit sequences","Changes what goes out, without asking you","sequences"],
+ /* change 204, 12 Oct 2026, Hitesh (doc 92 round 2): "Pause and edit" was one
+    verb, so a Collaborator could not pause (production's Limited access can,
+    SEQUENCE.UPDATE_STATUS) and could not write anything. Split three ways:
+    pause is the client's stop, draft is preparing work the agency launches,
+    editseq is launching and changing what goes out. */
+ ["pause","Pause and resume sequences","Stops and restarts sending, nothing else; you are told","sequences"],
+ ["draft","Write sequences","Creates sequences and templates and sends test emails; you launch them","sequences"],
+ ["editseq","Launch and edit sequences","Changes what goes out, without asking you","sequences"],
  ["export","Export prospects","Takes the list off the platform","prospects"],
  ["reveal","Reveal leads","Spends your Lead Finder credits, against this workspace's cap","leads"],
  ["warmup","Pause and resume warm-up","Starts and stops warm-up on mailboxes they connected themselves","warmup"],
@@ -3894,11 +3904,11 @@ const CLIENT_ROLE_DEFS={
    desc:"Edits campaigns, adds prospects, exports, and spends against the cap",
    banner:`${AGENCY.name} runs your outreach here. As a Workspace Admin you can see and change everything in this workspace: edit sequences, add prospects and templates, export prospects, and reveal leads against your cap.`,
    wizTail:"can do everything there, including spending against the cap."},
- "Workspace Collaborator":{mods:ALL_MODS, verbs:["reply","warmup","request"],
-   desc:"Reads everything, replies and connects mailboxes; cannot change what goes out",
-   banner:`${AGENCY.name} runs your outreach here. As a Workspace Collaborator you can see everything in this workspace, reply to prospects and connect your mailboxes. Changing what goes out stays with ${AGENCY.name}.`,
+ "Workspace Collaborator":{mods:ALL_MODS, verbs:["reply","warmup","request","pause","draft"],
+   desc:"Writes sequences for you to launch, replies, pauses; cannot launch or change what goes out",
+   banner:`${AGENCY.name} runs your outreach here. As a Workspace Collaborator you can write sequences for ${AGENCY.name} to launch, pause and resume running ones, reply to prospects and connect email accounts for them to send from. Launching and changing what goes out stays with ${AGENCY.name}.`,
    wizTail:"sees everything in the workspace.",
-   wizExtra:`They can reply and connect mailboxes; changing what goes out stays with ${AGENCY.name}.`},
+   wizExtra:`They can write sequences for you to launch, pause, reply and connect email accounts; launching stays with ${AGENCY.name}.`},
  /* 24 Sep 2026, Hitesh: a Viewer sees every screen and changes nothing (was Reports and Usage). */
  "Workspace Viewer":{mods:ALL_MODS, verbs:[],
    desc:"Sees everything in the workspace and changes nothing",
@@ -4126,7 +4136,7 @@ function atmRolesHTML(){
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
  const R=[["See sequences, prospects, mailboxes, templates, tasks, replies","Own","Team","All","All"],["Create, delete sequences; delete mailboxes","Own","Team","All","All"],["Prospects, while prospect sharing is on","All","All","All","All"],["Buy email accounts","Own","Team","All","All"],["Team reports",0,"Team","All","All"],["Invite people, change roles, teams",0,0,1,1],["Create clients, admin settings, whitelabel",0,0,1,1],["Billing, SSO, delete the account",0,0,0,1]];
- const C=[["See everything in the workspace",[1,1,1]],["Reply to prospects; connect their own email accounts",[0,1,1]],["Ask for more allowance",[0,1,1]],["Create, launch and pause sequences",[0,0,1]],["Add prospects and templates; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
+ const C=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Launch sequences; change a running one",[0,0,1]],["Add prospects; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do (ATM, as production today)</span><span class="rl2-sub">You see a record if its owner is within your reach: Own, Team (people in teams you manage), or All.</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
@@ -4788,7 +4798,7 @@ function ppRolesHTML(){
  const sec=(t,n)=>`<tr class="rl2-sec"><td colspan="${n}">${t}</td></tr>`;
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=(b,i)=>`<th class="rl2-th"><b>${b}</b><i>${i}</i></th>`;
- const WS=[["See everything in the workspace",[1,1,1]],["Reply to prospects; connect their own email accounts",[0,1,1]],["Ask for more allowance",[0,1,1]],["Create, launch and pause sequences",[0,0,1]],["Add prospects and templates; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
+ const WS=[["See everything in the workspace",[1,1,1]],["Reply to prospects",[0,1,1]],["Write sequences and templates; send test emails",[0,1,1]],["Pause and resume sequences",[0,1,1]],["Connect email accounts for "+AGENCY.name+" to send from",[0,1,1]],["Ask for more allowance",[0,1,1]],["Launch sequences; change a running one",[0,0,1]],["Add prospects; export; reveal leads",[0,0,1]],["Buy email accounts; change settings",[0,0,1]],["See other workspaces, the plan or costs",[0,0,0]]];
  const AC=[["Open workspaces",['<span class="rl2-t">The ones you add them to</span>',1,1]],["Add workspaces, set limits, approve requests",[0,1,1]],["Invite people, set roles",[0,1,1]],["See Analytics across workspaces",[0,1,1]],["Billing; delete a workspace",[0,0,1]],["Transfer ownership, close the account",[0,0,1]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span><span class="rl2-sub">Account role: which workspaces. Workspace role: what they can do inside.</span></div>
@@ -5042,7 +5052,7 @@ function invPropose(addr){
 }
 const invSettled=r=>!r.blocked&&(r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0));
 const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["View only","View only"]};
-const INV_WHY={"Workspace Admin":"Edits sequences, adds prospects and templates, exports, reveals leads against the limit.","Workspace Collaborator":"Reads everything, replies, connects their own email accounts. Changing what goes out stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
+const INV_WHY={"Workspace Admin":"Launches and edits sequences, adds prospects, exports, reveals leads against the limit.","Workspace Collaborator":"Writes sequences for you to launch, replies, pauses and resumes, connects email accounts. Launching stays with you.","Workspace Viewer":"Sees every screen and the allowance, changes nothing."};
 const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the clients you pick."],["client","Use their own client workspace","A client&rsquo;s person. One workspace, nothing of your agency."],["admin","Run the agency with me","An Admin. Every client, People and Billing."]];
 const INV_TINTS=["#b91c1c","#1d4ed8","#0f766e","#6d28d9","#c2410c","#0e7490"];
 const invFirst=e=>{const n=e.split("@")[0].split(/[._-]/)[0];return n?n.charAt(0).toUpperCase()+n.slice(1):"They"};
@@ -7974,6 +7984,13 @@ function queueItems(){
     if(st.room===0&&!REQUESTS.some(r=>r.client===c.id&&r.res===k))
       add({score:90,sev:"critical",kind:"At limit",client:c.id,
         why:`${RES[k].label} stopped. ${byId[c.id].name} cannot continue until you raise it`,age:"today",act:"Raise limit",raise:k+"|"+c.id})})});
+ /* change 204: drafts a Collaborator asked to launch, and pauses by someone
+    who cannot launch, go to whoever can launch in that workspace */
+ if(!asClient) myClients().filter(c=>agencyFull(c)).forEach(c=>(c.sequences||[]).forEach(s=>{
+   if(s.state==="Draft"&&s.ask) add({score:65,sev:"decision",kind:"Ready to launch",client:c.id,
+     why:`${s.ask.by} wrote ${s.name} and asked you to launch it. Add prospects and email accounts, then launch`,age:"today",act:"Review",seq:s.name});
+   if(s.state==="Paused"&&s.pausedBy) add({score:50,sev:"warning",kind:"Paused by "+(s.pausedBy.client?c.name:s.pausedBy.by),client:c.id,
+     why:`${s.pausedBy.by} paused ${s.name}. ${f(s.prospects)} people stopped mid-sequence`,age:"today",act:"Open",seq:s.name})}));
  REPLIES.filter(r=>myClientsFor("inbox").some(c=>c.id===r.client)).forEach(r=>
    add({score:r.replied?-10:(r.positive?70:45),sev:r.positive?"reply":"info",kind:r.positive?"Positive reply":"Reply",client:r.client,
      why:`${r.from} · ${r.snippet}`,age:r.age,act:"Reply",reply:r.id,replied:!!r.replied}));
@@ -8021,6 +8038,7 @@ function aQueue(Q,filters){
      :q.migreview?`<button class="linkbtn linkbtn--sm" data-migreview>Review</button>`
      :q.collision?`<button class="linkbtn linkbtn--sm" data-collision>Review</button>`
      :q.reply?`<button class="linkbtn linkbtn--sm" data-openreply="${q.reply}">Reply</button>`
+     :q.seq&&c?`<button class="linkbtn" data-qseq="${c.id}|${q.seq}">${q.act}</button>`
      :q.plan?dqTip(`<button class="linkbtn" data-gobill>${q.act}</button>`,ADD_CAP_TIP)
      :q.pay?`<button class="linkbtn" data-gobill>${q.act}</button>`
      :c?`<button class="linkbtn" data-goto="${c.id}|${destFor(q)}${q.mb?"|"+q.mb:""}">${q.act}</button>`
@@ -9149,12 +9167,44 @@ function seqStats(c,q){
  const pct=q.prospects?Math.round(contacted/q.prospects*100):0;
  return {contacted,replied,opened,positive,score,inbox,accounts,pct};
 }
+/* change 204, 12 Oct 2026 (doc 92 round 2): a Collaborator prepares, a
+   Workspace Admin launches. A draft a Collaborator asks to launch carries
+   q.ask {by}; the agency sees "Ready to launch" in its Work queue and Launch /
+   Send back on the row. Nothing launches by itself (Sprout's rule). A pause by
+   someone who cannot launch carries q.pausedBy, which puts "Paused by" in the
+   agency's queue until it is resumed. */
+/* the Work queue is phase 2 (30 Sep), so launch asks and client pauses are
+   said where capacity requests are: a line on the Workspaces page. Only for
+   someone who can launch in that workspace. */
+function seqAskBanner(){
+ if(asClient) return "";
+ const asks=[],paused=[];
+ myClients().filter(c=>agencyFull(c)).forEach(c=>(c.sequences||[]).forEach(s=>{
+  if(s.state==="Draft"&&s.ask) asks.push([c,s]); if(s.state==="Paused"&&s.pausedBy) paused.push([c,s])}));
+ const go=([c,s])=>`<button class="linkbtn linkbtn--sm" data-qseq="${c.id}|${s.name}">${s.name}</button> <span class="sub">in ${c.name}</span>`;
+ const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>';
+ return (asks.length?`<div class="msg m-info">${icon}<span>${asks.length===1?"A sequence is":asks.length+" sequences are"} waiting for you to launch: ${asks.map(go).join(", ")}.</span></div>`:"")
+  +(paused.length?`<div class="msg m-warn">${icon}<span>Paused by a client: ${paused.map(([c,s])=>go([c,s])+` <span class="sub">by ${s.pausedBy.by}</span>`).join(", ")}.</span></div>`:"");
+}
+const seqWho=c=>asClient?((actingClientUser(c)||[])[0]||"A client user"):ME().name;
+const seqStLabel=(q,st)=>st==="Draft"&&q.ask?(asClient?"Waiting for "+AGENCY.name:"Waiting for launch"):st;
+function seqActs(c,q,may,mayDraft,big){
+ if(q.state!=="Draft") return "";
+ const key=c.id+"|"+q.name, B=(cls,attr,l)=>big?`<button class="shd-button shd-button--sm shd-button--${cls}" ${attr}>${l}</button>`:`<button class="linkbtn linkbtn--sm" ${attr}>${l}</button>`;
+ if(may&&q.ask) return `<span class="sq-acts">${B("tertiary",`data-seqreturn="${key}"`,"Send back")}${B("primary",`data-seqlaunch="${key}"`,"Launch")}</span>`;
+ if(!may&&mayDraft) return `<span class="sq-acts">${q.ask?B("tertiary",`data-seqwithdraw="${key}"`,"Withdraw"):B("primary",`data-seqlaunchask="${key}"`,`Ask ${AGENCY.name} to launch`)}</span>`;
+ return "";
+}
 function seqTable(c,owner){
- const may=owner||canC(c,"editseq");
+ const may=owner||canC(c,"editseq"), mayPause=may||canC(c,"pause"), mayDraft=may||canC(c,"draft");
  const seqReach=reachNote((c.sequences||[]).filter(q=>inReach(q.owner)).length,(c.sequences||[]).length,"sequences");
- const roleNote=seqReach+((!owner&&!canC(c,"editseq"))
+ /* change 204: a Collaborator writes drafts and pauses; launching stays with
+    whoever holds editseq, so the note says what they can do, not only what not */
+ const roleNote=seqReach+(!may
    ?(()=>{const role=actingRole(c);
-     return `<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. As a ${role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
+     return mayDraft
+       ?`<p class="sub" style="margin:0 0 10px">${AGENCY.name} launches these sequences. As a ${role} you can write new ones for them to launch, pause and resume running ones${canC(c,"reply")?", and reply to prospects":""}.</p>`
+       :`<p class="sub" style="margin:0 0 10px">${AGENCY.name} runs these sequences. As a ${role} you can open them${canC(c,"reply")?" and reply to prospects":""}.</p>`})()
    :"");
  const I={search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
@@ -9174,7 +9224,7 @@ function seqTable(c,owner){
    <button class="sq-dd" data-flash="Not in this prototype">Status (All) <span style="width:40px"></span>${I.chev}</button>
    <button class="sq-ic" title="Pause selected" data-flash="Select a sequence first">${I.pause}</button>
    <button class="sq-ic" title="Resume selected" data-flash="Select a sequence first">${I.play}</button></div>
-   <div class="r">${may?`<button class="sq-ai" data-flash="Not in this prototype">${I.spark}Write With AI</button><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Create Sequence</button>`:""}</div></div>`;
+   <div class="r">${mayDraft?`<button class="sq-ai" data-flash="Not in this prototype">${I.spark}Write With AI</button><button class="shd-button shd-button--primary" data-seqnew="${c.id}">Create Sequence</button>`:""}</div></div>`;
  const ring=(pct)=>{const r=14,cf=2*Math.PI*r,off=cf*(1-Math.min(100,pct)/100);
    return `<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="${r}" fill="none" stroke="var(--gray-13)" stroke-width="3"/><circle cx="18" cy="18" r="${r}" fill="none" stroke="${pct?"var(--blue-11)":"var(--gray-13)"}" stroke-width="3" stroke-dasharray="${cf}" stroke-dashoffset="${off}" transform="rotate(-90 18 18)" stroke-linecap="round"/><text x="18" y="21" text-anchor="middle" font-size="8" fill="${pct?"var(--blue-11)":"var(--gray-11)"}" font-weight="600">${pct}%</text></svg>`};
  const dash='<span class="sq-num mute">–</span>';
@@ -9183,8 +9233,8 @@ function seqTable(c,owner){
    const sc=S.score<30?"lo":S.score<70?"mid":"hi";
    return `<tr>
      <td class="c1"><input type="checkbox" aria-label="Select ${q.name}" ${may?"":"disabled"}></td>
-     <td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!may?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}" ${draft||!may?"":`data-seqask="${key}"`}></button></td>
-     <td><button class="cn sq-name" data-seqopen="${key}" title="Open sequence">${q.name}</button><span class="sq-st${st==="Active"?" on":st==="Paused"?" pa":""}"><i></i>${st}</span></td>
+     <td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!mayPause?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}" ${draft||!mayPause?"":`data-seqask="${key}"`}></button></td>
+     <td><button class="cn sq-name" data-seqopen="${key}" title="Open sequence">${q.name}</button><span class="sq-st${st==="Active"?" on":st==="Paused"?" pa":draft&&q.ask?" wt":""}"><i></i>${seqStLabel(q,st)}</span>${seqActs(c,q,may,mayDraft)}</td>
      <td><span class="sq-ring">${ring(S.pct)}<b>${f(S.contacted)}<span>/${f(q.prospects)}</span></b></span></td>
      <td><span class="sq-score ${sc}">${S.score}</span></td>
      <td>${q.prospects?`<b style="text-decoration:underline">${f(q.prospects)}</b>`:dash}</td>
@@ -9199,7 +9249,7 @@ function seqTable(c,owner){
        <span>${st==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
        <span class="tools"><button class="shd-button shd-button--sm shd-button--${st==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${st==="Paused"?"Resume":"Pause"} sequence</button>
        <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></td></tr>`:""}`}).join("");
- return `${owner?receiptBar("client:"+c.id):""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
+ return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
    <thead><tr><th class="c1"><input type="checkbox" aria-label="Select all" ${may?"":"disabled"}></th><th class="c2"></th><th>Sequence Name</th><th>Sequence Progress ${I.info}</th><th>Score</th><th>${I.ppl}Prospect</th><th>${I.mail}Contacted</th><th>${I.open}Opened</th><th>${I.reply}Replied</th><th>${I.thumb}Positive</th><th>Email Accounts</th><th>Inbox Score</th><th></th></tr></thead>
    <tbody>${c.seq&&rows?rows:'<tr><td colspan="13" style="height:56px"><span class="sub">No sequences yet.</span></td></tr>'}</tbody></table></div></div>`;
 }
@@ -9273,7 +9323,7 @@ function seqDetail(c,owner){
   <div class="panel">
    <div class="panel-h"><span class="panel-t">${q.name}</span>
     ${owner?`<span class="sub">Created by ${q.owner}</span>`:""}
-    <span class="c-a"><span class="chip c-${SEQ_TONE(q.state)}">${q.state}</span></span></div>
+    <span class="c-a">${seqActs(c,q,owner||canC(c,"editseq"),owner||canC(c,"editseq")||canC(c,"draft"),true)}<span class="chip c-${q.state==="Draft"&&q.ask?"info":SEQ_TONE(q.state)}">${seqStLabel(q,q.state)}</span></span></div>
    <div class="tabbar">${T.map(([k,l])=>`<button data-seqtab="${k}" aria-selected="${seqTab===k}">${l}</button>`).join("")}</div>
    <div class="wrap">${body}</div>
   </div>`;
@@ -10424,11 +10474,38 @@ function wire(){
  q("[data-seqcancel]").forEach(b=>b.onclick=()=>{seqConfirm=null;render()});
  q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
    const s=(byId[id].sequences||[]).find(x=>x.name===name); if(!s) return;
-   const was=s.state; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
-   receipt("client:"+id,was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.`,
-     ()=>{s.state=was;render()});
+   const was=s.state, wasBy=s.pausedBy, c=byId[id]; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
+   /* change 204: a pause by someone who cannot launch is news to the agency */
+   if(s.state==="Paused"&&!agencyFull(c)) {s.pausedBy={by:seqWho(c),client:asClient}; seqAct(c,`paused ${s.name}`)} else delete s.pausedBy;
+   receipt("client:"+id,was==="Paused"?`Resumed. ${f(s.prospects)} people restarting.`:`Paused. ${f(s.prospects)} people stopped mid-sequence.${s.pausedBy?" "+AGENCY.name+" is told.":""}`,
+     ()=>{s.state=was;if(wasBy)s.pausedBy=wasBy;else delete s.pausedBy;render()});
    render()});
  q("[data-prospect]").forEach(b=>b.onclick=()=>{openProspect=b.dataset.prospect||null;render()});
+ /* change 204: create a draft, ask to launch, withdraw, launch, send back */
+ const seqOf=k=>{const [id,...n]=k.split("|"),name=n.join("|"),c=byId[id];return {c,s:c&&(c.sequences||[]).find(x=>x.name===name)}};
+ q("[data-seqnew]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.seqnew]; if(!c) return; c.sequences=c.sequences||[];
+   let n=1; while(c.sequences.some(x=>x.name===(n>1?"New sequence "+n:"New sequence"))) n++;
+   const s={name:n>1?"New sequence "+n:"New sequence",state:"Draft",prospects:0,contacted:0,sent:0,reply:0,owner:seqWho(c)};
+   c.sequences.unshift(s); c.seq=(c.seq||0)+1; const full=agencyFull(c)||canC(c,"editseq");
+   seqAct(c,`created ${s.name}`);
+   receipt("client:"+c.id,full?`${s.name} created as a draft. Write the steps, add prospects, then launch it.`:`${s.name} created as a draft. Write the steps, then ask ${AGENCY.name} to launch it.`,
+     ()=>{c.sequences=c.sequences.filter(x=>x!==s);c.seq--;render()},"created a sequence");
+   render()});
+ q("[data-seqlaunchask]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunchask); if(!s) return;
+   s.ask={by:seqWho(c)}; seqAct(c,`asked ${AGENCY.name} to launch ${s.name}`);
+   receipt("client:"+c.id,`Sent to ${AGENCY.name}. ${s.name} stays a draft until they launch it.`,()=>{delete s.ask;render()},"asked to launch");
+   render()});
+ q("[data-seqwithdraw]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqwithdraw); if(!s) return; const was=s.ask;
+   delete s.ask; receipt("client:"+c.id,`Withdrawn. ${s.name} is a draft you can keep working on.`,()=>{s.ask=was;render()}); render()});
+ q("[data-seqlaunch]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunch); if(!s) return; const was=s.ask;
+   s.state="Active"; delete s.ask; seqAct(c,`launched ${s.name}`);
+   receipt("client:"+c.id,`${s.name} launched. ${was.by} sees it running.`,()=>{s.state="Draft";s.ask=was;render()},"launched a sequence");
+   render()});
+ q("[data-seqreturn]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqreturn); if(!s) return; const was=s.ask;
+   delete s.ask; seqAct(c,`sent ${s.name} back to ${was.by}`);
+   receipt("client:"+c.id,`Sent back to ${was.by}. ${s.name} is a draft again.`,()=>{s.ask=was;render()});
+   render()});
+ q("[data-qseq]").forEach(b=>b.onclick=()=>{const [id,...n]=b.dataset.qseq.split("|");ctx=id;asClient=false;inMod="sequences";openProspect=null;openReply=null;focusMb=null;openSeq=id+"|"+n.join("|");seqTab="steps";render()});
  /* item 33, 28 Sep 2026: open a sequence's detail, switch its tab, or come
     back to the list. openSeq's key ("<workspace id>|<name>") is exactly
     seqTable's own row key, so seqDetail can find the same row seqTable did. */
@@ -11905,7 +11982,7 @@ td>.cs:only-child{display:block}
 .ask-row{padding:10px 0;border-top:1px solid var(--gray-16);font-size:14px}.ask-row b{font-weight:500;color:var(--gray-17)}.ask-row .cs{display:block}.ask-row .numin input{width:170px}
 .rc-act b{font-weight:600}
 .modal--450{width:450px}
-.is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}/* change 138: in a preview the owner can open the ask sheet; only Send is held back */.is-preview .page [data-askopen]{opacity:1;pointer-events:auto}
+.is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-seqnew],.is-preview .page [data-seqlaunchask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}/* change 138: in a preview the owner can open the ask sheet; only Send is held back */.is-preview .page [data-askopen]{opacity:1;pointer-events:auto}
 .pp-type{font-size:13px;color:var(--gray-15)}
 .rc-swatches{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc-swatches .nc-swatch{width:22px;height:22px}.rc-swname{margin-left:4px}
 .rc-grp{margin-bottom:24px}.rc-grp-h{display:flex;align-items:center;gap:12px;padding:0 4px 10px}.rc-grp-h b{font-size:14px;font-weight:600;color:var(--gray-17)}.rc-mtbl .pp-row:last-child{border-bottom:0}.pp-st--off{color:#6b7280}.pp-st--off i{background:#9ca3af}
@@ -12553,7 +12630,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5c48121";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="23097a0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
