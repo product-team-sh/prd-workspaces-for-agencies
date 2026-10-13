@@ -5340,7 +5340,7 @@ function wireDD(L,id,onPick){
    commits on Enter, Tab, space, comma, click-away or Send itself. */
 const INV_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 function invHintText(d){d=(d||"").trim(); if(!d) return "Each person sets their own password."; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
-function invFootText(d){const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
+function invFootText(d){return ""; /* item 21: "stay away from adding unnecessary details" */ const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
  if(I.f&&!I.edit) return invFormFoot();
  if(!I.emails.length) return "Add at least one email address.";
  const a=I.emails.find(x=>!invSettled(I.rows[x])); if(!a) return "";
@@ -5713,7 +5713,7 @@ function planGoesRow(k){
  const segs=rows.map(c=>`<span title="${c.name} ${f(R.rows[c.id].cap)}" style="width:${(100*R.rows[c.id].cap/R.pool).toFixed(2)}%;background:${c.colour}"></span>`).join("");
  return `<div class="pg-row pg-row--apu" data-pg="${k}">
   <div class="pg-apu">${apuItem(R.label,used,R.pool)}</div>
-  <div class="pg-avail"><span>${f(avail)} available</span>${ddHTML("setlim_"+k,"",[{items:rows.map(c=>({value:c.id,label:c.name,avatar:av(c,22)}))}],{placeholder:"Set limits →"})}</div></div>`}
+  </div>`}
 function vPlatform(){
  const own=CLIENTS.reduce((t,c)=>t+c.users.length,0), ks=RK.filter(k=>RES[k].pool>0);
  const legend=`<div class="pg-legend">${fundedWorkspaces().map(c=>`<span><i style="background:${c.colour}"></i>${c.name}</span>`).join("")}<span><i style="background:#e5e7eb"></i>Available</span></div>`;
@@ -5727,7 +5727,7 @@ function vPlatform(){
   </div>
   ${/* change 133 (Hitesh): the Last invoices panel is gone; Invoices stays in the bill line */""}
   ${isNormal()?"":`<div class="panel">
-   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub">Nothing here changes a limit.</span><span class="c-a"><button class="linkbtn" data-ulgo>Manage limits in Usage &amp; limits</button></span></div>
+   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="c-a"><button class="linkbtn" data-ulgo>Asks, limits and usage &rarr;</button></span></div>
    <div class="panel-b" style="padding-top:12px">${ks.map(planGoesRow).join("")}</div>
   </div>`}
   <div class="panel">
@@ -11220,7 +11220,7 @@ function wire(){
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
  /* change 109: limits are decided on the workspace; Billing only shows where the plan goes */
  q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`.pg-row[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
- RK.forEach(k=>wireDD(document,"setlim_"+k,id=>{if(!id)return; ctx="agency";view={name:"record",id};tab="limits";FOCUS_LIM=k;render()}));
+ 
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
  q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
  /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
@@ -13032,7 +13032,7 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .meter.u-row .apu-b.u-pb{margin:0;flex:1;min-width:0}.meter.u-row .u-pct{color:#1f2937;font-weight:500}
 .meter .pbw{width:100%}
 .lm-t .apu-i{max-width:340px}
-.pg-row.pg-row--apu{grid-template-columns:minmax(0,1fr) 220px;align-items:start}
+.pg-row.pg-row--apu{grid-template-columns:minmax(0,1fr);align-items:start}
 .rc-req2{margin-top:16px}
 .ob-pbar{display:flex;align-items:center;margin:8px 0 16px}.ob-pbar>div{width:25%}
 .ob-pbar .ob-cnt{font-size:14px;line-height:18px;color:#1f2937;margin-left:12px}
@@ -13317,7 +13317,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1e53836";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="364e9ec";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
