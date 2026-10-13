@@ -5671,7 +5671,24 @@ let colOpen=false, colDraft=null, colQ="";
    but is no longer in the nav. */
 /* 4 Oct 2026, change 110, Hitesh: "Remove email accounts from Billing & Subscription". Mailboxes are
    bought and managed inside each workspace (D6); their charge rides on the invoice. */
-const BILL_TABS=[["plan","Platform","Plan"],["credits","Credits","Buy"],["addons","Add-ons","Buy"]];
+/* change 238, 13 Oct 2026 (Hitesh, item 23: "both should match (apart from back to settings)"):
+   production's Platform-cohort billing nav (getPlatformSidebarItems, webui c9feb458b3), its
+   labels, order, icons (@saleshandy/icons Send 14px, KanbanViewIcon, PhoneNumberIcon, Stars,
+   SparklingMail, MailChart) and the Dialer's New badge. Back to Settings is left out. */
+const BS_IC={
+ plan:'<svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px"><path fill="currentColor" fill-rule="evenodd" d="M21.707 2.293a1 1 0 0 1 0 1.414l-11 11a1 1 0 0 1-1.414-1.414l11-11a1 1 0 0 1 1.414 0Z"/><path fill="currentColor" fill-rule="evenodd" d="M21.707 2.293a1 1 0 0 1 .234 1.047l-6.5 18a1.55 1.55 0 0 1-2.84.096l-3.346-6.69-6.69-3.346a1.55 1.55 0 0 1 .095-2.84l18-6.5a1 1 0 0 1 1.047.233ZM4.372 10.068l6.075 3.038a1 1 0 0 1 .448.447l3.037 6.075 5.404-14.964-14.964 5.404Z"/></svg>',
+ crm:'<svg viewBox="0 0 16 16" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M4 3.33822C3.63181 3.33822 3.33333 3.63669 3.33333 4.00488V12.0049C3.33333 12.3731 3.63181 12.6715 4 12.6715H5.33333C5.70152 12.6715 6 12.3731 6 12.0049V4.00488C6 3.63669 5.70152 3.33822 5.33333 3.33822H4ZM2 4.00488C2 2.90031 2.89543 2.00488 4 2.00488H5.33333C6.4379 2.00488 7.33333 2.90031 7.33333 4.00488V12.0049C7.33333 13.1095 6.4379 14.0049 5.33333 14.0049H4C2.89543 14.0049 2 13.1095 2 12.0049V4.00488Z"/><path fill="currentColor" fill-rule="evenodd" d="M10.6667 3.33822C10.2985 3.33822 10 3.63669 10 4.00488V8.00488C10 8.37307 10.2985 8.67155 10.6667 8.67155H12C12.3682 8.67155 12.6667 8.37307 12.6667 8.00488V4.00488C12.6667 3.63669 12.3682 3.33822 12 3.33822H10.6667ZM8.66667 4.00488C8.66667 2.90031 9.5621 2.00488 10.6667 2.00488H12C13.1046 2.00488 14 2.90031 14 4.00488V8.00488C14 9.10945 13.1046 10.0049 12 10.0049H10.6667C9.5621 10.0049 8.66667 9.10945 8.66667 8.00488V4.00488Z"/></svg>',
+ dialer:'<svg viewBox="0 0 20 20" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M4.16699 4.17301C3.94598 4.17301 3.73402 4.26081 3.57774 4.41709C3.4265 4.56833 3.33939 4.77172 3.33393 4.98499C3.52559 8.0216 4.81832 10.8844 6.97027 13.0364C9.12223 15.1884 11.9851 16.4811 15.0217 16.6727C15.235 16.6673 15.4383 16.5802 15.5896 16.4289C15.7459 16.2727 15.8337 16.0607 15.8337 15.8397V13.0705L12.8498 11.877L11.9649 13.3518C11.7418 13.7237 11.2707 13.8622 10.8817 13.6704C8.90761 12.6968 7.30987 11.0991 6.33628 9.12494C6.14445 8.73598 6.28302 8.2649 6.65491 8.04177L8.12969 7.15691L6.93613 4.17301H4.16699ZM2.39923 3.23858C2.86807 2.76974 3.50395 2.50635 4.16699 2.50635H7.50033C7.84108 2.50635 8.1475 2.71381 8.27406 3.03019L9.94072 7.19686C10.0926 7.57662 9.94647 8.01049 9.59574 8.22092L8.20074 9.05792C8.88729 10.1776 9.82906 11.1194 10.9487 11.8059L11.7857 10.4109C11.9962 10.0602 12.4301 9.91405 12.8098 10.066L16.9765 11.7326C17.2929 11.8592 17.5003 12.1656 17.5003 12.5063V15.8397C17.5003 16.5027 17.2369 17.1386 16.7681 17.6074C16.2993 18.0763 15.6634 18.3397 15.0003 18.3397C14.9835 18.3397 14.9666 18.3392 14.9498 18.3381C11.496 18.1283 8.23845 16.6616 5.79176 14.2149C3.34507 11.7682 1.87841 8.51067 1.66853 5.0569C1.6675 5.04007 1.66699 5.02321 1.66699 5.00635C1.66699 4.34331 1.93038 3.70742 2.39923 3.23858Z"/></svg>',
+ ai:'<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M20.125 1a1 1 0 0 1 1 1 1.5 1.5 0 0 0 1.5 1.5 1 1 0 1 1 0 2 1.5 1.5 0 0 0-1.5 1.5 1 1 0 1 1-2 0 1.5 1.5 0 0 0-1.5-1.5 1 1 0 1 1 0-2 1.5 1.5 0 0 0 1.5-1.5 1 1 0 0 1 1-1Zm0 3.45a3.335 3.335 0 0 1-.05.05 3.01 3.01 0 0 1 .05.05 3.335 3.335 0 0 1 .05-.05 3.01 3.01 0 0 1-.05-.05ZM8.875 3.5a1 1 0 0 1 1 1 6.5 6.5 0 0 0 6.5 6.5 1 1 0 1 1 0 2 6.5 6.5 0 0 0-6.5 6.5 1 1 0 1 1-2 0 6.5 6.5 0 0 0-6.5-6.5 1 1 0 1 1 0-2 6.5 6.5 0 0 0 6.5-6.5 1 1 0 0 1 1-1Zm0 5a8.497 8.497 0 0 1-3.5 3.5 8.496 8.496 0 0 1 3.5 3.5 8.498 8.498 0 0 1 3.5-3.5 8.497 8.497 0 0 1-3.5-3.5Zm11.25 7.5a1 1 0 0 1 1 1 1.5 1.5 0 0 0 1.5 1.5 1 1 0 1 1 0 2 1.5 1.5 0 0 0-1.5 1.5 1 1 0 1 1-2 0 1.5 1.5 0 0 0-1.5-1.5 1 1 0 1 1 0-2 1.5 1.5 0 0 0 1.5-1.5 1 1 0 0 1 1-1Zm0 3.45a3.006 3.006 0 0 1-.05.05 3.006 3.006 0 0 1 .05.05 3.006 3.006 0 0 1 .05-.05 3.006 3.006 0 0 1-.05-.05Z"/></svg>',
+ ev:'<svg viewBox="0 0 16 16" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M2.26673 7.73334C1.97218 7.73334 1.7334 7.97212 1.7334 8.26667V13.5999C1.7334 13.8945 1.97218 14.1333 2.26673 14.1333H9.73332C10.0279 14.1333 10.2666 13.8945 10.2666 13.5999V8.26667C10.2666 7.97212 10.0279 7.73334 9.73332 7.73334H2.26673ZM0.666748 8.26667C0.666748 7.38302 1.38308 6.66669 2.26673 6.66669H9.73332C10.617 6.66669 11.3333 7.38302 11.3333 8.26667V13.5999C11.3333 14.4836 10.617 15.1999 9.73332 15.1999H2.26673C1.38308 15.1999 0.666748 14.4836 0.666748 13.5999V8.26667Z"/><path fill="currentColor" fill-rule="evenodd" d="M0.756255 7.97882C0.919641 7.73374 1.25077 7.66751 1.49585 7.8309L5.99996 10.8336L10.5041 7.8309C10.7492 7.66751 11.0803 7.73374 11.2437 7.97882C11.4071 8.2239 11.3408 8.55503 11.0957 8.71841L6.2958 11.9184C6.11665 12.0378 5.88327 12.0378 5.70412 11.9184L0.904173 8.71841C0.659094 8.55503 0.592869 8.2239 0.756255 7.97882Z"/><path fill="currentColor" fill-rule="evenodd" d="M14 5.33331C14.3682 5.33331 14.6667 5.63179 14.6667 5.99998C14.6667 6.17679 14.7369 6.34636 14.8619 6.47138C14.987 6.59641 15.1565 6.66665 15.3333 6.66665C15.7015 6.66665 16 6.96512 16 7.33331C16 7.7015 15.7015 7.99998 15.3333 7.99998C15.1565 7.99998 14.987 8.07022 14.8619 8.19524C14.7369 8.32027 14.6667 8.48984 14.6667 8.66665C14.6667 9.03484 14.3682 9.33331 14 9.33331C13.6318 9.33331 13.3333 9.03484 13.3333 8.66665C13.3333 8.48984 13.2631 8.32027 13.1381 8.19524C13.013 8.07022 12.8435 7.99998 12.6667 7.99998C12.2985 7.99998 12 7.7015 12 7.33331C12 6.96512 12.2985 6.66665 12.6667 6.66665C12.8435 6.66665 13.013 6.59641 13.1381 6.47138C13.2631 6.34636 13.3333 6.17679 13.3333 5.99998C13.3333 5.63179 13.6318 5.33331 14 5.33331Z"/><path fill="currentColor" fill-rule="evenodd" d="M10.9781 0C11.469 0 11.867 0.397969 11.867 0.888889C11.867 1.12464 11.9606 1.35073 12.1273 1.51743C12.294 1.68413 12.5201 1.77778 12.7558 1.77778C13.2468 1.77778 13.6447 2.17575 13.6447 2.66667C13.6447 3.15759 13.2468 3.55556 12.7558 3.55556C12.5201 3.55556 12.294 3.64921 12.1273 3.81591C11.9606 3.9826 11.867 4.2087 11.867 4.44444C11.867 4.93536 11.469 5.33333 10.9781 5.33333C10.4871 5.33333 10.0892 4.93536 10.0892 4.44444C10.0892 4.2087 9.99553 3.9826 9.82883 3.81591C9.66213 3.64921 9.43604 3.55556 9.20029 3.55556C8.70937 3.55556 8.3114 3.15759 8.3114 2.66667C8.3114 2.17575 8.70937 1.77778 9.20029 1.77778C9.43604 1.77778 9.66213 1.68413 9.82883 1.51743C9.99553 1.35073 10.0892 1.12464 10.0892 0.888889C10.0892 0.397969 10.4871 0 10.9781 0Z"/></svg>',
+ radar:'<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" d="M11.575 2.94a1 1 0 0 1 .98.073l9 6a1 1 0 0 1 0 1.664l-9 6a1 1 0 0 1-.98.073l-.13-.073-9-6a1 1 0 0 1 0-1.664l9-6 .13-.074ZM4.803 9.844 12 14.642l7.197-4.797L12 5.045l-7.197 4.8Z"/><path fill="currentColor" d="M2 19.845v-10a1 1 0 1 1 2 0v10a1 1 0 0 0 1 1h5.38l.101.005a1 1 0 0 1 0 1.99l-.101.005H5a3 3 0 0 1-3-3Zm18-4.407V9.845a1 1 0 1 1 2 0v5.592a1 1 0 0 1-2 0ZM14 21.845v-4a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0ZM20 21.845v-2a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0ZM17 21.845v-1a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0Z"/></svg>'};
+const BILL_TABS=[["plan","Platform","Plan"],["crm","CRM","Add-ons"],["dialer","Dialer","Add-ons","New"],
+ ["ai","AI Credits","Credits"],["ev","Email Verification Credits","Credits"],["radar","Inbox Radar","Deliverability"]];
+/* "buy more in Billing" lands on the item that sells that resource (production: Lead Finder
+   credits sit on the Platform page; Dialer credits on Dialer) */
+const BS_BUY={ai:"ai",verification:"ev",dialer:"dialer",radar:"radar"};
+/* production's Manage Billing is a menu; it closes on a click anywhere else */
+document.addEventListener("click",e=>{if(!e.target.closest(".bs-mb")) document.querySelectorAll(".bs-mb-menu").forEach(m=>{m.hidden=true;const t=m.parentNode.querySelector("[data-bsmb]");if(t)t.setAttribute("aria-expanded","false")})});
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
@@ -5716,13 +5733,14 @@ function planGoesRow(k){
 function vPlatform(){
  const own=CLIENTS.reduce((t,c)=>t+c.users.length,0), ks=RK.filter(k=>RES[k].pool>0);
  const legend=`<div class="pg-legend">${fundedWorkspaces().map(c=>`<span><i style="background:${c.colour}"></i>${c.name}</span>`).join("")}<span><i style="background:#e5e7eb"></i>Available</span></div>`;
- return `<div class="panel plancard">
-   <div class="panel-h"><span class="panel-t">Plan</span>
-    <span class="c-a tools"><button class="shd-button shd-button--secondary" data-flash="Opens the billing portal">Manage Billing</button><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button></span></div>
-   <div class="panel-b plan-kv"><span><span class="cs">Plan</span><b>${PLAN.name}</b><span class="cs">Covers ${AGENCY.name}${isNormal()?"":" and "+CLIENTS.length+" workspaces"}</span></span>
-    <span><span class="cs">Started</span><b>${PLAN.start}</b></span>
-    <span><span class="cs">Next billing date</span><b>${PLAN.next}</b></span>
-    <span><span class="cs">What changes next month</span>${nextMonthLine()}</span></div>
+ /* change 238 (item 23): production's Plan Details (plan-details.tsx, getBillOverview): the
+    label, the plan name, Modify Subscription then Manage Billing; Start Date, Next Billing Date,
+    Next Billing Amount ("DD MMM, yyyy", "$0.00"). The agency's "Covers ..." stays under the name. */
+ const dd=s=>s.replace(/^(\d) /,"0$1 ");
+ return `<div class="panel plancard bs-plan">
+   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3>${isNormal()?"":`<span class="bs-plan-d">Covers ${AGENCY.name} and ${CLIENTS.length} workspaces</span>`}</div>
+    <div class="bs-plan-act"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button><span class="bs-mb"><button class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false">Manage Billing</button><div class="bs-mb-menu" role="menu" hidden><button role="menuitem" data-flash="Opens the billing portal">Update Card / Invoices</button><button role="menuitem" data-flash="Not in this prototype">Cancel Subscription</button></div></span></div></div>
+   <div class="bs-plan-ov"><div><span>Start Date</span><b>${dd(PLAN.start)}</b></div><div><span>Next Billing Date</span><b>${dd(PLAN.next)}</b></div><div><span>Next Billing Amount</span><b>${PLAN.amount}</b></div></div>
   </div>
   ${/* change 133 (Hitesh): the Last invoices panel is gone; Invoices stays in the bill line */""}
   ${isNormal()?"":`<div class="panel">
@@ -5740,10 +5758,11 @@ function vPlatform(){
     <div class="sa-row"><span>Inbox Radar</span><span class="cs">Add-on &middot; $49 / month</span></div>
    </div></div>`;
 }
-function vCreditsBuy(){
- const ks=["lead_finder","verification","ai"].concat(RES.dialer&&RES.dialer.pool>0?["dialer"]:[]);
+function vCreditsBuy(only){
+ const ks=(only?[only]:["lead_finder","verification","ai"].concat(RES.dialer&&RES.dialer.pool>0?["dialer"]:[])).filter(k=>RES[k]);
+ if(!ks.length) return "";
  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">Credits</span><span class="sub">Shared by every workspace; each one's limit is on its Limits tab</span></div>
+   <div class="panel-h"><span class="panel-t">${only?RES[only].label.replace(/ \/ month$/,""):"Credits"}</span><span class="sub">Shared by every workspace; each one's limit is on its Limits tab</span></div>
    <div class="panel-b" style="padding-top:0">${ks.map(k=>{const R=RES[k], used=fundedWorkspaces().reduce((t,c)=>t+((R.rows[c.id]||{}).used||0),0), bal=Math.max(0,R.pool-used);
     return `<div class="cp-row"><div><div class="pg-name">${R.label.replace(/ \/ month$/,"")}</div><div class="cs">${CREDIT_RENEW[k]}</div></div>
      <div><span class="cs" style="display:block">Balance</span><b class="cp-v">${f(bal)} of ${f(R.pool)}</b></div>
@@ -5780,8 +5799,9 @@ function mailPurchasesHTML(c,forClient){
    <tbody>${rows}</tbody></table></div>
   <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">Billed to ${AGENCY.name}'s plan.</p></div>`;
 }
-function vAddons(){
- const row=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
+function vAddons(only){
+ const row=(name,...a)=>!only||only===name?row0(name,...a):"";
+ const row0=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
     <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
     <span class="tools"><span class="tnum" style="font-weight:600">${price}</span>${on?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Manage</button>`:`<button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add to plan</button>`}</span></div></div>`;
@@ -6098,7 +6118,7 @@ function ulWire(){const L=ulLayer();
   let n=0; const land=()=>{const P=el("ulLimits"), i=[...q2(`[data-uld^="${k}|"]`)].find(x=>!x.disabled);
    if(!P||!i){if(++n<40) setTimeout(land,50); return} P.scrollIntoView({block:"start",behavior:"auto"}); i.focus({preventScroll:true})}; land()});
  if(view.name!=="limits"||ctx!=="agency"){
-  q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="credits";render()});
+  q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.ulbuy]||"plan";render()});
   q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
  if(view.name!=="limits"||ctx!=="agency"){L.innerHTML="";UL.cell=null;UL.review=false;return}
  q2("[data-uladd]").forEach(b=>b.onclick=openAddClient);
@@ -6108,7 +6128,7 @@ function ulWire(){const L=ulLayer();
  q2("[data-uldecl]").forEach(b=>b.onclick=()=>{UL.decl=b.dataset.uldecl; render(); const i=document.querySelector(`.ul-note[data-nonote="${UL.decl}"]`); if(i) i.focus()});
  q2("[data-uldeclx]").forEach(b=>b.onclick=()=>{UL.decl=null; render()});
  q2(".ul-note").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){const b=document.querySelector(`[data-no="${i.dataset.nonote}"]`); if(b) b.click()} if(e.key==="Escape"){UL.decl=null;render()}});
- q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="credits";render()});
+ q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.ulbuy]||"plan";render()});
  q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()});
  q2("[data-ulrebal]").forEach(b=>b.onclick=()=>{const k=b.dataset.ulrebal; UL.edit=true; UL.focusK=k; UL.cell=null; render();
   const P=el("ulLimits"); if(P) P.scrollIntoView({block:"start",behavior:REDUCED()?"auto":"smooth"});
@@ -6152,17 +6172,25 @@ function vBilling(){
  const tabs=BILL_TABS.filter(t=>!(isNormal()&&t[0]==="alloc"));
  if(!tabs.some(t=>t[0]===billTab)&&billTab!=="alloc") billTab="plan";
  const groups=[...new Set(tabs.map(t=>t[2]))];
- const nav=`<div class="setnav">${groups.map(g=>'<h4>'+g+'</h4>'+tabs.filter(t=>t[2]===g).map(t=>
-   `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${t[1]}</button>`).join("")).join("")}</div>`;
+ /* change 238 (item 23): production's billing sidebar (subscription-info.tsx): a divider and
+    an uppercase caption per group, 12px items with a 16px icon, the active one boxed with a 3px
+    blue left edge. No hover state, as production. */
+ const nav=`<div class="setnav bsnav">${groups.map((g,i)=>`<div class="bsnav-sec">${i?'<hr class="bsnav-hr">':''}<div class="bsnav-cat">${g}</div>${tabs.filter(t=>t[2]===g).map(t=>
+   `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${BS_IC[t[0]]||""}<span class="bsnav-l">${t[1]}</span>${t[3]?`<span class="bsnav-new">${t[3]}</span>`:""}</button>`).join("")}</div>`).join("")}</div>`;
  const page=billTab==="plan"?vPlatform()
+  :billTab==="crm"?vAddons("CRM")
+  :billTab==="dialer"?vAddons("Dialer")+vCreditsBuy("dialer")
+  :billTab==="ai"?vCreditsBuy("ai")
+  :billTab==="ev"?vCreditsBuy("verification")
+  :billTab==="radar"?vAddons("Inbox Radar")
   :billTab==="credits"?vCreditsBuy()
   :billTab==="addons"?vAddons()
   :vCredits().replace('<div class="wrap">','<div class="billpage">');
  /* 4 Oct 2026, change 108, Hitesh: the strip under the header ("Scale (Monthly) · one plan for...",
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
     Billing & Subscription does. Invoices live under Manage Billing on the Platform panel. */
- return `<div class="wrap">${billLine()}
-   <div class="setwrap">${nav}<div class="billpage">${page}</div></div></div>`;
+ return `<div class="wrap billwrap">
+   <div class="setwrap bswrap">${nav}<div class="billpage">${page}</div></div></div>`;
 }
 
 function blReceipt(k,before,prev,cid){
@@ -11211,6 +11239,7 @@ function wire(){
    else{ctx="agency";view=homeView()}
    render()}});
  q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;render()});
+ q("[data-bsmb]").forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.parentNode.querySelector(".bs-mb-menu");m.hidden=!m.hidden;b.setAttribute("aria-expanded",String(!m.hidden))});
  /* 18 Sep, delight pass: Email Accounts charge expander and the limits receipt */
  q("[data-blwhy]").forEach(b=>b.onclick=()=>{BL_WHY=BL_WHY===b.dataset.blwhy?null:b.dataset.blwhy;render()});
  q("[data-blundo]").forEach(b=>b.onclick=()=>{if(BLR){BLR.undo();BLR=null;clearTimeout(blrTimer)}render()});
@@ -12852,6 +12881,35 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 
 /* 4 Oct 2026, change 109: Billing as money (row 16 B). The bill first, four nav items, where the plan goes. */
 .bill-line{display:flex;align-items:baseline;justify-content:flex-start;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+/* change 238 (item 23): Billing & Subscription as production draws it */
+.page:has(>.billwrap){background:#fff}
+.wrap.billwrap{padding:24px 24px 40px}
+.setwrap.bswrap{grid-template-columns:220px minmax(0,1fr);gap:24px}
+.setnav.bsnav{background:#fff;border:0;border-radius:0;box-shadow:none;padding:0;overflow:visible}
+.bsnav-hr{margin:16px 0 18px;border:0;border-top:1px solid var(--gray-13)}
+.bsnav-cat{margin:0 0 8px 16px;color:#374151;font-size:12px;font-weight:600;line-height:16px;text-transform:uppercase;letter-spacing:.04em}
+.setnav.bsnav button{display:flex;align-items:center;gap:6px;width:100%;padding:8px 16px 8px 12px;border:1px solid transparent;border-left:3px solid transparent;border-radius:0;background:none;font-size:12px;font-weight:500;line-height:16px;color:var(--gray-15);transition:all .2s ease;user-select:none}
+.setnav.bsnav button:hover{background:none}
+.setnav.bsnav button svg{width:16px;height:16px;flex:none;color:var(--gray-15)}
+.setnav.bsnav .bsnav-l{flex:1}
+.setnav.bsnav button[aria-current=true]{background:#eff6ff;border:1px solid var(--blue-13);border-left:3px solid var(--blue-11);border-radius:1px 4px 4px 1px;box-shadow:1px 1px 4px var(--gray-16);color:#1d4ed8;font-weight:500}
+.setnav.bsnav button[aria-current=true] svg{color:#1d4ed8}
+.bsnav-new{display:flex;align-items:center;justify-content:center;padding:1px 3px;border-radius:3px;background:#f59e0b;color:#fff;font-size:10px;font-weight:500;line-height:12px}
+.panel.bs-plan{border:1px solid var(--gray-13);border-radius:4px;box-shadow:0 2px 4px 0 rgba(234,237,239,.65);padding:20px}
+.bs-plan-info{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.bs-plan-k{display:block;font-size:12px;font-weight:600;line-height:20px;color:var(--gray-12)}
+.bs-plan-n{margin:0;font-size:16px;font-weight:700;line-height:24px;color:#1f2937}
+.bs-plan-d{display:block;font-size:12px;line-height:20px;color:var(--gray-12)}
+.bs-plan-act{display:flex;align-items:flex-start;gap:16px}
+.bs-mb{position:relative;display:inline-flex}
+.bs-mb-menu{position:absolute;z-index:20;width:256px;right:0;top:37px;padding:8px 0;background:#fff;border:1px solid var(--gray-13);border-radius:4px;box-shadow:2px 2px 16px -3px rgba(4,21,76,.16),8px 16px 56px -24px rgba(156,157,161,.24)}
+.bs-mb-menu[hidden]{display:none}
+.bs-mb-menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;font-size:14px;line-height:22px;color:#1f2937;padding:10px 16px;cursor:pointer}
+.bs-mb-menu button:hover{background:#eff6ff}
+.bs-plan-ov{display:flex;justify-content:space-between;width:80%;margin-bottom:0}
+.bs-plan-ov>div{display:flex;flex-direction:column;gap:5px}
+.bs-plan-ov span{font-size:12px;font-weight:600;line-height:20px;color:var(--gray-12)}
+.bs-plan-ov b{font-size:14px;font-weight:600;line-height:22px;color:var(--gray-17)}
 .bill-amt{font-size:20px;line-height:28px;font-weight:600;color:#111827}.bill-sub{font-size:14px;color:#6b7280}.bill-sub .linkbtn{font-size:14px}
 .plancard .plan-kv{border-top:0;padding-top:16px}.plan-kv b{font-size:20px;line-height:24px;font-weight:600;color:#111827;display:block;margin-top:4px}
 .pg-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#6b7280;margin-bottom:6px}.pg-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
@@ -13316,7 +13374,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="75d7e9d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="31de62e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
