@@ -3844,19 +3844,24 @@ function recAccessRows(c){
   rows.push({ini:P.initials||initials(P.name),col:AGENCY.colour,name:P.name,sub:roleName(P.role),role:P.role==="Member"?ppWsRole(P,c.id):"Workspace Admin",kind:"team"})});
  return rows;
 }
+/* change 245 (Hitesh, 13 Oct 2026: "access panel it streches beyond limits and usage"):
+   Access shows the first few people and "+N more"; the Members tab has everyone. Four people
+   and "+N more" end the left half level with Limits and usage (six bars) at 1440 and 1366;
+   the line sits in the last row's own bottom padding, no divider above it. */
+let REC_ACCESS_MAX=4;
 function recAccessCard(c,ro){
- const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU;
+ const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU, more=rows.length-REC_ACCESS_MAX;
  const line=c.own?"Your team only":nU?`${nU} client user${nU===1?"":"s"} &middot; ${nT} from ${AGENCY.name}`:`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
  const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span>${r.name}</span><span class="cs">${r.sub}</span></span><span class="rc-prole">${r.role}</span></div>`;
- return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members &rarr;</button>${!ro&&!c.own&&canI("members")?`<button class="shd-button shd-button--secondary shd-button--sm" data-invite="${c.id}">Invite</button>`:""}</span></div>
-  <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.map(row).join("")}</div></div>`;
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members</button></span></div>
+  <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.slice(0,REC_ACCESS_MAX).map(row).join("")}${more>0?`<button class="rc-more" data-tab="members">+${more} more</button>`:""}</div></div>`;
 }
 function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu"})}).join("");
  const ask=askOf(c.id);
  const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
- return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits</button></span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
  const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
@@ -12605,6 +12610,11 @@ td>.cs:only-child{display:block}
 /* change 219 (Hitesh, item 13): "divide screen in 2 section instead of 3 and stack Details and Access in same half
    section, first Details then Access". Limits and usage is the tallest card, so it gets a half to itself. */
 .rc-stack{display:flex;flex-direction:column;gap:16px;min-width:0}.rc-stack>.panel{margin-top:0!important}.rc-stack>.panel:last-child{flex:1}
+/* change 245: no card is stretched to match another; each takes its own height */
+.rc-cards{align-items:start!important}.rc-stack>.panel:last-child{flex:none}
+.rc-prow:has(+.rc-more){border-bottom:0}
+.rc-more{display:block;background:none;border:0;padding:0;font:inherit;font-size:12px;line-height:16px;font-weight:500;color:var(--gray-15);cursor:pointer}
+.rc-more:hover{color:var(--blue-11)}.rc-more:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:2px}
 @media (max-width:1180px){.rc-cards{grid-template-columns:1fr}}
 .rc-card .panel-h{display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .rc-card .panel-b{padding:8px 20px 16px}
@@ -13374,7 +13384,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="31de62e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="a371af6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
