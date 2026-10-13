@@ -464,7 +464,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .ktile-v{display:flex;align-items:center;gap:8px;margin-top:9px}
 .ktv{font-size:24px;line-height:32px;font-weight:600;color:var(--gray-17);letter-spacing:-.02em;
  font-variant-numeric:tabular-nums}
-.ktile-v .dchip{margin-left:auto}
+.ktile-v .performance-stats{margin-left:auto}
 .ktile-b{font-size:12px;line-height:17px;color:var(--gray-11);margin-top:2px;font-variant-numeric:tabular-nums}
 .kgrp-f{padding:12px 18px;border-top:1px solid var(--gray-13);background:var(--gray-19);
  border-radius:0 0 6px 6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -473,7 +473,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .kgrp-f .lgd{margin-top:0;flex:none}
 .kpi{padding:18px 20px 0;display:flex;flex-direction:column}
 .kpi-t{display:flex;align-items:center;gap:8px}
-.kpi-t .dchip{margin-left:auto}
+.kpi-t .performance-stats{margin-left:auto}
 .kpi-l{font-size:14px;font-weight:500;color:var(--gray-12)}
 .kpi-v{display:flex;align-items:center;gap:10px;font-size:28px;line-height:36px;font-weight:600;color:var(--gray-17);
  letter-spacing:-.02em;margin:8px 0 14px;font-variant-numeric:tabular-nums}
@@ -494,8 +494,16 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .lgd{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:8px}
 .lgd span{display:inline-flex;align-items:center;gap:5px;font-size:11px;line-height:16px;color:var(--gray-12)}
 .lgd i{width:6px;height:6px;border-radius:50%;flex:none}
-.dchip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;line-height:16px;flex:none}
-.dchip svg{width:9px;height:9px}
+/* change 221 (item 18): the delta chip from version D, production's PerformanceStats
+   (molecules/performance-stats): 18px tall, radius 4, a 10px signed label and an 8px
+   arrow. The tone says good or bad (inverted where down is good); the arrow says the
+   direction; 0% and a fall under the Dashboard's red rule are neutral. */
+.performance-stats{display:inline-flex;align-items:center;justify-content:space-evenly;min-width:2.5rem;height:1.125rem;border-radius:.25rem;border:1px solid;box-sizing:border-box;padding:0 3px;gap:1px;vertical-align:middle;flex:none;font-style:normal}
+.performance-stats--increment{background:var(--green-11);border-color:var(--green-11);color:var(--green-12)}
+.performance-stats--decrement{background:var(--red-19);border-color:var(--red-19);color:var(--red-12)}
+.performance-stats--neutral{background:var(--gray-16);border-color:var(--gray-16);color:var(--gray-12)}
+.performance-stats__label{font-size:10px;font-weight:500;line-height:.625rem;margin-right:1px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.performance-stats__icon{width:8px;height:8px;flex:none}
 .big{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .big-v{font-size:30px;line-height:38px;font-weight:600;color:var(--gray-17);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .big-s{font-size:13px;color:var(--gray-15);flex-basis:100%}
@@ -2720,27 +2728,7 @@ let INFRA_ALL=[
 ];
 /* limit alerts derive from the same numbers the Credits screen edits, so approving
    a request in Credits clears the alert here */
-function limitAlerts(){
-  const out=[],near=[];
-  RK.forEach(k=>{const m=compute(k);
-    fundedWorkspaces().forEach(c=>{const st=rowState(k,c.id,m);
-      if(st.state==="At limit"||st.state==="Imports blocked")
-        out.push({sev:"critical",client:c.id,kind:st.state,detail:`${RES[k].label} ${f(RES[k].rows[c.id].used)} of ${f(RES[k].rows[c.id].cap)}`,age:"today",act:"Raise limit"});
-      else if(st.state==="Near limit")
-        near.push({c:c.id,label:RES[k].label,pct:Math.round(st.pct*100)});
-      else if(st.state==="Pool exhausted")
-        out.push({sev:"critical",client:c.id,kind:"Pool exhausted",detail:`${RES[k].label} limit allows more but the pool is empty`,age:"today",act:"Add capacity"});
-    })});
-  /* one row per client, not one per resource. At 40 clients the ungrouped version
-     produces 100+ warnings and the queue stops being read. */
-  fundedWorkspaces().forEach(c=>{const n=near.filter(x=>x.c===c.id);
-    if(n.length) out.push({sev:"warning",client:c.id,
-      kind:n.length===1?"Near limit":`${n.length} limits near`,
-      detail:n.map(x=>`${x.label} ${x.pct}%`).join(" · "),age:"today",act:"Review"})});
-  myClients().forEach(c=>{if(doneN(c)<4)
-    out.push({sev:"info",client:c.id,kind:"Setup incomplete",detail:`${4-doneN(c)} of 4 steps remaining`,age:"open",act:"Finish"})});
-  return out;
-}
+/* doc 93: limitAlerts() deleted, no screen drew it */
 const INFRA=()=>INFRA_ALL.filter(a=>a.client==="__x"||myClients().some(c=>c.id===a.client));
 /* item 55, 28 Sep 2026: allAlerts deleted, unread (one hit, its own
    definition). INFRA() and limitAlerts() are each read directly by their
@@ -2785,7 +2773,7 @@ const barCol=t=>t==="bad"?"var(--red-18)":t==="warn"?"var(--orange-14)":"var(--g
    in its colour only when something is wrong, so the Status chip column that
    repeated the bar's colour in words is gone from all four tables. */
 const METER_TXT={bad:"var(--red-12)",warn:"var(--orange-12)"};
-const meter=(p,tone,state,suffix)=>'<div class="meter"><div class="track"><span style="width:'+p+'%;background:'+barCol(tone)+'"></span></div>'
+const meter=(p,tone,state,suffix)=>'<div class="meter">'+pbar(p)
  +'<span class="meter-t tnum">'+p+'%'+(suffix||'')+(state&&METER_TXT[tone]?' &middot; <b style="font-weight:500;color:'+METER_TXT[tone]+'">'+state+'</b>':'')+'</span></div>';
 
 /* ═══ model ═══ */
@@ -2877,7 +2865,7 @@ const usageMeterCell=c=>{const u=usageOf(c); if(!u.length) return usageNone(c);
     not tell better. The cell opens the client's own Limits tab, scrolled to
     this exact resource, instead of floating a card over the row. */
  return '<button type="button" class="meter u-usagebtn" style="min-width:150px" data-goclim="'+c.id+'|'+x.k+'" aria-label="Open '+c.name+'\u2019s limits, '+RES[x.k].label+'">'
-  +'<div class="track"><span style="width:'+p+'%;background:'+barCol(x.tone)+'"></span></div>'
+  +pbar(p)
   +'<span class="meter-t tnum">'+p+'% '+x.short+(x.tone==="ok"?'':' &middot; <b style="font-weight:500;color:'+METER_TXT[x.tone]+'">'+word+'</b>')+'</span>'
   +(rest>0?'<span class="u-sub">+'+rest+' more</span>':'')+'</button>'};
 
@@ -2890,14 +2878,7 @@ const usageTip=u=>u.map(y=>RES[y.k].label+' '+f(y.used)+' of '+f(y.cap)+', '+Mat
 /* item 53, 28 Sep 2026: usageCard(), TIP_COL and the .dq-card/.dq-l/.dq-card-r
    CSS it alone emitted deleted. Removed hover card, 21 Sep round 6; usageTip
    above (an aria-label, not a hover card) replaced what it did. */
-function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
- if(u.every(x=>x.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
- const bad=u.filter(x=>x.tone!=="ok"&&x.tone!=="info");
- if(!bad.length) return '<span class="u-quiet" aria-label="'+usageTip(u)+'">all healthy</span>';
- const rest=bad.length-1;
- return '<span class="u-head" aria-label="'+usageTip(u)+'" style="color:'+USAGE_COL[u[0].tone]+'">'+usageHead(u[0])+'</span>'
-  +'<span class="u-sub">'+(rest?rest+' other'+(rest>1?'s':'')+' near a limit'
-    :'the other '+(u.length-1)+' are fine')+'</span>'}
+/* doc 93: usageBrief() deleted, no screen drew it */
 
 /* change 169, 9 Oct 2026 (Hitesh): Home's Usage column takes the Workspaces
    list's meter (bar, the binding resource, its state word) and replaces
@@ -2911,6 +2892,39 @@ function usageBrief(c){const u=usageOf(c); if(!u.length) return usageNone(c);
    one that stops it first, named underneath ("95% used" over "Lead Finder"). Bar and figure take its level's
    colour: green, orange near a limit, red at it. The cell opens the hp pop-up with
    every resource; a row opens that limit, the footer the Limits tab. */
+/* ═══ doc 93, 12 Oct 2026 (version D): Saleshandy's ProgressBar (@saleshandy/design-system
+   0.17.5) in the Account Plan Usage layout (Settings › Billing & Subscription). 10px bar,
+   radius 30px, track #E5E7EB; fill green, amber from 51%, red from 86% of that bar (the
+   component's default breakPoints), width animating in over 3s when a page opens. Hitesh:
+   the same element everywhere, production's colour rule, with thousands separators. ═══ */
+const PB_BREAK=[51,86], PB_COL=["#34D399","#FBBF24","#F87171"];
+const pbCol=p=>p>=PB_BREAK[1]?PB_COL[2]:p>=PB_BREAK[0]?PB_COL[1]:PB_COL[0];
+/* production filterDecimal: a whole number as it is, anything else to two decimals. Production derives
+   used as 100 minus remaining, so 66 of 120 reads 55; here used/total*100 can carry float noise
+   (55.00000000000001), which is dropped first so it never reads "55.00%" (QA 13 Oct) */
+const pbPct=v=>{v=Math.round(v*1e6)/1e6; return Number.isInteger(v)?String(v):v.toFixed(2)};
+function pbar(p,col){const w=Math.max(0,Math.min(100,p||0));
+ return '<div class="pbw" role="progressbar" aria-valuenow="'+Math.round(w)+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+w+'%"><span class="pbw__bar" style="background-color:'+(col||pbCol(w))+'"></span></span></div>'}
+/* production .bucket-progress-bar: segments [value, colour, title] on the same track */
+function bucketBar(segs){const t=segs.reduce((a,s)=>a+Math.max(0,s[0]),0)||1;
+ return '<div class="bkt">'+segs.map(s=>'<span title="'+(s[2]||'')+'" style="width:'+(Math.max(0,s[0])/t*100).toFixed(3)+'%;background-color:'+s[1]+'"></span>').join('')+'</div>'}
+/* one Account Plan Usage item: label and "used of total (x% used)", the bar, "remaining (x%) Remaining" */
+function apuItem(label,used,total,opt){opt=opt||{};
+ const up=total>0?used/total*100:0, rem=Math.max(0,total-used), rp=total>0?rem/total*100:0;
+ return '<div class="apu-i'+(opt.cls?' '+opt.cls:'')+'"'+(opt.attr||'')+'><div class="apu-r"><span class="apu-l">'+label+'</span><span class="apu-u">'+f(used)+' of '+f(total)+' <span>('+pbPct(up)+'% used)</span></span></div>'
+  +'<div class="apu-b">'+(opt.barHTML||pbar(up))+'</div>'
+  +(opt.aside?'<div class="apu-rr">':'')+'<div class="apu-rem">'+(opt.rem!=null?opt.rem:f(rem)+' ('+pbPct(rp)+'%) Remaining')+'</div>'+(opt.aside?'<span class="apu-aside">'+opt.aside+'</span></div>':'')
+  +(opt.note?'<div class="apu-note">'+opt.note+'</div>':'')+'</div>'}
+/* 13 Oct 2026 (QA of item 15): the inside-a-workspace Usage rows keep production's item and get back
+   what the old rows said. Where the number comes from (Renews 1 Oct, Topped up by) sits quietly
+   right of Remaining; the status in its colour under it, the paused one with who can raise it and
+   a pause mark; an ask as an amber chip, never a rescaled bar, so the bar still matches "% used";
+   the agency's action on the line it acts on. */
+const CU_PAUSE='<svg class="cu-ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><rect x="5.2" y="4.5" width="1.9" height="7" rx=".6" fill="#fff"/><rect x="8.9" y="4.5" width="1.9" height="7" rx=".6" fill="#fff"/></svg>';
+function cuItem(k,R,used,cap,o){
+ const st='<div class="cu-st"><span class="cu-w is-'+o.tone+'">'+(o.tone==="paused"?CU_PAUSE:'')+'<span>'+o.word+'</span></span>'+(o.ask?'':(o.act||''))+'</div>';
+ const ask=o.ask?'<div class="cu-st"><span class="cu-chip">'+o.ask+'</span>'+(o.act||'')+'</div>':'';
+ return apuItem(k==="sends"?"Emails":R.label.replace(/ \/ month$/,""),used,cap,{cls:"cu-i is-"+o.tone,attr:' data-cu="'+k+'"',aside:o.sub,note:st+ask+(o.line?'<div class="cu-ln">'+o.line+'</div>':'')})}
 const USE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--green-16)",info:"var(--green-16)"};
 function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  if(u.every(y=>y.used===0)) return '<span class="u-quiet">Nothing used yet</span>';
@@ -2926,8 +2940,8 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
     cell: the bar, then the figure to its right, 12px apart (email-sent-field.tsx, .email-sent-field). The
     column header already says Usage, so the figure is the percentage alone. */
  return '<button type="button" class="meter u-usagebtn u-home u-row hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
-  +'<div class="track"><span style="width:'+p+'%;background:'+col+'"></span></div>'
-  +'<span class="meter-t tnum"><b class="u-pct" style="color:'+(top.tone==="ok"||top.tone==="info"?"var(--gray-17)":col)+'">'+p+'%</b></span>'
+  +'<span class="apu-b u-pb">'+pbar(p)+'</span>'
+  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b></span>'
   /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
   +'</button>'}
 
@@ -3186,11 +3200,8 @@ function agencyUsage(c){
   const line=pend?`<span class="cu-ans sub">${first} asked for ${f(pend.amount)} more</span>`
    :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>You raised this to ${f(ans.to||cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
    :ans?`<span class="cu-ans is-no"><span><i></i>You declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
-  const act=pend?goBtn("Decide &rarr;","linkbtn"):goBtn(tone==="fine"?"Change limit &rarr;":"Raise limit &rarr;","linkbtn");
-  return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
-   <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
-    <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
-   <span class="cu-act">${act}</span></div>`}).join("");
+  const act=pend?goBtn("Decide &rarr;","linkbtn cu-go"):goBtn(tone==="fine"?"Change limit &rarr;":"Raise limit &rarr;","linkbtn cu-go");
+  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?first+" asked for "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
  let top;
  if(ask) top=`<div class="cu-status is-pend"><span><i></i><b>${first} asked for ${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""} ${goBtn("Decide on the Limits tab &rarr;","linkbtn")}</span></div>`;
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
@@ -3204,7 +3215,7 @@ function agencyUsage(c){
   <div class="panel-h"><span class="panel-t">${own?"Your own allowance":"What you allocated to "+c.name}</span>
    <span class="sub">${CYCLE.month} &middot; ${own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
    <span class="c-a">${goBtn("Change limits &rarr;","linkbtn")}</span></div>
-  <div class="panel-b cu-rows">${rows}</div>
+  <div class="panel-b" style="padding-top:0;padding-bottom:0"><div class="apu-grid">${rows}</div></div>
   <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them shows on Workspaces and on this workspace's Limits tab."}</span></div></div>`;
 }
 /* the workspace-switcher trigger's own markup, captured once so renderShell
@@ -3526,7 +3537,7 @@ const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" s
    no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
    Bounce rate, and what each rate is of is said in its pop-up. */
 const homeHeadHTML=()=>''
-   +'<thead><tr class="th-one"><th style="width:236px">Workspace</th><th style="width:104px">Status</th><th style="width:124px">Prospects added</th><th style="width:110px">Emails sent</th><th style="width:92px" title="Emails that bounced, as a share of emails sent">Bounce rate</th><th style="width:96px" title="Replies, as a share of prospects contacted">Reply rate</th><th style="width:92px">Calls made</th><th style="width:124px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected</th><th style="width:144px" title="Average share used across every limited resource, this billing cycle">Usage</th></tr></thead>';
+   +'<thead><tr class="th-one"><th style="width:228px">Workspace</th><th style="width:104px">Status</th><th style="width:116px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:90px" title="Emails that bounced, as a share of emails sent">Bounce rate</th><th style="width:108px" title="Replies, as a share of prospects contacted">Reply rate</th><th style="width:106px">Calls made</th><th style="width:112px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected</th><th style="width:134px" title="Average share used across every limited resource, this billing cycle">Usage</th></tr></thead>';
 const homeWinLine=()=>win().label+(perDay()?", a day on average":"")+" &middot; Usage is this billing cycle";
 function vClients(){
  /* A1 carries more than the eight columns the live screen has, because the two
@@ -3780,10 +3791,10 @@ function recAccessCard(c,ro){
 }
 function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
-  return `<div class="rc-lrow"><div class="rc-lhead"><span>${R.label}</span><span class="sub${s.tone==="bad"?" is-bad":""}">${f(r.used)} of ${f(r.cap)}</span></div><div class="rc-lbar"><span style="width:${p}%;background:${barCol(s.tone)}"></span></div></div>`}).join("");
+  return apuItem(R.label,r.used,r.cap,{cls:"rc-apu"})}).join("");
  const ask=askOf(c.id);
- const req=ask&&!ro?`<div class="rc-req"><span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)}</span><button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></div>`:"";
- return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows||'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
+ const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits &rarr;</button></span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
  const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
@@ -3800,7 +3811,7 @@ function recDetailsCard(c,ro){
 }
 function rOverview(c){
  const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
- return `${ro||c.own?"":rcSetup(c,S,done)}${recStrip(c)}<div class="rc-cards">${recAccessCard(c,ro)}${recLimitsCard(c,ro)}${recDetailsCard(c,ro)}</div>`;
+ return `${ro||c.own?"":rcSetup(c,S,done)}${recStrip(c)}<div class="rc-cards"><div class="rc-stack">${recDetailsCard(c,ro)}${recAccessCard(c,ro)}</div>${recLimitsCard(c,ro)}</div>`;
 }
 /* ═══ Activity, 2 Oct 2026 (S2): fed only by events the workspaces feature
    itself writes (created, invited, role changed, limit changed, request
@@ -4361,10 +4372,7 @@ function cUsage(c){
    :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>${first} raised this to ${f(ans.to||R.rows[c.id].cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
    :ans?`<span class="cu-ans is-no"><span><i></i>${first} declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
   const act="";
-  return `<div class="cu-row" data-cu="${k}"><span class="cu-name"><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${sub}</span></span>
-   <span class="cu-mid"><span class="cu-top"><span><b class="tnum">${f(used)}</b> of ${f(cap)}${R.kind==="balance"?"":" this month"}</span><span class="cu-word is-${tone}">${word}${pace}</span></span>
-    <span class="cu-bar"><span class="cu-fill is-${tone}" style="width:${fill.toFixed(1)}%"></span>${ext}</span>${line}</span>
-</div>`}).join("");
+  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?"Asked for "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
  let top;
  if(ask) top=`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(ask.lines)}</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}${canReq?` <button class="linkbtn" data-askwithdraw="${c.id}">Withdraw</button>`:""}</span></div>`;
  else if(answered.length){const up=answered.filter(a=>a.state==="approved").length, dn=answered.length-up;
@@ -4378,7 +4386,7 @@ function cUsage(c){
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${first} yet.</span></div></div>`}`;
  return `${top}${tabs}<div class="panel">
   <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&!ask?`<span class="c-a"><button class="shd-button shd-button--primary" data-askopen="${worst?worst.k:""}">Ask for more</button></span>`:""}</div>
-  <div class="panel-b cu-rows cu-rows--noact">${rows}</div>
+  <div class="panel-b" style="padding-top:0;padding-bottom:0"><div class="apu-grid">${rows}</div></div>
   <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
@@ -4519,16 +4527,28 @@ function rLimits(c){
      ${menu("raise-"+k,[`<button class="menu-i" role="menuitem" data-lmedit="${k}"><span class="menu-l">Set a different limit</span><span class="menu-d">Type it in the Limit column.</span></button>`])}</div>`:"")+when;
   return `<tr class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
    <td><span class="lm-nm">${R.label}</span><span class="sub">${f(m.free)} available in the plan</span></td>
-   <td><span class="lm-bar"><i style="width:${pct}%;background:${col}"></i></span><span class="sub">${f(r.used)} used</span></td>
-   <td>${lim}</td><td>${asked}</td><td>${status}</td></tr>`}).join("");
+   <td>${apuItem("Used",r.used,r.cap,{cls:"lm-apu"})}</td></tr>`}).join("");
  const note=ask&&!ro?`<p class="lm-asknote"><b>${first} asked ${AGE(ask.when).toLowerCase()}:</b>${ask.note?` &ldquo;${ask.note}&rdquo;`:` ${listAnd(ask.lines.map(x=>f(x.amount)+" more "+RES[x.res].unit))}`}</p>`:"";
- const shareTxt=share?`${share}% of your plan since ${c.created.replace(/,?\s*20\d\d$/,"")}`:`${first} has its own limits`;
- return `
+ const shareTxt=c.limSet?(c.limSet.share?`${c.limSet.share}% of what was available on ${c.limSet.on}`:`Edited on ${c.limSet.on}`):share?`${share}% of your plan since ${c.created.replace(/,?\s*20\d\d$/,"")}`:`${first} has its own limits`;
+ /* change 220, 13 Oct 2026 (Hitesh, final review item 14): "remove all other columns, show asked section
+    entire different panel". The ask sits in its own panel above Limits: one row per resource asked for, with
+    the limit now and after, what the plan has available, and Approve and Decline on the row (Decline takes
+    an optional note the client reads). Several lines keep Approve all and Decline all in the header. */
+ const reqPanel=!ask||ro?"":(()=>{const L=ask.lines, multi=L.length>1, allFit=L.every(r=>compute(r.res).free>=r.amount), short=L.filter(r=>compute(r.res).free<r.amount).length;
+  const tr=q=>{const k=q.res, R=RES[k], r=R.rows[c.id]; if(!r) return ""; const free=compute(k).free, ok=free>=q.amount, amt=ok?q.amount:free;
+   /* Decline comes first, as Decline all does, so every Approve starts at the same place whatever the amount */
+   const acts=!canEdit?"":LM_DECL===k?`<td><div class="pri2 lm-decl rq2-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note for ${first} (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div></td>`
+    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button>`:""}</div></td>`;
+   return `<tr class="rq2-row" id="rreq-${k}"><td><span class="lm-nm">${R.label}</span></td><td><span class="lm-nm">+${f(q.amount)}</span></td><td><span class="lm-nm">${f(r.cap)}</span>${amt>0?`<span class="sub">${f(r.cap+amt)} if approved</span>`:""}</td><td><span class="lm-nm"${ok?"":' style="color:var(--red-18)"'}>${f(free)}</span>${ok?"":`<span class="sub">Short by ${f(q.amount-free)}</span>`}</td>${acts}</tr>`};
+  return `<div class="panel lm-panel rq2-panel" id="rcReq"><div class="panel-h"><span class="panel-t">${first} asked for more</span><span class="sub">${AGE(ask.when)}</span>${multi&&canEdit?`<span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all</button></span>`:""}</div>
+   ${ask.note?`<p class="lm-asknote rq2-note">&ldquo;${ask.note}&rdquo;</p>`:""}
+   <div class="tscroll"><table class="lm-t rq2-t"><thead><tr><th style="width:22%">Resource</th><th style="width:12%">Asked for</th><th style="width:16%">Limit now</th><th style="width:18%">Available in the plan</th>${canEdit?'<th style="width:32%" aria-label="Decision"></th>':""}</tr></thead><tbody>${L.map(tr).join("")}</tbody></table></div></div>`})();
+ return `${reqPanel}
  <div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
    ${ro?`<span class="sub">Read only while the workspace is ${c.deletedOn?"deleted":"disabled"}.</span>`:""}
-   <span class="c-a lm-share-h"><span class="sub">${shareTxt}</span>${canEdit&&share?`<span class="sub">&middot;</span><button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span></div>
-  ${note}${ansLine}
-  <div class="tscroll"><table class="lm-t" id="rcLimTable"><thead><tr><th style="width:26%">Resource</th><th style="width:25%">Used</th><th style="width:13%">Limit</th><th style="width:18%">Asked</th><th style="width:18%">Status</th></tr></thead>
+   <span class="c-a lm-share-h"><span class="sub">${shareTxt}</span>${canEdit?`<button type="button" class="shd-button shd-button--secondary shd-button--sm nc-modebtn" data-limedit="${c.id}">${NC_PEN}Edit</button>`:""}</span></div>
+  ${ansLine}
+  <div class="tscroll"><table class="lm-t lm-t2" id="rcLimTable"><thead><tr><th style="width:50%">Resource</th><th style="width:50%">Used</th></tr></thead>
   <tbody>${rows}</tbody></table></div>
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
 }
@@ -5513,26 +5533,8 @@ const usd=n=>"$"+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
    the same colours Home's Plan pacing uses, so Billing answers "which client" on
    the spot instead of sending the reader to another screen. Title attributes
    carry the numbers; no legend, the colours are the clients' own. */
-function blWsBar(k){
- const R=RES[k], by=fundedWorkspaces().map(c=>({c,u:cRow(k,c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
- if(!by.length) return "";
- return `<div class="bl-ws" role="img" aria-label="${R.label} used by workspace: ${by.map(x=>x.c.name+" "+f(x.u)).join(", ")}">
-   <span class="sbar bl-wsbar">${by.map(x=>`<i style="width:${(x.u/R.pool*100).toFixed(2)}%;background:${x.c.colour}" title="${x.c.name} · ${f(x.u)} ${R.unit}"></i>`).join("")}</span>
-   <span class="bl-wscap">By workspace &middot; ${by.length===1?by[0].c.name:by[0].c.name+" uses the most, "+f(by[0].u)}</span></div>`;
-}
-function poolBar(k,opts){
- const R=RES[k],m=compute(k),p=Math.min(100,Math.round(m.used/R.pool*100)),over=m.caps>R.pool;
- const agency=!isNormal();
- /* change 210: "used" once, after the counts, not again after the percentage */
- return `<div class="ub"><div class="ub-h"><span class="ub-t">${(opts&&opts.title)||R.label}</span>
-   <span class="ub-r tnum">${f(m.used)} of ${f(R.pool)} used <span class="sub">(${p}%)</span></span></div>
-  <div class="ub-track"><span style="width:${p}%;background:${p>=90?"var(--red-12)":p>=75?"var(--orange-14)":"var(--blue-11)"}"></span>
-   ${agency&&m.held?`<span style="width:${Math.min(100-p,Math.round(m.held/R.pool*100))}%;background:var(--blue-24)" title="Reserved for workspaces"></span>`:""}</div>
-  ${agency?blWsBar(k):""}
-  <div class="ub-f"><span class="sub">${f(R.pool-m.used)} (${100-p}%) remaining${m.held?", "+f(m.held)+" of it reserved for workspaces":""}</span>
-   ${agency?`<span class="ub-ag"><span class="sub">Limits across ${m.ids.length} workspaces add up to <b class="tnum" style="color:${over?"var(--amber-700)":"var(--gray-17)"}">${f(m.caps)}</b>${over?" ("+Math.round(m.oversub*100)+"% of the pool)":""} &middot; <b class="tnum">${f(m.free)}</b> available to draw</span>
-     <button class="linkbtn" data-goalloc="${k}">Workspace limits &rarr;</button></span>`:""}</div></div>`;
-}
+/* doc 93: blWsBar() deleted, no screen drew it */
+/* doc 93: poolBar() deleted, no screen drew it */
 const CREDIT_PRICE={lead_finder:"$0.05 / credit",verification:"$0.004 / credit",ai:"$0.01 / credit",dialer:"$0.03 / credit",radar:"$0.40 / test"};
 const CREDIT_LAST={lead_finder:"Last bought 2,000 on 12 Sep",verification:"Last bought 5,000 on 19 Aug",ai:"Never bought",dialer:"Never bought",radar:"Never bought"};
 const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"Renews monthly with the add-on"};
@@ -5543,9 +5545,8 @@ function planGoesRow(k){
  const R=RES[k], m=compute(k), rows=fundedWorkspaces().filter(c=>R.rows[c.id]);
  const used=rows.reduce((t,c)=>t+(R.rows[c.id].used||0),0), given=allocOf(k), avail=Math.max(0,R.pool-given);
  const segs=rows.map(c=>`<span title="${c.name} ${f(R.rows[c.id].cap)}" style="width:${(100*R.rows[c.id].cap/R.pool).toFixed(2)}%;background:${c.colour}"></span>`).join("");
- return `<div class="pg-row" data-pg="${k}"><div><div class="pg-name">${R.label}</div><div class="cs">${f(R.pool)} ${R.unit} in your plan</div></div>
-  <div class="pg-bar">${segs}</div>
-  <div class="pg-used"><span>${f(used)} used</span><span class="cs">${R.pool?Math.round(100*used/R.pool):0}% of the plan</span></div>
+ return `<div class="pg-row pg-row--apu" data-pg="${k}">
+  <div class="pg-apu">${apuItem(R.label,used,R.pool)}</div>
   <div class="pg-avail"><span>${f(avail)} available</span>${ddHTML("setlim_"+k,"",[{items:rows.map(c=>({value:c.id,label:c.name,avatar:av(c,22)}))}],{placeholder:"Set limits →"})}</div></div>`}
 function vPlatform(){
  const own=CLIENTS.reduce((t,c)=>t+c.users.length,0), ks=RK.filter(k=>RES[k].pool>0);
@@ -5561,7 +5562,7 @@ function vPlatform(){
   ${/* change 133 (Hitesh): the Last invoices panel is gone; Invoices stays in the bill line */""}
   ${isNormal()?"":`<div class="panel">
    <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub">Limits are set on each workspace. Nothing here changes a limit.</span></div>
-   <div class="panel-b" style="padding-top:12px">${legend}${ks.map(planGoesRow).join("")}</div>
+   <div class="panel-b" style="padding-top:12px">${ks.map(planGoesRow).join("")}</div>
   </div>`}
   <div class="panel">
    <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
@@ -5668,15 +5669,7 @@ function vEmailBilling(){
       <td><span class="chip c-ok">${h[4]}</span></td><td class="ar colact"><button class="linkbtn" data-flash="Not in this prototype">Invoice</button></td></tr>`).join("")}</tbody></table></div>
   </div>`;
 }
-function vCreditPage(k,blurb){
- const R=RES[k];
- return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">${R.label}</span><span class="sub">${blurb}</span>
-    <span class="c-a tools"><button class="linkbtn" data-flash="Refreshed">${refreshI}Refresh</button>
-     <button class="linkbtn" data-flash="Not in this prototype">+ Add More Credits</button></span></div>
-   <div class="panel-b">${poolBar(k,{title:"Plan credits"})}
-    <p class="sub" style="margin:10px 0 0">Resets on ${PLAN.next} to ${f(R.pool)} credits.</p></div></div>`;
-}
+/* doc 93: vCreditPage() deleted, no screen drew it */
 function vAddon(name,blurb,price){
  return `<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span><span class="chip c-warn">Not on this plan</span></div>
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
@@ -5742,9 +5735,7 @@ function vCredits(){
     ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
     <span class="cs">${c.own?"Your own outreach workspace":c.email}</span></span></div></td>
    <td class="ar">${numIn(r.cap,R.unit,`data-cid="${c.id}" data-fld="cap" aria-label="Limit for ${c.name}"${canI("limits")?"":" disabled"}`)}</td>
-   <td class="ar tnum">${f(r.used)}</td>
-   <td>${meter(p,st.tone,st.state)}${pcx&&pcx.hits&&!pcx.atLimit?`<span class="sub" style="display:block;margin-top:2px;color:${pcx.soon?"var(--red-18)":"var(--orange-12)"}">${(activeRes==="sends"?"hits the limit around ":"runs out around ")+pcx.when}</span>`:""}</td>
-   <td class="ar tnum">${f(Math.max(0,r.cap-r.used))}</td></tr>`}).join("");
+   <td style="min-width:340px">${apuItem("Used",r.used,r.cap,{note:pcx&&pcx.hits&&!pcx.atLimit?(activeRes==="sends"?"Hits the limit around ":"Runs out around ")+pcx.when:""})}</td></tr>`}).join("");
  const reqs=REQUESTS.length?REQUESTS.map(q=>{const c=byId[q.client],QR=RES[q.res],qm=compute(q.res),ok=qm.free>=q.amount;
   return `<div class="req"><div class="req-h">
    <div><div style="font-size:14px;font-weight:600;color:var(--gray-800)">${c.name}</div>
@@ -5767,18 +5758,15 @@ function vCredits(){
     <div class="stat"><span class="stat-l">Available to give</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
    </div>
    <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:10px">
-    <div class="al-bar">${segs}</div>
-    <div class="al-legend">${legend}</div>
+    ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Available to give"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Available to give"})}
     ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill>add capacity</button>.</span></div>`:""}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
-    <thead><tr><th>Workspace</th><th class="ar">Limit</th><th class="ar">Used</th><th>Usage</th><th class="ar">Left</th></tr></thead>
+    <thead><tr><th>Workspace</th><th class="ar">Limit</th><th>Usage</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td style="font-weight:600">Total</td>
      <td class="ar tnum" style="font-weight:600">${f(alloc)}</td>
-     <td class="ar tnum" style="font-weight:600">${f(m.used)}</td>
-     <td><span class="sub">${f(R.pool)} ${R.unit} in your plan</span></td>
-     <td class="ar tnum" style="font-weight:600">${f(Math.max(0,alloc-m.used))}</td></tr></tfoot></table></div>
+     <td><span class="sub">${f(m.used)} used of ${f(alloc)} given &middot; ${f(R.pool)} ${R.unit} in your plan</span></td></tr></tfoot></table></div>
   ${RC_REFUSED&&RC_REFUSED.k===activeRes?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}
   </div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Capacity requests</span>
@@ -5851,64 +5839,7 @@ const NORMAL_PLAN={sends:5000,lead_finder:1000,verification:2000,ai:500};
 const NORMAL_USED={lead_finder:610,verification:840,ai:455};
 /* `norm` drops Allocate: there is nothing to allocate across until a second
    workspace exists. Add capacity stays, because running out is still possible. */
-function planCard(norm){
- if(norm){
-  const used=AGENCY_OWN.contacted, pool=NORMAL_PLAN.sends;
-  const rate=used/Math.max(1,CYCLE.day), left=(pool-used)/Math.max(1,rate);
-  const early=CYCLE.days-CYCLE.day-Math.floor(left);
-  const creds=["lead_finder","verification","ai"].map((k,i)=>{
-   const u=NORMAL_USED[k], p=NORMAL_PLAN[k], r=u/Math.max(1,CYCLE.day), d=(p-u)/Math.max(1,r);
-   return {l:RES[k].label.replace(" Credits",""),c:["#1D4ED8","#059669","#D97706"][i],
-     v:(d>=CYCLE.days-CYCLE.day?"lasts the cycle":Math.max(0,Math.round(d))+" days left"),p:u/p*100}});
-  return '<div class="card"><div class="c-h"><span class="c-t">Plan pacing</span>'
-   +'<span class="c-a"><span class="sub">'+CYCLE.month+'</span></span></div><div class="c-b">'
-   +'<div class="big"><span class="big-v" style="font-size:24px;line-height:32px">'+f(used)+'</span>'
-   +'<span class="big-s">of '+f(pool)+' emails, '+Math.round(elapsed()*100)+'% of the cycle gone</span></div>'
-   +(left<CYCLE.days-CYCLE.day
-     ?'<p class="pace bad">At this burn the plan is exhausted around <b>'+onDay(left)+'</b>, '+early+' days early.</p>'
-     :'<p class="pace">On pace to finish the cycle inside the plan.</p>')
-   +segbars(creds)
-   +'<div class="tools" style="margin-top:12px">'
-    +dqTip('<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>',ADD_CAP_TIP)
-   +'</div></div></div>';
- }
- const sm=compute("sends"), used=sm.used, pool=sm.R.pool, sd=burnDays("sends");
- const early=CYCLE.days-CYCLE.day-Math.floor(sd), pct=Math.round(used/pool*100), el=Math.round(elapsed()*100);
- /* by workspace: the cycle's emails split by the workspace that sent them */
- const byWs=fundedWorkspaces().map(c=>({c,u:cRow("sends",c.id).used})).filter(x=>x.u>0).sort((a,b)=>b.u-a.u);
- const wsTot=byWs.reduce((a,x)=>a+x.u,0)||1, top=byWs.slice(0,3), rest=byWs.slice(3);
- const wsBar=byWs.length?'<div class="pace-ws"><span class="sbar" style="height:8px">'
-    +byWs.map(x=>'<button type="button" class="wsseg" data-wsseg="'+x.c.id+'" data-golimits="'+x.c.id+'" style="width:'+(x.u/wsTot*100).toFixed(1)+'%;background:'+x.c.colour+'" title="'+x.c.name+' '+f(x.u)+'" aria-label="'+x.c.name+'"></button>').join("")+'</span>'
-    +'<span class="lgd">'+top.map(x=>'<span><i style="background:'+x.c.colour+'"></i>'+x.c.name+' <b class="tnum">'+abbr(x.u)+'</b></span>').join("")
-    +(rest.length?'<span><i style="background:var(--gray-23)"></i>+'+rest.length+' other'+(rest.length===1?"":"s")+' <b class="tnum">'+abbr(rest.reduce((a,x)=>a+x.u,0))+'</b></span>':"")
-    +'</span></div>':"";
- const tight=sd<CYCLE.days-CYCLE.day;
- /* 30 Sep 2026, Hitesh: "make Plan pacing bigger and better, with better
-    representation". Every pooled resource, each against the same cycle clock:
-    the bar is what is used, the tick is where the cycle stands today, and the
-    line says whether it lasts. */
- const rows=RK.map(k=>{const R=RES[k], m=compute(k), u=m.used, p=R.pool, d=burnDays(k), share=u/p, cons=R.nature!=="Storage";
-   const lasts=!cons||d===Infinity||d>=CYCLE.days-CYCLE.day;
-   const tone=share>=1?"bad":!lasts?"warn":share>=R.warn?"warn":"ok";
-   const say=share>=1?"Used up":!cons?f(p-u)+" available":lasts?"Lasts the cycle":"Runs out "+onDay(d);
-   return '<div class="pace-row"><span class="pace-row-l"><b>'+R.label.replace(" Credits","").replace("Monthly Emails Sent","Emails")+'</b><i class="tnum">'+abbr(u)+'/'+abbr(p)+'</i></span>'
-    +'<span class="pace-bar"><i style="width:'+Math.min(100,share*100).toFixed(1)+'%" class="'+tone+'"></i><em style="left:'+el+'%" title="'+el+'% of the cycle gone"></em></span>'
-    +'<span class="pace-say '+tone+'">'+say+'</span></div>'}).join("");
- return '<div class="card pace-card"><div class="c-h"><span class="c-t">Plan pacing</span>'
-  +'<span class="c-a tools" style="gap:10px;white-space:nowrap"><span class="sub">'+CYCLE.month+'</span>'
-   +(norm?'':'<button class="linkbtn" data-goalloc="sends">Workspace limits &rarr;</button>')+'</span></div>'
-  +'<div class="c-b">'
-  +'<div class="pace-hero"><span class="big"><span class="big-v">'+f(used)+'</span><span class="big-s">of '+f(pool)+' emails &middot; '+pct+'% used by day '+CYCLE.day+' of '+CYCLE.days+' ('+el+'% of the cycle)</span></span>'
-  +'<span class="pace-stat '+(tight?"bad":"ok")+'">'+(tight?'Runs out around <b>'+onDay(sd)+'</b>, '+early+' days early':'On pace to finish the cycle inside the plan')+'</span></div>'
-  +planChart(false,170,430)
-  +'<div class="pace-lgd"><span><i class="ln"></i>Sent so far</span><span><i class="ln dash"></i>Even pace</span></div>'
-  +'<span class="pace-eyebrow">By workspace</span>'+wsBar
-  +'<span class="pace-eyebrow" style="margin-top:16px">Every pooled resource</span>'
-  +'<div class="pace-list">'+rows+'</div>'
-  +'<div class="tools" style="margin-top:14px;justify-content:space-between"><button class="linkbtn" data-gobill>Billing &rarr;</button>'
-    +dqTip('<button class="shd-button shd-button--secondary shd-button--sm" data-gobill>Add capacity</button>',ADD_CAP_TIP)
-  +'</div></div></div>';
-}
+/* doc 93: planCard() deleted, no screen drew it */
 
 
 /* ═══ Version C: Home before a first client ═══════════════════════════════════
@@ -6151,21 +6082,7 @@ function vDash(){
    +'<button class="shd-button shd-button--tertiary shd-button--sm" data-addcardoff>Not now</button></div>'
    +'</div></div>':'';
 
- const railTop=fresh?'<div class="card"><div class="c-h"><span class="c-t">Your plan</span>'
-   +'<span class="c-a"><span class="sub">'+CYCLE.month+'</span></span></div><div class="c-b">'
-   +'<div class="big"><span class="big-v" style="font-size:24px;line-height:32px">0</span>'
-   +'<span class="big-s">of '+f(NORMAL_PLAN.sends)+' emails this cycle</span></div>'
-   +'<p class="sub" style="margin:8px 0 0">Nothing has sent yet. Finish the steps on the left and this fills in.</p>'
-   +'</div></div>'
-  /* 18 Sep, Hitesh: plan pacing above Needs a decision, level with This cycle */
-  :(norm?planCard(true)
-    :owner?planCard()
-    :'<div class="card"><div class="c-h"><span class="c-t">Allocation across your workspaces</span></div><div class="c-b">'
-     +segbars(mine.filter(funded).map(c=>{const r=cRow("sends",c.id);return {l:c.name,c:c.colour,v:abbr(r.used)+" / "+abbr(r.cap),p:r.used/Math.max(1,r.cap)*100}}))
-     +'<p class="sub" style="margin:10px 0 0">You can raise a workspace limit. What the account pays is not shown to you.</p></div></div>');
- /* 30 Sep 2026, Hitesh: the Work queue is phase 2, so the Needs a decision card
-    leaves Home; requests are decided from the Workspaces list banner and the
-    record's Limits tab. Plan pacing takes the whole rail. */
+ const railTop=''; /* doc 93: the plan pacing rail never rendered; planCard() and segbars() deleted */
  const railRest=(fresh||!norm)?'':'<div class="card"><div class="c-h"><span class="c-t">Needs a decision</span>'
    +'<span class="c-a">'+(dashAll&&moreN>0?'<button class="linkbtn" data-dashall="0">Show fewer</button>'
      :moreN>0?'<button class="linkbtn" data-dashall="1">See all '+items.length+'</button>':'')+'</span></div>'
@@ -6234,8 +6151,13 @@ function homeGroupEmpty(tab,cnt){
 }
 function heroCards(mine,tch,rep,items){
  const kf=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"k":f(n);
- const running=mine.filter(c=>c.sent>0&&!(attention(c)&&attention(c).pin)&&!c.disabled).length,
-       atLimit=mine.filter(c=>lf(c.id).s.tone==="bad").length, fresh=mine.filter(c=>c.sent===0).length;
+ /* change 221 (item 17): the card's line is the Status column's states, each shown only
+    when it has a workspace, so the counts add up to the big number. "Running" and "at a
+    limit" were not statuses (a running workspace at a limit was in both). Deleted
+    workspaces are not in the total (they leave the list and the plan count), so
+    Deleted comes last, as a ring, and says so on hover. */
+ const byState=["Active","New","Disabled"].map(s=>[s,mine.filter(c=>wsState(c)===s).length]).filter(x=>x[1]>0);
+ const wsScope=ME().ws, gone=CLIENTS.filter(c=>c.deletedOn&&(!wsScope||wsScope.indexOf(c.id)>-1)).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
  const active=mine.reduce((t,c)=>t+activeSeqs(c),0), sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
  /* a pill only when there is a real comparison: growth in workspaces, and a
@@ -6252,7 +6174,8 @@ function heroCards(mine,tch,rep,items){
  const inW7=c=>{const d=c.created?new Date(c.created.replace(",","")):null;if(!d||isNaN(d))return false;const R=winRange();return d>=new Date(R.start.toDateString())&&d<=R.end};
  const added7=mine.filter(inW7).length;
  const dClients=added7||null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
- const pill=(v,label)=>v==null?"":`<span class="hero-pill${v<0?" is-down":""}">${v>0?"+":""}${label}</span>`;
+ /* change 221 (item 18): the change is vD's chip; the period it is against stays as words */
+ const pill=(v,num,words)=>v==null?"":`<span class="hero-dlt">${psChip(v,(v>0?"+":v<0?"-":"")+num,psTone(v))} <span class="hero-dlt-t">${words}</span></span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
  const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the period is in full blue">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-Math.min(14,win().days)?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  const rate=tch.email?(rep/tch.email*100).toFixed(1)+"% reply rate":"";
@@ -6262,13 +6185,14 @@ function heroCards(mine,tch,rep,items){
  const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
-  ${card("clients",svg("clients"),"Workspaces",pill(dClients,f(Math.abs(dClients))+" "+win().added),
+  ${card("clients",svg("clients"),"Workspaces",pill(dClients,f(Math.abs(dClients||0)),win().added),
     `<span class="hero-v">${f(mine.length)}</span>`,
-    `<span class="hero-dot" style="--c:var(--green-16)">${running} running</span><span class="hero-dot" style="--c:var(--red-18)">${atLimit} at a limit</span><span class="hero-dot" style="--c:var(--gray-11)">${fresh} new</span>`)}
+    (byState.length?byState.map(([s,n])=>`<span class="hero-dot" style="--c:${wsStateDot(s)}">${f(n)} ${s.toLowerCase()}</span>`).join(""):"<span>No workspaces yet</span>")
+    +(gone?`<span class="hero-dot hero-dot--gone" title="Not counted in the ${f(mine.length)}. A deleted workspace is kept for 30 days, then removed.">${f(gone)} deleted</span>`:""))}
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
     `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(winD(dTouch==null?null:Math.round(dTouch)),Math.abs(winD(Math.round(dTouch||0)))+"% vs previous "+win().days+" days"),
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(winD(dTouch==null?null:Math.round(dTouch)),Math.abs(winD(Math.round(dTouch||0)))+"%","vs previous "+win().days+" days"),
     `<span class="hero-vrow"><span class="hero-v">${pd(winTot(reached,dTouch))}<span class="hero-u">${perDay()?" a day":(HOME_WIN==="mtd"?" this month":" in "+win().days+" days")}</span></span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chan||"nothing yet"}</span>`)}
  </div>`;
 }
@@ -7132,7 +7056,7 @@ function onboardBlock(){
  const later=[["Generate AI Sequence",ic.seq],["Add Prospects",ic.crm],["Add Email Account",ic.mail],["Launch Sequence",ic.launch]];
  return '<div class="ob"><div class="ob-l">'
   +'<div class="ob-h"><b>Welcome, '+first+'! Let’s set up your agency’s outreach</b><button class="linkbtn quiet" data-skiponboard>Skip Onboarding</button></div>'
-  +'<div class="ob-bar"><i><b style="width:0%"></b></i><span class="sub">0/5 steps completed</span></div>'
+  +'<div class="ob-pbar"><div>'+pbar(0,"#3B82F6")+'</div><span class="ob-cnt">0/5 steps completed</span></div>'
   +'<div class="ob-steps">'
   +'<div class="ob-step is-cur"><span><span style="color:var(--blue-11);display:inline-flex">'+ic.ws+'</span><span>Create a workspace</span><span class="chip c-new chip--sm">NEW</span></span>'
    +'<button class="linkbtn" data-obadd>Create workspace <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg></button></div>'
@@ -7328,9 +7252,13 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
    trouble but never that the whole workspace was off. Three states, a dot and a
    word, New in the Workspaces card's own word; since when under Disabled (who
    is on its record). */
+/* change 221, 13 Oct 2026 (Hitesh, item 17: "Keep only known states here like Active,
+   disabled, deleted, new"): the status and its dot live once, so the Status column
+   and the Dashboard's Workspaces card can never disagree. */
+function wsState(c){return c.disabled?"Disabled":c.sent===0?"New":"Active"}
+function wsStateDot(s){return s==="Disabled"?"var(--gray-11)":s==="New"?"var(--blue-11)":"var(--green-16)"}
 function wsStatusCell(c){
- const [t,dot,sub]=c.disabled?["Disabled","var(--gray-11)","since "+(c.disabledOn||TODAY_D)]
-   :c.sent===0?["New","var(--blue-11)",""]:["Active","var(--green-16)",""];
+ const t=wsState(c), dot=wsStateDot(t), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):"";
  return '<td><span class="ws-stat'+(c.disabled?' is-off':'')+'"><i style="background:'+dot+'"></i>'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_TITLE={people:"People",usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
@@ -7397,7 +7325,7 @@ const pd=n=>perDay()?pdDay(n):f(Math.round(n||0));
 const pdDay=n=>{const v=(n||0)/win().days;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
- const D=(d,prev)=>d==null?"":'<span class="dlt w7d'+(W7_RED(d,prev)?' is-red':'')+'">'+(d>0?'+':'')+d+'%</span>';
+ const D=(d,prev)=>d==null||d===0?"":psChip(d,(d>0?'+':'')+d+'%',d>0?"good":"bad"); /* change 221: vD's delta chip; as vD, every fall is red and no chip at 0% */
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
  if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"]].map(([k,l])=>cell(null,l,dash));
@@ -7533,7 +7461,7 @@ function repDelta(c){const M=hm(c), prevSent=M.sd!=null?c.sent/(1+M.sd/100):null
  return prevRep?Math.round((repOf(c)-prevRep)/prevRep*100):null}
 function wsCells(c){
  const M=hm(c), fresh=c.sent===0;
- const D=v=>v==null?"":'<span class="dlt'+(v<0?' is-down':v>0?' is-up':'')+'">'+(v>0?'+':'')+v+'%</span>';
+ const D=v=>v==null?"":psChip(v,(v>0?'+':'')+v+'%',psTone(v)); /* change 221: vD's delta chip */
  /* change 176, 11 Oct 2026 (Hitesh): "everywhere we have % and in replies pts?
     ... keep everywhere consistent". The Replies change was the reply rate's move
     in points, beside a count. It is now the reply count's percent change, like
@@ -7588,16 +7516,23 @@ const touchBar=t=>{const p=[[t.email,"email"],[t.li,"LinkedIn"],[t.call,"call"],
     +'%;background:'+CHAN_COL[x[1]]+'" title="'+x[1]+' '+f(x[0])+'"></i>').join("")+'</span>'
   +'<span class="lgd">'+p.map(x=>'<span><i style="background:'+CHAN_COL[x[1]]+'"></i>'+x[1]+'</span>').join("")+'</span>'};
 const pctDelta=(now,then)=>then?((now-then)/then*100):null;
+/* change 221 (item 18): version D's arrows, filled with the chip's colour so an
+   inverted metric (down is good) gets a green down arrow */
+const PS_I={up:'<svg class="performance-stats__icon" viewBox="0 0 8 8" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.23603 2.10007C7.3662 2.23025 7.3662 2.4413 7.23603 2.57148L4.56936 5.23814C4.43919 5.36832 4.22813 5.36832 4.09796 5.23814L3.00033 4.14051L1.23603 5.90481C1.10585 6.03498 0.894798 6.03498 0.764623 5.90481C0.634448 5.77463 0.634448 5.56358 0.764623 5.4334L2.76462 3.43341C2.8948 3.30323 3.10585 3.30323 3.23603 3.43341L4.33366 4.53104L6.76462 2.10007C6.8948 1.9699 7.10585 1.9699 7.23603 2.10007Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M4.33301 2.33577C4.33301 2.15168 4.48225 2.00244 4.66634 2.00244H6.99967C7.18377 2.00244 7.33301 2.15168 7.33301 2.33577V4.66911C7.33301 4.8532 7.18377 5.00244 6.99967 5.00244C6.81558 5.00244 6.66634 4.8532 6.66634 4.66911V2.66911H4.66634C4.48225 2.66911 4.33301 2.51987 4.33301 2.33577Z" fill="currentColor"/></svg>',
+ down:'<svg class="performance-stats__icon" viewBox="0 0 8 8" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M0.764623 2.10007C0.894798 1.9699 1.10585 1.9699 1.23603 2.10007L3.00033 3.86437L4.09796 2.76674C4.22813 2.63656 4.43919 2.63656 4.56936 2.76674L7.23603 5.4334C7.3662 5.56358 7.3662 5.77463 7.23603 5.90481C7.10585 6.03498 6.8948 6.03498 6.76462 5.90481L4.33366 3.47385L3.23603 4.57148C3.10585 4.70165 2.8948 4.70165 2.76462 4.57148L0.764623 2.57148C0.634448 2.4413 0.634448 2.23025 0.764623 2.10007Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.99967 3.00244C7.18377 3.00244 7.33301 3.15168 7.33301 3.33577V5.66911C7.33301 5.8532 7.18377 6.00244 6.99967 6.00244H4.66634C4.48225 6.00244 4.33301 5.8532 4.33301 5.66911C4.33301 5.48501 4.48225 5.33577 4.66634 5.33577H6.66634V3.33577C6.66634 3.15168 6.81558 3.00244 6.99967 3.00244Z" fill="currentColor"/></svg>'};
+/* d: the signed change (its sign picks the arrow); label: what the chip reads, signed;
+   tone: "good", "bad" or "flat" (neutral). 0 is always flat and has no arrow. */
+function psChip(d,label,tone){
+ if(d==null||!isFinite(d)) return "";
+ const dir=d>0?"up":d<0?"down":"", v=!dir||tone==="flat"?"neutral":tone==="bad"?"decrement":"increment";
+ return '<span class="performance-stats performance-stats--'+v+'" title="'+(dir?(dir==="up"?"Up ":"Down ")+String(label).replace(/^[+-]/,""):"No change")+'">'
+  +'<span class="performance-stats__label">'+label+'</span>'+(dir?PS_I[dir]:"")+'</span>'}
+const psTone=(d,invert)=>!d?"flat":(d>0)!==!!invert?"good":"bad";
 function deltaChip(d,invert,abs){
  if(d===null||!isFinite(d)) return "";
- const up=d>=0, good=invert?!up:up;
- const col=good?"var(--green-700)":"var(--red-600)";
- const bg=good?"var(--green-50)":"var(--red-50)";
- const arrow=up?"M6 3.5 9.5 8h-7z":"M6 8.5 2.5 4h7z";
- const txt=abs!==undefined?(up?"+":"")+abs:(up?"+":"")+d.toFixed(d>=10||d<=-10?0:1)+"%";
- return '<span class="dchip" style="color:'+col+';background:'+bg+'">'
-  +'<svg viewBox="0 0 12 12" aria-hidden="true"><path fill="currentColor" d="'+arrow+'"/></svg>'
-  +txt+'</span>'}
+ const r=abs!==undefined?abs:Math.round(d*10)/10, sign=r>0?"+":"";
+ const txt=abs!==undefined?sign+abs:sign+(r===0?"0":d.toFixed(d>=10||d<=-10?0:1))+"%";
+ return psChip(r,txt,psTone(r,invert))}
 
 /* No icon. An icon here was decoration competing with the delta chip for the
    same corner, and it left the card ragged. The subheading instead gets its own
@@ -7664,27 +7599,10 @@ function planChart(compact,H0,W0){
   +'</svg>'}
 
 /* ── radial gauge, the "Repeat Customer Rate" pattern from the reference ────── */
-function gauge(pct,big,sub){
- const W=210,H=126,cx=W/2,cy=H-14,r=76,N=44;
- const on=Math.round(N*Math.min(1,pct/100));
- let t="";
- for(let i=0;i<N;i++){
-  const a=Math.PI-(i/(N-1))*Math.PI, x1=cx+Math.cos(a)*(r-13), y1=cy-Math.sin(a)*(r-13);
-  const x2=cx+Math.cos(a)*r, y2=cy-Math.sin(a)*r;
-  const c=i<on?(pct>=90?"#DC2626":pct>=75?"#D97706":"#1D4ED8"):"var(--gray-200)";
-  t+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)
-   +'" stroke="'+c+'" stroke-width="3" stroke-linecap="round"/>'}
- return '<svg viewBox="0 0 '+W+' '+H+'" class="gauge" role="img" aria-label="'+big+' '+sub+'">'+t
-  +'<text x="'+cx+'" y="'+(cy-16)+'" text-anchor="middle" class="gv">'+big+'</text>'
-  +'<text x="'+cx+'" y="'+(cy+2)+'" text-anchor="middle" class="gs">'+sub+'</text></svg>'}
+/* doc 93: gauge() deleted, no screen drew it */
 
 /* ── labelled coloured bars, the nested "Customers" card pattern ───────────── */
-function segbars(rows){
- return '<div class="segs">'+rows.map(r=>'<div class="seg">'
-  +'<div class="seg-t"><span class="dot" style="background:'+r.c+'"></span>'
-   +'<span class="seg-l">'+r.l+'</span><span class="seg-v tnum">'+r.v+'</span></div>'
-  +'<div class="seg-b"><span style="width:'+Math.min(100,r.p).toFixed(0)+'%;background:'+r.c+'"></span></div>'
-  +'</div>').join("")+'</div>'}
+/* doc 93: segbars() deleted, no screen drew it */
 
 /* ── horizontal comparison, per client. Never a blend ──────────────────────── */
 function byClient(){
@@ -8568,6 +8486,74 @@ function ncPaintUsage(){
    screen list - that is what wizTail/wizExtra already say in the client's own
    terms. Derived from roleSet, never hand quoted, so it can never disagree
    with the role. */
+/* change 220, 13 Oct 2026 (Hitesh, final review item 14): "add edit button at change share and keep it same as
+   what we have the time of adding workspace". Edit opens the Add a workspace limits block (change 205) for a
+   workspace that exists: the share slider over what is available to it (the plan minus what other workspaces
+   have), or Edit values (pencil) with the slider off; one mode at a time. It opens on the current limits and
+   changes nothing until the slider moves or a value is typed. No value can pass what is available, and the
+   slider never goes below what is already used. Save writes every changed limit at once, with Undo. */
+let LIMED=null;
+const ledRow=k=>RES[k].rows[LIMED.id];
+const ledKeys=()=>RK.filter(k=>ledRow(k));
+const ledAvail=k=>compute(k).free+ledRow(k).cap;
+function ledDerived(k){const st=ncStep(k), a=ledAvail(k), r=ledRow(k); let v=a<st?0:Math.max(st,Math.floor(a*LIMED.share/100/st)*st); return Math.min(a,Math.max(v,r.used))}
+const ledBase=k=>LIMED.moved?ledDerived(k):ledRow(k).cap;
+const ledIsSet=k=>!!LIMED.edit&&LIMED.custom[k]!=null;
+const ledCap=k=>ledIsSet(k)?LIMED.custom[k]:ledBase(k);
+const ledOver=k=>ledCap(k)>ledAvail(k);
+const ledHint=k=>{const r=ledRow(k), v=ledCap(k); return ledOver(k)?`Only ${f(ledAvail(k))} available`:v<r.used?`Below the ${f(r.used)} used`:`${f(ledAvail(k))} available`};
+const ledChanged=()=>ledKeys().filter(k=>ledCap(k)!==ledRow(k).cap);
+function ledWhy(){const ks=ledKeys().filter(ledOver); return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(ledAvail(ks[0]))} available. Lower it to save.`:""}
+function ledPct(){if(LIMED.edit) return '<span class="nc-off">Off while you edit values</span>'; return LIMED.moved?`<b>${LIMED.share}%</b>`:'<span class="nc-off">Current limits</span>'}
+function ledOpen(id){const c=byId[id]; if(!c) return; LIMED={id,edit:false,moved:false,custom:{},learn:false,share:NC_SHARE_DEFAULT};
+ /* the slider starts where the current limits sit, as a share of what is available to each (the middle one) */
+ const rs=ledKeys().filter(k=>ledAvail(k)>0).map(k=>ledRow(k).cap/ledAvail(k)*100).sort((a,b)=>a-b);
+ if(rs.length) LIMED.share=Math.max(1,Math.min(100,Math.round(rs[Math.floor(rs.length/2)])));
+ LM_MENU=null; LM_DECL=null; modal={kind:"limedit",client:id}; renderModal()}
+function ledHTML(c){const first=c.name.split(" ")[0], ks=ledKeys(), why=ledWhy(), ch=ledChanged().length;
+ const row=k=>`<div class="nc-sum-r${ledIsSet(k)?" is-set":""}${ledOver(k)?" is-over":""}" data-ledr="${k}"><label for="lev_${k}">${NC_SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="lev_${k}" class="nc-num" data-ledcap="${k}" value="${f(ledCap(k))}" aria-describedby="levh_${k}" autocomplete="off"${LIMED.edit?"":' readonly tabindex="-1"'}></span><span class="nc-sum-h" id="levh_${k}">${ledHint(k)}</span></span></div>`;
+ const btn=LIMED.edit
+  ?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ledMode" aria-pressed="true" title="Every value goes back to the slider">${NC_SLI}Use the slider</button>`
+  :`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ledMode" aria-pressed="false">${NC_PEN}Edit values</button>`;
+ return card("Edit limits",`<div class="nc-limhead" style="display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow" style="margin:0">Limits for ${c.name}</span>${btn}</div>
+  <div class="nc-usage ${LIMED.edit?"is-edit":"is-slider"}" id="ncUsage">
+   <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ledLearn" aria-expanded="${LIMED.learn?"true":"false"}" aria-controls="ledLearnBox">${LIMED.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ledPct">${ledPct()}</span></div>
+   <input type="range" id="ncShare" min="1" max="100" step="1" value="${LIMED.share}" style="--p:${Math.round((LIMED.share-1)/99*100)}%;--g:100%" aria-label="Share of what's available"${LIMED.edit?" disabled":""}>
+   ${LIMED.learn?`<div class="nc-learn" id="ledLearnBox"><p>Available is your plan minus what other workspaces have. The slider gives ${first} that share of each, never less than it has already used. To set each value yourself, use Edit values; the slider is off while you do.</p><p>Emails are a monthly limit. Credits are a balance, set aside for ${first}.</p></div>`:""}
+   <div class="nc-sum">${ks.map(row).join("")}${ks.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
+  </div>`,
+  `<div class="sub nc-addwhy" id="ledWhy" role="status">${why}</div><button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" id="ledSave"${why||!ch?" disabled":""}${why?` title="${why}"`:""}>Save limits</button>`,"modal--560 led-modal")}
+/* repaints only the values, so the slider keeps the drag and a field keeps its caret */
+function ledPaint(L){if(!LIMED) return;
+ const sl=L.querySelector("#ncShare"); if(sl) sl.style.setProperty("--p",Math.round((LIMED.share-1)/99*100)+"%");
+ const p=L.querySelector("#ledPct"); if(p) p.innerHTML=ledPct();
+ L.querySelectorAll("[data-ledcap]").forEach(i=>{if(document.activeElement!==i) i.value=f(ledCap(i.dataset.ledcap))});
+ L.querySelectorAll("[data-ledr]").forEach(r=>{const k=r.dataset.ledr; r.classList.toggle("is-set",ledIsSet(k)); r.classList.toggle("is-over",ledOver(k)); const h=r.querySelector(".nc-sum-h"); if(h) h.textContent=ledHint(k)});
+ const why=ledWhy(), s=L.querySelector("#ledSave"), w=L.querySelector("#ledWhy"); if(s){s.disabled=!!why||!ledChanged().length; s.title=why} if(w) w.textContent=why}
+function ledWire(L){if(!LIMED) return;
+ const sl=L.querySelector("#ncShare"); if(sl) sl.oninput=()=>{LIMED.share=+sl.value; LIMED.moved=true; ledPaint(L)};
+ /* Edit values and Use the slider swap the mode; leaving Edit puts every value back on the slider */
+ const md=L.querySelector("#ledMode"); if(md) md.onclick=()=>{if(LIMED.edit){LIMED.edit=false; LIMED.custom={}} else LIMED.edit=true; renderModal();
+  const go=LIMED.edit?document.querySelector("#ncUsage input.nc-num"):el("ncShare"); if(go) go.focus()};
+ const lr=L.querySelector("#ledLearn"); if(lr) lr.onclick=()=>{LIMED.learn=!LIMED.learn; renderModal()};
+ L.querySelectorAll("[data-ledcap]").forEach(i=>{const k=i.dataset.ledcap;
+  i.onfocus=()=>{i.dataset.was=ledIsSet(k)?String(LIMED.custom[k]):""; setTimeout(()=>{try{i.select()}catch(e){}},0)};
+  i.oninput=()=>{if(i.value.trim()==="") delete LIMED.custom[k]; else LIMED.custom[k]=num(i.value); ledPaint(L)};
+  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); i.blur()}
+   if(e.key==="Escape"){e.preventDefault(); e.stopPropagation(); if(i.dataset.was==="") delete LIMED.custom[k]; else LIMED.custom[k]=+i.dataset.was; i.value=f(ledCap(k)); ledPaint(L); i.blur()}};
+  i.onblur=()=>{i.value=f(ledCap(k)); ledPaint(L)}});
+ const sv=L.querySelector("#ledSave"); if(sv) sv.onclick=ledSave}
+function ledSave(){if(!LIMED) return; const c=byId[LIMED.id]; if(!c||ledWhy()) return; const ch=ledChanged();
+ if(!ch.length){modal=null; LIMED=null; renderModal(); return}
+ const byShare=!LIMED.edit&&LIMED.moved, sh=LIMED.share, prev=[];
+ ch.forEach(k=>{const R=RES[k], r=R.rows[c.id], was=r.cap, v=ledCap(k); prev.push([k,was,r.custom]); r.cap=v; r.custom=!byShare; syncRes(k,r);
+  logAct(c.id,`${R.label} limit changed from ${f(was)} to ${f(v)}${byShare?` (${sh}% of what was available)`:""}`)});
+ const was0=c.limSet; c.limSet={share:byShare?sh:null,on:TODAY_D};
+ if(TOUR&&TOUR.step===3&&TOUR.ws===c.id) TOUR.limitDone=true;
+ RC_REFUSED=null; const R0=RES[ch[0]];
+ receipt("client:"+c.id,ch.length===1?`${c.name}'s ${R0.label.toLowerCase()} limit is now ${f(R0.rows[c.id].cap)}, was ${f(prev[0][1])}. ${f(compute(ch[0]).free)} ${R0.unit} stay available in the plan.`:`${c.name}'s limits saved; ${ch.length} changed.`,
+  ()=>{prev.forEach(([k,v,cu])=>{const r=RES[k].rows[c.id]; r.cap=v; r.custom=cu; syncRes(k,r)}); c.limSet=was0; render()},`changed ${c.name}'s limits`);
+ modal=null; LIMED=null; renderModal(); render()}
 function ncAccessSentence(){
  const subject=(nc.email||"").trim()||"This person", r=roleSet(nc.role);
  return `${subject} signs in as a ${nc.role} and ${r.wizTail}`+(r.wizExtra?` ${r.wizExtra}`:"");
@@ -9573,6 +9559,7 @@ function modalHTML(){
     is the one people actually want to know, so it is given equal weight, and
     the fact that it is reversible is stated rather than left to be discovered
     (23 §3.2: deleting the only client returns the account to where it was).  */
+ if(modal.kind==="limedit") return ledHTML(c);   /* change 220 */
  if(modal.kind==="share"){
   const sc=c, cur=modal.share!=null?modal.share:(SHARE0[sc.id]||sc.share||NC_SHARE_DEFAULT);
   const capAt=(k,sh)=>{const R=RES[k],st=R.step,r=R.rows[sc.id],left=R.pool-(allocOf(k)-r.cap); return Math.max(r.used,Math.min(Math.floor(left/st)*st,Math.max(st,Math.floor(R.pool*sh/100/st)*st)))};
@@ -9787,6 +9774,7 @@ function renderModal(){
  const L=el("modalLayer"); shellInert(); if(!modal){L.innerHTML="";renderToast();return}
  L.innerHTML=modalHTML();
  wirePeopleModal(L); wirePP(L); renderToast();
+ if(modal&&modal.kind==="limedit") ledWire(L);   /* change 220 */
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; if(!back){INV=null;PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
  {const sc=L.querySelector("#mscrim"); if(sc&&modal&&(modal.kind==="ppperson"||modal.kind==="pproles")) sc.onclick=e=>{if(e.target===sc){modal=modal.back||null;PP.addws=false;PP.removeConfirm=false;renderModal()}}}
  L.querySelectorAll("[data-agencyok]").forEach(b=>b.onclick=()=>{
@@ -10079,6 +10067,7 @@ function render(){
     top like before. */
  const pageKey=ctx+"|"+view.name+"|"+(view.id||"")+"|"+(inMod||"")+"|"+(tab||"")+"|"+(asClient?1:0)+"|"+(cView||"");
  pageEl.scrollTop=(pageKey===lastPageKey)?prevScroll:0;
+ pageEl.classList.toggle("pb-still",pageKey===lastPageKey);
  lastPageKey=pageKey;
  wire();renderThread();
  renderXform();
@@ -10122,9 +10111,9 @@ const TOUR_STEPS={
     head:c=>`Invite ${tourNm(c)}'s people.`,body:c=>"They see only this workspace. You can do this later.",act:c=>"Click Invite.",
     sec:"Later",done:c=>!!(modal&&modal.kind==="invite")||!!(TOUR&&TOUR.secDone)},
  3:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"limits"),
-    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector('.lm-row[data-rl="sends"]')||document.querySelector(".lm-row")):document.querySelector('.tabbar [data-tab="limits"]'),
+    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector("[data-limedit]")||document.querySelector('.lm-row[data-rl="sends"]')||document.querySelector(".lm-row")):document.querySelector('.tabbar [data-tab="limits"]'),
     sub:c=>tourOnRec(c)&&tab!=="limits"?"Open the Limits tab.":"",
-    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Click a number in Limit to change it; ${tourNm(c)} asks for more from its side.`,act:c=>"Change the Emails limit.",
+    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Edit changes them the same way as when you added it; ${tourNm(c)} asks for more from its side.`,act:c=>"Click Edit and save a change.",
     sec:"Got it",done:c=>!!(TOUR&&(TOUR.limitDone||TOUR.secDone))},
  4:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c),
     target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
@@ -10806,6 +10795,7 @@ function wire(){
  q("[data-rlset]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.rlset.split("|"); LM_MENU=null; setLimit(k,view.id,+n,"set to this cycle's pace"); render()});
  q("input.lm-num").forEach(i=>{i.onfocus=()=>{i.value=String(num(i.value));i.select()};i.onkeydown=e=>{if(e.key==="Enter")i.blur();if(e.key==="Escape"){i.value=f(RES[i.dataset.lim].rows[view.id].cap);i.blur()}};i.onblur=()=>{if(/^\d+$/.test(i.value))i.value=f(num(i.value))}});
  q("[data-share]").forEach(b=>b.onclick=()=>{modal={kind:"share",client:b.dataset.share,share:null};renderModal()});
+ q("[data-limedit]").forEach(b=>b.onclick=()=>ledOpen(b.dataset.limedit));   /* change 220 */
  const inScope=(x,k,id)=>{const [xk,xid]=x.split("|");return (k&&xk===k)||(id&&xid===id)};
  q("[data-dapply]").forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.dapply.split("|");
    /* a save that would reserve more than the plan holds is refused, and the
@@ -11636,14 +11626,14 @@ demoSync();
 .hero-card:hover{border-color:var(--gray-23);box-shadow:var(--shadow-xs)}
 .hero-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .hero-t{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--gray-15)}.hero-t svg{width:16px;height:16px;color:var(--gray-15);flex:none}
-.hero-pill{font-size:11px;font-weight:500;color:var(--green-14);background:var(--green-11);border-radius:4px;padding:2px 6px;white-space:nowrap}
-.hero-pill.is-down{color:var(--red-12);background:var(--red-17)}
+.hero-dlt{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:18px;color:var(--gray-15)}
 .hero-v{font-size:28px;line-height:32px;font-weight:600;color:var(--gray-17);font-variant-numeric:tabular-nums}
 .hero-vrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .hero-rate{font-size:14px;font-weight:500;color:var(--gray-12)}
 .hero-spark{display:flex;align-items:flex-end;gap:2px;height:28px}.hero-spark i{width:6px;background:var(--blue-12);border-radius:2px 2px 0 0;display:block}
 .hero-f{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}.hero-f>span{white-space:nowrap}
 .hero-dot{display:inline-flex;align-items:center;gap:5px}.hero-dot::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--c)}
+.hero-dot--gone::before{box-sizing:border-box;background:none;border:1px solid var(--gray-11)}
 .dwrap-hero{padding-top:20px;grid-template-columns:minmax(0,2.2fr) minmax(440px,1fr)}.dwrap-hero .dmain,.dwrap-hero .drail{grid-row:1}
 .dwrap-hero--full{grid-template-columns:minmax(0,1fr)}
 @media (max-width:1199px){.hero{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -11953,7 +11943,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl thead tr.th-one th{height:40px;vertical-align:middle!important;padding-top:0!important;padding-bottom:0!important}
 @media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
 .home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
-.home-tbl .dlt.w7d{color:var(--gray-12);margin-left:6px;font-size:12px}.home-tbl .dlt.w7d.is-red{color:var(--red-18)}.home-tbl .w7-bad{color:var(--red-18)}
+.home-tbl .stackv>.performance-stats{margin-left:6px;vertical-align:1px}.home-tbl .w7-bad{color:var(--red-18)}
 .c-t .w7-sub{display:block;font-size:12px;font-weight:400;line-height:18px;color:var(--gray-12);margin-top:2px}
 .home-tbl thead th{white-space:nowrap;vertical-align:top;padding-top:10px!important;padding-bottom:10px!important;line-height:16px}
 .home-tbl .th-u{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--gray-12);margin-top:1px}
@@ -11994,6 +11984,13 @@ td>.cs:only-child{display:block}
 .lm-t tr.lm-row{display:table-row;margin:0;padding:0;border:0;gap:0;grid-template-columns:none;background:none}.lm-t tr.lm-row:hover td,.lm-t tr.lm-row:focus-within td{background:#f9fafb}
 .lm-t th:first-child,.lm-t td:first-child{padding-left:24px}.lm-t th:last-child,.lm-t td:last-child{padding-right:24px}
 .lm-decl{display:flex;flex-direction:column;gap:6px;padding:0;border:0;max-width:240px}.lm-decl .lm-note{height:32px;padding:0 10px;border:1px solid #d1d5db;border-radius:4px;font:inherit;font-size:13px}.lm-decl-b{display:flex;align-items:center;gap:12px}
+/* change 220: two columns, the bar fills Used; the ask's own panel; Edit beside the share */
+.lm-t.lm-t2{min-width:640px}.lm-t.lm-t2 .apu-i{max-width:none}
+.lm-share-h .nc-modebtn{margin-left:6px}.wrap>.rq2-panel+.lm-panel{margin-top:0}
+.lm-t.rq2-t{min-width:880px}.rq2-t td>.sub{margin-top:2px}
+.lm-t .pri2.rq2-acts{display:flex;align-items:center;gap:8px;padding:0;margin:0;border:0}
+.lm-t .pri2.rq2-decl{flex-direction:row;align-items:center;gap:8px;max-width:none}.rq2-decl .lm-note{flex:1 1 auto;min-width:0}.rq2-decl .lm-decl-b{flex:none}
+.rq2-panel .panel-h .sub{font-size:13px}.lm-asknote.rq2-note{padding:0 24px 14px;margin-top:-4px}
 .lm-asknote{margin:0;padding:12px 24px 4px;font-size:13px;color:var(--gray-15)}.lm-asknote b{color:var(--gray-17);font-weight:600}.lm-share-h{display:inline-flex;align-items:center;gap:6px}.lm-share-h .sub{font-size:13px}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
@@ -12007,7 +12004,7 @@ td>.cs:only-child{display:block}
 .home-tbl .qa button{width:26px;height:24px;border:0;border-right:0;background:none;border-radius:var(--radius-input);color:var(--gray-11)}.home-tbl .qa button svg{width:14px;height:14px}
 .home-tbl .qa button:hover{background:var(--blue-17);color:var(--blue-11)}
 .home-tbl td{vertical-align:top;box-sizing:border-box}.home-tbl th{box-sizing:border-box}.home-tbl .crow td:first-child{min-width:0}
-.dlt{margin-left:6px;font-size:12px;font-weight:500;color:var(--gray-12);white-space:nowrap}.dlt.is-up{color:var(--green-16)}.dlt.is-down{color:var(--red-18)}
+.rs-v>.performance-stats{margin-left:6px;vertical-align:3px}
 .stackb.is-bad{color:var(--red-18)}.stackb.is-warn{color:var(--orange-12)}
 .ws-sub .yours{margin-left:0!important;flex:none}
 /* 2 Oct 2026: the starting point, per Hitesh's board */
@@ -12038,7 +12035,10 @@ td>.cs:only-child{display:block}
 .rs-usage .u-head{display:block;font-size:16px;line-height:28px;font-weight:600;margin-top:4px;white-space:nowrap}.home-tbl .u-head,.home-tbl .meter-t{white-space:normal;overflow:visible;text-overflow:clip}
 .rs-usage .u-sub{display:block;font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px;white-space:nowrap}
 .rs-usage .u-quiet{display:block;font-size:14px;line-height:28px;font-weight:600;color:var(--gray-17);margin-top:4px;white-space:nowrap}
-.rc-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.rc-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+/* change 219 (Hitesh, item 13): "divide screen in 2 section instead of 3 and stack Details and Access in same half
+   section, first Details then Access". Limits and usage is the tallest card, so it gets a half to itself. */
+.rc-stack{display:flex;flex-direction:column;gap:16px;min-width:0}.rc-stack>.panel{margin-top:0!important}.rc-stack>.panel:last-child{flex:1}
 @media (max-width:1180px){.rc-cards{grid-template-columns:1fr}}
 .rc-card .panel-h{display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .rc-card .panel-b{padding:8px 20px 16px}
@@ -12338,7 +12338,7 @@ table.organism th .linkbtn,table.organism th .sortable,.an-table th .sortable{fo
 .billpage{gap:16px}
 /* 4. reading text is never 11px; only uppercase eyebrows stay at 11 */
 td i{font-style:normal;font-size:12px;line-height:16px;color:#6B7280}
-.nc-hint,.sub.nc-hint,p.nc-hint,.nc-ucap,.nc-share-tile span,.nc-capnote,.pp-echip,.u-sub,.hero-pill{font-size:12px;line-height:16px}
+.nc-hint,.sub.nc-hint,p.nc-hint,.nc-ucap,.nc-share-tile span,.nc-capnote,.pp-echip,.u-sub{font-size:12px;line-height:16px}
 .nc-capnote{margin:6px 0 0}
 /* 5. focus: one treatment */
 input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:0}
@@ -12450,6 +12450,43 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .tour-act::before{content:"";width:6px;height:6px;border-radius:50%;background:#1D4ED8;flex:none}
 .tour-f{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
 .tour-f .linkbtn{font-size:13px}
+/* ═══ doc 93 (version D): production ProgressBar and Account Plan Usage, from
+   design-system.css .progress-bar-wrapper, account-plan-usage.tsx and _subscription-plan-details.scss ═══ */
+.pbw{height:.625rem;position:relative;overflow:hidden;border-radius:1.875rem;background-color:#e5e7eb}
+.pbw>span{display:block;height:100%}
+.pbw__bar{display:block;height:100%;animation:pbIn 3s ease-in-out both}
+@keyframes pbIn{0%{width:0}100%{width:100%}}
+.pb-still .pbw__bar{animation:none}
+@media (prefers-reduced-motion:reduce){.pbw__bar{animation:none}}
+.apu-r{display:flex;justify-content:space-between;align-items:baseline;gap:4px 12px;flex-wrap:wrap}
+.apu-l,.apu-u{font-size:12px;font-weight:600;line-height:20px;color:#1f2937}
+.apu-u{font-variant-numeric:tabular-nums}.apu-u span{font-weight:500}
+.apu-b{margin-top:12px}
+.apu-rem{margin-top:4px;font-size:12px;font-weight:500;line-height:20px;color:#6b7280}
+.apu-note{margin-top:4px;font-size:12px;line-height:20px;color:#6b7280}
+.apu-note>div+div{margin-top:2px}
+.apu-rr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:4px}.apu-rr .apu-rem{margin-top:0}
+.apu-aside{font-size:12px;line-height:20px;color:#6b7280;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cu-st{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:20px}
+.apu-note>.cu-st+.cu-st{margin-top:4px}
+.cu-w{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:12px;line-height:20px;font-weight:500;color:#6b7280}
+.cu-w.is-close{color:var(--orange-12)}.cu-w.is-paused{color:var(--red-18);font-weight:600}
+.cu-ic{width:14px;height:14px;flex:none}
+.cu-chip{display:inline-block;padding:0 8px;border-radius:4px;background:#fef3c7;color:#92400e;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap}
+.apu-note .linkbtn.cu-go{font-size:12px;line-height:20px;font-weight:600;white-space:nowrap;flex:none}
+.cu-ln .cu-ans{font-size:12px;line-height:20px}.cu-ln .cu-ans>span{display:block;padding-left:14px;text-indent:-14px}
+.apu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:4.7734%;row-gap:24px;padding:20px 0}
+@media (max-width:760px){.apu-grid{grid-template-columns:minmax(0,1fr)}}
+.apu-col{display:flex;flex-direction:column;gap:20px}
+.bkt{display:flex;height:.625rem;border-radius:1.875rem;overflow:hidden;background-color:#e5e7eb;width:100%}
+.bkt span{height:100%;transition:width .3s ease}
+.meter.u-row .apu-b.u-pb{margin:0;flex:1;min-width:0}.meter.u-row .u-pct{color:#1f2937;font-weight:500}
+.meter .pbw{width:100%}
+.lm-t .apu-i{max-width:340px}
+.pg-row.pg-row--apu{grid-template-columns:minmax(0,1fr) 220px;align-items:start}
+.rc-req2{margin-top:16px}
+.ob-pbar{display:flex;align-items:center;margin:8px 0 16px}.ob-pbar>div{width:25%}
+.ob-pbar .ob-cnt{font-size:14px;line-height:18px;color:#1f2937;margin-left:12px}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -12731,7 +12768,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3be4b00";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="ed97084";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
