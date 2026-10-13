@@ -5340,7 +5340,7 @@ function wireDD(L,id,onPick){
    commits on Enter, Tab, space, comma, click-away or Send itself. */
 const INV_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 function invHintText(d){d=(d||"").trim(); if(!d) return "Each person sets their own password."; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
-function invFootText(d){return ""; /* item 21: "stay away from adding unnecessary details" */ const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
+function invFootText(d){const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
  if(I.f&&!I.edit) return invFormFoot();
  if(!I.emails.length) return "Add at least one email address.";
  const a=I.emails.find(x=>!invSettled(I.rows[x])); if(!a) return "";
@@ -5375,16 +5375,15 @@ function invFormFoot(){const I=INV, f=I.f, n=I.emails.length;
  const blk=I.emails.find(a=>I.rows[a]&&I.rows[a].blocked); if(blk) return `${blk} is a client user of ${listAnd(I.rows[blk].existing.map(id=>byId[id].name))}. Invite them as a client user.`;
  if(f.kind==="client"){const c=byId[f.ws]; if(!c) return "Pick the client.";
   const dup=I.emails.find(a=>I.rows[a]&&I.rows[a].existing&&I.rows[a].existing.indexOf(f.ws)>-1); if(dup) return `${dup} is already on ${c.name}.`;
-  const verb={"Workspace Admin":["runs","run"],"Workspace Collaborator":["does the outreach for","do the outreach for"],"Workspace Viewer":["views","view"]}[f.level][n===1?0:1];
-  return `${n===1?I.emails[0]:n+" people"} ${verb} ${c.name} only.`}
- const who=invNames(I);
- if(f.kind==="admin") return f.asOwner?`${who} ${n===1?"becomes an Account Owner":"become Account Owners"}: everything, including billing.`:`${who} ${n===1?"gets":"get"} all workspaces and People; no Billing.`;
+  /* change 236, 13 Oct 2026 (Hitesh, item 21: "Remove this from invite pop-up - larger point
+     always stay away from adding unnecessary details"): no read-back of the choices; the
+     form above already shows them. The footer speaks only when something blocks Send. */
+  return ""}
+ /* change 236 (item 21): Your team reads nothing back either (Every workspace, As an Account
+    Owner, Workspaces I pick, a Team Manager's invite) */
+ if(f.kind==="admin") return "";
  if(!f.wsList.length) return "Pick at least one client.";
- if(isATM()) return `${who} ${n===1?"works":"work"} on ${listAnd(f.wsList.map(id=>byId[id].name))} only.`;
- const V={"Workspace Admin":["runs","run"],"Workspace Collaborator":["does the outreach for","do the outreach for"],"Workspace Viewer":["views","view"]};
- const by={}; f.wsList.forEach(id=>{const l=f.lv[id]||f.level;(by[l]=by[l]||[]).push(byId[id].name.split(/\s+/)[0])});
- const parts=CLIENT_ROLES.filter(l=>by[l]).map(l=>V[l][n===1?0:1]+" "+listAnd(by[l]));
- return `${who} ${listAnd(parts)}.`}
+ return ""}
 function inviteFormHTML(){
  const I=INV, f=I.f, lock=I.lock&&byId[I.lock], wsList=fundedWorkspaces().filter(x=>!x.own), n=I.emails.length;
  invApply();
@@ -13317,7 +13316,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="364e9ec";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="75d7e9d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
