@@ -4667,7 +4667,10 @@ function rLimits(c){
   const tr=q=>{const k=q.res, R=RES[k], r=R.rows[c.id]; if(!r) return ""; const free=compute(k).free, ok=free>=q.amount, amt=ok?q.amount:free;
    /* Decline comes first, as Decline all does, so every Approve starts at the same place whatever the amount */
    const acts=!canEdit?"":LM_DECL===k?`<td><div class="pri2 lm-decl rq2-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note for ${first} (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div></td>`
-    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button>`:""}</div></td>`;
+    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button>`:""}${amt>0?"":
+     /* change 234, 13 Oct 2026: nothing available, so the next step sits where Approve would: rebalance on
+        Usage & limits (Edit limits on this column), and buying more under it, as the shortfall callout has it */
+     `<button class="shd-button shd-button--secondary shd-button--sm" data-rqreb="${k}" title="Opens Usage &amp; limits with Edit limits on ${R.label}: lower another workspace's limit to make some available">Rebalance in Usage &amp; limits</button>`}</div>${amt>0?"":`<span class="sub rq2-buy">${canI("billing")?`Or <button class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`Or <button class="linkbtn" data-ulaskowner="${k}|${q.amount-free}">ask the Account Owner</button> to buy more`}</span>`}</td>`;
    return `<tr class="rq2-row" id="rreq-${k}"><td><span class="lm-nm">${R.label}</span></td><td><span class="lm-nm">+${f(q.amount)}</span></td><td><span class="lm-nm">${f(r.cap)}</span>${amt>0?`<span class="sub">${f(r.cap+amt)} if approved</span>`:""}</td><td><span class="lm-nm"${ok?"":' style="color:var(--red-18)"'}>${f(free)}</span>${ok?"":`<span class="sub">Short by ${f(q.amount-free)}</span>`}</td>${acts}</tr>`};
   return `<div class="panel lm-panel rq2-panel" id="${gi?"rcReq-"+g.id:"rcReq"}" data-rqask="${g.id}"><div class="panel-h"><span class="panel-t">${first} asked ${gi?"again":"for more"}</span><span class="sub">${AGE(g.when)}${GG.length>1?` &middot; ask ${gi+1} of ${GG.length}`:""}</span>${multi&&canEdit?`<span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${GG.length>1?"|"+g.id:""}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${GG.length>1?"|"+g.id:""}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all</button></span>`:""}</div>
    ${g.note?`<p class="lm-asknote rq2-note">&ldquo;${g.note}&rdquo;</p>`:""}
@@ -5893,7 +5896,11 @@ function ulLine(r,ro){const k=r.res,R=RES[k],row=R.rows[r.client],c=byId[r.clien
  const decide=ro?`<span class="sub">Read only</span>`:UL.decl===r.id
   ?`<div class="ul-decl"><input type="text" class="ul-note" data-nonote="${r.id}" placeholder="Note for ${first} (optional)" aria-label="Note ${first} reads with the decline"><span class="ul-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${r.id}">Decline</button><button class="linkbtn ul-12" data-uldeclx>Cancel</button></span></div>`
   /* Decline first and Approve primary, as the record's ask panel has them since change 220 */
-  :`<div class="ul-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-uldecl="${r.id}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${r.id}"`:`data-okpart="${r.id}" title="Approve what the plan has: ${f(free)} of the ${f(r.amount)} asked. The line closes; ${first} can ask again for more."`}>Approve ${f(amt)}</button>`:""}</div>`;
+  :`<div class="ul-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-uldecl="${r.id}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${r.id}"`:`data-okpart="${r.id}" title="Approve what the plan has: ${f(free)} of the ${f(r.amount)} asked. The line closes; ${first} can ask again for more."`}>Approve ${f(amt)}</button>`:""}${amt>0?"":
+  /* change 234: nothing available. Rebalance is the callout's own (data-ulrebal: Edit limits on this column, scrolled to);
+     the label is short ("Rebalance", the title and aria-label say "in Limits below") so Decline and Rebalance hold one
+     row in the Decide column at 1366 and 1440, and with the rail expanded at 1440, as Approve 50 does */
+  `<button class="shd-button shd-button--secondary shd-button--sm" data-ulrebal="${k}" title="Rebalance in Limits: lower another workspace's limit below to make some available" aria-label="Rebalance ${R.label} in Limits below">Rebalance</button>`}</div>${amt>0?"":`<span class="sub ul-buy">${canI("billing")?`Or <button class="linkbtn ul-12" data-ulbuy="${k}">buy more in Billing</button>`:`Or <button class="linkbtn ul-12" data-ulaskowner="${k}|${r.amount-free}">ask the Account Owner</button> to buy more`}</span>`}`;
  return {asked:`<span class="ul-ask"><b>+${f(r.amount)}</b> ${R.label}</span><span class="sub">${ulNat(k)}</span>`,
   use:ulUse(k,row.used,row.cap), plan:`<span class="ul-plan">${head}</span><span class="sub ul-eff">${sub}</span>`, decide}}
 function ulAskTbody(a,ro){const c=byId[a.client], L=a.lines, multi=L.length>1, folded=ulFolded(a), isNew=!UL.seen[a.id];
@@ -6085,6 +6092,15 @@ function ulWireBar(){q2("[data-uldiscard]").forEach(b=>b.onclick=()=>{UL.edit=fa
  q2("[data-ulreview]").forEach(b=>b.onclick=()=>{if(b.disabled) return; UL.review=true; render()})}
 function ulWire(){const L=ulLayer();
  q2("[data-ulgo]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"limits"};render()});
+ /* change 234 */
+ q2("[data-rqreb]").forEach(b=>b.onclick=()=>{const k=b.dataset.rqreb; ORIGIN=null; LM_DECL=null; ctx="agency"; asClient=false; view={name:"limits"};
+  UL.edit=true; UL.focusK=k; UL.cell=null; UL.review=false; render();
+  /* a new page paints its skeleton first (200ms): scroll and focus once Limits is on the page */
+  let n=0; const land=()=>{const P=el("ulLimits"), i=[...q2(`[data-uld^="${k}|"]`)].find(x=>!x.disabled);
+   if(!P||!i){if(++n<40) setTimeout(land,50); return} P.scrollIntoView({block:"start",behavior:"auto"}); i.focus({preventScroll:true})}; land()});
+ if(view.name!=="limits"||ctx!=="agency"){
+  q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="credits";render()});
+  q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
  if(view.name!=="limits"||ctx!=="agency"){L.innerHTML="";UL.cell=null;UL.review=false;return}
  q2("[data-uladd]").forEach(b=>b.onclick=openAddClient);
  q2("[data-ulfold]").forEach(b=>b.onclick=()=>{const a=ulAsks().find(x=>x.id===b.dataset.ulfold); if(!a) return; UL.fold[a.id]=!ulFolded(a); UL.seen[a.id]=true; render()});
@@ -12507,6 +12523,10 @@ td>.cs:only-child{display:block}
 .lm-share-h .nc-modebtn{margin-left:6px}.wrap>.rq2-panel+.lm-panel{margin-top:0}
 .lm-t.rq2-t{min-width:880px}.rq2-t td>.sub{margin-top:2px}
 .lm-t .pri2.rq2-acts{display:flex;align-items:center;gap:8px;padding:0;margin:0;border:0}
+.rq2-t td>.sub.rq2-buy,.ul-buy{display:block;margin-top:4px;white-space:nowrap}
+/* with the rail expanded at 1366 the pair is 2px wider than the column's content box: let it use the cell's 16px padding
+   rather than shrink Decline, so Decline and Rebalance keep the x of every other line's Decline and Approve */
+.rq2-acts:has([data-rqreb])>.shd-button{flex:none}.lm-t.rq2-t td>.sub.rq2-buy .linkbtn,.ul-buy .linkbtn{font-size:12px;line-height:18px;font-weight:500}
 .lm-t .pri2.rq2-decl{flex-direction:row;align-items:center;gap:8px;max-width:none}.rq2-decl .lm-note{flex:1 1 auto;min-width:0}.rq2-decl .lm-decl-b{flex:none}
 .rq2-panel .panel-h .sub{font-size:13px}.lm-asknote.rq2-note{padding:0 24px 14px;margin-top:-4px}
 .lm-asknote{margin:0;padding:12px 24px 4px;font-size:13px;color:var(--gray-15)}.lm-asknote b{color:var(--gray-17);font-weight:600}.lm-share-h{display:inline-flex;align-items:center;gap:6px}.lm-share-h .sub{font-size:13px}
@@ -13297,7 +13317,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3bf994a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="1e53836";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
