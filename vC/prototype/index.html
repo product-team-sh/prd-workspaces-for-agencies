@@ -9409,22 +9409,22 @@ function drawerHTML(){
  const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
-   <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${nc.nameErr?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${nc.nameErr?"true":"false"}"></div></div>
-  ${nc.nameErr?`<p class="nc-limsay is-err nc-fielderr" role="alert"><span>${nc.nameErr}</span></p>`:`<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Client users see it too.</p>`}
+   <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${ncNameMsg()?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${ncNameMsg()?"true":"false"}" aria-describedby="ncnMsg"></div></div>
+  ${ncNameMsgHTML()}
   <div class="field"><span class="flabel" id="ncColLab">Profile icon colour</span>
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
-  <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%"></div>
+  <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" class="${ncSiteMsg()?"is-err":""}" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%" aria-invalid="${ncSiteMsg()?"true":"false"}" aria-describedby="ncsiteMsg">${ncSiteMsgHTML()}</div>
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
-  <div class="nc-limhead" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16);display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow" style="margin:0">Limits for ${(nc.name||"this workspace").trim()}</span>${ncModeBtnHTML()}</div>${ncUsageHTML()}`;
+  <div class="nc-limhead nc-limhead--264" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16)"><h3 class="nc-limtitle" id="ncLimTitle">Limits</h3></div>${ncUsageHTML()}`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
   <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
     <p class="sub" style="margin:4px 0 0">A separate space for one client. You can add more anytime.</p></div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="dr-b">${b1}</div>
-  <div class="dr-f"><div class="sub nc-addwhy" id="ncAddWhy" role="status">${ncAddWhy()}</div>
+  <div class="dr-f"><div class="sub nc-addwhy" id="ncAddWhy" role="status"></div>
    <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone"${ncAddWhy()?" disabled":""}>Add a workspace</button></div></div>
  </aside>`;
 }
@@ -9463,10 +9463,26 @@ const ncIsSet=k=>!!nc.custom&&nc.custom[k]!=null;
 const ncOver=k=>ncIsSet(k)&&nc.custom[k]>compute(k).free;
 const ncSetCount=()=>RK.filter(ncIsSet).length;
 /* change 205: "N available" under every field while editing (was "of N available", which crowded the labels) */
-const ncHintText=k=>ncOver(k)?`Only ${f(compute(k).free)} left`:`${f(compute(k).free)} available`;
+const ncHintText=k=>`${f(compute(k).free)} available`;
+/* change 264: an over value says so on its own line under the tile, never in the footer */
+const ncErrText=k=>ncOver(k)?`Only ${f(compute(k).free)} available.`:"";
+const ncEscH=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+/* change 264: a name already in use (any workspace, the agency's own included, case-insensitive) */
+function ncDupName(){const nm=(nc.name||"").trim().toLowerCase();if(!nm)return null;
+ const hit=[AGENCY.name].concat(CLIENTS.map(c=>c.name)).find(x=>String(x).trim().toLowerCase()===nm);
+ return hit?`A workspace called ${String(hit).trim()} already exists. Use a different name.`:null}
+const ncNameMsg=()=>nc.nameErr||ncDupName();
+function ncNameMsgHTML(){const m=ncNameMsg();return m?`<p class="nc-limsay is-err nc-fielderr" id="ncnMsg" role="alert"><span>${ncEscH(m)}</span></p>`:`<p class="sub nc-fieldhint" id="ncnMsg">Usually the client&rsquo;s company name. Client users see it too.</p>`}
+const ncSiteBad=()=>{const s=(nc.site||"").trim();return !!s&&!/^(https?:\/\/)?(www\.)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(s)};
+const ncSiteMsg=()=>nc.siteShown&&ncSiteBad()?"Enter a website like alloyco.com.":"";
+function ncSiteMsgHTML(){const m=ncSiteMsg();return m?`<p class="nc-limsay is-err nc-fielderr nc-siteerr" id="ncsiteMsg" role="alert"><span>${m}</span></p>`:`<span id="ncsiteMsg" hidden></span>`}
+function ncPaintName(){const i=el("ncn"),p=el("ncnMsg"),m=ncNameMsg();if(i){i.classList.toggle("is-err",!!m);i.setAttribute("aria-invalid",m?"true":"false")}if(p)p.outerHTML=ncNameMsgHTML();ncPaintAdd()}
+function ncPaintSite(){const i=el("ncsite"),p=el("ncsiteMsg"),m=ncSiteMsg();if(i){i.classList.toggle("is-err",!!m);i.setAttribute("aria-invalid",m?"true":"false")}if(p)p.outerHTML=ncSiteMsgHTML();ncPaintAdd()}
+function ncPaintAdd(){const why=ncAddWhy(),dn=el("drDone"),aw=el("ncAddWhy");if(dn){dn.disabled=!!why;dn.title=why}if(aw)aw.textContent=""}
 const NC_SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
 function ncSetLine(){const ks=RK.filter(ncIsSet);return ks.length===1?`${NC_SUM_L[ks[0]]||RES[ks[0]].label} set by hand; the rest follow the slider.`:`${ks.length} set by hand; the rest follow the slider.`}
-function ncAddWhy(){const ks=RK.filter(ncOver);return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(compute(ks[0]).free)} left. Lower it to add the workspace.`:""}
+function ncAddWhy(){const ks=RK.filter(ncOver);if(ks.length)return `${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(compute(ks[0]).free)} available. Lower it to add the workspace.`;
+ if(ncDupName())return "Use a name no other workspace has.";if(ncSiteMsg())return "Fix the website to add the workspace.";return ""}
 function ncPctText(){if(nc.edit) return '<span class="nc-off">Off while you edit values</span>';const n=ncSetCount();return "<b>"+ncShare()+"%</b>"+(n?`<span class="sub"> &middot; ${n} set by hand</span>`:"")}
 /* change 205, 12 Oct 2026 (Hitesh): "give explicit button which enables edit with pencil icon ... one will be
    disabled ... if you want to change individual then slider will not available to use ... how we can define which
@@ -9476,14 +9492,17 @@ function ncPctText(){if(nc.edit) return '<span class="nc-off">Off while you edit
 const NC_PEN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const NC_SLI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><circle cx="9" cy="12" r="3" fill="#fff"/></svg>';
 function ncModeBtnHTML(){return nc.edit
- ?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ncEditVals" aria-pressed="true" title="Every value goes back to ${ncShare()}% of what is available">${NC_SLI}Use the slider</button>`
- :`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ncEditVals" aria-pressed="false">${NC_PEN}Edit values</button>`}
+ ?`<button type="button" class="linkbtn nc-modebtn nc-modelink" id="ncEditVals" aria-pressed="true" title="Every value goes back to ${ncShare()}% of what is available">${NC_SLI}Use the slider</button>`
+ :`<button type="button" class="linkbtn nc-modebtn nc-modelink" id="ncEditVals" aria-pressed="false">${NC_PEN}Edit values</button>`}
+/* change 264: the production InfoCircle (@saleshandy/icons) */
+const NC_INFO='<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M11 7.993a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v3a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1-1-1Z"/></svg>';
 /* the context the slider used to carry on its face, now behind Learn more */
 /* change 165, 9 Oct 2026 (Hitesh): shorter and crisper. Two lines: what
    available means and what the slider does; then how each kind renews. */
-function ncLearnHTML(){const who=(nc.name||"this workspace").trim(), sh=ncShare(), g=ncGivenPct();
- return `<p>Available is your plan minus what other workspaces already have${g?"":" (today, all of it)"}. The slider gives ${who} ${sh}% of each. To set each value yourself, use Edit values; the slider is off while you do.</p>
-  <p>Emails are a monthly limit. Credits are a balance, set aside for ${who}.</p>`}
+function ncLearnHTML(){const who=ncEscH((nc.name||"").trim()||"this workspace"), sh=ncShare(), av=f(compute("sends").free);
+ const base=CLIENTS.length?"what other workspaces already have":`what your own workspace, ${ncEscH(AGENCY.name)}, already has`;
+ return `<p>Available is your plan minus ${base}, for example <b>${av}</b> emails a month.</p>
+  <p>The slider gives ${who} ${sh}% of each. Emails renew each month; credits are set aside from your balance.</p>`}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
@@ -9496,13 +9515,13 @@ function ncUsageHTML(){
     is left says so as you type and holds Add back. There is no Edit limits mode. */
  const SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
  const sumKeys=RK.filter(k=>RES[k].pool>0);
- const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span></div>`;
+ const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
-  <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ncLearn" aria-expanded="${nc.learn?"true":"false"}" aria-controls="ncLearnBox">${nc.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
-  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available"${nc.edit?" disabled":""}>
-  ${nc.learn?`<div class="nc-learn" id="ncLearnBox">${ncLearnHTML()}</div>`:""}
+  ${nc.edit?"":`<div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><span class="nc-info${nc.learn?" is-on":""}" id="ncInfo"><button type="button" class="nc-info-b" id="ncLearn" aria-label="What available means" aria-expanded="${nc.learn?"true":"false"}" aria-describedby="ncLearnBox">${NC_INFO}</button><span class="nc-pop" role="tooltip" id="ncLearnBox">${ncLearnHTML()}</span></span></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
+  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available">`}
+  <div class="nc-moderow">${ncModeBtnHTML()}</div>
   <div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
  </div>`;
 }
@@ -9514,8 +9533,8 @@ function ncPaintUsage(){
  document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
  document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}
  document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",ncIsSet(k))});
- document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k)});
- const why=ncAddWhy(), dn=el("drDone"), aw=el("ncAddWhy"); if(dn){dn.disabled=!!why;dn.title=why} if(aw)aw.textContent=why;
+ document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k);const e=r.querySelector(".nc-sum-e");if(e)e.textContent=ncErrText(k);const i=r.querySelector("input");if(i){if(ncOver(k))i.setAttribute("aria-invalid","true");else i.removeAttribute("aria-invalid")}});
+ ncPaintAdd();
 }
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
    means, reusing the same slot (id="ncAccSay") so the wizard's live "what they
@@ -9648,14 +9667,18 @@ function renderDrawer(){
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
  /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
  {const sl=el("ncShare");if(sl)sl.oninput=()=>{nc.share=+sl.value;nc.err=null;ncPaintUsage()}}
- {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const eb=document.querySelector(".nc-limhead .nc-eyebrow");if(eb)eb.textContent="Limits for "+(a.value.trim()||"this workspace");const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML();
-  /* the name error clears as soon as a name is typed; it never waits for the next Add */
-  if(nc.nameErr&&a.value.trim()){nc.nameErr=null;a.classList.remove("is-err");a.setAttribute("aria-invalid","false");const fe=document.querySelector(".nc-fielderr");if(fe){fe.outerHTML='<p class="sub nc-fieldhint">Usually the client&rsquo;s company name. Client users see it too.</p>'}}}}}
+ {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML();
+  /* the empty-name error clears as soon as a name is typed; a duplicate name says so as it is typed (change 264) */
+  if(nc.nameErr&&a.value.trim())nc.nameErr=null; ncPaintName()}}}
  {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
  /* change 205: Edit values and Use the slider swap the mode; leaving Edit puts every value back on the slider */
  {const b=el("ncEditVals");if(b)b.onclick=()=>{cap();if(nc.edit){nc.edit=false;nc.custom={}}else nc.edit=true;nc.err=null;renderDrawer();
   const go=nc.edit?document.querySelector("#ncUsage input.nc-num"):el("ncShare");if(go)go.focus()}}
- {const b=el("ncLearn");if(b)b.onclick=()=>{cap();nc.learn=!nc.learn;renderDrawer()}}
+ {const b=el("ncLearn");if(b){b.onclick=()=>{nc.learn=!nc.learn;const w=el("ncInfo");if(w)w.classList.toggle("is-on",nc.learn);b.setAttribute("aria-expanded",nc.learn?"true":"false")};
+  /* Escape dismisses the popover (pinned or shown by focus) before it would close the pop-up */
+  b.onkeydown=e=>{const w=el("ncInfo");if(e.key==="Escape"&&w&&!w.classList.contains("is-quiet")){e.preventDefault();e.stopPropagation();if(nc.learn)b.click();w.classList.add("is-quiet")}};
+  b.onblur=()=>{const w=el("ncInfo");if(w)w.classList.remove("is-quiet")}}}
+ {const s=el("ncsite");if(s){s.addEventListener("input",()=>{nc.site=s.value;if(nc.siteShown)ncPaintSite()});s.addEventListener("blur",()=>{nc.site=s.value;nc.siteShown=true;ncPaintSite()})}}
  L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap;
   i.onfocus=()=>{i.dataset.was=ncIsSet(k)?String(nc.custom[k]):"";setTimeout(()=>{try{i.select()}catch(e){}},0)};
   i.oninput=()=>{nc.custom=nc.custom||{};if(i.value.trim()==="")delete nc.custom[k];else nc.custom[k]=num(i.value);ncPaintUsage()};
@@ -9671,7 +9694,8 @@ function renderDrawer(){
  const d=el("drDone");if(d)d.onclick=()=>{cap();
    /* the name is marked required and is enforced here (one step since 3 Oct 2026) */
    nc.nameErr=!nc.name.trim()?"Give the workspace a name.":null;
-   if(nc.nameErr){renderDrawer();const i=el("ncn");if(i)i.focus();return}
+   if(nc.nameErr||ncDupName()){renderDrawer();const i=el("ncn");if(i)i.focus();return}
+   nc.siteShown=true; if(ncSiteMsg()){renderDrawer();const i=el("ncsite");if(i)i.focus();return}
    /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
    const bad=RK.filter(k=>nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
    if(bad.length){ncPaintUsage();const first=document.querySelector('#ncUsage [data-cap="'+bad[0]+'"]');if(first)first.focus();return}
@@ -13475,6 +13499,39 @@ input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1
 .nc-upct{flex-wrap:wrap;justify-content:flex-end;text-align:right;max-width:60%;white-space:normal}
 .nc-upct .sub{white-space:normal}
 .nc-limhead{align-items:center}.nc-limhead .nc-eyebrow{margin-bottom:0}
+/* change 264: the Add a workspace pop-up takes fd/add-onboarding.html#form in Saleshandy's look */
+.nc-modal .nc-limhead--264{margin-bottom:12px}
+.nc-modal .nc-limtitle{margin:0;font-size:14px;line-height:20px;font-weight:600;color:#1f2937}
+.nc-modal #ncUsage{gap:6px}
+.nc-modal .nc-urow{position:relative;align-items:center}
+.nc-modal .nc-ulab{align-items:center;gap:4px}
+.nc-modal .nc-upct{font-size:14px;line-height:20px}
+.nc-info{position:relative;display:inline-flex;align-items:center}
+.nc-info-b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin:-3px 0;padding:0;border:0;border-radius:50%;background:none;color:#6b7280;cursor:pointer;transition:color .12s ease}
+.nc-info-b svg{width:14px;height:14px;flex:none}
+.nc-info-b:hover,.nc-info.is-on .nc-info-b{color:#1d4ed8}
+.nc-info-b:focus-visible{outline:2px solid #1d4ed8;outline-offset:1px}
+.nc-modal .nc-pop{display:none;position:absolute;z-index:30;top:calc(100% + 8px);left:-12px;width:260px;max-width:none;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;box-shadow:var(--shadow-dropdown);text-align:left;cursor:default;white-space:normal}
+.nc-modal .nc-pop::before{content:"";position:absolute;left:0;right:0;top:-9px;height:9px}
+.nc-info:hover .nc-pop,.nc-info-b:focus-visible+.nc-pop,.nc-info.is-on .nc-pop{display:block}
+.nc-info.is-quiet:not(:hover) .nc-info-b:focus-visible+.nc-pop{display:none}
+.nc-pop p{margin:0;font-size:12px;line-height:18px;font-weight:400;color:#4b5563}
+.nc-pop p+p{margin-top:6px}
+.nc-pop b{font-weight:600;color:#1f2937}
+.nc-modal .nc-moderow{display:flex;justify-content:flex-end;margin:0 0 2px}
+.nc-modal .nc-modelink{display:inline-flex;align-items:center;gap:6px;padding:0;font-size:13px;line-height:20px;font-weight:500;color:#1d4ed8;white-space:nowrap}
+.nc-modal .nc-modelink:hover,.nc-modal .nc-modelink:focus-visible{color:#1e40af;text-decoration:none}
+.nc-modal .nc-modelink:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px;border-radius:2px}
+.nc-modal .nc-modelink svg{width:14px;height:14px}
+.nc-modal .nc-sum{margin-top:0}
+.nc-modal #ncUsage.is-edit .nc-sum-r{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:0;align-items:center;align-content:center}
+.nc-modal .nc-sum-e{display:none;grid-column:1/-1;margin:2px 0 0;text-align:right;font-size:12px;line-height:16px;color:#b91c1c;white-space:normal}
+.nc-modal #ncUsage .nc-sum-r.is-over .nc-sum-e{display:block}
+.nc-modal #ncUsage .nc-sum-r.is-over .nc-sum-h{display:none}
+.nc-modal input#ncn.is-err,.nc-modal input#ncsite.is-err{border-color:#dc2626;box-shadow:0 0 0 3px #fee2e2}
+.nc-modal .nc-fielderr{margin:6px 0 16px;padding-left:64px;font-size:12px;line-height:18px}
+.nc-modal .nc-siteerr{margin:6px 0 0;padding-left:0}
+@media (max-width:520px){.nc-info{position:static}.nc-modal .nc-pop{left:0;right:0;width:auto}}
 /* 24. a stable gutter so Edit limits never shifts the body */
 .dr-b{scrollbar-gutter:stable}
 /* 26. */
@@ -13876,7 +13933,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a76813a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="b71b0f8";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
