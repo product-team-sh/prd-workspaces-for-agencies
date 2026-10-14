@@ -3619,8 +3619,8 @@ function wsOANote(){const O=wsOA(); if(!O.length) return "";
  return '<span class="ws-oa">'+wsFaces(O,AGENCY.colour)+'<span>'+list+' (Account Owners and Account Admins) reach every workspace. Your team lists the teammates added to each.</span></span>'}
 const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-tbl" style="min-width:880px;width:100%;table-layout:fixed">';
 /* change 201, 12 Oct 2026: the Dashboard's one-line header (200) here too; the window line above the table says the rest */
-const wsHeadHTML=()=>'<thead><tr class="th-one"><th style="width:300px">Workspace</th><th style="width:130px">Status</th><th style="width:280px">Client users</th><th style="width:260px">Your team</th>'
-   +'<th style="width:200px" title="Average share used across every limited resource, this billing cycle">Usage</th></tr></thead>';
+/* change 267: the same five headers, each a sort button (hsHead) */
+const wsHeadHTML=()=>hsHead("ws");
 const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
 const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
 const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:1122px;width:100%;table-layout:fixed">';
@@ -3628,9 +3628,46 @@ const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" s
    doc 91, H1 "let's go with what you reccomend"): one line per header at one height,
    no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
    Bounce rate, and what each rate is of is said in its pop-up. */
-const homeHeadHTML=()=>''
-   +'<thead><tr class="th-one"><th style="width:228px">Workspace</th><th style="width:104px">Status</th><th style="width:116px">Prospects added</th><th style="width:124px">Emails sent</th><th style="width:90px" title="Emails that bounced, as a share of emails sent">Bounce rate</th><th style="width:108px" title="Prospects who replied, as a share of prospects contacted">Reply rate</th><th style="width:106px">Calls made</th><th style="width:112px" title="Calls the prospect answered (Dialer Call Reports: Calls Connected)">Calls connected</th><th style="width:134px" title="Average share used across every limited resource, this billing cycle">Usage</th></tr></thead>';
+/* change 267: the same nine headers, each a sort button (hsHead) */
+const homeHeadHTML=()=>hsHead("home");
 const homeWinLine=()=>win().label+(perDay()?", a day on average":"")+" &middot; Usage is this billing cycle";
+/* ═══ change 267, 14 Oct 2026 (Hitesh: "Also add ability sort based by clicking on column header") ═══
+   One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
+   the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
+let HSORT={home:null,ws:null};
+const HS_TIP_U="Average share used across every limited resource, this billing cycle";
+const HS_COLS={
+ home:[["name","Workspace","width:228px"],["status","Status","width:104px"],["pa","Prospects added","width:116px"],["sent","Emails sent","width:124px"],
+  ["bounce","Bounce rate","width:90px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
+  ["calls","Calls made","width:106px"],["conn","Calls connected","width:112px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],["usage","Usage","width:134px",HS_TIP_U]],
+ ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Usage","width:200px",HS_TIP_U]]};
+/* name A to Z and status New first start ascending; every figure starts highest first */
+const HS_FIRST={name:1,status:1};
+/* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
+const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hidden="true" focusable="false">'
+ +'<path class="hs-up" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 -2.44)" d="M11.293 8.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414L12 10.414l-5.293 5.293a1 1 0 0 1-1.414-1.414l6-6Z"/>'
+ +'<path class="hs-dn" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 4.46)" d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>';
+function hsHead(t){const S=HSORT[t];
+ return '<thead><tr class="th-one">'+HS_COLS[t].map(([k,l,w,tip])=>{const on=!!S&&S.col===k, up=on&&S.dir>0;
+  return '<th style="'+w+'" class="th-s'+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(tip?' title="'+tip+'"':'')
+   +(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="'+t+'|'+k+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'}).join("")
+  +'</tr></thead>'}
+/* the key is what the cell shows (homeCells, wsStatusCell, usageHomeCell, wsPeopleCell); null sorts last */
+function hsVal(k,c){
+ if(k==="name") return String(c.name);
+ if(k==="status"){const s=wsState(c);return s==="New"?0:s==="Active"?1:null}
+ if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return null;
+  const lim=u.filter(y=>y.cap>0); return lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0}
+ if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
+ if(c.disabled||c.sent===0) return null;
+ const w=wk7(c), N=v=>+String(pd(v)).replace(/,/g,"");
+ return k==="pa"?N(w.pa):k==="sent"?N(w.sent):k==="bounce"?+w.bounce.toFixed(1):k==="rep"?+w.rate.toFixed(1):!w.calls?null:k==="calls"?N(w.calls):N(w.conn)}
+function hsApply(list,t,get){const S=HSORT[t]; if(!S) return list;
+ const rows=list.map((x,i)=>({x,i,v:hsVal(S.col,get?get(x):x)}));
+ rows.sort((a,b)=>{const ea=a.v==null,eb=b.v==null; if(ea||eb) return ea&&eb?a.i-b.i:ea?1:-1;
+  const d=typeof a.v==="string"?a.v.localeCompare(b.v,undefined,{sensitivity:"base"}):a.v-b.v; return d*S.dir||a.i-b.i});
+ return rows.map(r=>r.x)}
+const hsSaid=t=>{const S=HSORT[t], c=S&&HS_COLS[t].find(x=>x[0]===S.col); return !c?"":S.col==="name"?"name":c[1].toLowerCase()};
 function vClients(){
  /* A1 carries more than the eight columns the live screen has, because the two
     outcome columns are the point of the redesign (01 §2). Eleven columns
@@ -3665,7 +3702,7 @@ function vClients(){
    cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn linkbtn--sm" data-manage="${c.id}">Manage</button><button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button></span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
- const all=myWorkspaces().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1);
+ const all=hsApply(myWorkspaces().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1),"ws"); /* change 267 */
  const pg=pageOf("clients",all.length,25);
  const rows=all.slice(pg.from,pg.to).map(c=>`<tr>${shown.map(x=>x.cell(c)).join("")}</tr>`).join("")
    ||`<tr><td colspan="${shown.length}"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`;
@@ -6158,7 +6195,17 @@ function ul3Row(c,ro){const ed=!!UL.ed&&UL.ed.id===c.id, open=UL.open3===c.id||e
  return `<tr class="ul3-r${open?" is-open":""}${ed?" is-ed":""}${c.disabled?" is-off":""}" data-ul3r="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
   <td>${close}</td><td>${A.map(r=>`<span class="ul3-ar">${f(r.amount)} ${ul3Noun(r.res)}</span>`).join("")}</td>
   <td><span class="ul3-ra">${chg}<button type="button" class="ul-fold" data-ul3x="${c.id}" aria-expanded="${open}" aria-controls="ul3x-${c.id}" aria-label="${open?"Hide":"Show"} ${c.name}'s limits"${ul3Dirty()?" disabled":""}>${ulCaret(open)}</button></span></td></tr>`
-  +(open?`<tr class="ul3-xr${c.disabled&&!ed?" is-off":""}${ed?" is-ed":""}" id="ul3x-${c.id}"><td colspan="4">${ed?ul3EdHTML(c):`<div class="ul3-xg">${UL_K().map(k=>ul3Item(k,c,ro)).join("")}</div>`}</td></tr>`:"")}
+  +(open?`<tr class="ul3-xr${c.disabled&&!ed?" is-off":""}${ed?" is-ed":" is-rd"}" id="ul3x-${c.id}"><td colspan="4">${ed?ul3EdHTML(c):ul3RdHTML(c,ro)}</td></tr>`:"")}   /* change 270: read and edit share one layout */
+/* change 270, 14 Oct 2026 (Hitesh, images 17 and 18): the open row reads in the editor's rows and
+   columns, so Change limits swaps the limit text for the input in place and nothing else moves. */
+function ul3RdSay(c,k,r){const left=Math.max(0,r.cap-r.used), mon=k==="sends", lv=ul3Lv(r), q=ul3Ask(c.id,k);
+ const s=c.disabled?"Not in use while disabled.":lv===2?`<span class="ul3-mk">Used up</span> Stopped ${UL3_STOP[k]}${mon?" until 1 Oct":""}.`:`${ul3Mk(lv,f(left))} left${mon?" this month":""}.`;
+ return s+(q?` <span class="ul3-rq">Asked for ${f(q.amount)} more${q.by?` by ${q.by}`:""}, ${AGE(q.when).toLowerCase()}.</span>`:"")}
+function ul3RdHTML(c,ro){const id=c.id, can=ul3CanEd(c,ro), dis=ul3Dirty()?" disabled":"";
+ const lines=UL_K().filter(k=>RES[k].rows[id]).map(k=>{const R=RES[k], r=R.rows[id];
+  const lim=can?`<button type="button" class="ul3-rl" data-ul3ed="${id}|${k}"${dis} aria-label="${R.label} limit ${f(r.cap)}. Change it" title="Change this limit">${f(r.cap)}</button>`:`<span class="ul3-rl">${f(r.cap)}</span>`;
+  return `<div class="ul3-el" data-ul3rd="${k}"><div class="ul3-elab"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></div>${lim}<div class="ul3-efx" data-ul3say="${k}">${ul3RdSay(c,k,r)}</div></div>`}).join("");
+ return `<div class="ul3-rd" data-ul3rdbox="${id}" role="group" aria-label="${c.name}'s limits">${lines}</div>`}
 /* ═══ change 263, 14 Oct 2026 (Hitesh, boards 1 and 2 of fd/edit-limits-explore.html): changing limits
    stops being a 60-input grid. Everyday changes edit one workspace in place in the roster, with a move
    from the workspace with most spare when the plan is short; Edit limits is one resource at a time for
@@ -6547,6 +6594,114 @@ function ul4Wire(){if(view.name!=="limits"||ctx!=="agency") return; ul4St();
   i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=document.querySelector(`[data-ul4go="${k}"]`); if(b&&!b.disabled) b.click()}}});
  q2("[data-ul4go]").forEach(b=>b.onclick=()=>ul4Decide(b.dataset.ul4go))}
 
+/* ═══ change 268, 14 Oct 2026 (fd/queue-explore.html board 4, "Ledger", plus "Asked by"): the ask ledger.
+   One row per need, numbers in columns, what the plan has after each row reading down, a total per
+   resource, one action per row. It is the one ask panel of the prototype (Hitesh, 14 Oct: "match ask
+   panel throughout prototype"), so it is reusable and carries its own look (.askl-) and wiring:
+     askLedgerModel({ws})                       -> {rows, F}  rows to show, F footers per resource
+     askLedgerHead({ws})                        -> "3 workspaces need more capacity" | "<name> needs more capacity" | "Nothing needs you."
+     askLedgerHTML({ws, ro, compact, bare, foot, labelledby}) -> "" when nothing needs you, else the panel
+       ws: a workspace id; rows for that workspace only, the Workspace column hidden (its "when" line
+           moves under Asked by). ro: read only, no action column. compact: always the stacked card
+           layout (it also stacks by itself in any container under 720px). bare: no card around it.
+           foot: false drops the per-resource footers. labelledby: id of the heading that names it.
+     askLedgerWire(root)                        binds every ledger inside root (the global wire calls it
+                                                with document on every render; call it again for a layer
+                                                or modal rendered after that)
+   Usage & limits shows it under the page headline (ul5LedgerHTML). ═══ */
+let ASKL={decl:null};
+const asklSug=(k,row)=>{const st=ul4Step(k); return Math.max(st,Math.round(row.cap/3/st)*st)};
+function asklWhen(x){if(!x.stop) return `Asked ${AGE(x.r.when).toLowerCase()}`; if(x.k!=="sends") return "At its limit";
+ const a=ACTIVITY.find(y=>y.client===x.c.id&&/^Sending stopped/.test(y.text||"")); return a?`Stopped ${AGE(a.when).toLowerCase()}`:"Stopped sending"}
+/* every need on the plan: stops with no ask first, then ask lines oldest first */
+function asklAll(){
+ const S=ul3Stops().map(s=>({key:"s|"+s.k+"|"+s.c.id,k:s.k,c:s.c,row:s.r,stop:true,want:asklSug(s.k,s.r)}));
+ const A=ulReqs().map((r,i)=>({key:r.id,k:r.res,c:byId[r.client],row:RES[r.res].rows[r.client],r,want:r.amount,i}))
+  .sort((a,b)=>ulAge(b.r.when)-ulAge(a.r.when)||a.i-b.i);
+ return S.concat(A)}
+/* the workspace with the most unused that is not in the ledger for this resource: it covers the gap or is not offered */
+function asklDonor(k,all,gap){const inT=new Set(all.filter(x=>x.k===k).map(x=>x.c.id)); let d=null;
+ ulRows().forEach(c=>{if(c.disabled||inT.has(c.id)) return; const row=RES[k].rows[c.id]; if(!row) return; const sp=Math.max(0,row.cap-row.used); if(!d||sp>d.sp) d={c,sp,row}});
+ return d&&d.sp>=gap?d:null}
+function askLedgerModel(o){o=o||{}; const all=asklAll(), rows=(o.ws?all.filter(x=>x.c.id===o.ws):all).map(x=>Object.assign({},x)), rem={}, F=[];
+ rows.forEach(x=>{const k=x.k; if(!(k in rem)){rem[k]=compute(k).free; F.push({k,free:rem[k],want:0})}
+  rem[k]-=x.want; x.after=rem[k]; F.find(y=>y.k===k).want+=x.want;
+  x.give=Math.max(0,Math.min(x.want,compute(k).free))});   /* an action gives what is available now */
+ F.sort((a,b)=>UL_K().indexOf(a.k)-UL_K().indexOf(b.k));   /* footers keep the plan's resource order, so they do not jump after an action */
+ F.forEach(y=>{y.after=y.free-y.want; y.gap=Math.max(0,-y.after); y.D=y.gap?asklDonor(y.k,all,y.gap):null});
+ return {rows,F}}
+function askLedgerHead(o){const M=askLedgerModel(o), ws=[...new Set(M.rows.map(x=>x.c.id))];
+ return !ws.length?"Nothing needs you.":ws.length===1?`${M.rows[0].c.name} needs more capacity`:`${ws.length} workspaces need more capacity`}
+const asklAft=n=>n>=0?f(n):`<span class="askl-mk">Short by ${f(-n)}</span>`;
+function asklAct(x){const c=x.c, k=x.k;
+ if(x.stop) return x.give?`<button type="button" class="linkbtn askl-l" data-askl-raise="${x.key}">Raise to ${f(x.row.cap+x.give)}</button>`:`<span class="askl-g">None available</span>`;
+ const go=x.give?`<button type="button" class="linkbtn askl-l" data-askl-give="${x.key}" aria-label="Give ${c.name} ${f(x.give)} ${ul3Noun(k)}">Give ${f(x.give)}</button>`:`<span class="askl-g">None available</span>`;
+ const dec=ASKL.decl===x.r.id?"":`<button type="button" class="linkbtn askl-l" data-askl-decl="${x.r.id}" aria-label="Decline ${c.name}'s ask for ${f(x.want)} ${ul3Noun(k)}">Decline</button>`;
+ return `<div class="askl-acts">${go}${dec}</div>${x.give&&x.give<x.want?`<span class="askl-sub">The rest closes</span>`:""}`}
+function asklDeclHTML(r){const c=byId[r.client];
+ return `<div class="askl-decl"><input type="text" class="ul-note askl-note" data-nonote="${r.id}" placeholder="Note for ${c.name} (optional)" aria-label="Note ${c.name} reads with the decline"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-askl-declx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-no="${r.id}">Decline</button></div>`}
+function asklRowHTML(x,o,n){const c=x.c, k=x.k, row=x.row, used=`${f(row.used)} of ${f(row.cap)}`, when=asklWhen(x), dl=x.r&&ASKL.decl===x.r.id&&!o.ro;
+ const by=(x.stop?`<span class="askl-g">No ask</span>`:x.r.by||`<span class="askl-g">&ndash;</span>`)+(o.ws?`<span class="askl-sub">${when}</span>`:"");
+ return `<tr class="askl-r" data-askl-r="${x.key}">${o.ws?"":`<td class="askl-w" data-l=""><span class="askl-nm">${c.name}</span><span class="askl-sub">${when}</span></td>`}
+  <td class="askl-by" data-l="Asked by">${by}</td>
+  <td class="askl-res" data-l="Resource">${UL4_POOL(k)}</td>
+  <td class="askl-n" data-l="Has used">${x.stop?`<span class="askl-mk">${used}</span>`:used}</td>
+  <td class="askl-n" data-l="Wants"><b>+${f(x.want)}</b>${x.stop?`<span class="askl-sub">To restart</span>`:""}</td>
+  <td class="askl-n" data-l="Available after">${asklAft(x.after)}</td>${o.ro?"":`<td class="askl-a" data-l="">${asklAct(x)}</td>`}</tr>`
+  +(dl?`<tr class="askl-dr"><td colspan="${n}">${asklDeclHTML(x.r)}</td></tr>`:"")}
+function asklFootHTML(y,o){const k=y.k;
+ let fix="";
+ if(y.gap&&!o.ro){const D=y.D;
+  fix=D?`<button type="button" class="linkbtn askl-l" data-askl-move="${k}|${D.c.id}|${y.gap}" title="Lowers ${D.c.name}'s limit from ${f(D.row.cap)} to ${f(D.row.cap-y.gap)}; it has used ${f(D.row.used)}">Move ${f(y.gap)} from ${ul4First(D.c)}</button>`
+   :canI("billing")?`<button type="button" class="linkbtn askl-l" data-askl-buy="${k}">Buy ${f(y.gap)} in Billing</button>`
+   :`<button type="button" class="linkbtn askl-l" data-askl-askowner="${k}|${y.gap}">Ask the Account Owner for ${f(y.gap)}</button>`}
+ return `<tr class="askl-f" data-askl-f="${k}"><td colspan="${o.ws?3:4}" class="askl-fl" data-l=""><b>${UL4_POOL(k)}</b>, <span class="askl-g">${f(y.free)} available</span></td>
+  <td class="askl-n" data-l="Wants"><b>+${f(y.want)}</b></td><td class="askl-n" data-l="Available after">${y.after>=0?`<b>${f(y.after)}</b>`:asklAft(y.after)}</td>${o.ro?"":`<td class="askl-a" data-l="">${fix}</td>`}</tr>`}
+function askLedgerHTML(o){o=Object.assign({ws:null,ro:false,compact:false,bare:false,foot:true,labelledby:""},o||{}); const M=askLedgerModel(o); if(!M.rows.length) return "";
+ const C=[["ws",17,"Workspace"],["by",16,"Asked by"],["res",13,"Resource"],["used",13,"Has used"],["wants",9,"Wants"],["after",16,"Available after, reading down"],["act",16,""]].filter(([id])=>!(id==="ws"&&o.ws)&&!(id==="act"&&o.ro));
+ const tw=C.reduce((t,c)=>t+c[1],0);
+ return `<div class="askl${o.bare?"":" panel"}${o.compact?" is-compact":""}${o.ws?" is-ws":""}"${o.ws?` data-askl-ws="${o.ws}"`:""}><table class="askl-t"${o.labelledby?` aria-labelledby="${o.labelledby}"`:` aria-label="Asks and stopped workspaces"`}><colgroup>${C.map(c=>`<col style="width:${Math.round(c[1]/tw*1000)/10}%">`).join("")}</colgroup>
+  <thead><tr>${C.map(c=>c[0]==="act"?`<th aria-label="Action"></th>`:`<th>${c[2]}</th>`).join("")}</tr></thead>
+  <tbody>${M.rows.map(x=>asklRowHTML(x,o,C.length)).join("")}</tbody>${o.foot?`<tfoot>${M.F.map(y=>asklFootHTML(y,o)).join("")}</tfoot>`:""}</table></div>`}
+/* acting: 262's shared apply (limit, ANSWERS with asked on a partial, REQUESTS, Activity) and toast voice, one toast with Undo */
+function asklFind(key){return asklAll().map(x=>Object.assign(x,{give:Math.max(0,Math.min(x.want,compute(x.k).free))})).find(y=>y.key===key)}
+function asklRaise(key){const x=asklFind(key); if(!x||!x.stop||!x.give) return; const k=x.k, cap0=x.row.cap;
+ const undo=ul4Apply([{k,c:x.c,r:null,amt:x.give}]);
+ receipt("ul",`Raised ${x.c.name}'s ${UL4_LIM[k]} limit from ${f(cap0)} to ${f(cap0+x.give)}. ${ul4Avail([k])}`,undo,`raised ${x.c.name}'s ${UL4_LIM[k]} limit to ${f(cap0+x.give)}`)}
+function asklGive(key){const x=asklFind(key); if(!x||!x.r||!x.give) return;
+ const items=[{k:x.k,c:x.c,r:x.r,amt:x.give}], undo=ul4Apply(items); ASKL.decl=null;
+ receipt("ul",`Gave ${ul4Gave(items)}.${ul4Rest(items)} ${ul4Avail([x.k])}`,undo,`gave ${ul4Gave(items)}`)}
+function asklMove(k,did,gap){const all=asklAll(), c=ulRows().find(z=>z.id===did)||byId[did], row=RES[k]&&RES[k].rows[did]; if(!c||!row||!(gap>0)) return;
+ if(row.cap-row.used<gap) return; const cap0=row.cap, R=RES[k], to=[...new Set(all.filter(x=>x.k===k).map(x=>x.c.name))];
+ row.cap-=gap; syncRes(k,row);
+ logAct(did,`${R.label} limit lowered from ${f(cap0)} to ${f(row.cap)} on Usage & limits, to make room for ${listAnd(to)}`);
+ const a=ACTIVITY[0];
+ receipt("ul",`Moved ${f(gap)} ${ul3Noun(k)} from ${c.name}. ${f(compute(k).free)} available, enough for ${listAnd(to)}.`,
+  ()=>{row.cap=cap0; syncRes(k,row); const j=ACTIVITY.indexOf(a); if(j>-1) ACTIVITY.splice(j,1)},`moved ${f(gap)} ${ul3Noun(k)} from ${c.name}`)}
+function asklRepaint(){render(); if(typeof modal!=="undefined"&&modal) renderModal()}
+/* after an action the row's own link is gone: keyboard focus goes to the next action in the same ledger, not the page top */
+function asklDo(b,e,fn){const L=b.closest(".askl"), ws=L&&L.dataset.asklWs, sel=ws?`.askl[data-askl-ws="${ws}"]`:".askl:not([data-askl-ws])";
+ const btns=()=>{const R=document.querySelector(sel); return R?[...R.querySelectorAll(".askl-a button")]:[]}, i=btns().indexOf(b), kb=!!e&&e.detail===0;
+ fn(); asklRepaint(); if(!kb) return; const now=btns(), n=now[Math.min(Math.max(0,i),now.length-1)]||document.getElementById("ul3H"); if(n) n.focus({preventScroll:true})}
+function askLedgerWire(root){root=root||document; const Q=s=>root.querySelectorAll(s);
+ Q("[data-askl-raise]").forEach(b=>b.onclick=e=>asklDo(b,e,()=>asklRaise(b.dataset.asklRaise)));
+ Q("[data-askl-give]").forEach(b=>b.onclick=e=>asklDo(b,e,()=>asklGive(b.dataset.asklGive)));
+ Q("[data-askl-move]").forEach(b=>b.onclick=e=>{const [k,d,g]=b.dataset.asklMove.split("|"); asklDo(b,e,()=>asklMove(k,d,+g))});
+ Q("[data-askl-decl]").forEach(b=>b.onclick=()=>{ASKL.decl=b.dataset.asklDecl; asklRepaint(); const i=document.querySelector(`.askl-note[data-nonote="${ASKL.decl}"]`); if(i) i.focus()});
+ Q("[data-askl-declx]").forEach(b=>b.onclick=()=>{const id=ASKL.decl; ASKL.decl=null; asklRepaint(); const n=document.querySelector(`[data-askl-decl="${id}"]`); if(n) n.focus({preventScroll:true})});
+ Q(".askl-note").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=i.parentNode.querySelector("[data-no]"); if(b) b.click()} if(e.key==="Escape"){ASKL.decl=null; asklRepaint()}});
+ /* the decline itself is the app's data-no handler (declineReq: ANSWERS with the note, Activity, toast with Undo); the note row closes with it */
+ Q(".askl-decl [data-no]").forEach(b=>{if(!b.dataset.asklBound){b.dataset.asklBound="1"; b.addEventListener("click",()=>{ASKL.decl=null},true)}});
+ Q("[data-askl-buy]").forEach(b=>b.onclick=()=>{ctx="agency"; view={name:"credits"}; billTab=BS_BUY[b.dataset.asklBuy]||"plan"; if(typeof modal!=="undefined"&&modal){modal=null; renderModal()} render()});
+ Q("[data-askl-askowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.asklAskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
+/* Usage & limits: the page headline, then the ledger */
+function ul5LedgerHTML(ro){const L=askLedgerHTML({ro,labelledby:"ul3H"});
+ const ids=new Set(myClientsForLimits().map(c=>c.id)), hasDec=ANSWERS.some(a=>ids.has(a.client));
+ const dec=hasDec?`<button type="button" class="linkbtn ul3-l" data-uldecided aria-expanded="${!!UL.decided}">${UL.decided?"Hide decided asks":"Decided asks"}</button>`:"";
+ return `<section class="ul3-ans ul5-ans" aria-labelledby="ul3H"><div class="ul3-hr"><h2 class="ul3-h" id="ul3H">${askLedgerHead()}</h2>${dec}</div>
+  ${L?L:`<p class="ul3-p">No asks are waiting and no workspace is at a limit.</p>`}
+  ${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
+
 function vLimits(){
  if(!canI("limits")) return denied("see usage and limits");
  const W=ulRows(), ro=ulRo(), cl=W.filter(c=>!c.own);
@@ -6554,7 +6709,7 @@ function vLimits(){
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
    <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the asks they send you. Add a workspace and give it limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
- return `<div class="wrap ul-wrap">${graceBanner()}${ul4AnswerHTML(ro)/* change 262 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
+ return `<div class="wrap ul-wrap">${graceBanner()}${ul5LedgerHTML(ro)/* change 268 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
@@ -7025,8 +7180,9 @@ function vDash(){
     sort by what most needs attention, then by sends. */
  /* 2 Oct 2026, Hitesh: the group pills are gone; the period line under the title says what cycle every number is for. */
  cliTab="all";
- const list=flag
-   .sort((a,b)=>(b.c.own?1:0)-(a.c.own?1:0)||((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent);
+ /* change 267: a header sort reorders the whole list before its first DASH_ROWS; ties keep this order */
+ const list=hsApply(flag
+   .sort((a,b)=>(b.c.own?1:0)-(a.c.own?1:0)||((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent),"home",x=>x.c);
  const crow=({c})=>homeRow(c);
 
  /* 21 Sep, delight pass round 4: one client, never sent. The row that would
@@ -7059,7 +7215,7 @@ function vDash(){
    /* change 183 (Hitesh: per-day data must say so in the header or the figure): every column's unit sits under its label */
    +homeHeadHTML()
    +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
-  +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">The '+DASH_ROWS+' that most need you, of '+list.length+'.</span>'
+  +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">'+(HSORT.home?DASH_ROWS+' of '+list.length+', sorted by '+hsSaid("home")+'.':'The '+DASH_ROWS+' that most need you, of '+list.length+'.')+'</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces &rarr;</button></div>':'')
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
@@ -11363,6 +11519,11 @@ function wire(){
  const q=s=>document.querySelectorAll(s);
  if(document.getElementById("homeWin")) wireDD(document,"homeWin",v=>{HOME_WIN=v;render()});
  q("[data-homeunit]").forEach(b=>b.onclick=()=>{HOME_UNIT=b.dataset.homeunit;render()});
+ /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
+    puts focus back on the redrawn header; a mouse click leaves no ring behind) */
+ q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
+   HSORT[t]=S&&S.col===k?{col:k,dir:-S.dir}:{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws") PAGE.clients=1;
+   render(); const b=kb&&document.querySelector('th[data-hsort="'+t+'|'+k+'"] .hs-b'); if(b) b.focus({preventScroll:true})});
  if(HPOP) hpClose();
  q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
  q("[data-enter]").forEach(b=>b.onclick=()=>{ctx=b.dataset.enter;
@@ -11969,6 +12130,7 @@ function wire(){
  q("[data-rcpx]").forEach(b=>b.onclick=()=>{clearReceipt(); render()});
  ulWire();   /* change 226 */
  ul4Wire();   /* change 262 */
+ askLedgerWire(document);   /* change 268 */
  /* the generic switch handler: flips a switch that is decorative in this
     prototype. It must not touch a switch that owns real state, because this
     binding runs last and `onclick` assignment overwrites rather than adds.
@@ -12288,7 +12450,7 @@ function demoHash(parts){return parts.filter(Boolean).join("&")}
    just before it and put back after the boot below, when the new person and
    fixtures can still reach it (demoRestoreScreen). */
 const DEMO_KEEP="demoKeepScreen";
-function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HOME_WIN,HOME_UNIT,cliQ,
+function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HOME_WIN,HOME_UNIT,HSORT,cliQ,
  client:CLIENT_SESSION,acting:ACTING_EMAIL,preview:PREVIEW,scroll:(el("page")||{}).scrollTop||0}))}catch(e){}}
 function demoGo(hash){demoSaveScreen();const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
 function demoRestoreScreen(){
@@ -12297,7 +12459,7 @@ function demoRestoreScreen(){
  /* the workspace side and a client user's side are two products: crossing
     between them keeps the landing the product gives that person */
  if(!!S.client!==!!CLIENT_SESSION) return;
- HOME_WIN=S.HOME_WIN||HOME_WIN; HOME_UNIT=S.HOME_UNIT||HOME_UNIT; cliQ=S.cliQ||"";
+ HOME_WIN=S.HOME_WIN||HOME_WIN; HOME_UNIT=S.HOME_UNIT||HOME_UNIT; cliQ=S.cliQ||""; if(S.HSORT) HSORT=S.HSORT; /* change 267 */
  if(CLIENT_SESSION){
   if(S.ctx!==ctx||!S.cView) return;
   const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings") return;
@@ -13074,6 +13236,15 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .grace-bar .grace-go{flex:none;margin:0}.grace-bar .grace-who{flex:none;color:var(--gray-15)}
 @media (max-width:640px){.grace-bar{flex-wrap:wrap;align-items:flex-start}.grace-bar>svg{margin-top:2px}.grace-bar .grace-t{flex:1 1 calc(100% - 28px)}.grace-bar .grace-go,.grace-bar .grace-who{margin-left:28px}}
 .home-tbl thead th{color:var(--gray-15);font-weight:500}.home-tbl thead th .th-u{color:var(--gray-11)}
+/* change 267: production's sortable column header (column-header.tsx, _tanstack-table.scss) */
+.home-tbl thead th.th-s{cursor:pointer;transition:background-color .2s ease}
+.home-tbl thead th.th-s:hover{background:var(--gray-100)}
+.home-tbl .hs-b{display:inline-flex;align-items:center;gap:4px;margin:0;padding:0;border:0;border-radius:2px;background:none;font:inherit;line-height:16px;color:inherit;letter-spacing:inherit;text-align:left;white-space:nowrap;cursor:pointer}
+.home-tbl .hs-b:focus-visible{outline:2px solid var(--blue-700);outline-offset:2px}
+.home-tbl .hs-i{display:block;flex:none;width:10px;height:16px;color:var(--gray-500);visibility:hidden}
+.home-tbl th.th-s:hover .hs-i,.home-tbl .hs-b:focus-visible .hs-i,.home-tbl th.is-sorted .hs-i{visibility:visible}
+.home-tbl th.is-sorted .hs-i{color:var(--gray-300)}
+.home-tbl th.is-asc .hs-up,.home-tbl th.is-desc .hs-dn{color:var(--gray-800)}
 .u-home .u-pct{font-weight:600}
 /* change 210: bar, then the figure to its right, as production's .email-sent-field (gap .75rem, bar .375rem high) */
 .hp-cell.u-home.u-row{display:flex;flex-direction:row;align-items:center;gap:12px}
@@ -13980,7 +14151,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="55d123c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="70e207f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -14149,7 +14320,7 @@ body:has(#demoPill:not([hidden])) .ul-sticky,body:has(#demoPill:not([hidden])) .
 .ul3-t tr.ul3-r:hover td,.ul3-t tr.ul3-r.is-open td,.ul3-t tr.ul3-xr td{background:#F9FAFB}
 .ul3-t tr.ul3-r td:last-child{text-align:right}
 .ul3-r .ul-ws{align-items:center}.ul3-r .ul-nm{color:#1F2937}
-.ul3-r.is-off .ul-ws,.ul3-r.is-off .ul3-g,.ul3-xr.is-off .ul3-xg{opacity:.55}
+.ul3-r.is-off .ul-ws,.ul3-r.is-off .ul3-g,.ul3-xr.is-off .ul3-xg,.ul3-xr.is-off .ul3-rd .ul3-el{opacity:.55}
 .ul3-cl{display:flex;align-items:center;gap:12px}.ul3-cb{flex:none;width:96px}.ul3-cb .pbw{width:100%}
 .ul3-ct{font-size:14px;line-height:20px;font-weight:500;color:#1F2937;white-space:nowrap;font-variant-numeric:tabular-nums}
 .ul3-ar{display:block;white-space:nowrap}
@@ -14213,6 +14384,44 @@ input.ul4-qn.is-ch{border-color:#1F2937}
  .ul4-asks.is-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:720px){.ul4-asks.is-2,.ul4-asks.is-3{grid-template-columns:minmax(0,1fr)}.ul4-ask+.ul4-ask{border-left:0;border-top:1px solid #E5E7EB}
  .ul4-gh,.ul4-r,.ul4-ask,.ul4-ch,.ul4-gf{padding-left:16px;padding-right:16px}.ul4-cus{padding-left:0}.ul4-ask .ul3-decl{flex-wrap:wrap}}
+/* change 268: the ask ledger (board 4 "Ledger"), Saleshandy's look and Your plan's table type, one block for
+   every place it is used. Gray 800 / 500 / 200, Blue 700 links, Amber 100 / 800 only on a used-up stop and
+   Short by N. Numbers left-aligned, tabular, in every numeric column. Stacks into cards under 720px of its
+   own width (container query) or always with .is-compact. */
+.askl{container:askl/inline-size;overflow:hidden;font-size:14px;line-height:20px;color:#1F2937}
+.askl.panel{margin:0}
+.askl-t{width:100%;border-collapse:collapse;table-layout:fixed}
+.askl-t th{text-align:left;font-size:12px;font-weight:500;line-height:16px;color:#6B7280;background:#F9FAFB;padding:10px 12px;border-bottom:1px solid #E5E7EB;vertical-align:bottom}
+.askl-t td{text-align:left;padding:12px;vertical-align:top;font-size:14px;line-height:20px;color:#1F2937}
+.askl-t th:first-child,.askl-t td:first-child{padding-left:24px}.askl-t th:last-child,.askl-t td:last-child{padding-right:24px}
+.askl-t tbody tr+tr td{border-top:1px solid #E5E7EB}.askl-t tbody tr.askl-dr td{border-top:0;padding-top:0}
+.askl-t tfoot tr td{border-top:1px solid #E5E7EB}.askl-t tfoot tr:first-child td{border-top:1px solid #D1D5DB}
+.askl-nm{display:block;font-weight:600;overflow-wrap:anywhere}
+.askl-sub{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280;font-weight:400}
+.askl-by{overflow-wrap:anywhere}
+.askl-n{font-variant-numeric:tabular-nums;white-space:nowrap}.askl-n b,.askl-fl b{font-weight:600}
+.askl-g{color:#6B7280;font-weight:400}
+.askl-mk{display:inline-block;margin-left:-6px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:600;font-size:14px;line-height:20px}   /* the chip's text starts on the column's left edge */
+.askl-l.linkbtn{font-size:14px;line-height:20px;font-weight:500;white-space:nowrap;text-align:left}.askl-f .askl-l.linkbtn{white-space:normal}   /* a long footer way out wraps inside its cell */
+.askl-acts{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px}.askl-acts>[data-askl-give],.askl-acts>.askl-g{min-width:88px}   /* Decline lines up row to row */
+.askl-decl{display:flex;align-items:center;gap:8px;width:520px;max-width:100%}.askl-decl .ul-note{flex:1 1 auto;min-width:0}
+.askl .linkbtn:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:4px}
+.ul5-ans{gap:16px}.ul5-ans>.ul3-hr{margin-bottom:0}.ul5-ans>.ul3-p{margin-top:-12px}
+@container askl (max-width:720px){
+ .askl-t,.askl-t tbody,.askl-t tfoot{display:block;width:100%}.askl-t colgroup,.askl-t thead{display:none}
+ .askl-t tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:12px;padding:16px;border-top:1px solid #E5E7EB}
+ .askl-t tbody tr:first-child{border-top:0}.askl-t tfoot tr:first-child{border-top:1px solid #D1D5DB}.askl-t tr.askl-dr{border-top:0;padding-top:0}
+ .askl-t td,.askl-t td:first-child,.askl-t td:last-child{display:block;padding:0!important;border:0!important;min-width:0}
+ .askl-t td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
+ .askl-t td.askl-w,.askl-t td.askl-by,.askl-t td.askl-a,.askl-t td.askl-fl,.askl-t .askl-dr td{grid-column:1/-1}
+ .askl-t td.askl-a:empty{display:none}.askl-decl{width:auto;flex-wrap:wrap}}
+ .askl.is-compact .askl-t,.askl.is-compact .askl-t tbody,.askl.is-compact .askl-t tfoot{display:block;width:100%}.askl.is-compact .askl-t colgroup,.askl.is-compact .askl-t thead{display:none}
+ .askl.is-compact .askl-t tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:12px;padding:16px;border-top:1px solid #E5E7EB}
+ .askl.is-compact .askl-t tbody tr:first-child{border-top:0}.askl.is-compact .askl-t tfoot tr:first-child{border-top:1px solid #D1D5DB}.askl.is-compact .askl-t tr.askl-dr{border-top:0;padding-top:0}
+ .askl.is-compact .askl-t td,.askl.is-compact .askl-t td:first-child,.askl.is-compact .askl-t td:last-child{display:block;padding:0!important;border:0!important;min-width:0}
+ .askl.is-compact .askl-t td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
+ .askl.is-compact .askl-t td.askl-w,.askl.is-compact .askl-t td.askl-by,.askl.is-compact .askl-t td.askl-a,.askl.is-compact .askl-t td.askl-fl,.askl.is-compact .askl-t .askl-dr td{grid-column:1/-1}
+ .askl.is-compact .askl-t td.askl-a:empty{display:none}.askl.is-compact .askl-decl{width:auto;flex-wrap:wrap}
 @container ulg (max-width:1199px){.ul3-xg{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* change 263: edit in place in the roster, and Edit limits one resource at a time */
 .ul3-ra{display:inline-flex;align-items:center;justify-content:flex-end;gap:16px}
@@ -14225,7 +14434,13 @@ input.ul4-qn.is-ch{border-color:#1F2937}
 .ul3-clb:hover:not(:disabled){background:#F3F4F6}.ul3-clb:disabled{opacity:.6}
 .ul3-clb:focus-visible,.ul3-chg:focus-visible,.ul3-tab:focus-visible,.ul3-ed .linkbtn:focus-visible,.ul3-e2 .linkbtn:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
 .ul3-t tr.ul3-r.is-ed td{background:#F9FAFB}
-.ul3-ed{margin-top:4px;background:#fff;border:1px solid #E5E7EB;border-radius:8px}
+.ul3-ed,.ul3-rd{margin-top:4px;background:#fff;border:1px solid #E5E7EB;border-radius:8px}
+/* change 270: the limit as text in the input's box, so switching to edit moves nothing */
+.ul3-rl{display:flex;align-items:center;width:100%;height:32px;padding:0 12px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:400;color:#1F2937;text-align:left;font-variant-numeric:tabular-nums;box-sizing:border-box}
+button.ul3-rl{cursor:text}button.ul3-rl:hover:not(:disabled){border-color:#D1D5DB;background:#fff}
+button.ul3-rl:focus-visible{outline:none;border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE}
+button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
+.ul3-rq{color:#1F2937}
 .ul3-el{display:grid;grid-template-columns:minmax(150px,220px) 144px minmax(0,1fr);column-gap:24px;align-items:center;padding:12px 20px;border-top:1px solid #E5E7EB}
 .ul3-el:first-child{border-top:0}
 .ul3-elab{display:flex;flex-direction:column;font-size:14px;line-height:20px;font-weight:500;color:#1F2937}
@@ -14297,7 +14512,7 @@ input.ul4-qn.is-ch{border-color:#1F2937}
  .ul3-also{padding:12px}
  .ul3-dock,.ul3-e2d{flex-wrap:wrap;padding:12px}.ul3-db{margin-left:0}
  .ul3-sel{flex:1 1 100%;padding:0 24px 0 8px}
- .ul3-t tr.ul3-xr.is-ed td{padding:4px 6px 12px!important}
+ .ul3-t tr.ul3-xr.is-ed td,.ul3-t tr.ul3-xr.is-rd td{padding:4px 6px 12px!important}
  .ul3-pool{gap:8px 24px;padding:12px 16px}.ul3-pi{flex:1 1 40%}
  .ul3-tabs{padding:0 16px}
  .ul3-e2t colgroup,.ul3-e2t thead{display:none}.ul3-e2t,.ul3-e2t tbody{display:block}
