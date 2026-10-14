@@ -3838,6 +3838,7 @@ function vRecord(id){
     deleted shows a bar with Restore and nothing else to act on. */
  const T=[["overview","Overview"],["members","Members"],["limits","Limits"],["activity","Activity"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
+ if(tab!=="limits"&&RL) RL=null;   /* change 269 */
  const dead=!!c.deletedOn, off=!!c.disabled;
  return `
  <div class="toolbar${off||dead?" rc-off":""}"${dead?" data-keeptitle":""}>
@@ -3854,7 +3855,7 @@ function vRecord(id){
  ${receiptBar("client:"+c.id)}
  <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${
-  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?(canI("limits")?rLimits(c):readOnly(rLimits(c),"change limits")):rActivity(c)}</div>`;
+  tab==="overview"?rOverview(c):tab==="members"?(canI("members")?rMembers(c):readOnly(rMembers(c),"change members")):tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:rActivity(c)}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -3928,7 +3929,7 @@ function recLimitsCard(c,ro){
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu"})}).join("");
  const ask=askOf(c.id);
  const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
- return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a"><button class="linkbtn" data-tab="limits">Set limits</button></span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
  const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
@@ -4663,99 +4664,141 @@ function rcLimSentence(c){
   ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the plan can give</span>; that number will not save.`
   :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay available for everyone else.`;
 }
+/* ═══ change 269, 14 Oct 2026 (Hitesh: "let's build this in vC", fd/record-limits.html; then "match ask panel
+   throughout prototype ... table like"): the record's Limits tab. A heading that names the state; this
+   workspace's asks and stops as Usage & limits' ledger scoped to it (recAskLedger); then the six limits as one
+   sheet: used of limit, left, available on your plan. Change limits edits all six in place, a consequence on
+   every line, through 263's draft helpers and ul3Commit, so an ask closes as giving it does (229). Limits stay
+   changeable on a disabled workspace (230); an Account Member reads the same tab with no controls. ═══ */
+let RL=null;   /* the open draft on this tab: {id, D}, the shape of 263's UL.ed.D */
+const RL_STEP=k=>RES[k].pool>=100000?500:RES[k].pool>=5000?50:RES[k].pool>=1000?10:5;
+const rlWant=(k,r)=>{const st=RL_STEP(k); return Math.max(st,Math.round(r.cap/3/st)*st)};   /* 262's restart amount */
+const rlRes=k=>k==="sends"?"Emails a month":RES[k].label;
+const rlDirty=()=>!!RL&&ul3Ch(RL.D).length>0;
+const rlOr=a=>a.length<=1?(a[0]||""):a.slice(0,-1).join(", ")+" or "+a[a.length-1];
+/* everything that needs capacity across the account, in Usage & limits' reading order: stops first (own
+   workspace, then A to Z), then asks oldest first. Account-wide whoever reads it, so the numbers match the
+   Account Owner's Usage & limits; an Account Member just is not told which other workspace it is. */
+function rlNeeds(){
+ const live=c=>c&&!c.disabled&&!c.deletedOn, reqs=REQUESTS.filter(r=>live(byId[r.client])&&RES[r.res]&&RES[r.res].rows[r.client]);
+ const asked=new Set(reqs.map(r=>r.client+"|"+r.res)), st=[];
+ [OWN_WS].concat(CLIENTS.filter(live).sort((a,b)=>a.name.localeCompare(b.name))).forEach(c=>UL_K().forEach(k=>{const r=RES[k].rows[c.id];
+  if(r&&r.cap>0&&r.used>=r.cap&&!asked.has(c.id+"|"+k)) st.push({type:"stop",c,k,amt:rlWant(k,r),row:r})}));
+ const asks=reqs.slice().sort((a,b)=>ulAge(b.when)-ulAge(a.when)).map(r=>({type:"ask",c:byId[r.client],k:r.res,amt:r.amount,r,row:RES[r.res].rows[r.client]}));
+ return st.concat(asks)}
+/* nothing available (234): rebalance on Usage & limits, or buy more under it */
+const rlBuy=(k,n)=>`<span class="sub askl-buy">Or ${canI("billing")?`<button type="button" class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`<button type="button" class="linkbtn" data-ulaskowner="${k}|${n}">ask the Account Owner</button> to buy more`}</span>`;
+/* the ask ledger, scoped to one workspace (the Workspace column drops). "Available after" reads down the whole
+   account's list, so another workspace's earlier ask or stop counts first, as on Usage & limits. At merge this is
+   the one call to swap for 268's askLedgerHTML({ws}). */
+function recAskLedger(c,ro){
+ if(ro) return "";
+ const N=rlNeeds(), rem={}, mine=[];
+ N.forEach(n=>{const k=n.k; if(rem[k]==null) rem[k]=compute(k).free; rem[k]-=n.amt; if(n.c.id===c.id) mine.push(Object.assign({after:rem[k],i:N.indexOf(n)},n))});
+ if(!mine.length) return "";
+ const can=canI("limits"), lock=rlDirty(), dis=lock?` disabled title="Save or cancel your limit changes first"`:"";
+ const go=(attr,t)=>`<button type="button" class="linkbtn askl-go" ${attr}${dis}>${t}</button>`;
+ const row=n=>{const r=n.row, out=r.cap>0&&r.used>=r.cap, free=compute(n.k).free, g=Math.min(n.amt,free);
+  const who=n.type==="ask"?`<span class="askl-nm">${n.r.by||n.c.name}</span><span class="sub">Asked ${AGE(n.r.when)}</span>`
+   :`<span class="askl-nm">No ask</span><span class="sub">${n.k==="sends"?"Stopped sending":"At its limit"}</span>`;
+  let act="";
+  if(can&&n.type==="ask"&&LM_DECL==="askl-"+n.r.id)
+   act=`<div class="askl-decl"><input type="text" class="ul-in askl-note" data-nonote="${n.r.id}" placeholder="Why (optional)" aria-label="Note ${n.r.by||c.name} reads with the decline"><span class="askl-acts"><button type="button" class="linkbtn askl-go" data-no="${n.r.id}">Decline</button><button type="button" class="linkbtn askl-q" data-askldx>Cancel</button></span></div>`;
+  else if(can&&n.type==="ask")
+   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-okpart="${n.r.id}"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
+  else if(can)
+   act=`<span class="askl-acts">${g>0?go(`data-rlraise="${n.k}|${r.cap+g}"`,`Raise to ${f(r.cap+g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}</span>${g>0?"":rlBuy(n.k,n.amt)}`;
+  const rid=mine.filter(m=>m.k===n.k).indexOf(n)?`askl-${n.k}-${mine.filter(m=>m.k===n.k).indexOf(n)+1}`:`askl-${n.k}`;   /* a second ask on one resource gets its own id */
+  return `<tr class="askl-r" id="${rid}" data-askl="${n.type==="ask"?n.r.id:"stop"}"><td data-l="Asked by">${who}</td><td data-l="Resource">${rlRes(n.k)}</td>
+   <td data-l="Has used">${out?`<span class="ul3-mk">${f(r.used)} of ${f(r.cap)}</span>`:`${f(r.used)} of ${f(r.cap)}`}</td>
+   <td data-l="Wants"><span class="askl-w">+${f(n.amt)}</span>${n.type==="stop"?'<span class="sub">To restart, no ask</span>':""}</td>
+   <td data-l="Available after">${n.after>=0?f(n.after):`<span class="ul3-mk">Short by ${f(-n.after)}</span>`}</td>${can?`<td class="askl-a">${act}</td>`:""}</tr>`};
+ const ks=[...new Set(mine.map(m=>m.k))];
+ const foot=ks.map(k=>{const M=mine.filter(m=>m.k===k), last=M[M.length-1], oth=N.slice(0,last.i).filter(n=>n.k===k&&n.c.id!==c.id), want=M.reduce((t,m)=>t+m.amt,0);
+  const sub=oth.length?`<span class="sub">${f(oth.reduce((t,n)=>t+n.amt,0))} of it goes first to ${canI("limits")?listAnd(oth.map(n=>n.c.name)):oth.length===1?"another workspace":"other workspaces"}, as on Usage &amp; limits</span>`:"";
+  return `<tr class="askl-f" data-asklf="${k}"><td colspan="3" data-l=""><span class="askl-fn"><b>${rlRes(k)}</b>, ${f(compute(k).free)} available</span>${sub}</td><td data-l="Wants"><b class="askl-w">+${f(want)}</b></td><td data-l="After">${last.after>=0?`<b>${f(last.after)}</b>`:`<span class="ul3-mk">Short by ${f(-last.after)}</span>`}</td>${can?"<td></td>":""}</tr>`}).join("");
+ return `<div class="panel askl" id="recAskl"><table class="askl-t"><colgroup><col style="width:21%"><col style="width:16%"><col style="width:15%"><col style="width:10%"><col style="width:17%">${can?"<col>":""}</colgroup>
+  <thead><tr><th>Asked by</th><th>Resource</th><th>Has used</th><th>Wants</th><th>Available after, reading down</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
+  <tbody>${mine.map(row).join("")}</tbody><tfoot>${foot}</tfoot></table></div>`}
+/* emails renew monthly, so a pace is known (used so far / day of cycle); credits are a balance: no pace */
+function rlPace(k,r){if(k!=="sends") return ""; const per=r.used/CYCLE.day; if(!per||r.used>=r.cap) return "";
+ const d=(r.cap-r.used)/per; if(d>=CYCLE.days-CYCLE.day) return ""; return d<1?"Runs out today at this pace":`About ${Math.round(d)} day${Math.round(d)===1?"":"s"} at this pace`}
+function rlSheetHTML(c){
+ const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
+  return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span>${k==="sends"?'<span class="sub">Renews 1 Oct</span>':""}</td>
+   <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${pbar(p,UL3_GREY)}</span><span class="rlt-uv">${ul3Mk(ul3Lv(r),`<b>${f(r.used)}</b> of ${f(r.cap)}`)}</span></span></td>
+   <td class="rlt-c3">${left>0?`${f(left)} left`:"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
+ if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
+ return `<div class="panel rlt-sheet"><table class="rlt-t"><colgroup><col style="width:30%"><col style="width:28%"><col style="width:22%"><col></colgroup>
+  <thead><tr><th>Resource</th><th>Used of limit</th><th>Left</th><th>Available on your plan</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+/* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
+function rlFxLine(D,k,id){const e=ul3EdFx(D,k,id), r=RES[k].rows[id], d=ul3Dv(D,k,id)-r.cap, q=ul3Ask(id,k);
+ if(e.bad) return e.html.replace(/ available\.$/," available on your plan.")+` <button type="button" class="linkbtn rlt-l" data-rlmove="${k}">Move more in Usage &amp; limits</button>`;
+ let s=e.html; if(q&&!e.stop&&d>0) s+=d>=q.amount?" Fills the ask.":` Part of the ${f(q.amount)} asked; the rest of that line closes.`;
+ return s}
+function rlDockHTML(c){const D=RL.D, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), st=ch.filter(ul3NewStop);
+ const msg=!n?"No changes yet."
+  :over.length?`<span class="ul3-mk">Above your plan: ${listAnd(over.map(k=>RES[k].label))}.</span> Lower ${over.length>1?"them":"it"} to save, or move capacity from another workspace in Usage &amp; limits.`
+  :`${ul3N(n,"change")}: ${listAnd(ch.map(x=>`${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?` ${c.name} stops ${listAnd(st.map(x=>UL3_STOP[x.k]))}.`:""}${ul3AskNote(D,c.id)}${ul3TellNote(ch)}`;
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rlcancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlsave${!n||over.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
+function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[id]);
+ const lines=ks.map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=!!ul3EdFx(D,k,id).bad;
+  return `<div class="ul3-el rlt-el" data-rlel="${k}"><label class="ul3-elab" for="rlin-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
+   <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" id="rlin-${k}" data-rlin="${k}" value="${f(v)}" aria-invalid="${bad}" aria-describedby="rlfx-${k}">
+   <div class="ul3-efx" id="rlfx-${k}" data-rlfx="${k}">${rlFxLine(D,k,id)}</div></div>`}).join("");
+ return `<div class="panel rlt-edp"><div class="panel-h rlt-edh"><span class="panel-t" id="rlEdT">Change limits</span><span class="sub">Type any of ${ks.length===6?"the six":"them"}. Nothing changes until you save.</span></div>
+  <div class="ul3-ed rlt-ed" data-rledbox="${id}" role="group" aria-labelledby="rlEdT">${lines}<div class="ul3-dock rlt-dock" data-rldock>${rlDockHTML(c)}</div></div></div>`}
+/* typing repaints the lines and the dock, not the page, so the caret stays */
+function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledbox="${RL.id}"]`); if(!box) return; const D=RL.D, id=RL.id;
+ box.querySelectorAll("[data-rlfx]").forEach(n=>n.innerHTML=rlFxLine(D,n.dataset.rlfx,id));
+ box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad))});
+ box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id]);
+ const dirty=rlDirty(); document.querySelectorAll("#recAskl .askl-acts button").forEach(b=>{b.disabled=dirty; b.title=dirty?"Save or cancel your limit changes first":""})}
+function rlHeadLine(c,ro,busy){
+ const cyc=`Day ${CYCLE.day} of ${CYCLE.days}. Emails renew on 1 Oct; credits last the plan term.`;
+ const R=RK.filter(k=>RES[k].rows[c.id]&&RES[k].rows[c.id].cap>0), near=R.filter(k=>ul3Lv(RES[k].rows[c.id])===1).length, look=near>1?` ${near} limits are at 90% or more.`:"";
+ if(ro) return `<b>${c.deletedOn?"Deleted":"Disabled"}.</b> Its limits still count against the plan, and they can still change. ${cyc}`;
+ if(busy) return cyc+look;
+ let b=null; R.forEach(k=>{const r=RES[k].rows[c.id], p=ulPct(r.used,r.cap); if(!b||p>b.p) b={k,p}});
+ if(!b||!R.some(k=>RES[k].rows[c.id].used)) return `<b>Nothing needs you.</b> Nothing used yet. ${cyc}`;
+ return `<b>Nothing needs you.</b> Closest to its limit: ${RES[b.k].label}, ${b.p}%.${look} ${cyc}`}
+function rlRoLine(){const P=Object.values(PEOPLE).filter(p=>(p.role==="Owner"||p.role==="Admin")&&!p.disabled&&!p.invited).sort((a,b)=>(a.role==="Owner"?0:1)-(b.role==="Owner"?0:1));
+ return `You can view these limits. To change one, ask ${rlOr(P.map(p=>`${p.name} (${roleName(p.role)})`))}.`}
+/* payment failed: vC's grace bar, in this tab's words */
+const rlGraceHTML=()=>`<div class="msg m-bad grace grace-bar" role="alert">${warnI}<span class="grace-t"><strong>Payment failed on ${GRACE.failedOn}, so nothing sends from any workspace, this one included.</strong>
+  Update the card within ${GRACE.daysLeft} days or the account pauses. Limits can still change; sending starts again once the payment goes through.</span>
+  ${canI("billing")?'<button class="shd-button shd-button--primary shd-button--sm grace-go" data-gobill>Update payment</button>':'<span class="grace-who">An Account Owner can update the card.</span>'}</div>`;
 function rLimits(c){
- /* 2 Oct 2026 (S3, doc 66, canvas row 09b D2b): a decision screen. The request is
-    decided on top. Each row answers, in reading order: how much of the limit is
-    used, when it runs out at the current pace, what kind of number it is, and the
-    limit itself, with − and + and give-more chips on the row you are on. No
-    Reserved column: a credit's reservation equals its limit. The share the
-    workspace started with stays as one readout line. Each number saves as you
-    leave it; a limit above what the plan has is refused with both numbers. */
- /* change 230, 13 Oct 2026 (Hitesh: "they can lower or change any workspace limits"): the
-    workspace's status never locks its limits; ro still hides the ask, which a disabled or
-    deleted workspace cannot send. */
- const ro=!!(c.disabled||c.deletedOn), dis="", canEdit=canI("limits");
- const ask=askOf(c.id), rq=ask?ask.lines[0]:null;
- /* change 117: the ask with its lines. One line keeps the one-line bar; more than one
-    adds Approve all / Decline all and a row per line, each with its own decision and
-    an optional note the client reads. */
- const reqBar=(()=>{if(!ask||ro) return ""; const L=ask.lines, one=L.length===1;
-  const fits=r=>compute(r.res).free>=r.amount, allFit=L.every(fits), short=L.filter(r=>!fits(r)).length;
-  if(one){const R=RES[rq.res], free=compute(rq.res).free, ok=free>=rq.amount;
-   return `<div class="rc-reqbar" role="status"><span><b>${c.name.split(" ")[0]} asked for ${f(rq.amount)} more ${R.unit}</b> &middot; ${AGE(rq.when)}${rq.note?` &middot; &ldquo;${rq.note}&rdquo;`:""} &middot; ${ok?f(free)+" available in the plan":`<span style="color:var(--red-18)">only ${f(free)} available in the plan</span>`}</span>${canI("limits")?`<span class="tools"><input class="rq-note" type="text" data-nonote="${rq.id}" placeholder="Note for ${c.name.split(" ")[0]} if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${rq.id}">Decline</button><button class="shd-button shd-button--primary shd-button--sm" data-ok="${rq.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(rq.amount)} more</button></span>`:""}</div>`}
-  const lines=L.map(r=>{const R=RES[r.res], free=compute(r.res).free, ok=free>=r.amount;
-   return `<div class="rq-line"><span class="rq-l"><b>${R.label}</b></span><span>asked for <b>${f(r.amount)}</b> more</span><span class="sub">now ${f(R.rows[c.id].cap)}</span><span style="color:${ok?"var(--green-16)":"var(--red-18)"}">${f(free)} available in the plan</span><span class="tools">${canI("limits")?`<input class="rq-note" type="text" data-nonote="${r.id}" placeholder="Note if you decline (optional)" aria-label="Note for the client"><button class="shd-button shd-button--primary shd-button--sm" data-ok="${r.id}"${ok?"":` disabled title="Only ${f(free)} ${R.unit} available in the plan. Lower another workspace or add capacity."`}>Approve ${f(r.amount)} more</button><button class="shd-button shd-button--tertiary shd-button--sm" data-no="${r.id}">Decline</button>`:""}</span></div>${ok?"":`<p class="sub rq-foot rq-under">${R.label.replace(/ \/ month$/,"")}: ${f(r.amount)} more is ${f(r.amount-free)} past what the plan has available. Lower another workspace, add capacity, or decline it with a note the client sees.</p>`}`}).join("");
-  return `<div class="rc-reqbar rq-multi" role="status"><div class="rq-h"><span><b>${c.name.split(" ")[0]} asked for more</b> &middot; ${AGE(ask.when)}${ask.note?` &middot; &ldquo;${ask.note}&rdquo;`:""}</span>${canI("limits")?`<span class="tools"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all &middot; ${L.length} lines</button></span>`:""}</div><div class="rq-lines">${lines}</div>${/* change 120: the reason sits under the line it concerns (canvas row 24, board 6) */""}</div>`})();
- const first=c.name.split(" ")[0], share=SHARE0[c.id]||c.share||null;
- const shareLine=`<div class="lm-share"><span>${share?`<b>${first}</b> started with <b>${share}%</b> of your plan on ${c.created.replace(/,?\s*20\d\d$/,"")}.`:`<b>${first}</b> has its own limits.`}${canEdit?` <button class="linkbtn" data-share="${c.id}">Change the share</button>`:""}</span><span class="sub">Day ${CYCLE.day} of ${CYCLE.days} &middot; pace projected to ${CYC_END()}</span></div>`;
- /* change 121: what was decided on the last ask, so the tab says so without a trip to Activity */
- /* change 229: lines of a waiting ask that are already decided show here too, so a partly approved line
-    is visible on the tab while the rest of the ask waits in the panel above */
- const aIds=ask?new Set(ask.lines.map(x=>x.ask||x.id)):null, answered=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&(!aIds||aIds.has(a.ask||a.id)));
- const ansLine=answered.length?`<div class="lm-share lm-answered"><span class="sub">${ask?"Decided so far &middot;":`Last ask, answered ${answered[0].on||TODAY_D}:`} ${listAnd(answered.map(a=>a.state==="approved"?ansPart(a)?`${RES[a.res].label.replace(/ \/ month$/,"")} partly approved: ${f(a.amount)} of ${f(a.asked)}, limit now ${f(a.to||RES[a.res].rows[c.id].cap)}`:`${RES[a.res].label.replace(/ \/ month$/,"")} raised by ${f(a.amount)} to ${f(a.to||RES[a.res].rows[c.id].cap)}`:`${f(a.amount)} more ${RES[a.res].short||RES[a.res].unit} declined${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.</span></div>`:"";
- /* 5 Oct 2026 (change 112, canvas row 19 D): two facts per row, the number and
-    whether it holds. The limit sits beside the name with what the plan has
-    available under it; one wide bar carries used (solid), this cycle's pace
-    (grey tint), the limit (a tick) and what spills past the tick (amber). One
-    status line, amber for "runs out", red only when the limit is reached now.
-    Set to N raises the limit to the pace in one click, capped by the plan. The
-    give-more chips are gone; − and + stay on hover. */
- /* change 193, 11 Oct 2026 (Hitesh, doc 88: P11 with V3; "V3 looks good - let's build it").
-    One table, one place per resource, every header and cell left-aligned:
-    Resource (and what the plan has available), Used (one bar in one colour and
-    "41,300 used"), Limit (the number you click to change; saves as you leave it,
-    Undo in the toast), Asked (the client's ask on its own row as a split button,
-    "Approve +20,000", with Decline and Set a different limit in its menu; an ask
-    larger than the plan reads "Approve +960", all the plan has), Status (on a
-    row that runs out, "Raise to 130,000" as a split button with the date under
-    it). The yellow request panel, the projected overlay, the per-row "Set to"
-    links, the steppers and the footer sentence are gone. The client's note
-    shows once above the table; the share sits in the card header. */
- const askL=ask&&!ro?Object.fromEntries(ask.lines.map(x=>[x.res,x])):{};
- const caret='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
- const menu=(id,items)=>LM_MENU===id?`<div class="menu lm-menu" role="menu">${items.join("")}</div>`:"";
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const m=compute(k), pc=paceOf(k,c.id), atNow=r.cap>0&&r.used>=r.cap;
-  const risk=atNow||(pc&&pc.hits), pct=r.cap?Math.min(100,Math.round(r.used/r.cap*100)):0, col=risk?(atNow?"var(--red-18)":"var(--orange-14)"):"var(--blue-11)";
-  const lim=`<input type="text" inputmode="numeric" class="lm-num" data-lim="${k}" data-fld="cap" value="${f(r.cap)}" aria-label="${R.label} limit"${dis}>`;
-  const q=askL[k];
-  const asked=!q||!canEdit?"":LM_DECL===k?`<div class="pri2 lm-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note ${first} reads (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div>`:(()=>{const free=m.free, ok=free>=q.amount, amt=ok?q.amount:free;
-   if(amt<=0) return `<div class="pri2 lm-split"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button></div><span class="sub lm-under">Asked for ${f(q.amount)}; nothing left in the plan</span>`;
-   return `<div class="pri2 lm-split"><button class="shd-button shd-button--primary shd-button--sm lm-main" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button><button class="shd-button shd-button--primary shd-button--sm lm-caret" data-lmmenu="ask-${k}" aria-haspopup="menu" aria-expanded="${LM_MENU==="ask-"+k}" aria-label="More choices for this ask">${caret}</button>
-     ${menu("ask-"+k,[`<button class="menu-i" role="menuitem" data-lmdecl="${k}"><span class="menu-l">Decline</span><span class="menu-d">${first} keeps ${f(r.cap)}; you can add a note.</span></button>`,`<button class="menu-i" role="menuitem" data-lmedit="${k}"><span class="menu-l">Set a different limit</span><span class="menu-d">Type it in the Limit column.</span></button>`])}</div>${ok?"":`<span class="sub lm-under">Asked for ${f(q.amount)}; the plan has ${f(free)}</span>`}`})();
-  const target=pc&&!atNow?Math.min(pc.proj,r.cap+m.free):Math.min(r.cap+m.free,Math.max(r.cap,pc?pc.proj:r.cap));
-  const when=atNow?`<span class="lm-st is-bad">At the limit</span>`:pc&&pc.hits?`<span class="lm-st">${k==="sends"?"Hits the limit":"Runs out"} ${pc.when}</span>`:"";
-  const status=!risk?"":(canEdit&&target>r.cap?`<div class="pri2 lm-split"><button class="shd-button shd-button--secondary shd-button--sm lm-main" data-rlset="${k}|${target}">Raise to ${f(target)}</button><button class="shd-button shd-button--secondary shd-button--sm lm-caret" data-lmmenu="raise-${k}" aria-haspopup="menu" aria-expanded="${LM_MENU==="raise-"+k}" aria-label="More choices">${caret}</button>
-     ${menu("raise-"+k,[`<button class="menu-i" role="menuitem" data-lmedit="${k}"><span class="menu-l">Set a different limit</span><span class="menu-d">Type it in the Limit column.</span></button>`])}</div>`:"")+when;
-  return `<tr class="lm-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}">
-   <td><span class="lm-nm">${R.label}</span><span class="sub">${f(m.free)} available in the plan</span></td>
-   <td>${apuItem("Used",r.used,r.cap,{cls:"lm-apu"})}</td></tr>`}).join("");
- const note=ask&&!ro?`<p class="lm-asknote"><b>${first} asked ${AGE(ask.when).toLowerCase()}:</b>${ask.note?` &ldquo;${ask.note}&rdquo;`:` ${listAnd(ask.lines.map(x=>f(x.amount)+" more "+RES[x.res].unit))}`}</p>`:"";
- const shareTxt=c.limSet?(c.limSet.share?`${c.limSet.share}% of what was available on ${c.limSet.on}`:`Edited on ${c.limSet.on}`):share?`${share}% of your plan since ${c.created.replace(/,?\s*20\d\d$/,"")}`:`${first} has its own limits`;
- /* change 220, 13 Oct 2026 (Hitesh, final review item 14): "remove all other columns, show asked section
-    entire different panel". The ask sits in its own panel above Limits: one row per resource asked for, with
-    the limit now and after, what the plan has available, and Approve and Decline on the row (Decline takes
-    an optional note the client reads). Several lines keep Approve all and Decline all in the header. */
- const reqPanel=!ask||ro?"":askGroups(ask.lines).map((g,gi,GG)=>{const L=g.lines, multi=L.length>1, allFit=L.every(r=>compute(r.res).free>=r.amount), short=L.filter(r=>compute(r.res).free<r.amount).length;
-  const tr=q=>{const k=q.res, R=RES[k], r=R.rows[c.id]; if(!r) return ""; const free=compute(k).free, ok=free>=q.amount, amt=ok?q.amount:free;
-   /* Decline comes first, as Decline all does, so every Approve starts at the same place whatever the amount */
-   const acts=!canEdit?"":LM_DECL===k?`<td><div class="pri2 lm-decl rq2-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note for ${first} (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div></td>`
-    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>Approve +${f(amt)}</button>`:""}${amt>0?"":
-     /* change 234, 13 Oct 2026: nothing available, so the next step sits where Approve would: rebalance on
-        Usage & limits (Edit limits on this column), and buying more under it, as the shortfall callout has it */
-     `<button class="shd-button shd-button--secondary shd-button--sm" data-rqreb="${k}" title="Opens Usage &amp; limits with Edit limits on ${R.label}: lower another workspace's limit to make some available">Rebalance in Usage &amp; limits</button>`}</div>${amt>0?"":`<span class="sub rq2-buy">${canI("billing")?`Or <button class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`Or <button class="linkbtn" data-ulaskowner="${k}|${q.amount-free}">ask the Account Owner</button> to buy more`}</span>`}</td>`;
-   return `<tr class="rq2-row" id="rreq-${k}"><td><span class="lm-nm">${R.label}</span></td><td><span class="lm-nm">+${f(q.amount)}</span></td><td><span class="lm-nm">${f(r.cap)}</span>${amt>0?`<span class="sub">${f(r.cap+amt)} if approved</span>`:""}</td><td><span class="lm-nm"${ok?"":' style="color:var(--red-18)"'}>${f(free)}</span>${ok?"":`<span class="sub">Short by ${f(q.amount-free)}</span>`}</td>${acts}</tr>`};
-  return `<div class="panel lm-panel rq2-panel" id="${gi?"rcReq-"+g.id:"rcReq"}" data-rqask="${g.id}"><div class="panel-h"><span class="panel-t">${first} asked ${gi?"again":"for more"}</span><span class="sub">${AGE(g.when)}${GG.length>1?` &middot; ask ${gi+1} of ${GG.length}`:""}</span>${multi&&canEdit?`<span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${GG.length>1?"|"+g.id:""}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${GG.length>1?"|"+g.id:""}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all</button></span>`:""}</div>
-   ${g.note?`<p class="lm-asknote rq2-note">&ldquo;${g.note}&rdquo;</p>`:""}
-   <div class="tscroll"><table class="lm-t rq2-t"><thead><tr><th style="width:22%">Resource</th><th style="width:12%">Asked for</th><th style="width:16%">Limit now</th><th style="width:18%">Available in the plan</th>${canEdit?'<th style="width:32%" aria-label="Decision"></th>':""}</tr></thead><tbody>${L.map(tr).join("")}</tbody></table></div></div>`}).join("");
- return `${reqPanel}
- <div class="panel lm-panel"><div class="panel-h"><span class="panel-t">Limits</span>
-   ${ro?`<span class="sub">${c.deletedOn?"Deleted":"Disabled"}: its limits still count against the plan.</span>`:""}
-   <span class="c-a lm-share-h"><span class="sub">${shareTxt}</span>${canEdit?`<button type="button" class="shd-button shd-button--secondary shd-button--sm nc-modebtn" data-limedit="${c.id}">${NC_PEN}Edit</button>`:""}</span></div>
-  ${ansLine}
-  <div class="tscroll"><table class="lm-t lm-t2" id="rcLimTable"><thead><tr><th style="width:50%">Resource</th><th style="width:50%">Used</th></tr></thead>
-  <tbody>${rows}</tbody></table></div>
-  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}${BLR&&BLR.id===c.id?blReceiptBar():""}</div>`;
+ const ro=!!(c.disabled||c.deletedOn), can=canI("limits");
+ if(RL&&(RL.id!==c.id||!can)) RL=null;
+ /* change 121: what was decided on the last ask, so the tab says so without a trip to Activity;
+    change 229: a partly approved line is visible while the rest of the ask waits */
+ const ask=askOf(c.id), aIds=ask?new Set(ask.lines.map(x=>x.ask||x.id)):null, answered=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&(!aIds||aIds.has(a.ask||a.id)));
+ const ansLine=answered.length?`<p class="rlt-p rlt-ans lm-answered">${ask?"Decided so far:":`Last ask, answered ${answered[0].on||TODAY_D}:`} ${listAnd(answered.map(a=>a.state==="approved"?ansPart(a)?`${RES[a.res].label.replace(/ \/ month$/,"")} partly approved: ${f(a.amount)} of ${f(a.asked)}, limit now ${f(a.to||RES[a.res].rows[c.id].cap)}`:`${RES[a.res].label.replace(/ \/ month$/,"")} raised by ${f(a.amount)} to ${f(a.to||RES[a.res].rows[c.id].cap)}`:`${f(a.amount)} more ${RES[a.res].short||RES[a.res].unit} declined${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.</p>`:"";
+ const led=recAskLedger(c,ro), ed=!!RL&&can;
+ return `<div class="rlt">${grace()?rlGraceHTML():""}
+  <div class="rlt-head"><div class="rlt-h"><h2 class="rlt-title">Limits for ${CYCLE.month.split(" ")[0]}</h2>${can&&!ed?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>
+   <p class="rlt-p">${rlHeadLine(c,ro,!!led||grace())}</p>${can?"":`<p class="rlt-p rlt-ro">${rlRoLine()}</p>`}${ansLine}</div>
+  ${led}${ed?rlEditorHTML(c):rlSheetHTML(c)}
+  ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}</div>`;
 }
+/* one listener per event, so a partial repaint never needs rewiring */
+document.addEventListener("click",e=>{if(view.name!=="record") return;
+ const t=e.target.closest("[data-rledit],[data-rlcancel],[data-rlsave],[data-rlmove],[data-rlraise],[data-askld],[data-askldx]"); if(!t||t.disabled) return;
+ const d=t.dataset, c=byId[view.id]; if(!c) return;
+ if(d.rledit!=null){if(!canI("limits")) return; RL={id:c.id,D:{}}; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("rlin-sends")||document.querySelector("[data-rlin]"); if(i){i.focus(); i.select()} return}
+ if(d.rlcancel!=null){RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus(); return}
+ if(d.rlsave!=null&&RL){if(ul3Commit(RL.D,"Saved","set on its Limits tab")) RL=null; render(); return}
+ /* more than the plan has: 263's roster editor on Usage & limits takes the draft and offers a donor */
+ if(d.rlmove&&RL){UL.ed={id:RL.id,D:Object.assign({},RL.D),donor:{}}; UL.open3=RL.id; UL.cell=null; UL.edit=false; UL.ul3f="#ul3in-"+d.rlmove; RL=null; ORIGIN=null; ctx="agency"; asClient=false; view={name:"limits"}; render(); return}
+ if(d.rlraise){const [k,n]=d.rlraise.split("|"); setLimit(k,c.id,+n,"raised so it can restart"); render(); return}
+ if(d.askld){LM_DECL="askl-"+d.askld; render(); const i=document.querySelector(`.askl-note[data-nonote="${d.askld}"]`); if(i) i.focus(); return}
+ if(d.askldx!=null){LM_DECL=null; render(); return}});
+document.addEventListener("input",e=>{if(view.name!=="record"||!RL) return; const t=e.target; if(t.dataset&&t.dataset.rlin){ul3Set(RL.D,t.dataset.rlin,RL.id,ulNum(t.value)); rlPaint()}});
+document.addEventListener("focusout",e=>{const t=e.target; if(RL&&t.dataset&&t.dataset.rlin&&t.isConnected) t.value=f(ul3Dv(RL.D,t.dataset.rlin,RL.id))});
+document.addEventListener("keydown",e=>{if(view.name!=="record"||!RL) return; const t=e.target; if(!t.dataset||!t.dataset.rlin) return;
+ if(e.key==="Enter"){e.preventDefault(); const all=[...document.querySelectorAll("[data-rlin]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-rlsave]:not(:disabled)"); if(n) n.focus(); return}
+ if(e.key==="Escape"&&!rlDirty()){e.preventDefault(); e.stopPropagation(); RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus()}},true);
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
    actually reads on this screen: they are not auditing addresses, they are
    asking how much of this client's sending estate is currently up.        */
@@ -5761,6 +5804,10 @@ const BILL_TABS=[["plan","Platform","Plan"],["crm","CRM","Add-ons"],["dialer","D
 const BS_BUY={ai:"ai",verification:"ev",dialer:"dialer",radar:"radar"};
 /* production's Manage Billing is a menu; it closes on a click anywhere else */
 document.addEventListener("click",e=>{if(!e.target.closest(".bs-mb")) document.querySelectorAll(".bs-mb-menu").forEach(m=>{m.hidden=true;const t=m.parentNode.querySelector("[data-bsmb]");if(t)t.setAttribute("aria-expanded","false")})});
+/* change 271: "buy more in Billing" (Usage & limits, a workspace's Limits tab) lands where BS_BUY says
+   with that resource's buy panel open, the default amount filled in and focus on it */
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ulbuy],[data-ul3buy]"); if(!b||!canI("billing")) return;
+ const k=b.dataset.ulbuy||b.dataset.ul3buy; if(BP_PRICE[k]!=null){BILL.buy=k;BILL.amt=null;BILL.focus=true}},true);
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
@@ -5790,57 +5837,106 @@ const usd=n=>"$"+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
 /* doc 93: blWsBar() deleted, no screen drew it */
 /* doc 93: poolBar() deleted, no screen drew it */
 const CREDIT_PRICE={lead_finder:"$0.05 / credit",verification:"$0.004 / credit",ai:"$0.01 / credit",dialer:"$0.03 / credit",radar:"$0.40 / test"};
-const CREDIT_LAST={lead_finder:"Last bought 2,000 on 12 Sep",verification:"Last bought 5,000 on 19 Aug",ai:"Never bought",dialer:"Never bought",radar:"Never bought"};
-const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"Renews monthly with the add-on"};
+/* change 271, folding in change 254 (audit billing.md finding 5): where each balance came from.
+   `from` is what the starting balance came with; `buys` are the purchases, oldest first. What came
+   with the plan or the add-on is the pool less what was bought, so the totals on Platform, the
+   credits pages and the purchase history always agree. A purchase made here is added as "today". */
+const CREDIT_SRC={sends:{from:"the plan",buys:[]},
+ lead_finder:{from:"the plan",buys:[[2000,"12 Sep"]]},
+ verification:{from:"the plan",buys:[[5000,"19 Aug"]]},
+ ai:{from:"the plan",buys:[]},
+ dialer:{from:"the Dialer add-on",buys:[[3000,"12 Jun"],[2000,"28 Aug"]]},
+ radar:{from:"Inbox Radar",buys:[[240,"4 Jul"],[240,"2 Sep"]]}};
+const creditBought=k=>CREDIT_SRC[k].buys.reduce((t,b)=>t+b[0],0);
+const creditIncl=k=>Math.max(0,RES[k].pool-creditBought(k));
+const CREDIT_LAST={};
+Object.keys(CREDIT_SRC).forEach(k=>Object.defineProperty(CREDIT_LAST,k,{enumerable:true,
+ get:()=>{const l=CREDIT_SRC[k].buys.slice(-1)[0];return l?"Last bought "+f(l[0])+" on "+l[1]:""}}));
+/* change 271: buying on Billing. Card and prices are illustrative (fd/billing.html). */
+const BILL_CARD="Visa ending 4242";
+const BP_PRICE={lead_finder:.05,verification:.004,ai:.01,dialer:.03,radar:.4};
+const BP_DEF={lead_finder:2000,verification:5000,ai:1000,dialer:2000,radar:240};
+const BILL={open:{},buy:null,amt:null,focus:false,charged:0};
+const bpUnit=k=>RES[k].unit==="tests"?"tests":"credits";
+const bpPriceTxt=k=>CREDIT_PRICE[k].replace(" / "," a ");
+const bpRenew=k=>k==="sends"?"Renews on "+PLAN.next.split(",")[0]:k==="lead_finder"?"Renews with the plan on "+PLAN.next.split(",")[0]:"Does not renew";
+const bpNum=s=>{const n=parseInt(String(s).replace(/[^\d]/g,""),10);return isNaN(n)?0:n};
+const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"A balance; does not renew"};
 function billLine(){
  const sent=planNextLine();
  return `<div class="bill-line"><span class="bill-amt">${sent}</span><span class="bill-sub">&middot; ${PLAN.name.replace(" (Monthly)",", monthly")} &middot; <button class="linkbtn" data-flash="Opens the billing portal">Invoices</button></span></div>`}
-function planGoesRow(k){
- const R=RES[k], m=compute(k), rows=fundedWorkspaces().filter(c=>R.rows[c.id]);
- const used=rows.reduce((t,c)=>t+(R.rows[c.id].used||0),0), given=allocOf(k), avail=Math.max(0,R.pool-given);
- const segs=rows.map(c=>`<span title="${c.name} ${f(R.rows[c.id].cap)}" style="width:${(100*R.rows[c.id].cap/R.pool).toFixed(2)}%;background:${c.colour}"></span>`).join("");
- return `<div class="pg-row pg-row--apu" data-pg="${k}">
-  <div class="pg-apu">${apuItem(R.label,used,R.pool)}</div>
-  </div>`}
+/* change 271: the bill first. vPlatform opens with the next bill (amount, date, card) in the same
+   headline type as Usage & limits; in the payment-failed state the banner above the billing nav is
+   the opener instead. Production's Plan Details card (238) stays; its line under the plan name now
+   carries the seats and Whitelabel (the Seats and add-ons panel went). Where your plan goes is one
+   table read from compute(), the source Usage & limits' Your plan reads, so Used and Available to
+   give agree on both screens. No asks, no limits list, one link to Usage & limits (239). */
+const BP_CHEV='<span class="bp-chev" aria-hidden="true"><svg width="7" height="10" viewBox="0 0 7 10"><path d="M1.5 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>';
+const bpWs=id=>id==="own"?OWN_WS:byId[id];
+function bpHead(){if(grace()) return "";
+ const n=s=>parseFloat(String(s).replace(/[^0-9.]/g,"")), a=n(PLAN.amount), b=n(PLAN.lastAmount||PLAN.amount);
+ const cmp=a===b?"Same as last month":a>b?`Up from ${PLAN.lastAmount} last month`:`Down from ${PLAN.lastAmount} last month`;
+ return `<section class="bp-ans" aria-labelledby="bpH"><h2 class="ul3-h" id="bpH">Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}.</h2>
+  <p class="ul3-p">${cmp}, charged to ${BILL_CARD}.${BILL.charged?` ${usd(BILL.charged)} for credits was charged today, separately.`:""}</p></section>`}
 function vPlatform(){
- const own=CLIENTS.reduce((t,c)=>t+c.users.length,0), ks=RK.filter(k=>RES[k].pool>0);
- const legend=`<div class="pg-legend">${fundedWorkspaces().map(c=>`<span><i style="background:${c.colour}"></i>${c.name}</span>`).join("")}<span><i style="background:#e5e7eb"></i>Available</span></div>`;
+ const seats=Object.keys(PEOPLE).length;
  /* change 238 (item 23): production's Plan Details (plan-details.tsx, getBillOverview): the
     label, the plan name, Modify Subscription then Manage Billing; Start Date, Next Billing Date,
     Next Billing Amount ("DD MMM, yyyy", "$0.00"). The agency's "Covers ..." stays under the name. */
  const dd=s=>s.replace(/^(\d) /,"0$1 ");
- return `<div class="panel plancard bs-plan">
-   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3>${isNormal()?"":`<span class="bs-plan-d">Covers ${AGENCY.name} and ${CLIENTS.length} workspaces</span>`}</div>
+ return `${bpHead()}<div class="panel plancard bs-plan">
+   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3><span class="bs-plan-d">${isNormal()?"":`Covers ${AGENCY.name} and ${CLIENTS.length} workspaces. `}15 team seats, ${seats} used.${AGENCY.whitelabel?" Whitelabel included.":""}</span></div>
     <div class="bs-plan-act"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button><span class="bs-mb"><button class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false">Manage Billing</button><div class="bs-mb-menu" role="menu" hidden><button role="menuitem" data-flash="Opens the billing portal">Update Card / Invoices</button><button role="menuitem" data-flash="Not in this prototype">Cancel Subscription</button></div></span></div></div>
-   <div class="bs-plan-ov"><div><span>Start Date</span><b>${dd(PLAN.start)}</b></div><div><span>Next Billing Date</span><b>${dd(PLAN.next)}</b></div><div><span>Next Billing Amount</span><b>${PLAN.amount}</b></div></div>
+   <div class="bs-plan-ov"><div><span>Start Date</span><b>${dd(PLAN.start)}</b></div>${grace()?`<div><span>Payment failed</span><b>${dd(GRACE.failedOn+", "+PLAN.next.split(", ")[1])}</b></div>`:`<div><span>Next Billing Date</span><b>${dd(PLAN.next)}</b></div>`}<div><span>Next Billing Amount</span><b>${PLAN.amount}</b></div></div>
   </div>
-  ${/* change 133 (Hitesh): the Last invoices panel is gone; Invoices stays in the bill line */""}
-  ${isNormal()?"":`<div class="panel">
-   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="c-a"><button class="linkbtn" data-ulgo>Asks, limits and usage &rarr;</button></span></div>
-   <div class="panel-b" style="padding-top:12px">${ks.map(planGoesRow).join("")}</div>
-  </div>`}
-  <div class="panel">
-   <div class="panel-h"><span class="panel-t">Seats and add-ons</span></div>
-   <div class="panel-b sa-grid">
-    <div class="sa-row"><span>Team seats</span><span class="cs">${Object.keys(PEOPLE).length} of 15 used</span></div>
-    <div class="sa-row"${isNormal()?' hidden':''}><span>Workspaces</span><span class="cs">Unlimited</span></div>
-    <div class="sa-row"><span>Whitelabel</span><span class="cs">Included &middot; <button class="linkbtn" data-gowl>Set up &rarr;</button></span></div>
-    <div class="sa-row"><span>CRM</span><span class="cs">Not on this plan</span></div>
-    <div class="sa-row"><span>Dialer</span><span class="cs">Add-on &middot; $29 / month</span></div>
-    <div class="sa-row"><span>Inbox Radar</span><span class="cs">Add-on &middot; $49 / month</span></div>
-   </div></div>`;
+  ${isNormal()?"":`<div class="panel bp-panel" id="bpGoes">
+   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub bp-hsub">${CYCLE.month.split(" ")[0]}, day ${CYCLE.day} of ${CYCLE.days}</span><span class="c-a"><button class="linkbtn ul3-l" data-ulgo>Asks, limits and usage</button></span></div>
+   ${bpTable(RK.filter(k=>RES[k].pool>0))}</div>`}
+  ${bpAddons()}`;
 }
+/* one row per resource: Used (of the plan), Available to give, the largest share, one action.
+   Opening a row shows where its total came from (CREDIT_SRC) and its price; the renewal is under the name.
+   `single` is a credits page: one resource, its detail always shown. */
+function bpTable(ks,single){
+ const rows=ks.map(k=>{const R=RES[k], m=compute(k), P=R.pool, open=!!single||!!BILL.open[k], price=BP_PRICE[k], buy=BILL.buy===k&&price!=null;
+  const top=Object.entries(R.rows).filter(([id,r])=>r.cap>0&&bpWs(id)).sort((a,b)=>b[1].cap-a[1].cap)[0];
+  const share=top?`<span class="bp-sh-n">${bpWs(top[0]).name}</span><span class="ul3-sub">${Math.round(top[1].cap/P*100)}% of the plan</span>`:`<span class="ul3-g">None given</span>`;
+  const today=CREDIT_SRC[k].buys.filter(b=>b[1]==="today").reduce((t,b)=>t+b[0],0);
+  const act=price!=null?`<button type="button" class="linkbtn ul3-l" data-bpbuy="${k}" aria-expanded="${buy}">Buy ${bpUnit(k)}</button>`
+   :`<button type="button" class="linkbtn ul3-l" data-flash="Not in this prototype">Change plan</button>`;
+  const hist=[[`Came with ${CREDIT_SRC[k].from}`,creditIncl(k)]].filter(x=>x[1]>0)
+   .concat(CREDIT_SRC[k].buys.map(b=>[b[1]==="today"?"Bought today":`Bought on ${b[1]}`,b[0]]));
+  const det=open?`<tr class="bp-det"><td colspan="5"><div class="bp-det-in${single?" is-single":""}">
+    <div><span class="bp-k">Where the ${f(P)} came from</span><div class="bp-hist">${hist.map(x=>`<div class="bp-hr"><span>${x[0]}</span><span class="ul3-num">${f(x[1])}</span></div>`).join("")}${hist.length>1?`<div class="bp-hr bp-tot"><span>Total</span><span class="ul3-num">${f(P)}</span></div>`:""}</div></div>
+    <dl class="bp-about"><div><dt>Price</dt><dd>${price!=null?bpPriceTxt(k):"Comes with the plan; a bigger plan has more"}</dd></div></dl></div></td></tr>`:"";
+  return `<tr class="bp-r${open?" is-open":""}" data-pg="${k}">
+   <td>${single?`<span class="ul3-rn">${R.label}</span>`:`<button type="button" class="bp-nm" data-bprow="${k}" aria-expanded="${open}">${BP_CHEV}<span class="ul3-rn">${R.label}</span></button>`}<span class="ul3-sub${single?"":" bp-ind"}">${bpRenew(k)}</span></td>
+   <td data-l="Used"><span class="ul3-hb">${pbar(P>0?m.used/P*100:0,UL3_GREY)}<span class="ul3-num">${f(m.used)} <span class="ul3-g">of ${f(P)}</span></span></span></td>
+   <td data-l="Available to give" class="ul3-num"><b>${f(m.free)}</b>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
+   <td class="bp-share">${share}</td><td class="bp-act">${act}</td></tr>${det}${buy?`<tr class="bp-buyrow"><td colspan="5">${bpBuyHTML(k)}</td></tr>`:""}`}).join("");
+ return `<table class="ul-t bp-t${single?" is-single":""}"><thead><tr><th class="bp-c1">Resource</th><th class="bp-c2">Used</th><th class="bp-c3">Available to give</th><th class="bp-share">Largest share</th><th class="bp-c5" aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table>`}
+/* the buy panel: the amount, its effect on what the plan can give, the charge in a sentence; the
+   button names count and price. Blocked while the card is declined, with the reason above it. */
+const bpBuyFx=(k,a)=>`Available to give goes from ${f(compute(k).free)} to ${f(compute(k).free+a)}.`;
+const bpCost=(k,a)=>`${usd(a*BP_PRICE[k])} at ${bpPriceTxt(k)}, charged now to ${BILL_CARD}.`;
+const bpBuyLabel=(k,a)=>`Buy ${f(a)} ${bpUnit(k)} for ${usd(a*BP_PRICE[k])}`;
+function bpBuyHTML(k){const g=grace(), a=BILL.amt!=null?BILL.amt:BP_DEF[k], U=bpUnit(k);
+ return `<div class="bp-buy" id="bpBuy-${k}" role="group" aria-label="Buy ${RES[k].label}">
+  <div class="bp-buy-r"><label for="bpBuyN">${U[0].toUpperCase()+U.slice(1)} to buy</label><input id="bpBuyN" class="ul-in" type="text" inputmode="numeric" autocomplete="off" value="${f(a)}" data-bpbuyn="${k}"><span class="ul4-cs" id="bpBuyFx">${bpBuyFx(k,a)}</span></div>
+  <p class="ul4-cs bp-cost" id="bpBuyCost">${g?`The card was declined on ${GRACE.failedOn}. Update the card first, then buy.`:bpCost(k,a)}</p>
+  <div class="bp-buy-f"><button type="button" class="shd-button shd-button--primary shd-button--sm" id="bpBuyGo" data-bpbuygo="${k}"${g||!a?" disabled":""}>${bpBuyLabel(k,a)}</button><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-bpbuyx>Cancel</button></div></div>`}
+/* add-ons: what is on, its price and one action, which opens that add-on's own page */
+function bpAddons(){const row=(tab,name,val,blurb,act)=>`<div class="bp-ao"><span class="bp-ao-k">${name}</span><span class="bp-ao-v">${val}<span class="ul3-sub">${blurb}</span></span><button type="button" class="linkbtn ul3-l" data-billtab="${tab}">${act}</button></div>`;
+ return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">Add-ons</span>${isNormal()?"":`<span class="sub bp-hsub">Added once for the account, then available in every workspace</span>`}</div><div class="bp-aos">
+  ${row("dialer","Dialer","On, $29 a month","Call prospects from a sequence step, with recordings and call logs.","Manage")}
+  ${row("radar","Inbox Radar","On, $49 a month","Deliverability tests for every email account, with alerts when placement drops.","Manage")}
+  ${row("crm","CRM","Not added","Pipelines, deals and activity on top of your prospects. $29 per user a month.","Add CRM")}</div></div>`}
+/* the credits pages (AI, Email verification, Dialer, Inbox Radar): the same row as Platform, so a
+   number reads the same wherever it is shown (change 254 finding 5) */
 function vCreditsBuy(only){
  const ks=(only?[only]:["lead_finder","verification","ai"].concat(RES.dialer&&RES.dialer.pool>0?["dialer"]:[])).filter(k=>RES[k]);
  if(!ks.length) return "";
- return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">${only?RES[only].label.replace(/ \/ month$/,""):"Credits"}</span><span class="sub">Shared by every workspace; each one's limit is on its Limits tab</span></div>
-   <div class="panel-b" style="padding-top:0">${ks.map(k=>{const R=RES[k], used=fundedWorkspaces().reduce((t,c)=>t+((R.rows[c.id]||{}).used||0),0), bal=Math.max(0,R.pool-used);
-    return `<div class="cp-row"><div><div class="pg-name">${R.label.replace(/ \/ month$/,"")}</div><div class="cs">${CREDIT_RENEW[k]}</div></div>
-     <div><span class="cs" style="display:block">Balance</span><b class="cp-v">${f(bal)} of ${f(R.pool)}</b></div>
-     <div><span class="cs" style="display:block">Price</span><b class="cp-v">${CREDIT_PRICE[k]}</b></div>
-     <div style="text-align:right"><button class="shd-button shd-button--secondary" data-flash="Not in this prototype">Buy credits</button><span class="cs" style="display:block;margin-top:6px">${CREDIT_LAST[k]}</span></div></div>`}).join("")}</div></div>
-  <div class="panel"><div class="panel-b"><span class="sub">Credits are shared by every workspace. How much each one may use is set on its Limits tab, and the picture of who uses what is on Platform.</span></div></div>`}
+ return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">${only?RES[only].label.replace(/ \/ month$/,""):"Credits"}</span><span class="sub bp-hsub">${only==="radar"?"Tests":"Credits"} are shared by every workspace</span></div>${bpTable(ks,!!only)}</div>`}
 /* change 142, 6 Oct 2026 (Hitesh): email accounts are bought inside a workspace, so their
    purchase history lives on that workspace's Email accounts page, for agency staff only.
    Columns and the renewal warning follow production's Email Account Infrastructure page;
@@ -5877,8 +5973,8 @@ function vAddons(only){
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
     <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
     <span class="tools"><span class="tnum" style="font-weight:600">${price}</span>${on?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Manage</button>`:`<button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add to plan</button>`}</span></div></div>`;
- return row("Dialer","Call prospects from a sequence step, with recordings and call logs.","","$29 / month &middot; 1,000 credits",true)
-  +row("Inbox Radar","Deliverability tests for every email account, with alerts when placement drops.","","$49 / month &middot; 120 tests",true)
+ return row("Dialer","Call prospects from a sequence step, with recordings and call logs.","","$29 / month",true)
+  +row("Inbox Radar","Deliverability tests for every email account, with alerts when placement drops.","","$49 / month",true)
   +row("CRM","Pipelines, deals and activity on top of the prospects you already have.","","$29 / user / month",false)}
 /* an email account bought through Saleshandy sits on a secondary sending
    domain; the client's own domain carries the accounts they connected. */
@@ -6283,13 +6379,13 @@ function ul3EdOpen(id,k){if(ul3Dirty()&&UL.ed.id!==id) return; if(!UL.ed||UL.ed.
  const c=byId[id], b=ul3Quiet(c)?null:ul3Close(c); UL.open3=id; UL.cell=null; ulLayer().innerHTML=""; UL.ul3f="#ul3in-"+(k||(b&&b.k)||UL_K().find(x=>RES[x].rows[id])); render()}
 function ul3EdClose(){const id=UL.ed&&UL.ed.id; UL.ed=null; UL.ul3f=`[data-ul3ed="${id}|"]`; render()}
 /* one commit for both flows: lowered limits first through setLimit, an ask on a raised line closes as giving it does */
-function ul3Commit(D,verb){const ch=ul3Ch(D); if(!ch.length||UL_K().some(k=>ul3Free(D,k)<0)) return false;
+function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on its Limits tab") */const ch=ul3Ch(D); if(!ch.length||UL_K().some(k=>ul3Free(D,k)<0)) return false;
  const reqs=ulReqs().filter(r=>ch.some(x=>x.k===r.res&&x.id===r.client&&x.v>x.was)), give={};
  reqs.forEach(r=>{const x=ch.find(y=>y.k===r.res&&y.id===r.client); give[r.id]=Math.min(r.amount,x.v-x.was)});
  const prev=ch.map(x=>({k:x.k,id:x.id,was:x.was,custom:RES[x.k].rows[x.id].custom}));
  const restore=()=>prev.forEach(p=>{const r=RES[p.k].rows[p.id]; r.cap=p.was; r.custom=p.custom; syncRes(p.k,r)});
  for(const x of ch.slice().sort((a,b)=>(a.v-a.was)-(b.v-b.was))){const q=reqs.find(r=>r.res===x.k&&r.client===x.id);
-  if(!setLimit(x.k,x.id,x.v,q?(give[q.id]<q.amount?`partly approves the ask from ${AGE(q.when).toLowerCase()}, ${f(give[q.id])} of ${f(q.amount)}; the line is closed`:`approves the ask from ${AGE(q.when).toLowerCase()}`):"set on Usage & limits")){
+  if(!setLimit(x.k,x.id,x.v,q?(give[q.id]<q.amount?`partly approves the ask from ${AGE(q.when).toLowerCase()}, ${f(give[q.id])} of ${f(q.amount)}; the line is closed`:`approves the ask from ${AGE(q.when).toLowerCase()}`):(where||"set on Usage & limits"))){
    restore(); const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; receipt("ul",t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; renderToast(); return false}}
  const ans=reqs.map(r=>{const R=RES[r.res], g=give[r.id], a=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap},g<r.amount?{amount:g,asked:r.amount}:{}); ANSWERS.push(a); return a});
  REQUESTS=REQUESTS.filter(r=>reqs.indexOf(r)<0);
@@ -6846,7 +6942,12 @@ document.addEventListener("scroll",()=>{if(UL.cell) ulPlacePop()},true);
 window.addEventListener("resize",()=>{if(UL.cell) ulPlacePop()});
 
 function vBilling(){
- if(!canI("billing")) return denied("see billing or allocate capacity");
+ /* change 271: the gate stays (Account Owner only, doc 96); what it says names who can and where the
+    reader can act instead. Not reachable from the rail; kept for a deep link. */
+ if(!canI("billing")){const own=ulOwners();
+  return `<div class="wrap billwrap"><div class="panel bp-deny"><div class="panel-b"><h2 class="ul3-h">Billing is for Account Owners.</h2>
+   <p class="ul3-p">${own.length?listAnd(own)+" can":"An Account Owner can"} change the plan, buy credits and update the card.${canI("limits")?" You can change limits and answer asks in Usage &amp; limits.":""}</p>
+   ${canI("limits")?`<button class="shd-button shd-button--primary" data-ulgo>Open Usage &amp; limits</button>`:""}</div></div></div>`}
  /* there is nothing to cap across until a second workspace exists, so the
     group is absent rather than present and empty. */
  if(isNormal()&&billTab==="alloc") billTab="plan";
@@ -6863,7 +6964,7 @@ function vBilling(){
   :billTab==="dialer"?vAddons("Dialer")+vCreditsBuy("dialer")
   :billTab==="ai"?vCreditsBuy("ai")
   :billTab==="ev"?vCreditsBuy("verification")
-  :billTab==="radar"?vAddons("Inbox Radar")
+  :billTab==="radar"?vAddons("Inbox Radar")+vCreditsBuy("radar")
   :billTab==="credits"?vCreditsBuy()
   :billTab==="addons"?vAddons()
   :vCredits().replace('<div class="wrap">','<div class="billpage">');
@@ -6871,7 +6972,7 @@ function vBilling(){
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
     Billing & Subscription does. Invoices live under Manage Billing on the Platform panel. */
  return `<div class="wrap billwrap">
-   <div class="setwrap bswrap">${nav}<div class="billpage">${page}</div></div></div>`;
+   ${graceBanner()/* change 271 */}<div class="setwrap bswrap">${nav}<div class="billpage">${page}</div></div></div>`;
 }
 
 function blReceipt(k,before,prev,cid){
@@ -9691,10 +9792,10 @@ const NC_INFO='<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fil
 /* the context the slider used to carry on its face, now behind Learn more */
 /* change 165, 9 Oct 2026 (Hitesh): shorter and crisper. Two lines: what
    available means and what the slider does; then how each kind renews. */
-function ncLearnHTML(){const who=ncEscH((nc.name||"").trim()||"this workspace"), sh=ncShare(), av=f(compute("sends").free);
- const base=CLIENTS.length?"what other workspaces already have":`what your own workspace, ${ncEscH(AGENCY.name)}, already has`;
- return `<p>Available is your plan minus ${base}, for example <b>${av}</b> emails a month.</p>
-  <p>The slider gives ${who} ${sh}% of each. Emails renew each month; credits are set aside from your balance.</p>`}
+function ncLearnHTML(){const who=ncEscH((nc.name||"").trim()||"This workspace"), sh=ncShare();
+ /* change 272: available is the plan minus every limit already given, own workspace included */
+ return `<p>Available is what your plan hasn't given to any workspace yet.</p>
+  <p>${who} gets ${sh}% of what's available, for each resource.</p>`}
 const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
 function ncUsageHTML(){
  const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
@@ -11368,9 +11469,9 @@ const TOUR_STEPS={
     head:c=>`Invite ${tourNm(c)}'s people.`,body:c=>"They see only this workspace. You can do this later.",act:c=>"Click Invite.",
     sec:"Later",done:c=>!!(modal&&modal.kind==="invite")||!!(TOUR&&TOUR.secDone)},
  3:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"limits"),
-    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector("[data-limedit]")||document.querySelector('.lm-row[data-rl="sends"]')||document.querySelector(".lm-row")):document.querySelector('.tabbar [data-tab="limits"]'),
+    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector("[data-rledit],[data-rlsave]")||document.querySelector('.rlt-row[data-rl="sends"]')):document.querySelector('.tabbar [data-tab="limits"]'),
     sub:c=>tourOnRec(c)&&tab!=="limits"?"Open the Limits tab.":"",
-    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Edit changes them the same way as when you added it; ${tourNm(c)} asks for more from its side.`,act:c=>"Click Edit and save a change.",
+    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Change limits sets them in place, the same numbers as when you added it; ${tourNm(c)} asks for more from its side.`,act:c=>"Click Change limits and save a change.",
     sec:"Got it",done:c=>!!(TOUR&&(TOUR.limitDone||TOUR.secDone))},
  4:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c),
     target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
@@ -11955,7 +12056,23 @@ function wire(){
    if(canI("billing")){ctx="agency"; if(REQUESTS.length){view={name:"record",id:REQUESTS[0].client};tab="limits"} else {view={name:"credits"};billTab="plan"}}
    else{ctx="agency";view=homeView()}
    render()}});
- q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;render()});
+ q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;BILL.buy=null;BILL.amt=null;render()});
+ /* change 271: open a row, open or close its buy panel, buy */
+ q("[data-bprow]").forEach(b=>b.onclick=()=>{const k=b.dataset.bprow; BILL.open[k]=!BILL.open[k]; render(); const n=document.querySelector(`[data-bprow="${k}"]`); if(n) n.focus({preventScroll:true})});
+ q("[data-bpbuy]").forEach(b=>b.onclick=()=>{const k=b.dataset.bpbuy; BILL.buy=BILL.buy===k?null:k; BILL.amt=null; BILL.focus=!!BILL.buy; render();
+  if(!BILL.buy){const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})}});
+ q("[data-bpbuyx]").forEach(b=>b.onclick=()=>{const k=BILL.buy; BILL.buy=null; BILL.amt=null; render(); const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})});
+ {const i=el("bpBuyN"); if(i){const k=i.dataset.bpbuyn;
+  i.oninput=()=>{const a=bpNum(i.value); BILL.amt=a; el("bpBuyFx").textContent=bpBuyFx(k,a); if(!grace()) el("bpBuyCost").textContent=bpCost(k,a);
+   const g=el("bpBuyGo"); g.textContent=bpBuyLabel(k,a); g.disabled=grace()||!a};
+  i.onblur=()=>{if(BILL.amt!=null) i.value=f(BILL.amt)};
+  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const g=el("bpBuyGo"); if(g&&!g.disabled) g.click()}
+   if(e.key==="Escape"){e.preventDefault(); e.stopPropagation(); const x=document.querySelector("[data-bpbuyx]"); if(x) x.click()}};
+  if(BILL.focus){BILL.focus=false; i.scrollIntoView({block:"center"}); i.focus({preventScroll:true}); i.select()}}}
+ q("[data-bpbuygo]").forEach(b=>b.onclick=()=>{const k=b.dataset.bpbuygo, a=BILL.amt!=null?BILL.amt:BP_DEF[k]; if(!a||grace()) return;
+  RES[k].pool+=a; CREDIT_SRC[k].buys.push([a,"today"]); BILL.charged+=a*BP_PRICE[k]; BILL.buy=null; BILL.amt=null;
+  receipt("bill",`Bought ${f(a)} ${RES[k].label} for ${usd(a*BP_PRICE[k])}. ${f(compute(k).free)} available to give.`,null,`bought ${f(a)} ${RES[k].label}`); render();
+  const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})});
  q("[data-bsmb]").forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.parentNode.querySelector(".bs-mb-menu");m.hidden=!m.hidden;b.setAttribute("aria-expanded",String(!m.hidden))});
  /* 18 Sep, delight pass: Email Accounts charge expander and the limits receipt */
  q("[data-blwhy]").forEach(b=>b.onclick=()=>{BL_WHY=BL_WHY===b.dataset.blwhy?null:b.dataset.blwhy;render()});
@@ -11964,7 +12081,7 @@ function wire(){
  q("[data-blalloc]").forEach(b=>b.onclick=()=>{const cid=b.dataset.blalloc;BLR=null;clearTimeout(blrTimer);render();
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
  /* change 109: limits are decided on the workspace; Billing only shows where the plan goes */
- q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`.pg-row[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
+ q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`tr[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
  
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
  q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
@@ -12051,7 +12168,9 @@ function wire(){
    ctx=view.client;asClient=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;view={name:"clients"};render()}}
  q("[data-invback]").forEach(b=>b.onclick=()=>{const bk=view.back||{name:"clients"};
    if(bk.fromtab){ctx="agency";view={name:"record",id:bk.id};tab=bk.fromtab}else view=bk; render()});
- q("[data-gobill]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
+ /* change 271 (254 finding 1): Update payment on the payment-failed banner, wherever it shows, opens the
+    card update in the billing portal directly; other data-gobill links ("add capacity") still open Billing */
+ q("[data-gobill]").forEach(b=>b.onclick=b.closest(".grace")?e=>{e.stopPropagation();flash(b,"Opens the billing portal to update the card")}:()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
  q("input[data-cid]").forEach(i=>i.onchange=()=>{setLimit(activeRes,i.dataset.cid,num(i.value)); render()});
@@ -13370,6 +13489,83 @@ td>.cs:only-child{display:block}
 .rc-mtb{display:flex;align-items:center;gap:16px;margin-bottom:16px}.rc-mtb .shd-button{margin-left:auto}
 .rc-group{margin-bottom:20px}.rc-group .panel-h{display:flex;align-items:center;gap:12px}
 .rc-group .tscroll{overflow:visible}
+/* change 269: the record's Limits tab (fd/record-limits.html in vC's look) */
+.rlt{display:flex;flex-direction:column;gap:16px}
+.rlt-head{display:flex;flex-direction:column;gap:4px;padding-top:4px}
+.rlt-h{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px}
+.rlt-title{margin:0;font-size:20px;line-height:28px;font-weight:600;color:#1F2937}
+.rlt-chg{margin-left:auto}
+.rlt-p{margin:0;max-width:100ch;font-size:14px;line-height:20px;color:#6B7280;font-variant-numeric:tabular-nums}
+.rlt-p b{font-weight:600;color:#1F2937}
+.rlt-ro{max-width:none}
+.rlt .grace-bar{margin:0}
+.rlt .linkbtn:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px;text-decoration:none}
+/* the ask ledger, scoped to this workspace (same columns as Usage & limits, without Workspace) */
+.rlt .askl,.rlt-sheet{overflow:hidden}
+.rlt .askl-t,.rlt-t{width:100%;border-collapse:collapse;table-layout:fixed}
+.rlt .askl-t th,.rlt-t th{text-align:left;font-size:12px;font-weight:500;line-height:16px;color:#6B7280;background:#F9FAFB;padding:10px 12px;border-bottom:1px solid #E5E7EB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rlt .askl-t td,.rlt-t td{text-align:left;padding:14px 12px;vertical-align:top;font-size:14px;line-height:20px;color:#1F2937;border-top:1px solid #F3F4F6;font-variant-numeric:tabular-nums}
+.rlt .askl-t tbody tr:first-child td,.rlt-t tbody tr:first-child td{border-top:0}
+.rlt .askl-t th:first-child,.rlt .askl-t td:first-child,.rlt-t th:first-child,.rlt-t td:first-child{padding-left:24px}
+.rlt .askl-t th:last-child,.rlt .askl-t td:last-child,.rlt-t th:last-child,.rlt-t td:last-child{padding-right:24px}
+.rlt .askl-t td .sub,.rlt-t td .sub{display:block;font-size:12px;line-height:16px;margin-top:2px}
+.rlt .askl-nm{display:block;font-weight:500;color:#1F2937;overflow-wrap:anywhere}
+.rlt .askl-w{font-weight:600}
+.rlt .askl-t tfoot td{border-top:1px solid #E5E7EB}
+.rlt .askl-t tfoot tr:first-child td{border-top:1px solid #D1D5DB}
+.rlt .askl-t tfoot b{font-weight:600}
+.rlt .askl-fn{display:block}
+.rlt .askl-acts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
+.rlt .askl-go{min-width:112px;font-weight:600;white-space:nowrap;text-align:left}
+.rlt .askl .linkbtn.askl-q{color:#6B7280;font-weight:500}.rlt .askl .linkbtn.askl-q:hover{color:#374151}
+.rlt .askl .linkbtn:disabled{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
+.rlt .askl-decl{display:flex;flex-direction:column;gap:8px}
+.rlt .askl-note{height:32px}
+.rlt .askl-buy .linkbtn{font-size:12px;line-height:16px;font-weight:500}
+.rlt .askl-r.dq-out{opacity:0;transition:opacity .2s}
+/* the six limits */
+.rlt-nm{display:block;font-weight:500;color:#1F2937}
+.rlt-u{display:flex;align-items:center;gap:12px}
+.rlt-bar{flex:none;width:64px}.rlt-bar .pbw{width:100%}
+.rlt-uv{white-space:nowrap}.rlt-uv b{font-weight:600}
+.rlt-av{color:#6B7280}
+.rlt-t tr.is-focus td{background:#EFF6FF}
+.rlt-own{margin:0;padding:16px 24px}
+/* Change limits: 263's amount lines, in this tab's panel */
+.rlt-edp{overflow:visible}
+.rlt-edh{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.rlt-edp .rlt-ed{margin:0;border:0;border-top:1px solid #E5E7EB;border-radius:0 0 8px 8px}
+.rlt-ed .ul3-el{padding:12px 24px}
+.rlt-edp .rlt-ed .ul3-in[aria-invalid="true"]{border-color:#DC2626;box-shadow:0 0 0 3px #FEE2E2}
+.rlt-ed .rlt-l{font-size:14px}
+.rlt-ed .rlt-dock{position:sticky;bottom:0;z-index:3;padding:12px 24px;box-shadow:0 -6px 12px -10px rgba(31,41,55,.25)}
+@media (max-width:760px){
+ .rlt-chg{margin-left:0}
+ .rlt .askl-t colgroup,.rlt .askl-t thead{display:none}
+ .rlt .askl-t,.rlt .askl-t tbody,.rlt .askl-t tfoot{display:block}
+ .rlt .askl-t tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .rlt .askl-t tbody tr:first-child{border-top:0}
+ .rlt .askl-t td{display:block;padding:0!important;border:0!important}
+ .rlt .askl-t td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;font-size:12px;line-height:16px;color:#6B7280}
+ .rlt .askl-t td:first-child,.rlt .askl-t td.askl-a{grid-column:1/-1}
+ .rlt .askl-t tfoot td:empty{display:none}
+ .rlt .askl-t tfoot tr:first-child{border-top:1px solid #D1D5DB}
+ .rlt-t colgroup,.rlt-t thead{display:none}
+ .rlt-t,.rlt-t tbody{display:block}
+ .rlt-t tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .rlt-t tbody tr:first-child{border-top:0}
+ .rlt-t td{display:block;padding:0!important;border:0!important}
+ .rlt-t td.rlt-c2{grid-column:2;grid-row:1;text-align:right}
+ .rlt-t td.rlt-c2 .rlt-bar{display:none}
+ .rlt-t td.rlt-c3,.rlt-t td.rlt-c4{grid-column:1/-1}
+ .rlt-t td.rlt-c4{font-size:12px;line-height:16px}
+ .rlt-t td.rlt-c4 .rlt-av::before{content:"Your plan has "}
+ .rlt-t td.rlt-c4 .rlt-av::after{content:" available"}
+ .rlt-ed .ul3-el{padding:12px 16px}
+ .rlt-ed .rlt-dock{padding:12px 16px}
+ .rlt-edh{padding-left:16px;padding-right:16px}
+ .rlt-ro{max-width:none}
+}
 .rc-dd{max-width:212px}.rc-dd .dd{min-width:208px}
 .rc-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}.rc-dot.ok{background:var(--green-14)}.rc-dot.warn{background:#d97706}.rc-dot.mute{background:#9ca3af}
 .rc-stat{font-size:13px;white-space:nowrap}
@@ -13665,6 +13861,88 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .pg-avail .dd{width:auto}.pg-avail .dd-trig{height:auto;border:0;padding:0;font-size:12px;color:#1d4ed8;font-weight:500;background:transparent;box-shadow:none}.pg-avail .dd-trig .dd-val.is-ph{color:#1d4ed8}.pg-avail .dd-trig svg{display:none}.pg-avail .dd-menu{right:0;left:auto;min-width:220px}
 .sa-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}.sa-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#111827}.sa-row .cs{font-size:14px}
 .cp-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 220px;gap:24px;align-items:center;padding:16px 0;border-top:1px solid #f3f4f6}.cp-row:first-child{border-top:0}.cp-v{display:block;font-size:20px;line-height:24px;font-weight:600;color:#111827;margin-top:4px}
+/* change 271: Billing opens with the bill (fd/billing.html in Saleshandy's look: Inter, Gray 800 / 500 / 200,
+   Blue 700 actions; the payment-failed banner is the app's own and the only colour that needs you) */
+.bp-ans{display:flex;flex-direction:column;padding:0 0 4px}
+.bp-ans .ul3-p{margin-top:4px}
+.billpage .panel.bp-panel>.panel-h{padding:16px 24px;border-bottom:1px solid var(--gray-13);flex-wrap:wrap;row-gap:4px;column-gap:12px;align-items:baseline}
+.bp-panel .bp-hsub{font-size:14px;line-height:20px;color:#6B7280}
+.bp-panel .c-a .linkbtn{font-size:14px;line-height:20px}
+.ul-t.bp-t{table-layout:auto}
+.bp-t th.bp-c1{width:28%}.bp-t th.bp-c2{width:26%}.bp-t th.bp-c3{width:14%}.bp-t th.bp-share{width:20%}.bp-t th.bp-c5{width:12%}
+.bp-t td{vertical-align:middle;border-top:1px solid #E5E7EB}
+.bp-t tbody tr:first-child td{border-top:0}
+.bp-t td.bp-act{text-align:right;white-space:nowrap}
+@media (min-width:641px){.ul-t.bp-t th:first-child,.ul-t.bp-t td:first-child{padding-left:24px}.ul-t.bp-t th:last-child,.ul-t.bp-t td:last-child{padding-right:24px}}
+.bp-t td .ul3-sub{display:block}
+.bp-t .ul3-hb .pbw{width:72px}
+.bp-t td.bp-share .bp-sh-n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bp-t td.bp-share{max-width:0}
+.bp-nm{display:inline-flex;align-items:flex-start;gap:6px;padding:0;border:0;background:none;font:inherit;color:#1F2937;text-align:left;cursor:pointer}
+.bp-nm .bp-chev{display:inline-flex;flex:none;width:16px;height:20px;align-items:center;justify-content:center;color:#6B7280;transition:transform .15s}
+.bp-nm[aria-expanded=true] .bp-chev{transform:rotate(90deg)}
+.bp-nm:hover .ul3-rn{color:#1D4ED8}
+.bp-nm:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){.bp-nm .bp-chev{transition:none}}
+.bp-t .ul3-sub.bp-ind{margin-left:22px}
+.bp-t tr.bp-det>td,.bp-t tr.bp-buyrow>td{border-top:0;padding-top:0;padding-bottom:16px}
+.bp-det-in{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px 48px;margin-left:22px;padding:12px 16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:4px}
+.bp-det-in.is-single{margin-left:0}
+.bp-k,.bp-about dt{display:block;font-size:12px;line-height:16px;color:#6B7280}
+.bp-hist{margin-top:4px}
+.bp-hr{display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-top:1px solid #E5E7EB;font-size:14px;line-height:20px;color:#1F2937}
+.bp-hr:first-child{border-top:0}
+.bp-hr.bp-tot{font-weight:600}
+.bp-about{margin:0;display:grid;gap:12px;align-content:start}
+.bp-about dd{margin:2px 0 0;font-size:14px;line-height:20px;color:#1F2937}
+.bp-buy{margin-left:22px;padding:16px;border:1px solid #E5E7EB;border-radius:4px;background:#fff;display:grid;gap:12px;max-width:640px}
+.bp-buy-r{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.bp-buy-r label{font-size:14px;line-height:20px;font-weight:500;color:#1F2937}
+.bp-buy .ul-in{width:140px}
+.bp-cost{margin:0}
+.bp-buy-f{display:flex;gap:12px;flex-wrap:wrap}
+.bp-t tr.pg-focus>td{background:#EFF6FF}
+.bp-aos{padding:0 24px}
+.bp-ao{display:grid;grid-template-columns:160px minmax(0,1fr) auto;gap:4px 24px;align-items:baseline;padding:14px 0;border-top:1px solid #E5E7EB}
+.bp-ao:first-child{border-top:0}
+.bp-ao-k{font-size:14px;line-height:20px;color:#6B7280}
+.bp-ao-v{font-size:14px;line-height:20px;color:#1F2937;font-weight:500}
+.bp-ao-v .ul3-sub{font-weight:400}
+.bp-deny .panel-b{padding:32px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.bp-deny .ul3-p{margin:0}
+@media (max-width:1240px){.bp-t .bp-share{display:none}.bp-t th.bp-c1{width:32%}.bp-t th.bp-c2{width:32%}.bp-t th.bp-c3{width:20%}}
+@media (max-width:900px){
+ .setwrap.bswrap{grid-template-columns:minmax(0,1fr);gap:16px}
+ .setnav.bsnav{display:flex;flex-wrap:wrap;gap:4px}
+ .setnav.bsnav .bsnav-sec{display:contents}
+ .bsnav-cat,.bsnav-hr{display:none}
+ .setnav.bsnav button{width:auto}
+ .bs-plan-ov{width:100%;flex-wrap:wrap;gap:12px 32px;justify-content:flex-start}
+ .bs-plan-act{flex-wrap:wrap}
+}
+@media (max-width:640px){
+ .wrap.billwrap{padding:16px 16px 32px}
+ .bp-t thead{display:none}
+ .bp-t,.bp-t tbody,.bp-t tr,.bp-t td{display:block}
+ .bp-t tr.bp-r{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:4px;padding:14px 16px;border-top:1px solid #E5E7EB}
+ .bp-t tbody tr.bp-r:first-child{border-top:0}
+ .bp-t tr.bp-r>td{padding:0;border:0}
+ .bp-t tr.bp-r>td.bp-act{grid-column:2;grid-row:1}
+ .bp-t tr.bp-r>td[data-l]{grid-column:1/-1;padding-left:22px;white-space:normal}
+ .bp-t.is-single tr.bp-r>td[data-l]{padding-left:0}
+ .bp-t tr.bp-r>td[data-l]::before{content:attr(data-l) " ";color:#6B7280}
+ .bp-t td[data-l] .ul3-hb{display:inline}
+ .bp-t td[data-l] .pbw{display:none}
+ .bp-t td[data-l] .ul3-sub{display:inline;margin-left:4px}
+ .bp-t tr.bp-det>td,.bp-t tr.bp-buyrow>td{padding:0 16px 16px}
+ .bp-det-in{grid-template-columns:minmax(0,1fr);margin-left:0}
+ .bp-buy{margin-left:0}
+ .billpage .panel.bp-panel>.panel-h{padding:14px 16px}
+ .bp-aos{padding:0 16px}
+ .bp-ao{grid-template-columns:minmax(0,1fr) auto;gap:2px 16px}
+ .bp-ao-k{grid-column:1/-1;font-size:12px;line-height:16px}
+ .bp-ao .linkbtn{grid-column:2;grid-row:2}
+}
 /* ---------------------------------------------------------------------------
    change 147, 6 Oct 2026: UI polish pass from two measured audits. Spacing,
    sizing, alignment, type and state consistency only; no behaviour or copy.
@@ -13746,6 +14024,16 @@ input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1
 .nc-modal .nc-sum-e{display:none;grid-column:1/-1;margin:2px 0 0;text-align:right;font-size:12px;line-height:16px;color:#b91c1c;white-space:normal}
 .nc-modal #ncUsage .nc-sum-r.is-over .nc-sum-e{display:block}
 .nc-modal #ncUsage .nc-sum-r.is-over .nc-sum-h{display:none}
+/* change 272.2: slider mode shows "N available" under each number too; same tile height in both modes */
+.nc-modal #ncUsage .nc-sum-h{display:block;text-align:left;margin-top:0;font-size:12px;line-height:14px;font-variant-numeric:tabular-nums;grid-column:1/-1;grid-row:2}
+/* 272.4: the number sits alone on the right of line 1; "N available" is line 2 under the label, so the label keeps its width */
+.nc-modal #ncUsage .nc-sum-r{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:0;align-items:center;align-content:center}
+.nc-modal #ncUsage .nc-sum-v{display:contents}
+.nc-modal #ncUsage .nc-sum-in{grid-column:2;grid-row:1;justify-self:end}
+.nc-modal #ncUsage .nc-sum-r label{grid-column:1;grid-row:1}
+.nc-modal #ncUsage .nc-sum-e{grid-row:3}
+.nc-modal #ncUsage .nc-sum-r{height:48px;min-height:0;padding-top:3px;padding-bottom:3px;box-sizing:border-box}
+.nc-modal #ncUsage.nc-usage{gap:4px}.nc-modal .nc-moderow{margin:0}
 .nc-modal input#ncn.is-err,.nc-modal input#ncsite.is-err{border-color:#dc2626;box-shadow:0 0 0 3px #fee2e2}
 .nc-modal .nc-fielderr{margin:6px 0 16px;padding-left:64px;font-size:12px;line-height:18px}
 .nc-modal .nc-siteerr{margin:6px 0 0;padding-left:0}
@@ -14151,7 +14439,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="70e207f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="9b15747";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
