@@ -6026,6 +6026,7 @@ function ulBarHTML(){const ch=ulChanges(), over=UL_K().filter(k=>ulDfree(k)<0), 
   <button class="shd-button shd-button--secondary" data-uldiscard>Discard</button>
   <button class="shd-button shd-button--primary" data-ulreview${why?` disabled title="${why}"`:""}>Review changes</button>`}
 function ulLimitsHTML(ro){const W=ulRows(), ks=UL_K(), ed=UL.edit&&!ro;
+ return ed?ul3E2HTML():ul3RosterHTML(ro);   /* change 263: Edit limits is one resource at a time; the grid below is no longer reached */
  const right=ro?`<span class="sub">Read only.</span>`
   :ed?`<span class="ul-legend"><span><i class="ul-lg is-ch"></i>Changed</span><span><i class="ul-lg is-sg"></i>Suggested by a workspace</span><span class="sub">Tab moves right, Enter moves down</span></span>`
   :`<span class="sub">Each cell is used of that workspace's limit. Click a cell to change one limit.</span><button class="shd-button shd-button--secondary shd-button--sm nc-modebtn" data-uledit>${NC_PEN}Edit limits</button>`;
@@ -6038,6 +6039,287 @@ function ulLimitsHTML(ro){const W=ulRows(), ks=UL_K(), ed=UL.edit&&!ro;
  return `<div class="panel ul-panel${ed?" is-editing":""}" id="ulLimits"><div class="panel-h"><span class="panel-t">${ed?"Editing limits":"Limits"}</span><span class="sub ul-hsub">${ed?"A draft. No workspace changes until you review and apply.":W.length+" workspace"+(W.length===1?"":"s")}</span><span class="c-a">${right}</span></div>
   <table class="ul-t ul-grid">${cols}${head}<tbody>${body}</tbody>${foot}</table></div>
   ${ed?`<div class="ul-sticky" id="ulDraftBar">${ulBarHTML()}</div>`:""}`}
+/* ═══ change 259, 13 Oct 2026 (doc 98, Option A): Usage & limits answers "who needs me and what do I
+   decide" first. Headline, a queue of what needs you with one decision each, Your plan, then every
+   workspace by how close it is to a limit. Colour means "needs you" and nothing else. ═══ */
+const UL3_NM={sends:"Emails",lead_finder:"Lead Finder",verification:"Verification",ai:"AI credits",dialer:"Dialer",radar:"Inbox tests"};   /* the Dashboard's short names (change 232) */
+const UL3_GREY="#9CA3AF";   /* Gray 400: every bar on this page */
+/* 2 at its limit (needs you), 1 at 90% or more (worth a look), 0 otherwise */
+const ul3Lv=r=>!r||!(r.cap>0)?0:r.used>=r.cap?2:r.used/r.cap>=.9?1:0;
+const ul3Mk=(lv,t)=>lv===2?`<span class="ul3-mk">${t}</span>`:lv===1?`<span class="ul3-mku">${t}</span>`:t;
+const ul3Noun=k=>k==="sends"?"emails":RES[k].short;
+const ul3Unit=k=>k==="sends"?"emails":RES[k].unit;
+const ul3Month=()=>String(CYCLE.month).split(" ")[0];
+const ul3Others=(k,skip)=>ulReqs().filter(x=>x.res===k&&(x.ask||x.id)!==skip);
+const ul3Who=O=>listAnd([...new Set(O.map(x=>byId[x.client].name))]);
+/* a workspace at a limit that has not asked for that resource: its work stopped and nobody asked yet */
+function ul3Stops(){const asked=new Set(ulReqs().map(r=>r.client+"|"+r.res)), out=[];
+ ulRows().forEach(c=>{if(c.disabled) return; UL_K().forEach(k=>{const r=RES[k].rows[c.id]; if(r&&r.cap>0&&r.used>=r.cap&&!asked.has(c.id+"|"+k)) out.push({c,k,r})})}); return out}
+function ul3BuyHTML(k,gap){return `<span class="ul3-buy">Or ${canI("billing")?`<button type="button" class="linkbtn ul3-l" data-ulbuy="${k}">buy more in Billing</button>`:`<button type="button" class="linkbtn ul3-l" data-ulaskowner="${k}|${gap}">ask the Account Owner</button> to buy more`}</span>`}
+function ul3StopItem(s,ro){const {c,k,r}=s, R=RES[k], free=compute(k).free, O=ul3Others(k,null), oth=O.reduce((t,x)=>t+x.amount,0), who=ul3Who(O), u=ul3Unit(k);
+ const why=k==="sends"?`Used all ${f(r.cap)} emails for ${ul3Month()} and stopped sending.`:`Used all ${f(r.cap)} ${R.short}.`;
+ const fx=!free?`Nothing is available to give in your plan.`:!oth?`${f(free)} ${u} available in your plan.`
+  :free>oth?`${f(free)} ${u} available. Raising by up to ${f(free-oth)} still leaves the ${f(oth)} ${who} asked for.`
+  :`${f(free)} ${u} available, and ${who} asked for ${f(oth)}. Any raise here leaves less for that ask.`;
+ const act=ro?"":free?`<button type="button" class="shd-button shd-button--primary shd-button--sm" data-ulcell="${k}|${c.id}">Raise ${k==="sends"?"email":UL3_NM[k]} limit</button>`
+  :`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ulrebal="${k}">Rebalance</button>${ul3BuyHTML(k,1)}`;
+ return `<li class="ul3-q" data-ul3q="${c.id}|${k}"><div class="ul3-who"><span class="ul3-nm">${c.name}</span><span class="ul3-chip">${k==="sends"?"Stopped sending":"At its limit"}</span></div>
+  <div class="ul3-why"><p class="ul3-s">${why}</p><p class="ul3-fx">${fx}</p></div><div class="ul3-act">${act}</div></li>`}
+/* what giving this line does to the plan, counting the other asks on the same resource */
+function ul3Fx(r,a){const k=r.res, lf=compute(k).free, O=ul3Others(k,a.id), oth=O.reduce((t,x)=>t+x.amount,0), who=ul3Who(O), after=lf-r.amount, n=`${f(r.amount)} ${ul3Noun(k)}`;
+ if(after<0) return `${n} do not fit: ${lf?f(lf)+" available":"nothing is available"}${oth?`, and ${who} also asked for ${f(oth)}`:""}.${a.lines.length===1&&lf?` Giving ${f(lf)} of ${f(r.amount)} closes the ask.`:""}`;
+ if(oth>after) return `Giving ${f(r.amount)} leaves ${f(after)}, so the ${f(oth)} ${who} asked for would be short by ${f(oth-after)}.`;
+ return `${n} fit: ${f(lf)} available, ${f(after)} after${oth?`, enough for the ${f(oth)} ${who} asked for`:""}.`}
+function ul3DeclHTML(r){const c=byId[r.client];
+ return `<div class="ul3-decl"><input type="text" class="ul-note" data-nonote="${r.id}" placeholder="Note for ${c.name} (optional)" aria-label="Note ${c.name} reads with the decline"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-uldeclx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-no="${r.id}">Decline</button></div>`}
+/* one line's decision: the existing handlers (data-uldecl then data-no, data-ok, data-okpart, data-ulrebal) */
+function ul3LineParts(r,ro){if(ro) return {form:`<span class="ul3-g">Read only</span>`}; if(UL.decl===r.id) return {form:ul3DeclHTML(r)};
+ const k=r.res, lf=compute(k).free, dec=`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-uldecl="${r.id}">Decline</button>`;
+ if(lf>=r.amount) return {dec,go:`<button type="button" class="shd-button shd-button--primary shd-button--sm" data-ok="${r.id}">Give ${f(r.amount)} ${ul3Unit(k)}</button>`};
+ if(lf>0) return {dec,go:`<button type="button" class="shd-button shd-button--primary shd-button--sm" data-okpart="${r.id}">Give ${f(lf)} of ${f(r.amount)}</button>`};
+ return {dec,go:`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ulrebal="${k}">Rebalance</button>`,buy:ul3BuyHTML(k,r.amount)}}
+const ul3LineActs=(r,ro)=>{const x=ul3LineParts(r,ro); return x.form||x.dec+x.go+(x.buy||"")};
+function ul3AskItem(a,ro){const c=byId[a.client], L=a.lines, multi=L.length>1, open=UL.q3===a.id;
+ const amtT=r=>r.res==="sends"?`${f(r.amount)} more emails a month`:`${f(r.amount)} more ${RES[r.res].short}`;
+ const useT=(r,unit)=>{const x=RES[r.res].rows[r.client], u=unit?" "+ul3Noun(r.res):""; return x.used>=x.cap?`all ${f(x.cap)}${u}`:`${f(x.used)} of ${f(x.cap)}${u}`};
+ const why=`Asked for ${listAnd(L.map(amtT))}. Has used ${listAnd(L.map(r=>useT(r,multi)))}.`;
+ const fx=L.map(r=>ul3Fx(r,a)).join(" ");
+ const head=ro?`<span class="ul3-g">Read only</span>`:multi?`<button type="button" class="shd-button shd-button--${open?"secondary":"primary"} shd-button--sm" data-ul3open="${a.id}" aria-expanded="${open}" aria-controls="ul3l-${a.id}">${open?"Close":"Review ask"}</button>`:ul3LineActs(L[0],ro);
+ const many=ulAsks().filter(x=>x.client===c.id).length>1, allFit=L.every(r=>compute(r.res).free>=r.amount);
+ const lines=multi&&open?`<div class="ul3-lines" id="ul3l-${a.id}"><table class="ul3-lt"><tbody>${L.map(r=>{const x=ul3LineParts(r,ro); /* Decline and Give sit in their own columns, so the buttons line up row to row */
+    return `<tr data-ulline="${r.id}"><td><span class="ul3-ln">${amtT(r)}</span></td>${x.form?`<td class="ul3-lg" colspan="2">${x.form}</td>`:`<td class="ul3-ld">${x.dec}</td><td class="ul3-lg"><div class="ul3-acts">${x.go}${x.buy||""}</div></td>`}</tr>`}).join("")}
+    <tr class="ul3-all"><td></td><td class="ul3-ld"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${many?"|"+a.id:""}">Decline all</button></td><td class="ul3-lg">${allFit?`<button type="button" class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${many?"|"+a.id:""}">Give all</button>`:""}</td></tr></tbody></table></div>`:"";
+ return `<li class="ul3-q" data-ul3q="${a.id}"><div class="ul3-who"><span class="ul3-nm">${c.name}</span><span class="ul3-chip">Asked ${AGE(a.when).toLowerCase()}</span></div>
+  <div class="ul3-why"><p class="ul3-s">${why}</p>${a.note?`<p class="ul3-quote">&ldquo;${a.note}&rdquo;</p>`:""}<p class="ul3-fx">${fx}</p></div><div class="ul3-act">${head}</div>${lines}</li>`}
+function ul3AnswerHTML(ro){const S=ul3Stops(), A=ulAsks(), n=new Set(S.map(s=>s.c.id).concat(A.map(a=>a.client))).size;
+ const ids=new Set(myClientsForLimits().map(c=>c.id)), hasDec=ANSWERS.some(a=>ids.has(a.client));
+ const dec=hasDec?`<button type="button" class="linkbtn ul3-l" data-uldecided aria-expanded="${!!UL.decided}">${UL.decided?"Hide decided asks":"Decided asks"}</button>`:"";
+ const askers=[...new Set(A.map(a=>a.client))].map(id=>`<b>${byId[id].name}</b>`);
+ const parts=(askers.length?[`${listAnd(askers)} asked for more`]:[]).concat(S.map(s=>s.k==="sends"?`<b>${s.c.name}</b> used all its emails for ${ul3Month()} and stopped sending`:`<b>${s.c.name}</b> used all its ${RES[s.k].short}`));
+ const items=S.map(s=>ul3StopItem(s,ro)).concat(A.map(a=>ul3AskItem(a,ro))).join("");
+ return `<section class="ul3-ans" aria-labelledby="ul3H"><div class="ul3-hr"><h2 class="ul3-h" id="ul3H">${n?`${n} workspace${n===1?" needs":"s need"} more capacity`:"Nothing needs you"}</h2>${dec}</div>
+  <p class="ul3-p">${n?parts.join("; ")+".":"No asks are waiting and no workspace is at a limit."}</p>
+  ${n?`<ol class="panel ul3-qs" aria-label="Needs you">${items}</ol>`:""}${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
+function ul3PlanHTML(ro){const reqs=ulReqs(), owner=canI("billing");
+ const rows=UL_K().map(k=>{const R=RES[k], m=compute(k), free=m.free, want=reqs.filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0), short=want>free, p=R.pool>0?Math.round(m.caps/R.pool*100):0;
+  const ask=!want?"":short?`<span class="ul3-mk">${f(want)} asked, short by ${f(want-free)}</span>`:`${f(want)} <span class="ul3-g">fits</span>`;
+  const acts=short&&!ro?`<button type="button" class="linkbtn ul3-l" data-ulrebal="${k}">Rebalance</button>${owner?`<button type="button" class="linkbtn ul3-l" data-ulbuy="${k}">Buy more</button>`:`<button type="button" class="linkbtn ul3-l" data-ulaskowner="${k}|${want-free}">Ask the Account Owner</button>`}`:"";
+  return `<tr data-ul3plan="${k}"><td><span class="ul3-rn">${R.label}</span>${R.kind==="monthly"?`<span class="ul3-sub">Renews 1 Oct</span>`:""}</td><td class="ul3-num"><b>${f(free)}</b></td><td class="ul3-num">${ask}</td>
+   <td class="ul3-num">${f(m.caps)} <span class="ul3-g">of ${f(R.pool)}</span></td><td class="ul3-num">${f(m.used)}</td><td><span class="ul3-hb">${pbar(p,UL3_GREY)}<span class="ul3-g">${p}%</span></span></td><td class="ul3-pa">${acts}</td></tr>`}).join("");
+ return `<div class="panel ul-panel ul3-plan" id="ul3Plan"><div class="panel-h"><span class="panel-t">Your plan</span><span class="sub ul-hsub">${PLAN.name.replace(/\s*\(.*\)$/,"")} plan, day ${CYCLE.day} of ${CYCLE.days}. Emails renew on 1 Oct; credits last the plan term.</span></div>
+  <table class="ul-t ul3-pt"><colgroup><col style="width:20%"><col style="width:9%"><col style="width:19%"><col style="width:16%"><col style="width:9%"><col style="width:11%"><col></colgroup>
+   <thead><tr><th>Resource</th><th>Available</th><th>Asked for</th><th>Given to workspaces</th><th>Used</th><th>Share given</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div>`}
+/* the roster: by how close each workspace is to its closest limit; new and disabled ones last */
+function ul3Close(c){let b=null; UL_K().forEach(k=>{const r=RES[k].rows[c.id]; if(!r||!(r.cap>0)) return; const x=Math.min(1,r.used/r.cap); if(!b||x>b.x) b={k,r,x}}); return b}
+const ul3Quiet=c=>!!c.disabled||UL_K().every(k=>!RES[k].rows[c.id]||!RES[k].rows[c.id].used);
+const ul3Rank=c=>c.disabled?-2:ul3Quiet(c)?-1:ul3Close(c).x;
+function ul3RosterRows(){const asks=new Set(ulReqs().map(r=>r.client));
+ return ulRows().slice().sort((a,b)=>ul3Rank(b)-ul3Rank(a)||(asks.has(b.id)-asks.has(a.id))||a.name.localeCompare(b.name))}
+function ul3Item(k,c,ro){const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const rem=Math.max(0,r.cap-r.used), rp=r.cap>0?rem/r.cap*100:0;
+ const pen=!ul3CanEd(c,ro)?"":`<button type="button" class="ul3-pen" data-ul3ed="${c.id}|${k}" aria-label="Change ${c.name}'s ${R.label} limit" title="Change this limit">${NC_PEN}</button>`;
+ return apuItem(`<span class="ul3-lab">${R.label}${pen}</span>`,r.used,r.cap,{cls:"ul3-i",attr:` data-ul3i="${k}|${c.id}"`,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,UL3_GREY),rem:ul3Mk(ul3Lv(r),`${f(rem)} (${pbPct(rp)}%) Remaining`)})}
+function ul3Row(c,ro){const ed=!!UL.ed&&UL.ed.id===c.id, open=UL.open3===c.id||ed, q=ul3Quiet(c), b=q?null:ul3Close(c), A=ulReqs().filter(r=>r.client===c.id);
+ const sub=c.disabled?"Disabled":q&&wsState(c)==="New"?"New":"", can=ul3CanEd(c,ro), lock=ul3Dirty()&&!ed, dis=lock?" disabled":"";
+ const inner=q?"":`<span class="ul3-cl"><span class="ul3-cb">${pbar(b.x*100,UL3_GREY)}</span><span class="ul3-ct">${ul3Mk(ul3Lv(b.r),`${UL3_NM[b.k]} ${ulPct(b.r.used,b.r.cap)}%`)}</span></span>`;
+ /* change 263: the closest limit is the way in; it opens the six limits with that one ready to type */
+ const close=q?`<span class="ul3-g">${c.disabled?"Nothing used":"Nothing used yet"}</span>`
+  :can?`<button type="button" class="ul3-clb" data-ul3ed="${c.id}|${b.k}"${dis} aria-label="Change ${c.name}'s limits, ${UL3_NM[b.k]} ${ulPct(b.r.used,b.r.cap)}% used" title="Change limits">${inner}</button>`:inner;
+ const chg=can&&!ed?`<button type="button" class="linkbtn ul3-l ul3-chg" data-ul3ed="${c.id}|"${dis}>Change limits</button>`:"";
+ return `<tr class="ul3-r${open?" is-open":""}${ed?" is-ed":""}${c.disabled?" is-off":""}" data-ul3r="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
+  <td>${close}</td><td>${A.map(r=>`<span class="ul3-ar">${f(r.amount)} ${ul3Noun(r.res)}</span>`).join("")}</td>
+  <td><span class="ul3-ra">${chg}<button type="button" class="ul-fold" data-ul3x="${c.id}" aria-expanded="${open}" aria-controls="ul3x-${c.id}" aria-label="${open?"Hide":"Show"} ${c.name}'s limits"${ul3Dirty()?" disabled":""}>${ulCaret(open)}</button></span></td></tr>`
+  +(open?`<tr class="ul3-xr${c.disabled&&!ed?" is-off":""}${ed?" is-ed":""}" id="ul3x-${c.id}"><td colspan="4">${ed?ul3EdHTML(c):`<div class="ul3-xg">${UL_K().map(k=>ul3Item(k,c,ro)).join("")}</div>`}</td></tr>`:"")}
+/* ═══ change 263, 14 Oct 2026 (Hitesh, boards 1 and 2 of fd/edit-limits-explore.html): changing limits
+   stops being a 60-input grid. Everyday changes edit one workspace in place in the roster, with a move
+   from the workspace with most spare when the plan is short; Edit limits is one resource at a time for
+   the month-start rebalance. Both commit through ul3Commit, so asks close as giving them does. ═══ */
+const UL3_EDIT_OFF=true;   /* change 230: a Disabled workspace's limits still count and stay lowerable */
+const UL3_STOP={sends:"sending",lead_finder:"revealing leads",verification:"verifying emails",ai:"using AI",dialer:"calling",radar:"running inbox placement tests"};   /* change 251's words */
+const ul3CanEd=(c,ro)=>!ro&&(UL3_EDIT_OFF||!c.disabled);
+const ul3Dv=(D,k,id)=>{const x=D[k+"|"+id]; return x==null?RES[k].rows[id].cap:x};
+const ul3Free=(D,k)=>RES[k].pool-Object.keys(RES[k].rows).reduce((t,id)=>t+ul3Dv(D,k,id),0);
+function ul3Set(D,k,id,v){const key=k+"|"+id; if(v===RES[k].rows[id].cap) delete D[key]; else D[key]=v}
+function ul3Ch(D){const ord=ul3RosterRows().map(c=>c.id), out=[];
+ Object.keys(D).forEach(key=>{const [k,id]=key.split("|"), r=RES[k]&&RES[k].rows[id]; if(r&&D[key]!==r.cap) out.push({k,id,was:r.cap,v:D[key]})});
+ return out.sort((a,b)=>UL_K().indexOf(a.k)-UL_K().indexOf(b.k)||ord.indexOf(a.id)-ord.indexOf(b.id))}
+/* a change that stops a running resource (null when it was already stopped) */
+const ul3Below=x=>x.v<RES[x.k].rows[x.id].used||x.v===0;
+const ul3NewStop=x=>ul3Below(x)&&RES[x.k].rows[x.id].cap>RES[x.k].rows[x.id].used;
+const ul3StopLab=(L,base)=>{const n=[...new Set(L.filter(ul3NewStop).map(x=>UL3_STOP[x.k]))]; return n.length?`${base.split(" ")[0]} and stop ${listAnd(n)}`:base};
+const ul3Dirty=()=>!!UL.ed&&ul3Ch(UL.ed.D).length>0;
+const ul3Ask=(id,k)=>byId[id].disabled?null:ulReqs().find(x=>x.client===id&&x.res===k)||null;
+const ul3N=(n,w)=>`${f(n)} ${w}${n===1?"":"s"}`;
+const ul3Dot=t=>/\.$/.test(t)?t:t+".";
+
+/* the consequence line of one limit, record-limits wording, aware of every other change in the draft */
+function ul3EdFx(D,k,id){const r=RES[k].rows[id], L=r.cap, U=r.used, v=ul3Dv(D,k,id), d=v-L, after=ul3Free(D,k), bef=Math.max(0,after+d), mon=k==="sends";
+ if(after<0&&d>0) return {bad:true,short:-after,html:`Was ${f(L)}. Up to ${f(L+bef)} with the ${f(bef)} available.`};
+ if(d&&ul3Below({k,id,v})){const still=L<=U;
+  return {stop:true,html:`<span class="ul3-mk">${still?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`Below the ${f(U)} already used${mon?" this month":""}.`:"The limit is 0."} ${mon?"Nothing sends until 1 Oct or until you raise it.":"It stays stopped until you raise it."}`}}
+ if(d>0){const took=ul3Ch(D).filter(x=>x.k===k&&x.id!==id&&x.v<x.was);
+  if(took.length){const fw=Math.min(d,took.reduce((t,x)=>t+x.was-x.v,0)), fp=d-fw, nm=listAnd(took.map(x=>byId[x.id].name));
+   return {html:`Was ${f(L)}. Uses ${f(d)}: ${fp?`${f(fp)} from your plan and ${f(fw)} from ${nm}`:`all of it from ${nm}`}; ${f(after)} available after.`}}
+  return {html:`Was ${f(L)}. Uses ${f(d)} of the ${f(after+d)} available; ${f(after)} after.`}}
+ if(d<0) return {html:`Was ${f(L)}. Gives ${f(-d)} back; ${f(after)} available after.`};
+ return {html:`Up to ${f(L+bef)} with the ${f(bef)} available.`}}
+function ul3FxLine(D,k,id){const e=ul3EdFx(D,k,id), r=RES[k].rows[id], d=ul3Dv(D,k,id)-r.cap, q=ul3Ask(id,k); let s=e.html;
+ if(q&&!e.bad&&!e.stop){if(d>0) s+=d>=q.amount?" Fills the ask.":` Part of the ${f(q.amount)} asked.`;
+  if(d<q.amount) s+=` <button type="button" class="linkbtn ul3-l" data-ul3fill="${k}">Give the ${f(q.amount)} asked</button>`}
+ return s}
+/* who can give: not this workspace, not a new one, enough spare above what it has used to close the gap */
+function ul3Donors(D,k,id,short){const sp=c=>ul3Dv(D,k,c.id)-RES[k].rows[c.id].used;
+ return ulRows().filter(c=>c.id!==id&&RES[k].rows[c.id]&&wsState(c)!=="New"&&ul3CanEd(c,false)&&sp(c)>=short).sort((a,b)=>sp(b)-sp(a)||a.name.localeCompare(b.name))}
+function ul3TakeLine(D,k,id){const e=ul3EdFx(D,k,id); if(!e.bad) return ""; const s=e.short, ds=ul3Donors(D,k,id,s), mk=`<span class="ul3-mk">Short by ${f(s)}</span>`;
+ if(!ds.length) return `<div class="ul3-take">${mk}<span>No workspace has ${f(s)} to spare.</span>${canI("billing")?`<button type="button" class="linkbtn ul3-l" data-ul3buy="${k}">Buy more in Billing</button>`:`<button type="button" class="linkbtn ul3-l" data-ul3owner="${k}|${s}">Ask the Account Owner to buy more</button>`}</div>`;
+ const cur=UL.ed.donor[k]&&ds.some(c=>c.id===UL.ed.donor[k])?UL.ed.donor[k]:ds[0].id;
+ return `<div class="ul3-take">${mk}<label for="ul3dn-${k}">Take it from</label><select id="ul3dn-${k}" class="ul3-sel" data-ul3donor="${k}">${ds.map(c=>`<option value="${c.id}"${c.id===cur?" selected":""}>${c.name}, ${c.disabled?"disabled, ":""}${f(ul3Dv(D,k,c.id)-RES[k].rows[c.id].used)} spare</option>`).join("")}</select><button type="button" class="linkbtn ul3-l" data-ul3take="${k}|${s}">Take ${f(s)}</button></div>`}
+function ul3AlsoHTML(D,id){return ul3Ch(D).filter(x=>x.id!==id).map(x=>`<div class="ul3-also"><span class="ul3-g">Also changes</span><span class="ul3-at"><b>${byId[x.id].name}</b> ${RES[x.k].label} ${f(x.was)} to ${f(x.v)}, ${f(RES[x.k].rows[x.id].used)} used.</span><button type="button" class="linkbtn ul3-l" data-ul3untake="${x.k}|${x.id}" aria-label="Remove the change to ${byId[x.id].name}">Remove</button></div>`).join("")}
+/* what saving does to this workspace's ask: approved in full, a line partly given and closed, a line left open */
+function ul3AskNote(D,id){const g=ulReqs().filter(r=>r.client===id).map(r=>({r,d:ul3Dv(D,r.res,id)-RES[r.res].rows[id].cap})), hit=g.filter(x=>x.d>0); if(!hit.length) return "";
+ const full=hit.filter(x=>x.d>=x.r.amount), part=hit.filter(x=>x.d<x.r.amount), open=g.filter(x=>x.d<=0), amt=x=>`${f(x.r.amount)} ${ul3Noun(x.r.res)}`;
+ if(!part.length&&!open.length) return " Approves its ask.";
+ const t=[]; if(full.length) t.push(`approves the ${listAnd(full.map(amt))} asked`); part.forEach(x=>t.push(`gives ${f(x.d)} of the ${amt(x)} asked and closes that line`));
+ const s=" "+t.join("; "); return s.charAt(0)+s.charAt(1).toUpperCase()+s.slice(2)+"."+(open.length?` The ask for ${listAnd(open.map(amt))} stays open.`:"")}
+function ul3TellNote(ch){const W=[...new Set(ch.map(x=>x.id))].filter(id=>!byId[id].own); return !W.length?"":W.length===1?(ch.every(x=>x.id===W[0])?" Its admins get a notice.":` ${byId[W[0]].name}'s admins get a notice.`):W.length===2?" Both workspaces' admins get a notice.":" Their admins get a notice."}
+function ul3DockHTML(c){const D=UL.ed.D, id=c.id, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), own=ch.filter(x=>x.id===id).concat(ch.filter(x=>x.id!==id)), st=ch.filter(ul3NewStop);
+ const msg=!n?"No changes yet."
+  :over.length?`${listAnd(over.map(k=>RES[k].label))} ${over.length>1?"are":"is"} above what your plan has. Lower it, or take the difference from another workspace.`
+  :`${ul3N(n,"change")}: ${listAnd(own.map(x=>`${x.id===id?"":byId[x.id].name+" "}${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${ul3AskNote(D,id)}${ul3TellNote(ch)}`;
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ul3cancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3save${!n||over.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
+function ul3EdHTML(c){const id=c.id, D=UL.ed.D;
+ const lines=UL_K().filter(k=>RES[k].rows[id]).map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=ul3EdFx(D,k,id).bad;
+  return `<div class="ul3-el" data-ul3el="${k}"><label class="ul3-elab" for="ul3in-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
+   <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" id="ul3in-${k}" data-ul3in="${k}" value="${f(v)}" aria-invalid="${!!bad}" aria-describedby="ul3fx-${k}">
+   <div class="ul3-efx" id="ul3fx-${k}" data-ul3fx="${k}">${ul3FxLine(D,k,id)}</div><div class="ul3-tk" data-ul3tk="${k}">${ul3TakeLine(D,k,id)}</div></div>`}).join("");
+ return `<div class="ul3-ed" data-ul3edbox="${id}" role="group" aria-label="Change ${c.name}'s limits">${lines}<div class="ul3-als" data-ul3also>${ul3AlsoHTML(D,id)}</div><div class="ul3-dock" data-ul3dock>${ul3DockHTML(c)}</div></div>`}
+/* typing repaints what depends on it, not the page, so the caret stays */
+function ul3EdPaint(){const E=UL.ed; if(!E) return; const box=document.querySelector(`[data-ul3edbox="${E.id}"]`); if(!box) return; const D=E.D, id=E.id;
+ box.querySelectorAll("[data-ul3fx]").forEach(n=>n.innerHTML=ul3FxLine(D,n.dataset.ul3fx,id));
+ box.querySelectorAll("[data-ul3tk]").forEach(n=>n.innerHTML=ul3TakeLine(D,n.dataset.ul3tk,id));
+ box.querySelectorAll("[data-ul3in]").forEach(i=>{const k=i.dataset.ul3in; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad))});
+ box.querySelector("[data-ul3also]").innerHTML=ul3AlsoHTML(D,id); box.querySelector("[data-ul3dock]").innerHTML=ul3DockHTML(byId[id]); ul3Lock()}
+/* while a row holds unsaved changes, no other row (and not Edit limits) can be opened */
+function ul3Lock(){const dirty=ul3Dirty(), me=UL.ed&&UL.ed.id;
+ q2("[data-ul3ed]").forEach(b=>{b.disabled=dirty&&b.dataset.ul3ed.split("|")[0]!==me});
+ q2("[data-ul3x]").forEach(b=>{b.disabled=dirty}); q2("[data-uledit]").forEach(b=>{b.disabled=dirty; b.title=dirty?"Save or cancel the open workspace first":""})}
+function ul3EdOpen(id,k){if(ul3Dirty()&&UL.ed.id!==id) return; if(!UL.ed||UL.ed.id!==id) UL.ed={id,D:{},donor:{}};
+ const c=byId[id], b=ul3Quiet(c)?null:ul3Close(c); UL.open3=id; UL.cell=null; ulLayer().innerHTML=""; UL.ul3f="#ul3in-"+(k||(b&&b.k)||UL_K().find(x=>RES[x].rows[id])); render()}
+function ul3EdClose(){const id=UL.ed&&UL.ed.id; UL.ed=null; UL.ul3f=`[data-ul3ed="${id}|"]`; render()}
+/* one commit for both flows: lowered limits first through setLimit, an ask on a raised line closes as giving it does */
+function ul3Commit(D,verb){const ch=ul3Ch(D); if(!ch.length||UL_K().some(k=>ul3Free(D,k)<0)) return false;
+ const reqs=ulReqs().filter(r=>ch.some(x=>x.k===r.res&&x.id===r.client&&x.v>x.was)), give={};
+ reqs.forEach(r=>{const x=ch.find(y=>y.k===r.res&&y.id===r.client); give[r.id]=Math.min(r.amount,x.v-x.was)});
+ const prev=ch.map(x=>({k:x.k,id:x.id,was:x.was,custom:RES[x.k].rows[x.id].custom}));
+ const restore=()=>prev.forEach(p=>{const r=RES[p.k].rows[p.id]; r.cap=p.was; r.custom=p.custom; syncRes(p.k,r)});
+ for(const x of ch.slice().sort((a,b)=>(a.v-a.was)-(b.v-b.was))){const q=reqs.find(r=>r.res===x.k&&r.client===x.id);
+  if(!setLimit(x.k,x.id,x.v,q?(give[q.id]<q.amount?`partly approves the ask from ${AGE(q.when).toLowerCase()}, ${f(give[q.id])} of ${f(q.amount)}; the line is closed`:`approves the ask from ${AGE(q.when).toLowerCase()}`):"set on Usage & limits")){
+   restore(); const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; receipt("ul",t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; renderToast(); return false}}
+ const ans=reqs.map(r=>{const R=RES[r.res], g=give[r.id], a=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap},g<r.amount?{amount:g,asked:r.amount}:{}); ANSWERS.push(a); return a});
+ REQUESTS=REQUESTS.filter(r=>reqs.indexOf(r)<0);
+ const n=ch.length, ids=[...new Set(ch.map(x=>x.id))], told=ids.filter(id=>!byId[id].own), nP=reqs.filter(r=>give[r.id]<r.amount).length, nF=reqs.length-nP;
+ const asks=[nF?`${ul3N(nF,"ask line")} approved`:"",nP?`${ul3N(nP,"ask line")} partly approved and closed`:""].filter(Boolean);
+ const text=ul3Dot(`${verb} ${ul3N(n,"change")} ${verb==="Saved"?"for":"to"} ${verb==="Saved"?listAnd(ids.map(id=>byId[id].name)):ul3N(ids.length,"workspace")}${asks.length?"; "+asks.join(", "):""}`)+(told.length?` ${told.length===1?"Its":"Their"} admins were told.`:"");
+ receipt("ul",text,()=>{restore(); ans.forEach(a=>{const i=ANSWERS.indexOf(a); if(i>-1) ANSWERS.splice(i,1)}); reqs.forEach(r=>REQUESTS.push(r))},`${verb.toLowerCase()} ${ul3N(n,"limit change")}`);
+ return true}
+
+/* ── Edit limits: one resource at a time, the draft (UL.draft) carried across tabs ── */
+const ul3E2K=()=>UL_K().indexOf(UL.focusK)>-1?UL.focusK:UL_K()[0];
+function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=ul3Ask(c.id,k), U=r.used; let s;
+ if(d&&ul3Below({k,id:c.id,v})) s=`<span class="ul3-mk">${r.cap<=U?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`Below the ${f(U)} used.`:"The limit is 0."}`;
+ else if(d) s=`${d>0?"+":"&minus;"}${f(Math.abs(d))}${q&&d>0?(d>=q.amount?". Fills the ask.":`. Part of the ${f(q.amount)} asked.`):""}`;
+ else s=`<span class="ul3-g">${r.cap>0?ul3Mk(ul3Lv(r),`${ulPct(U,r.cap)}% used`):"No limit"}${q?`${ul3Lv(r)===2?" ":". "}Asked for ${f(q.amount)}.`:""}</span>`;   /* no full stop after a solid mark */
+ if(q&&d<q.amount) s+=` <button type="button" class="linkbtn ul3-l" data-ul3give2="${k}|${c.id}">Give ${f(q.amount)}</button>`;
+ return s}
+function ul3PoolHTML(k){const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;
+ return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
+  <div class="ul3-pi"><span>Available</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
+const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
+function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
+ const msg=!n?`No changes yet. Your plan has ${f(compute(k).free)} ${RES[k].label} available.`
+  :over.length?`<span class="ul3-mk">Above your plan: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}.</span> Lower a limit to review.`
+  :`${ul3N(n,"change")} across ${ul3N(nW,"workspace")}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}`;
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3rv${!n||over.length?" disabled":""}>${n?`Review ${ul3N(n,"change")}`:"Review changes"}</button></span>`}
+const ul3TabN=x=>{const n=ulChanges().filter(y=>y.k===x).length; return n?`${n} changed`:""};
+function ul3E2Paint(id){const k=ul3E2K(), P=document.querySelector(".ul3-e2"); if(!P) return;
+ const pool=P.querySelector("[data-ul3pool]"); if(pool) pool.innerHTML=ul3PoolHTML(k);
+ P.querySelectorAll("[data-ul3tabn]").forEach(s=>{s.textContent=ul3TabN(s.dataset.ul3tabn)});
+ (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i) i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap)});
+ const d=P.querySelector("[data-ul3e2dock]"); if(d) d.innerHTML=ul3E2DockHTML()}
+/* what each workspace reads, from the same numbers Apply writes */
+function ul3Notice(x){const c=byId[x.id], later=c.disabled?" Its users see this once it is enabled.":""; return ul3Notice1(x)+later}
+function ul3Notice1(x){const k=x.k, r=RES[k].rows[x.id], q=ul3Ask(x.id,k), up=x.v>x.was, lim=`${k==="sends"?"Email":UL3_NM[k]} limit ${up?"raised":"lowered"} to ${f(x.v)}`;
+ if(byId[x.id].own) return `${lim}. Your own workspace: nobody else is told.`;
+ if(ul3NewStop(x)) return `<span class="ul3-mk">Stops ${UL3_STOP[k]}</span> ${lim}${x.v<r.used?`, below the ${f(r.used)} used`:""}; ${k==="sends"?"until 1 Oct or until you raise it":"until you raise it"}.`;
+ if(q&&up) return x.v-x.was>=q.amount?`Ask approved. ${lim}.`:`Ask partly approved: ${f(x.v-x.was)} of ${f(q.amount)}, and the line closes. ${lim}.`;
+ if(k==="sends"&&r.used>=x.was&&up) return `${lim}. Paused sequences can send again.`;
+ return `${lim}.`}
+function ul3E2ReviewHTML(){const ch=ulChanges(), n=ch.length, ks=UL_K().filter(k=>ch.some(x=>x.k===k)), reqs=ulReqs();
+ const lost=[...new Set(ch.filter(x=>x.v<x.was&&!byId[x.id].own).map(x=>byId[x.id].name))];
+ const rows=ch.map(x=>`<tr data-ul3rvl="${x.k}|${x.id}"><td><span class="ul-nm">${byId[x.id].name}</span></td><td>${RES[x.k].label}</td><td class="ul3-num">${f(x.was)}</td><td class="ul3-num"><b>${f(x.v)}</b></td><td>${ul3Notice(x)}</td></tr>`).join("");
+ const plan=ks.map(k=>{const still=reqs.filter(r=>r.res===k&&ulDv(k,r.client)<=RES[k].rows[r.client].cap).map(r=>byId[r.client].name);
+  return `<tr data-ul3rvres="${k}"><td><span class="ul-nm">${RES[k].label}</span></td><td class="ul3-num">${f(compute(k).free)}</td><td class="ul3-num"><b>${f(ulDfree(k))}</b></td><td>${still.length?listAnd(still):"None"}</td></tr>`}).join("");
+ return `<div class="ul3-rv" role="region" aria-labelledby="ul3RvT"><p class="ul3-rvl">Each workspace's admins get the notice shown${lost.length?`; ${listAnd(lost)} ${lost.length>1?"lose":"loses"} capacity without asking`:""}.</p>
+  <h3 class="ul3-rvh">Limits</h3><table class="ul-t ul3-rvt"><colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:10%"><col></colgroup><thead><tr><th>Workspace</th><th>Limit</th><th>From</th><th>To</th><th>Notice to the workspace</th></tr></thead><tbody>${rows}</tbody></table>
+  <h3 class="ul3-rvh">Your plan after this</h3><table class="ul-t ul3-rvt"><colgroup><col style="width:42%"><col style="width:20%"><col style="width:14%"><col></colgroup><thead><tr><th>Resource</th><th>Available now</th><th>After</th><th>Asks still open</th></tr></thead><tbody>${plan}</tbody></table></div>
+  <div class="ul3-e2d"><p class="ul3-dm">${ul3N(n,"change")} to ${ul3N(new Set(ch.map(x=>x.id)).size,"workspace")}. Nothing changes until you apply.</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ul3back>Back to editing</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3apply>${ul3StopLab(ch,`Apply ${ul3N(n,"change")}`)}</button></span></div>`}
+function ul3E2HTML(){const k=ul3E2K(), R=RES[k], n=ulChanges().length;
+ if(UL.rv2&&n&&!ul3E2Over().length) return `<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div>`;
+ UL.rv2=false;
+ const W=ul3RosterRows().filter(c=>RES[k].rows[c.id]);
+ const tabs=UL_K().map(x=>`<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}">${RES[x].label}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`).join("");
+ const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New":"";
+  return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
+   <td class="ul3-num">${f(r.used)}<span class="ul3-nu"> used</span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit"${ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
+ return `<div class="panel ul-panel ul3-e2" id="ulLimits"><div class="panel-h"><span class="panel-t">Edit limits</span><span class="sub ul-hsub">A draft. Nothing changes until you review and apply.</span></div>
+  <div class="ul3-e2h"><div class="ul3-tabs" role="tablist" aria-label="Resource">${tabs}</div><div class="ul3-pool" data-ul3pool aria-live="polite">${ul3PoolHTML(k)}</div></div>
+  <table class="ul-t ul3-e2t" id="ul3E2T" role="tabpanel" aria-labelledby="ul3tab-${k}"><colgroup><col style="width:34%"><col style="width:12%"><col style="width:168px"><col></colgroup>
+   <thead><tr><th>Workspace</th><th>Used</th><th>Limit</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="ul3-e2d" data-ul3e2dock>${ul3E2DockHTML()}</div></div>`}
+function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.acc={}; UL.dis={}; UL.focusK=null}
+/* after a render: the locks, and the focus an action asked for */
+function ul3Wire(){if(UL.ed&&!byId[UL.ed.id]) UL.ed=null; ul3Lock();
+ if(UL.ul3f){const n=document.querySelector(UL.ul3f); UL.ul3f=null; if(n){n.focus({preventScroll:true}); if(n.select) n.select(); const r=n.getBoundingClientRect(); if(r.top<60||r.bottom>innerHeight-40) n.scrollIntoView({block:"center"})}}}
+/* one listener per event for both flows, so a partial repaint never needs rewiring */
+document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency") return;
+ const t=e.target.closest("[data-ul3ed],[data-ul3fill],[data-ul3take],[data-ul3untake],[data-ul3save],[data-ul3cancel],[data-ul3buy],[data-ul3owner],[data-ul3tab],[data-ul3give2],[data-ul3rv],[data-ul3back],[data-ul3apply],[data-ul3discard],[data-uledit]");
+ if(!t||t.disabled) return; const d=t.dataset, E=UL.ed;
+ if(d.uledit!=null){UL.ed=null; UL.rv2=false; return}   /* ulWire opens Edit limits */
+ e.stopPropagation();
+ if(d.ul3ed!=null){const [id,k]=d.ul3ed.split("|"); ul3EdOpen(id,k); return}
+ if(E&&d.ul3fill){const k=d.ul3fill, q=ul3Ask(E.id,k); if(!q) return; ul3Set(E.D,k,E.id,RES[k].rows[E.id].cap+q.amount); const i=el("ul3in-"+k); if(i) i.value=f(ul3Dv(E.D,k,E.id)); ul3EdPaint(); if(i) i.focus(); return}
+ if(E&&d.ul3take){const [k,s]=d.ul3take.split("|"), sel=el("ul3dn-"+k), dn=sel&&sel.value; if(!dn) return; ul3Set(E.D,k,dn,ul3Dv(E.D,k,dn)-(+s)); ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
+ if(E&&d.ul3untake){const [k,id]=d.ul3untake.split("|"); delete E.D[k+"|"+id]; ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
+ if(E&&d.ul3save!=null){const id=E.id; if(ul3Commit(E.D,"Saved")){UL.ed=null; UL.open3=id; UL.ul3f=`[data-ul3x="${id}"]`} render(); return}
+ if(E&&d.ul3cancel!=null){ul3EdClose(); return}
+ if(d.ul3buy){ctx="agency"; view={name:"credits"}; billTab=BS_BUY[d.ul3buy]||"plan"; render(); return}
+ if(d.ul3owner){const [k,n]=d.ul3owner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast(); return}
+ if(d.ul3tab){UL.focusK=d.ul3tab; UL.ul3f="#ul3tab-"+d.ul3tab; render(); return}
+ if(d.ul3give2){const [k,id]=d.ul3give2.split("|"), q=ul3Ask(id,k); if(!q) return; UL.draft[k+"|"+id]=RES[k].rows[id].cap+q.amount; const i=document.querySelector(`[data-uld="${k}|${id}"]`); if(i) i.value=f(ulDv(k,id)); ul3E2Paint(id); return}
+ if(d.ul3rv!=null){UL.rv2=true; UL.ul3f="[data-ul3apply]"; render(); const P=el("ulLimits"); if(P&&P.getBoundingClientRect().top<0) P.scrollIntoView({block:"start"}); return}
+ if(d.ul3back!=null){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
+ if(d.ul3apply!=null){if(ul3Commit(UL.draft,"Applied")) ul3E2Close(); render(); return}
+ if(d.ul3discard!=null){ul3E2Close(); UL.ul3f="[data-uledit]"; render(); return}},true);
+document.addEventListener("input",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
+ if(t.dataset&&t.dataset.ul3in&&UL.ed){ul3Set(UL.ed.D,t.dataset.ul3in,UL.ed.id,ulNum(t.value)); ul3EdPaint(); return}
+ if(t.dataset&&t.dataset.uld&&t.closest(".ul3-e2")){const [k,id]=t.dataset.uld.split("|"), v=ulNum(t.value); if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v; ul3E2Paint(id)}});
+document.addEventListener("change",e=>{const t=e.target; if(!t.dataset||!t.dataset.ul3donor||!UL.ed) return; UL.ed.donor[t.dataset.ul3donor]=t.value});
+document.addEventListener("focusout",e=>{const t=e.target; if(t.dataset&&t.dataset.ul3in&&UL.ed&&t.isConnected) t.value=f(ul3Dv(UL.ed.D,t.dataset.ul3in,UL.ed.id))});
+document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
+ if(t.dataset&&t.dataset.ul3in&&e.key==="Enter"){e.preventDefault(); const all=[...q2("[data-ul3in]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-ul3save]:not(:disabled)"); if(n) n.focus(); return}
+ if(e.key==="Escape"&&UL.ed&&t.closest&&t.closest("[data-ul3edbox]")&&!ul3Dirty()&&t.tagName!=="SELECT"){e.stopImmediatePropagation(); ul3EdClose(); return}
+ if(e.key==="Escape"&&UL.edit&&UL.rv2){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
+ if(t.dataset&&t.dataset.ul3tab&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){const K=UL_K(), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
+
+function ul3RosterHTML(ro){const W=ul3RosterRows();
+ return `<div class="panel ul-panel ul3-roster" id="ulLimits"><div class="panel-h"><span class="panel-t">${W.length===1?"Your workspace":`All ${W.length} workspaces`}</span><span class="sub ul-hsub">Sorted by how close each is to a limit</span>
+   <span class="c-a">${ro?`<span class="sub">Read only.</span>`:`<button class="shd-button shd-button--secondary shd-button--sm nc-modebtn" data-uledit>${NC_PEN}Edit limits</button>`}</span></div>
+  <table class="ul-t ul3-t"><colgroup><col style="width:34%"><col style="width:28%"><col><col class="ul3-cact" style="width:184px"></colgroup>
+   <thead><tr><th>Workspace</th><th>Closest to its limit</th><th>Asked for</th><th aria-label="Show limits"></th></tr></thead><tbody>${W.map(c=>ul3Row(c,ro)).join("")}</tbody></table></div>`}
+/* focus returns to the chevron only for the keyboard, so a mouse click leaves no ring */
+function ul3Toggle(id,kb){if(ul3Dirty()) return; UL.ed=null;   /* change 263 */
+ UL.open3=UL.open3===id?null:id; UL.cell=null; ulLayer().innerHTML=""; render();
+ const b=document.querySelector(`[data-ul3x="${id}"]`); if(b&&kb) b.focus({preventScroll:true})}
+
 function vLimits(){
  if(!canI("limits")) return denied("see usage and limits");
  const W=ulRows(), ro=ulRo(), cl=W.filter(c=>!c.own);
@@ -6045,7 +6327,7 @@ function vLimits(){
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
    <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the asks they send you. Add a workspace and give it limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
- return `<div class="wrap ul-wrap">${graceBanner()}${sub}${ulAsksHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
+ return `<div class="wrap ul-wrap">${graceBanner()}${ul3AnswerHTML(ro)}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
@@ -6055,13 +6337,13 @@ function ulCellFx(){const [k,id]=UL.cell.split("|"), R=RES[k], r=R.rows[id], c=b
   ${over?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>Limits for ${R.label} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. The most ${c.name} can have is ${f(r.cap+free)}.</span></div>`:""}
   ${UL.cellErr?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>${UL.cellErr}</span></div>`:""}
   ${!over&&v<r.used?`<div class="msg m-warn ul-pop-m">${warnI}<span>Below the ${f(r.used)} ${c.own?"you have":first+" has"} used: ${R.label} stop${R.label.endsWith("s")?"":"s"} for ${c.own?"your workspace":first} now.</span></div>`:""}
-  ${q?`<p class="sub ul-pop-q">${first} asked for ${f(q.amount)} more. Saving here does not answer the ask; decide it in Asks.</p>`:""}
+  ${q?`<p class="sub ul-pop-q">${first} asked for ${f(q.amount)} more. Saving here does not answer the ask; decide it at the top of this page.</p>`:""}
   <div class="ul-pop-f"><button class="shd-button shd-button--secondary shd-button--sm" data-ulcellx>Cancel</button><button class="shd-button shd-button--primary shd-button--sm" data-ulcellsave${over||v===r.cap?" disabled":""}>Save</button></div>`}
 function ulCellHTML(){const [k,id]=UL.cell.split("|"), R=RES[k], r=R.rows[id], c=byId[id], v=UL.cellV==null?r.cap:UL.cellV;
  return `<div class="ul-pop" role="dialog" aria-label="Change ${c.name}'s ${R.label} limit" id="ulPop"><div class="ul-pop-h"><span class="ul-nm">${R.label}</span><span class="sub">${c.name} &middot; ${f(r.used)} used of ${f(r.cap)}</span></div>
   <label class="ul-pop-l" for="ulPopIn">New limit</label><input id="ulPopIn" class="ul-in" type="text" inputmode="numeric" value="${f(v)}" autocomplete="off">
   <div id="ulPopFx">${ulCellFx()}</div></div>`}
-function ulPlacePop(){const P=el("ulPop"); if(!P||!UL.cell) return; const b=document.querySelector(`[data-ulcell="${UL.cell}"]`); if(!b){UL.cell=null;ulLayer().innerHTML="";return}
+function ulPlacePop(){const P=el("ulPop"); if(!P||!UL.cell) return; const b=UL.cellSrc&&UL.cellSrc.isConnected&&UL.cellSrc.dataset.ulcell===UL.cell?UL.cellSrc:document.querySelector(`[data-ulcell="${UL.cell}"]`);   /* change 259: the queue and the roster can both carry one cell */ if(!b){UL.cell=null;ulLayer().innerHTML="";return}
  const R=b.getBoundingClientRect(), w=P.offsetWidth, h=P.offsetHeight; let x=Math.min(Math.max(8,R.left), innerWidth-w-8), y=R.bottom+6; if(y+h>innerHeight-8) y=Math.max(8,R.top-h-6);
  P.style.left=x+"px"; P.style.top=y+"px"}
 function ulNotice(c,lines,open){const first=c.name.split(" ")[0];
@@ -6146,6 +6428,15 @@ function ulWire(){const L=ulLayer();
   i.onfocus=()=>{i.select()};
   i.onblur=()=>{const [k,id]=i.dataset.uld.split("|"); i.value=f(ulDv(k,id))};
   i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const [k,id]=i.dataset.uld.split("|"), all=[...q2(`[data-uld^="${k}|"]`)].filter(x=>!x.disabled), n=all[all.indexOf(i)+1]; i.blur(); if(n) n.focus()}}});
+ /* change 259 */
+ q2("[data-ul3open]").forEach(b=>b.onclick=e=>{const a=b.dataset.ul3open, kb=e.detail===0; UL.q3=UL.q3===a?null:a; UL.decl=null; render();
+  const n=document.querySelector(UL.q3?`#ul3l-${a} button`:`[data-ul3open="${a}"]`); if(n&&kb) n.focus({preventScroll:true})});
+ /* a decided line's note closes with it, so Undo brings the line back without an open note */
+ q2("[data-no]").forEach(b=>b.addEventListener("click",()=>{UL.decl=null},true));
+ q2("[data-ul3r]").forEach(tr=>tr.onclick=e=>{if(e.target.closest("button,a,input")) return; ul3Toggle(tr.dataset.ul3r)});
+ q2("[data-ul3x]").forEach(b=>b.onclick=e=>{e.stopPropagation(); ul3Toggle(b.dataset.ul3x,e.detail===0)});
+ ul3Wire();   /* change 263 */
+ q2("[data-ulcell]").forEach(b=>b.addEventListener("click",()=>{UL.cellSrc=b},true));
  ulWireSg();
  ulWireBar(); ulPaintLayer()}
 function ulPaintLayer(){const L=ulLayer();
@@ -6166,6 +6457,9 @@ function ulPaintLayer(){const L=ulLayer();
  L.innerHTML=""}
 document.addEventListener("click",e=>{if(UL.cell&&!e.target.closest("#ulPop")&&!e.target.closest("[data-ulcell]")){UL.cell=null;UL.cellErr=null;const L=el("ulLayer");if(L)L.innerHTML=""}},true);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UL.review&&view.name==="limits"){UL.review=false;render()}});
+/* change 259: capture, so an Escape that closes the one-cell editor (UL.cell still set here) does not also close the row */
+document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!UL.open3||view.name!=="limits"||ctx!=="agency"||UL.cell||UL.review||UL.edit) return;
+ if(e.target&&e.target.closest&&e.target.closest("input,textarea,select,[role=dialog]")) return; ul3Toggle(UL.open3,true)},true);
 document.addEventListener("scroll",()=>{if(UL.cell) ulPlacePop()},true);
 window.addEventListener("resize",()=>{if(UL.cell) ulPlacePop()});
 
@@ -13384,7 +13678,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a371af6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="b9ea42b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -13508,7 +13802,175 @@ body:has(#demoPill:not([hidden])) .ul-sticky,body:has(#demoPill:not([hidden])) .
 .ul-rv-ft{display:inline-flex;align-items:baseline;gap:8px;font-size:14px;line-height:20px;white-space:nowrap}.ul-rv-ft b{font-weight:600}
 .ul-rv-open{display:flex;gap:8px;padding:10px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;font-size:12px;line-height:16px;color:#92400e}.ul-rv-open svg{flex:none;width:14px;height:14px;margin-top:1px}
 .ul-rv-n{padding:12px 16px;background:#f9fafb}.ul-rv-n .sub{display:block}.ul-rv-n p{margin:4px 0 0;font-size:14px;line-height:20px;color:var(--gray-17)}
-.ul-rv-foot{display:flex;gap:8px;align-items:flex-start;margin-top:8px!important}.ul-rv-foot svg{flex:none;width:14px;height:14px;margin-top:1px;color:var(--gray-15)}
+.ul-rv-foot{display:flex;gap:8px;align-items:flex-start;margin-top:8px!important}
+/* change 259: Usage & limits, "needs you" first. Amber marks only what needs you. */
+.ul3-mk{display:inline-block;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:600}
+.ul3-mku{text-decoration:underline 3px #FCD34D;text-underline-offset:4px;text-decoration-skip-ink:none}
+.ul3-g{color:#6B7280;font-weight:400}
+.ul3-l.linkbtn{font-size:14px;line-height:20px;font-weight:500}
+.ul3-ans{display:flex;flex-direction:column}
+.ul3-hr{display:flex;align-items:baseline;gap:16px}.ul3-hr .linkbtn{margin-left:auto;flex:none}
+.ul3-h{margin:0;font-size:24px;line-height:32px;font-weight:600;color:#1F2937;letter-spacing:-.01em}
+.ul3-p{margin:4px 0 0;max-width:80ch;font-size:16px;line-height:24px;color:#6B7280}.ul3-p b{font-weight:600;color:#1F2937}
+.ul3-qs{list-style:none;margin:16px 0 0;padding:0}
+.ul3-q{display:grid;grid-template-columns:200px minmax(0,1fr) auto;column-gap:32px;align-items:start;padding:20px 24px;border-top:1px solid #E5E7EB}
+.ul3-q:first-child{border-top:0}
+.ul3-who{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.ul3-nm{max-width:100%;font-size:16px;line-height:24px;font-weight:600;color:#1F2937;overflow-wrap:anywhere}
+.ul3-chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:500;line-height:20px;white-space:nowrap}
+.ul3-why{min-width:0}
+.ul3-s{margin:0;max-width:72ch;font-size:16px;line-height:24px;color:#1F2937}
+.ul3-quote,.ul3-fx{margin:4px 0 0;max-width:80ch;font-size:14px;line-height:20px;color:#6B7280}
+.ul3-act,.ul3-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px}
+.ul3-act{max-width:400px}
+.ul3-buy{flex-basis:100%;text-align:right;font-size:12px;line-height:16px;color:#6B7280}.ul3-buy .linkbtn{font-size:12px;line-height:16px}
+.ul3-decl{display:flex;align-items:center;gap:8px;width:400px;max-width:100%}.ul3-decl .ul-note{flex:1 1 auto;min-width:0}
+.ul3-lines{grid-column:2/-1;margin-top:16px;border-top:1px solid #E5E7EB}
+.ul3-lt{width:100%;border-collapse:collapse}
+.ul3-lt td{padding:12px 0;border-bottom:1px solid #E5E7EB;vertical-align:middle}
+.ul3-lt td.ul3-ld,.ul3-lt td.ul3-lg{width:1%;white-space:nowrap}.ul3-lt td.ul3-ld{padding-left:16px;text-align:right}.ul3-lt td.ul3-lg{padding-left:8px}
+.ul3-lt td.ul3-lg .ul3-acts{justify-content:flex-start}.ul3-lt td.ul3-lg .ul3-buy{text-align:left}
+.ul3-lt tr.ul3-all td{border-bottom:0;padding-bottom:0}
+.ul3-lt tr{transition:opacity .2s ease}.ul3-lt tr.dq-out{opacity:0}
+.ul3-ln{display:block;font-size:14px;line-height:20px;font-weight:500;color:#1F2937}
+.ul3-sub{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280}
+.ul3-dec{margin-top:16px}.ul3-dec .ul-decided{border-top:0}
+.ul3-dec .ul-chip.is-ok,.ul3-dec .ul-chip.is-no{background:#F3F4F6;color:#374151}
+.ul3-pt td,.ul3-t td{vertical-align:middle;color:#1F2937}
+.ul3-pt tbody tr td{border-top:1px solid #E5E7EB}.ul3-pt tbody tr:first-child td{border-top:0}
+.ul3-rn{display:block;font-size:14px;line-height:20px;font-weight:500}
+.ul3-num{font-variant-numeric:tabular-nums;white-space:nowrap}.ul3-num b{font-weight:600}
+.ul3-hb{display:flex;align-items:center;gap:8px}.ul3-hb .pbw{flex:none;width:64px}.ul3-hb .ul3-g{font-size:14px;font-variant-numeric:tabular-nums}
+.ul3-pa{text-align:right;white-space:nowrap}.ul3-pa .linkbtn+.linkbtn{margin-left:16px}
+.ul3-t tr.ul3-r td{border-top:1px solid #E5E7EB;cursor:pointer;transition:background .12s}
+.ul3-t tbody tr.ul3-r:first-child td{border-top:0}
+.ul3-t tr.ul3-r:hover td,.ul3-t tr.ul3-r.is-open td,.ul3-t tr.ul3-xr td{background:#F9FAFB}
+.ul3-t tr.ul3-r td:last-child{text-align:right}
+.ul3-r .ul-ws{align-items:center}.ul3-r .ul-nm{color:#1F2937}
+.ul3-r.is-off .ul-ws,.ul3-r.is-off .ul3-g,.ul3-xr.is-off .ul3-xg{opacity:.55}
+.ul3-cl{display:flex;align-items:center;gap:12px}.ul3-cb{flex:none;width:96px}.ul3-cb .pbw{width:100%}
+.ul3-ct{font-size:14px;line-height:20px;font-weight:500;color:#1F2937;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ul3-ar{display:block;white-space:nowrap}
+.ul3-t tr.ul3-xr td{padding:4px 24px 24px 62px}
+.ul3-xg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:48px;row-gap:24px}
+.ul3-lab{display:inline-flex;align-items:center;gap:4px}
+.ul3-i .apu-rem .ul3-mk{font-weight:600}
+.ul3-pen{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:#6B7280;cursor:pointer}
+.ul3-pen svg{width:14px;height:14px}.ul3-pen:hover{background:#E5E7EB;color:#1F2937}
+.ul3-pen:focus-visible,.ul3-q .linkbtn:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:4px}
+@container ulg (max-width:1199px){.ul3-xg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* change 263: edit in place in the roster, and Edit limits one resource at a time */
+.ul3-ra{display:inline-flex;align-items:center;justify-content:flex-end;gap:16px}
+.ul3-chg{opacity:0;transition:opacity .12s;white-space:nowrap}
+.ul3-r:hover .ul3-chg,.ul3-r:focus-within .ul3-chg,.ul3-r.is-open .ul3-chg{opacity:1}
+@media (hover:none){.ul3-r:not(.is-open) .ul3-chg{display:none}}
+.ul3-chg:disabled,.ul3-clb:disabled,.ul-fold:disabled{color:#9CA3AF;cursor:not-allowed;background:none}
+.ul3-r:hover .ul3-chg:disabled{opacity:1}
+.ul3-clb{display:inline-flex;align-items:center;margin:-4px -8px;padding:4px 8px;border:0;border-radius:4px;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.ul3-clb:hover:not(:disabled){background:#F3F4F6}.ul3-clb:disabled{opacity:.6}
+.ul3-clb:focus-visible,.ul3-chg:focus-visible,.ul3-tab:focus-visible,.ul3-ed .linkbtn:focus-visible,.ul3-e2 .linkbtn:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.ul3-t tr.ul3-r.is-ed td{background:#F9FAFB}
+.ul3-ed{margin-top:4px;background:#fff;border:1px solid #E5E7EB;border-radius:8px}
+.ul3-el{display:grid;grid-template-columns:minmax(150px,220px) 144px minmax(0,1fr);column-gap:24px;align-items:center;padding:12px 20px;border-top:1px solid #E5E7EB}
+.ul3-el:first-child{border-top:0}
+.ul3-elab{display:flex;flex-direction:column;font-size:14px;line-height:20px;font-weight:500;color:#1F2937}
+.ul3-elab .ul3-g{font-size:12px;line-height:16px}
+.ul3-in{font-variant-numeric:tabular-nums}
+.ul3-ed .ul3-in.is-ch,.ul3-e2 .ul3-in.is-ch{background:#fff;border-color:#1F2937;box-shadow:inset 0 0 0 1px #1F2937}
+.ul3-ed .ul3-in:focus,.ul3-e2 .ul3-in:focus{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE}
+.ul3-efx{min-width:0;font-size:14px;line-height:20px;color:#6B7280;font-variant-numeric:tabular-nums}
+.ul3-efx .ul3-mk,.ul3-e2c .ul3-mk,.ul3-rvt .ul3-mk{margin-right:4px}
+.ul3-tk{grid-column:2/-1}.ul3-tk:empty{display:none}
+.ul3-take{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:8px;padding:8px 12px;border:1px solid #E5E7EB;border-radius:4px;font-size:14px;line-height:20px;color:#1F2937}
+.ul3-take label{font-weight:400;color:#1F2937}
+.ul3-sel{width:auto;min-width:0;max-width:100%;height:32px;padding:0 32px 0 12px;font-size:14px;line-height:20px;color:#1F2937;background-color:#fff}
+.ul3-also{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr) auto;column-gap:24px;align-items:baseline;padding:12px 20px;border-top:1px solid #E5E7EB;font-size:14px;line-height:20px;color:#1F2937}
+.ul3-at{min-width:0}.ul3-at b{font-weight:600}
+.ul3-als:empty{display:none}
+.ul3-dock,.ul3-e2d{display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid #E5E7EB}
+.ul3-dock{border-radius:0 0 8px 8px;background:#F9FAFB}
+.ul3-dm{flex:1 1 auto;min-width:0;margin:0;max-width:96ch;font-size:14px;line-height:20px;color:#1F2937}
+.ul3-db{display:flex;gap:8px;flex:none;margin-left:auto}
+.ul3-e2{overflow:visible}
+.ul3-e2 .panel-h{border-radius:8px 8px 0 0}
+.ul3-e2h{position:sticky;top:0;z-index:4;background:#fff;border-top:1px solid #E5E7EB}
+.ul3-tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid #E5E7EB;overflow-x:auto;scrollbar-width:none}
+.ul3-tab{position:relative;display:inline-flex;align-items:center;gap:8px;flex:none;padding:12px 0;border:0;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#6B7280;white-space:nowrap;cursor:pointer}
+.ul3-tab:hover{color:#1D4ED8}.ul3-tab.is-on{color:#1D4ED8;font-weight:600}
+.ul3-tab.is-on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:#1D4ED8}
+.ul3-tn{font-size:12px;line-height:16px;font-weight:500;color:#374151;background:#F3F4F6;border-radius:4px;padding:0 6px}.ul3-tn:empty{display:none}
+.ul3-pool{display:flex;flex-wrap:wrap;gap:8px 48px;padding:16px 24px;border-bottom:1px solid #E5E7EB}
+.ul3-pi{display:flex;flex-direction:column;min-width:0}
+.ul3-pi>span{font-size:12px;line-height:16px;color:#6B7280}
+.ul3-pi>b{display:flex;align-items:baseline;gap:8px;font-size:20px;line-height:28px;font-weight:600;color:#1F2937;font-variant-numeric:tabular-nums}
+.ul3-pi>b .ul3-mk{font-size:16px;line-height:24px}
+.ul3-was{font-size:14px;line-height:20px;font-weight:400;color:#6B7280}
+.ul3-e2t thead th{position:static}
+.ul3-e2t td{vertical-align:middle;color:#1F2937}
+.ul3-e2t tbody tr td{border-top:1px solid #E5E7EB}.ul3-e2t tbody tr:first-child td{border-top:0}
+.ul3-e2t tr.is-off .ul-ws{opacity:.55}
+.ul3-e2t .ul-ws{align-items:center}
+.ul3-e2t .ul3-in{width:136px}
+.ul3-nu{display:none}
+.ul3-e2c{font-size:14px;line-height:20px;font-variant-numeric:tabular-nums}
+.ul3-e2d{position:sticky;bottom:0;z-index:4;padding:12px 24px;background:#fff;border-radius:0 0 8px 8px;box-shadow:0 -4px 12px rgba(17,24,39,.06)}
+.ul3-rv{padding:0 24px 8px}
+.ul3-rvl{margin:0 0 8px;max-width:80ch;font-size:14px;line-height:20px;color:#6B7280}
+.ul3-rvh{margin:16px 0 8px;font-size:14px;line-height:20px;font-weight:600;color:#1F2937}
+.ul3-rvt{border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.ul3-rvt th{border-bottom:1px solid #E5E7EB}.ul3-rvt td{vertical-align:top;color:#1F2937}
+.ul3-rvt tbody tr td{border-top:1px solid #E5E7EB}.ul3-rvt tbody tr:first-child td{border-top:0}
+@media (max-width:1100px){.ul3-el{grid-template-columns:minmax(140px,200px) 132px minmax(0,1fr);column-gap:16px}}
+@media (max-width:760px){
+ .ul3-r:not(.is-open) .ul3-chg{display:none}
+ .ul3-e2 .panel-h{flex-wrap:wrap;row-gap:4px}.ul3-e2 .ul-hsub{white-space:normal}
+ .ul3-e2t .ul-nm{white-space:normal;overflow:visible;text-overflow:clip}
+ .ul3-take{padding:8px 0 0;border:0;border-top:1px solid #E5E7EB;border-radius:0}
+ .ul3-also{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}.ul3-also .ul3-g{grid-column:1/-1}
+ .ul3-t colgroup,.ul3-t thead{display:none}.ul3-t,.ul3-t tbody{display:block}
+ .ul3-t tr.ul3-r{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;border-top:1px solid #E5E7EB}
+ .ul3-t tbody tr.ul3-r:first-child{border-top:0}
+ .ul3-t tr.ul3-r td{display:block;padding:4px 16px!important;border-top:0!important}
+ .ul3-t tr.ul3-r td:nth-child(1){grid-column:1;padding-top:12px!important}.ul3-t tr.ul3-r td:nth-child(4){grid-column:2;grid-row:1;padding-top:12px!important}
+ .ul3-t tr.ul3-r td:nth-child(2),.ul3-t tr.ul3-r td:nth-child(3){grid-column:1/-1;padding-left:54px!important}
+ .ul3-t tr.ul3-r td:nth-child(3):empty{display:none}.ul3-t tr.ul3-r td:last-of-type{padding-bottom:12px!important}
+ .ul3-t tr.ul3-r td:nth-child(2){padding-bottom:12px!important}
+ .ul3-t tr.ul3-xr{display:block}.ul3-t tr.ul3-xr td{display:block;padding:4px 12px 16px!important}
+ .ul3-xg{grid-template-columns:minmax(0,1fr)}
+ .ul3-el{grid-template-columns:minmax(0,1fr) 120px;row-gap:8px;padding:12px}
+ .ul3-efx,.ul3-tk{grid-column:1/-1}
+ .ul3-also{padding:12px}
+ .ul3-dock,.ul3-e2d{flex-wrap:wrap;padding:12px}.ul3-db{margin-left:0}
+ .ul3-sel{flex:1 1 100%;padding:0 24px 0 8px}
+ .ul3-t tr.ul3-xr.is-ed td{padding:4px 6px 12px!important}
+ .ul3-pool{gap:8px 24px;padding:12px 16px}.ul3-pi{flex:1 1 40%}
+ .ul3-tabs{padding:0 16px}
+ .ul3-e2t colgroup,.ul3-e2t thead{display:none}.ul3-e2t,.ul3-e2t tbody{display:block}
+ .ul3-e2t tr{display:grid;grid-template-columns:minmax(0,1fr) 128px;column-gap:12px;row-gap:4px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .ul3-e2t tbody tr:first-child{border-top:0}
+ .ul3-e2t tr td{display:block;padding:0!important;border-top:0!important}
+ .ul3-e2t td:nth-child(2){grid-column:1;grid-row:2;color:#6B7280}.ul3-e2t .ul3-nu{display:inline}
+ .ul3-e2t td:nth-child(3){grid-column:2;grid-row:1/3;align-self:center}.ul3-e2t .ul3-in{width:100%}
+ .ul3-e2t td:nth-child(4){grid-column:1/-1}
+ .ul3-rv{padding:0 16px 8px}.ul3-rvt{display:block;overflow-x:auto}
+}
+@media (max-width:1100px){.ul3-q{grid-template-columns:minmax(0,1fr);row-gap:12px}.ul3-act{justify-content:flex-start;max-width:none}.ul3-lines{grid-column:1}.ul3-buy{text-align:left}}
+/* change 259, Edit limits and Review changes: the same draft, restyled to the colour rule */
+#ulLimits.is-editing .ul-in.is-ch{background:#fff;border-color:#1F2937;box-shadow:inset 0 0 0 1px #1F2937}
+#ulLimits.is-editing .ul-in.is-ch:focus{border-color:var(--blue-11);box-shadow:0 0 0 2px #dbeafe}
+#ulLimits.is-editing .ul-lg.is-ch{background:#fff;border:2px solid #1F2937}
+#ulLimits.is-editing .ul-lg.is-sg{background:#FEF3C7;border:0}
+#ulLimits.is-editing th.is-fk,#ulLimits.is-editing td.is-fk{background:#F9FAFB}
+#ulLimits.is-editing .ul-chip.is-ok,#ulLimits.is-editing .ul-chip.is-no,.ul-sheet .ul-chip.is-ok,.ul-sheet .ul-chip.is-no{background:#F3F4F6;color:#374151}
+#ulLimits.is-editing .ul-sg{background:#fff;border-color:#E5E7EB}
+#ulLimits.is-editing .ul-sg b{align-self:flex-start;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;line-height:20px}
+#ulLimits.is-editing .is-ok,.ul-sheet .is-ok{color:#1F2937}
+#ulLimits.is-editing .is-bad,.ul-sheet .is-bad,.ul-sticky .is-bad{color:#92400E}
+#ulLimits.is-editing .ul-avr b.is-bad{display:inline-block!important;padding:0 6px;border-radius:4px;background:#FEF3C7}
+.ul-sticky .ul-sb-w{color:#92400E}
+#ulLimits.is-editing .ul-asked{color:#92400E!important}
+.ul-sheet .ul-badge.is-ok,.ul-sheet .ul-badge.is-info,.ul-sheet .ul-badge.is-warn{background:#F3F4F6;color:#374151}
+.ul-sheet .ul-rv-open{background:#FEF3C7;border-bottom-color:#E5E7EB}.ul-rv-foot svg{flex:none;width:14px;height:14px;margin-top:1px;color:var(--gray-15)}
 @media (max-width:1400px){.ul-t td,.ul-t th{padding-left:10px;padding-right:10px}.ul-t td:first-child,.ul-t th:first-child{padding-left:20px}.ul-t td:last-child,.ul-t th:last-child{padding-right:20px}}
 </style>
 </body>
