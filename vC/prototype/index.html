@@ -2989,18 +2989,48 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  const LIM_NAME={sends:"Emails",lead_finder:"Lead Finder",verification:"Verification",ai:"AI credits",dialer:"Dialer",radar:"Inbox tests"};
  const atLim=u.filter(y=>y.cap>0&&y.used>=y.cap);
  const limLine=atLim.length>1?atLim.length+" resources at limit":atLim.length?(LIM_NAME[atLim[0].k]||USAGE_SHORT[atLim[0].k])+" at limit":"";
+ /* change 266, 14 Oct 2026 (Hitesh: "keep it as it is ... if some of the things is fully used up or near limit
+    then we can show danger icon besides %"). Production's alert triangle right of the %: red when a resource
+    is used up (atLim, the line's own rule), orange when none is but one is at 90% or more. The tooltip and
+    the screen-reader text come from the same rows the pop-up lists. Never on a disabled workspace. */
+ const uwN=y=>LIM_NAME[y.k]||USAGE_SHORT[y.k];
+ const uwNear=atLim.length?[]:u.filter(y=>y.cap>0&&y.used<y.cap&&Math.round(y.pct*100)>=UW_NEAR).sort((a,b)=>b.pct-a.pct);
+ const uwTone=c.disabled?"":atLim.length?"bad":uwNear.length?"warn":"";
+ const uwLines=uwTone==="bad"?atLim.slice().sort((a,b)=>b.pct-a.pct).map(y=>uwN(y)+" used up: "+f(y.used)+" of "+f(y.cap)):uwNear.map(y=>uwN(y)+" "+Math.round(y.pct*100)+"%: "+f(y.used)+" of "+f(y.cap)+" used");
+ const uwIcon=uwTone?'<span class="u-wi is-'+uwTone+'" title="" data-uwtip="'+uwLines.join("&#10;")+'">'+UW_SVG[uwTone]+'<span hidden id="uwd-'+c.id+'">'+uwLines.join(". ")+'.</span></span>':"";
  const why=atLim.length>1?" "+atLim.map(y=>RES[y.k].label).join(", ")+" are at their limits.":atLim.length?" "+RES[atLim[0].k].label+" is at its limit.":top.tone==="bad"?" "+RES[top.k].label+" is at its limit.":top.tone==="warn"?" "+RES[top.k].label+" is near its limit.":"";
  /* change 210, 12 Oct 2026 (Hitesh): "Everywhere we are saying 60% used, 50% used: repetitive, not required; the
     % can be shown towards the right side of the usage indicator". Production's Email Accounts "Emails sent"
     cell: the bar, then the figure to its right, 12px apart (email-sent-field.tsx, .email-sent-field). The
     column header already says Usage, so the figure is the percentage alone. */
- return '<button type="button" class="meter u-usagebtn u-home u-row hp-cell'+(limLine?' u-lim':'')+'" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
+ return '<button type="button" class="meter u-usagebtn u-home u-row hp-cell'+(limLine?' u-lim':'')+'" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource"'+(uwTone?' aria-describedby="uwd-'+c.id+'"':'')+' title="'+usageTip(u)+'">'
   +'<span class="apu-b u-pb">'+(limLine?pbar(p,PB_COL[2]):pbar(p))+'</span>'
-  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b></span>'
+  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b>'+uwIcon+'</span>'
   +(limLine?'<span class="u-lim-l">'+limLine+'</span>':'')
   /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
   +'</button>'}
 
+/* change 266: production's AlertTriangleRed / AlertTriangleOrange (src/assets/images), drawn at 16px like the
+   Email Accounts status icon. 90% is the near line for the icon only (the bar's colour keeps change 196's rule),
+   read on the rounded % the pop-up prints, so the pop-up never shows 90% beside a cell without an icon */
+const UW_NEAR=90;
+const UW_SVG={bad:'<svg viewBox="0 0 15 15" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.27558 4.88708C7.61043 4.88708 7.88188 5.16059 7.88188 5.49798V6.71976C7.88188 7.05715 7.61043 7.33066 7.27558 7.33066C6.94073 7.33066 6.66928 7.05715 6.66928 6.71976V5.49798C6.66928 5.16059 6.94073 4.88708 7.27558 4.88708ZM7.27558 8.55244C7.61043 8.55244 7.88188 8.82595 7.88188 9.16333V9.16944C7.88188 9.50683 7.61043 9.78033 7.27558 9.78033C6.94073 9.78033 6.66928 9.50683 6.66928 9.16944V9.16333C6.66928 8.82595 6.94073 8.55244 7.27558 8.55244Z" fill="#B91C1C"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.35181 1.45439C6.63169 1.28813 6.95067 1.20044 7.27558 1.20044C7.60049 1.20044 7.91947 1.28813 8.19936 1.45439C8.47792 1.61987 8.70764 1.85717 8.86488 2.14182L13.1071 9.62197C13.1205 9.64555 13.1323 9.67 13.1424 9.69516C13.2516 9.96601 13.2949 10.2592 13.2687 10.5504C13.2425 10.8415 13.1475 11.1221 12.9918 11.3688C12.836 11.6154 12.6239 11.8209 12.3733 11.9681C12.1226 12.1154 11.8406 12.2 11.5509 12.2151C11.5405 12.2156 11.5301 12.2159 11.5197 12.2159H3.07393C3.06697 12.2159 3.06004 12.2158 3.05313 12.2156C3.03567 12.2162 3.01804 12.216 3.00027 12.2151C2.71052 12.2 2.42854 12.1154 2.17788 11.9681C1.92722 11.8209 1.71516 11.6154 1.55939 11.3688C1.40362 11.1221 1.30867 10.8415 1.28246 10.5504C1.25625 10.2592 1.29955 9.96601 1.40874 9.69516C1.41888 9.67 1.43068 9.64555 1.44405 9.62197L5.68628 2.14182C5.84352 1.85717 6.07324 1.61987 6.35181 1.45439ZM3.05429 10.9944C3.06081 10.9942 3.06736 10.9941 3.07393 10.9941H11.5014C11.5934 10.9874 11.6828 10.9595 11.7626 10.9126C11.8461 10.8635 11.9168 10.795 11.9688 10.7128C12.0207 10.6306 12.0523 10.5371 12.0611 10.44C12.0688 10.3542 12.0584 10.2679 12.0307 10.1866L7.80604 2.7374C7.75361 2.64192 7.6768 2.5623 7.58351 2.50688C7.49021 2.45145 7.38388 2.42222 7.27558 2.42222C7.16728 2.42222 7.06095 2.45145 6.96766 2.50688C6.87436 2.5623 6.7975 2.64189 6.74507 2.73737L6.74102 2.74474L2.52043 10.1866C2.49276 10.2679 2.48238 10.3542 2.4901 10.44C2.49884 10.5371 2.53049 10.6306 2.58241 10.7128C2.63433 10.795 2.70502 10.8635 2.78858 10.9126C2.8697 10.9603 2.96067 10.9883 3.05429 10.9944Z" fill="#B91C1C"/></svg>',warn:'<svg viewBox="0 0 14 14" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.00002 4.6665C7.32219 4.6665 7.58335 4.92767 7.58335 5.24984V6.4165C7.58335 6.73867 7.32219 6.99984 7.00002 6.99984C6.67785 6.99984 6.41669 6.73867 6.41669 6.4165V5.24984C6.41669 4.92767 6.67785 4.6665 7.00002 4.6665ZM7.00002 8.1665C7.32219 8.1665 7.58335 8.42767 7.58335 8.74984V8.75567C7.58335 9.07784 7.32219 9.339 7.00002 9.339C6.67785 9.339 6.41669 9.07784 6.41669 8.75567V8.74984C6.41669 8.42767 6.67785 8.1665 7.00002 8.1665Z" fill="#D97706"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.11123 1.38849C6.38051 1.22973 6.68741 1.146 7.00001 1.146C7.31261 1.146 7.61951 1.22973 7.88879 1.38849C8.15681 1.54651 8.37783 1.7731 8.52911 2.04491L12.6107 9.1876C12.6235 9.21012 12.6349 9.23347 12.6446 9.2575C12.7497 9.51612 12.7913 9.79613 12.7661 10.0741C12.7409 10.3521 12.6496 10.6201 12.4997 10.8556C12.3498 11.0911 12.1458 11.2873 11.9046 11.4279C11.6635 11.5685 11.3922 11.6494 11.1134 11.6637C11.1034 11.6643 11.0934 11.6645 11.0833 11.6645H2.95751C2.95081 11.6645 2.94414 11.6644 2.9375 11.6642C2.9207 11.6648 2.90374 11.6646 2.88664 11.6637C2.60787 11.6494 2.33657 11.5685 2.0954 11.4279C1.85424 11.2873 1.65021 11.0911 1.50034 10.8556C1.35047 10.6201 1.25911 10.3521 1.2339 10.0741C1.20868 9.79613 1.25034 9.51612 1.35539 9.2575C1.36515 9.23347 1.3765 9.21012 1.38937 9.1876L5.47091 2.04491C5.6222 1.7731 5.84321 1.54651 6.11123 1.38849ZM2.93862 10.4982C2.94489 10.498 2.95119 10.4979 2.95751 10.4979H11.0657C11.1543 10.4914 11.2403 10.4648 11.3171 10.42C11.3974 10.3732 11.4655 10.3077 11.5154 10.2292C11.5654 10.1507 11.5958 10.0614 11.6042 9.96876C11.6117 9.88682 11.6017 9.80437 11.575 9.72678L7.51038 2.61362C7.45993 2.52244 7.38603 2.44642 7.29627 2.3935C7.20651 2.34057 7.10421 2.31266 7.00001 2.31266C6.89581 2.31266 6.79351 2.34057 6.70375 2.3935C6.61399 2.44642 6.54004 2.52242 6.48959 2.61359L6.4857 2.62063L2.42498 9.72678C2.39836 9.80437 2.38837 9.88683 2.3958 9.96876C2.4042 10.0614 2.43465 10.1507 2.48461 10.2292C2.53457 10.3077 2.60258 10.3732 2.68297 10.42C2.76102 10.4655 2.84854 10.4923 2.93862 10.4982Z" fill="#D97706"/></svg>'};
+/* change 266: one fixed tooltip for every icon, so the table's scroll box never clips it */
+let uwTipEl=null, uwTipAt=null, uwTipBy="";
+function uwHide(){if(uwTipEl)uwTipEl.hidden=true;uwTipAt=null;uwTipBy=""}
+function uwShow(ic,by){if(!ic||!ic.isConnected)return;
+ if(!uwTipEl){uwTipEl=document.createElement("div");uwTipEl.className="dq-fore uw-tip";uwTipEl.id="uwTip";uwTipEl.setAttribute("role","tooltip");uwTipEl.setAttribute("aria-hidden","true");document.body.appendChild(uwTipEl)}
+ uwTipEl.textContent=ic.getAttribute("data-uwtip"); uwTipEl.hidden=false; uwTipAt=ic; uwTipBy=by;
+ const r=ic.getBoundingClientRect(), w=uwTipEl.offsetWidth, h=uwTipEl.offsetHeight, vw=document.documentElement.clientWidth, vh=window.innerHeight;
+ const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), y=r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6;
+ uwTipEl.style.left=Math.round(x)+"px"; uwTipEl.style.top=Math.round(y)+"px"}
+document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
+document.addEventListener("focusin",e=>{const b=e.target.closest&&e.target.closest(".u-home"), ic=b&&b.querySelector(".u-wi[data-uwtip]"); if(ic&&b.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
+document.addEventListener("focusout",()=>{if(uwTipBy==="focus")uwHide()});
+document.addEventListener("click",()=>{if(uwTipAt)uwHide()},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uwTipAt)uwHide()},true);
+window.addEventListener("scroll",()=>{if(uwTipAt)uwHide()},true);
+window.addEventListener("resize",()=>{if(uwTipAt)uwHide()});
 const sortI=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5 8 4l2.5 2.5M5.5 9.5 8 12l2.5-2.5"/></svg>`;
 const warnI=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>`;
 /* change 211, 12 Oct 2026 (Hitesh): "Add + icon in this button everywhere it is used: + Add a workspace". Every
@@ -8328,6 +8358,8 @@ function contSplit(c,sentW){const R=(c.sequences||[]).filter(q=>q.state!=="Draft
  const CW=SW.map((s,i)=>Math.round(s/(kOf(R[i])*g))), RW=CW.map((n,i)=>Math.round(n*(R[i].reply||0)/100));
  return {R,SW,CW,RW,cont:CW.reduce((a,b)=>a+b,0),rep:RW.reduce((a,b)=>a+b,0)}}
 const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
+/* change 265: the quiet change, signed text then the production trend glyph (PS_I) */
+const w7Delta=d=>'<span class="w7-d" title="'+(d>0?"Up ":"Down ")+Math.abs(d)+'%">'+(d>0?'+':'')+d+'%'+PS_I[d>0?"up":"down"]+'</span>';
 /* change 181, 11 Oct 2026 (Hitesh: "per day version gives better idea"; "Go"): every
    count on Home is the daily average of the last 7 days (the 7-day total over 7).
    The window, the changes and the red rule (on the 7-day totals) are unchanged.
@@ -8343,15 +8375,19 @@ const pd=n=>perDay()?pdDay(n):f(Math.round(n||0));
 const pdDay=n=>{const v=(n||0)/win().days;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
- const D=(d,prev)=>d==null||d===0?"":psChip(d,(d>0?'+':'')+d+'%',d>0?"good":"bad"); /* change 221: vD's delta chip; as vD, every fall is red and no chip at 0% */
+ /* change 265: an ordinary change is quiet grey text with the trend glyph (fd/dashboard.html's look);
+    only W7_RED (replies down 25% or more on 10+) keeps change 221's red chip */
+ const D=(d,prev)=>d==null||d===0?"":W7_RED(d,prev)?psChip(d,(d>0?'+':'')+d+'%',"bad"):w7Delta(d);
+ const Dq=d=>d==null||d===0?"":w7Delta(d);
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
  if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"]].map(([k,l])=>cell(null,l,dash));
- const n=(v,d,prev)=>'<span class="tnum stackv">'+pd(v)+D(d,prev)+'</span>';
+ const n=(v,d,prev)=>'<span class="tnum stackv">'+pd(v)+Dq(d)+'</span>';
  return [
   cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
   cell(w.sent?"sent":null,"Emails sent",n(w.sent,w.sdD,w.prev.sent)),
-  cell(w.sent?"bounce":null,"Bounce rate",'<span class="tnum stackv'+(w.bounce>=3?' w7-bad':'')+'">'+w.bounce.toFixed(1)+'%</span>'),
+  /* change 265: a bounce rate of 3% or more sits on the red of change 221's falling chip */
+  cell(w.sent?"bounce":null,"Bounce rate",'<span class="tnum stackv">'+(w.bounce>=3?'<span class="w7-hot performance-stats--decrement" title="Bounce rate 3% or more">'+w.bounce.toFixed(1)+'%</span>':w.bounce.toFixed(1)+'%')+'</span>'),
   cell(w.sent?"rep":null,"Reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
   cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
   cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash)]}
@@ -13023,6 +13059,11 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 @media (max-width:559px){.hp-t th,.hp-t td{padding-left:12px;padding-right:12px}.hp-t td:first-child{max-width:120px}}
 .home-tbl .ws-id{flex:1 1 auto;min-width:0}.home-tbl .ws-nm{align-self:flex-start;display:inline-flex;flex-wrap:nowrap;max-width:100%;position:relative}.home-tbl .ws-nm .cn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-tbl .ws-nm>*:not(.cn){flex:none}
 .home-tbl .stackv>.performance-stats{margin-left:6px;vertical-align:1px}.home-tbl .w7-bad{color:var(--red-18)}
+/* change 265: fd/dashboard.html's quiet cells in Saleshandy's look; red only for W7_RED and bounce 3%+ */
+.home-tbl td>.stackv,.home-tbl .hp-cell>.stackv{color:var(--gray-800)}
+.home-tbl .w7-d{display:inline-flex;align-items:center;gap:2px;margin-left:6px;font-size:12px;line-height:16px;font-weight:400;font-variant-numeric:normal;color:var(--gray-500);white-space:nowrap}
+.home-tbl .w7-d .performance-stats__icon{display:block;width:10px;height:10px}
+.home-tbl .w7-hot{display:inline-block;border-width:1px;border-style:solid;border-radius:.25rem;padding:0 4px;margin:-1px 0 -1px -5px}
 .c-t .w7-sub{display:block;font-size:12px;font-weight:400;line-height:18px;color:var(--gray-12);margin-top:2px}
 .home-tbl thead th{white-space:nowrap;vertical-align:top;padding-top:10px!important;padding-bottom:10px!important;line-height:16px}
 .home-tbl .th-u{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--gray-12);margin-top:1px}
@@ -13041,6 +13082,12 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* change 232: a resource at its limit */
 .hp-cell.u-home.u-row.u-lim{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:20px 16px;column-gap:12px;row-gap:2px;align-items:center}
 .meter.u-row.u-lim .u-pct{color:var(--red-18)}
+/* change 266: the warning icon 4px right of the %, centred on it (the triangle sits high in production's viewBox, so the
+   glyph drops 1px to centre its ink on the digits); rows without one keep its 20px when the table has any */
+.home-tbl .u-home.u-row .meter-t:has(.u-wi){display:inline-flex;align-items:center;gap:4px}
+.u-wi{display:inline-flex;flex:none;width:16px;height:16px;cursor:default}.u-wi svg{display:block;width:16px;height:16px;position:relative;top:1px}
+.home-tbl:has(.u-wi) .u-home.u-row .meter-t:not(:has(.u-wi)){padding-right:20px}
+.dq-fore.uw-tip{display:block;position:fixed;left:0;top:0;z-index:1005;white-space:pre-line;pointer-events:none}.dq-fore.uw-tip[hidden]{display:none}
 .u-lim .u-lim-l{grid-column:1/-1;min-width:0;font-size:12px;line-height:16px;font-weight:500;color:var(--red-18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
 /* change 197: people on the Workspaces page */
@@ -13933,7 +13980,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b71b0f8";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="55d123c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
