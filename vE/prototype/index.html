@@ -3793,7 +3793,7 @@ const rcHdrChip=c=>{
  const rq=REQUESTS.filter(q=>q.client===c.id);
  if(!at.length&&!rq.length) return "";
  const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
- return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
+ return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t}</button>`}; /* change 261: no arrow on links */
 let RC_REFUSED=null, PREVIEW=false, LM_MENU=null, LM_DECL=null;
 function rSoon(title,line,c,icon,bullets){
  return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
@@ -3969,7 +3969,7 @@ function ovNeeds(c,ro){
  const nextM=MONTHS_L[(MONTHS_L.indexOf(CYCLE.month.split(" ")[0])+1)%12].slice(0,3);
  const atK=k=>{const r=RES[k].rows[c.id]; return !!(r&&r.cap>0&&r.used>=r.cap)};
  if(grace()) out.push({t:`<mark class="ov-mk">Payment failed</mark> on ${GRACE.failedOn}. Sending is paused in every workspace, this one included.`,
-  s:`Update the card within ${GRACE.daysLeft} days, or the account pauses.`,a:canI("billing")?ovBtn("data-gobill","Update payment"):ovWho("An Account Owner can update the card.")});
+  s:`Update the card within ${GRACE.daysLeft} days, or the account pauses.`,a:canI("billing")?ovBtn('data-gobill="card"',"Update payment") /* change 261: 254, straight to the card update */:ovWho("An Account Owner can update the card.")});
  if(ro) return out;
  const ask=askOf(c.id);
  if(ask){const st=ask.lines.filter(x=>atK(x.res)).map(x=>`${OV_STOP[x.res]} stopped at its ${f(RES[x.res].rows[c.id].cap)} limit. `).join("");
@@ -4826,12 +4826,12 @@ function rLimits(c){
   const tr=q=>{const k=q.res, R=RES[k], r=R.rows[c.id]; if(!r) return ""; const free=compute(k).free, ok=free>=q.amount, amt=ok?q.amount:free;
    /* Decline comes first, as Decline all does, so every Approve starts at the same place whatever the amount */
    const acts=!canEdit?"":LM_DECL===k?`<td><div class="pri2 lm-decl rq2-decl"><input type="text" class="lm-note" data-nonote="${q.id}" placeholder="Note for ${first} (optional)" aria-label="Note ${first} reads with the decline"><span class="lm-decl-b"><button class="shd-button shd-button--secondary shd-button--sm" data-no="${q.id}">Decline</button><button class="linkbtn" data-lmdeclx>Cancel</button></span></div></td>`
-    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>${ok?`Approve +${f(amt)}`:`Approve ${f(amt)} of ${f(q.amount)}`}</button>`:""}${amt>0?"":
+    :`<td><div class="pri2 rq2-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-lmdecl="${k}">Decline</button>${amt>0?`<button class="shd-button shd-button--primary shd-button--sm" ${ok?`data-ok="${q.id}"`:`data-okpart="${q.id}"`}>${ok?`Give ${f(amt)}`:`Give ${f(amt)} of ${f(q.amount)}`}</button>`:""}${amt>0?"":
      /* change 234, 13 Oct 2026: nothing available, so the next step sits where Approve would: rebalance on
         Usage & limits (Edit limits on this column), and buying more under it, as the shortfall callout has it */
      `<button class="shd-button shd-button--secondary shd-button--sm" data-rqreb="${k}" title="Opens Usage &amp; limits with Edit limits on ${R.label}: lower another workspace's limit to make some available">Rebalance in Usage &amp; limits</button>`}</div>${amt>0?(ok?"":`<span class="sub rq2-buy">The rest closes; ${c.name} can ask again</span>`):`<span class="sub rq2-buy">${canI("billing")?`Or <button class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`Or <button class="linkbtn" data-ulaskowner="${k}|${q.amount-free}">ask the Account Owner</button> to buy more`}</span>`}</td>`;
-   return `<tr class="rq2-row" id="rreq-${k}"><td><span class="lm-nm">${R.label}</span></td><td><span class="lm-nm">+${f(q.amount)}</span></td><td><span class="lm-nm">${f(r.cap)}</span>${amt>0?`<span class="sub">${f(r.cap+amt)} if approved</span>`:""}</td><td><span class="lm-nm"${ok?"":' style="color:var(--red-18)"'}>${f(free)}</span><span class="sub">${ok?"Fits":`${f(q.amount-free)} short of ${f(q.amount)}`}</span></td>${acts}</tr>`};
-  return `<div class="panel lm-panel rq2-panel" id="${gi?"rcReq-"+g.id:"rcReq"}" data-rqask="${g.id}"><div class="panel-h"><span class="panel-t">${first} asked ${gi?"again":"for more"}</span><span class="sub">${AGE(g.when)}${GG.length>1?` &middot; ask ${gi+1} of ${GG.length}`:""}</span>${multi&&canEdit?`<span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${GG.length>1?"|"+g.id:""}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${GG.length>1?"|"+g.id:""}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Approve all</button></span>`:""}</div>
+   return `<tr class="rq2-row" id="rreq-${k}"><td><span class="lm-nm">${R.label}</span></td><td><span class="lm-nm">+${f(q.amount)}</span></td><td><span class="lm-nm">${f(r.cap)}</span>${amt>0?`<span class="sub">${f(r.cap+amt)} if given</span>`:""}</td><td><span class="lm-nm"${ok?"":' style="color:var(--red-18)"'}>${f(free)}</span><span class="sub">${ok?"Fits":`${f(q.amount-free)} short of ${f(q.amount)}`}</span></td>${acts}</tr>`};
+  return `<div class="panel lm-panel rq2-panel" id="${gi?"rcReq-"+g.id:"rcReq"}" data-rqask="${g.id}"><div class="panel-h"><span class="panel-t">${first} asked ${gi?"again":"for more"}</span><span class="sub">${AGE(g.when)}${GG.length>1?` &middot; ask ${gi+1} of ${GG.length}`:""}</span>${multi&&canEdit?`<span class="c-a"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${GG.length>1?"|"+g.id:""}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${GG.length>1?"|"+g.id:""}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} ask for more than the plan has available. Decide line by line."`}>Give all</button></span>`:""}</div>
    ${g.note?`<p class="lm-asknote rq2-note">&ldquo;${g.note}&rdquo;</p>`:""}
    <div class="tscroll"><table class="lm-t rq2-t"><thead><tr><th style="width:22%">Resource</th><th style="width:12%">Asked for</th><th style="width:16%">Limit now</th><th style="width:18%">Available in the plan</th>${canEdit?'<th style="width:32%" aria-label="Decision"></th>':""}</tr></thead><tbody>${L.map(tr).join("")}</tbody></table></div></div>`}).join("");
  return `${reqPanel}
@@ -5379,7 +5379,7 @@ function personSave(){
    gone.forEach(id=>logAct(id,`${nm} removed`));
    if(atm&&JSON.stringify(Object.keys(teamPick(p.k)).sort().map(id=>id+"="+teamPick(p.k)[id]))!==JSON.stringify(Object.keys(f.teams||{}).sort().map(id=>id+"="+f.teams[id]))){applyTeams(p.k,f.teams); const tm=Object.keys(f.teams||{}).filter(id=>TEAMS[id]); out.push(tm.length?`${nm} is in ${listAnd(tm.map(id=>TEAMS[id].name+(f.teams[id]==="manager"?" (manager)":"")))} now.`:`${nm} is in no team now.`)}}}
  modal=null; INV=null; renderModal();
- if(out.length) receipt("people",out.join(" "),restore,`updated ${nm}'s access`);
+ if(out.length) receipt("people",out.join(" ").replace(/\.\.(?=\s|$)/g,"."),restore,`updated ${nm}'s access`);
  view={name:"person",id:key}; render();
 }
 /* change 248 (audit People #3): Disable and Enable. Gate per doc 96 (People row "Disable or
@@ -5557,6 +5557,9 @@ function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(!dd.closest(".inv-form
  let sc=dd.parentElement; while(sc&&sc!==document.body){const o=getComputedStyle(sc).overflowY; if(o==="auto"||o==="scroll") break; sc=sc.parentElement}
  const box=sc&&sc!==document.body?sc.getBoundingClientRect():{top:0,bottom:innerHeight}, t=dd.getBoundingClientRect();
  const below=Math.min(box.bottom,innerHeight)-t.bottom, above=t.top-Math.max(box.top,0), h=menu.offsetHeight+8;
+ /* change 261: a short body that does not scroll (a client user's Edit holds one menu) fits the menu
+    neither way; the body stops clipping so the menu opens downward over the footer */
+ if(h>below&&h>above&&sc&&sc!==document.body&&dd.closest(".inv-form").offsetHeight<=sc.clientHeight){sc.style.overflow="visible";return}
  if(h>below&&above>below) dd.classList.add("dd-up")}
 function wireDD(L,id,onPick){
  const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
@@ -6312,8 +6315,9 @@ function ul3StopItem(s,ro){const {c,k,r}=s, R=RES[k], free=compute(k).free, O=ul
   <div class="ul3-why"><p class="ul3-s">${why}</p><p class="ul3-fx">${fx}</p></div><div class="ul3-act">${act}</div></li>`}
 /* what giving this line does to the plan, counting the other asks on the same resource */
 function ul3Fx(r,a){const k=r.res, lf=compute(k).free, O=ul3Others(k,a.id), oth=O.reduce((t,x)=>t+x.amount,0), who=ul3Who(O), after=lf-r.amount, n=`${f(r.amount)} ${ul3Noun(k)}`;
- if(after<0) return `${n} do not fit: ${lf?f(lf)+" available":"nothing is available"}${oth?`, and ${who} also asked for ${f(oth)}`:""}.${a.lines.length===1&&lf?` Giving ${f(lf)} of ${f(r.amount)} closes the ask.`:""}`;
- if(oth>after) return `Giving ${f(r.amount)} leaves ${f(after)}, so the ${f(oth)} ${who} asked for would be short by ${f(oth-after)}.`;
+ /* change 261 (253's intent on 259): the line states its own fit; the shortfall across asks is said once, in Your plan */
+ if(after<0) return `${n} do not fit: ${lf?f(lf)+" available":"nothing is available"}${oth?`, and ${who} also asked for ${f(oth)}`:""}.${lf?` Giving ${f(lf)} of ${f(r.amount)} closes ${a.lines.length===1?"the ask":"this line"}; ${byId[r.client].name} can ask again.`:""}`;
+ if(oth>after) return `${n} fit: ${f(lf)} available, ${f(after)} after, less than the ${f(oth)} ${who} asked for.`;
  return `${n} fit: ${f(lf)} available, ${f(after)} after${oth?`, enough for the ${f(oth)} ${who} asked for`:""}.`}
 function ul3DeclHTML(r){const c=byId[r.client];
  return `<div class="ul3-decl"><input type="text" class="ul-note" data-nonote="${r.id}" placeholder="Note for ${c.name} (optional)" aria-label="Note ${c.name} reads with the decline"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-uldeclx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-no="${r.id}">Decline</button></div>`}
@@ -7069,14 +7073,14 @@ function dqPayItem(){
  return '<li class="dq-i"><div class="dq-who"><span class="dq-nm">Your account</span>'+dqChip("Payment failed")+'</div>'
   +'<div class="dq-why">Payment failed on '+GRACE.failedOn+', so every workspace has stopped sending. Sending starts again when the card is updated.'
   +'<span class="dq-ctx">'+dqPlural(GRACE.daysLeft,"day")+' left to update it.</span></div>'
-  +'<div class="dq-act">'+(canI("billing")?'<button class="shd-button shd-button--primary shd-button--sm" data-gobill>Update payment</button>':'<span class="dq-note">An Account Owner can update the card.</span>')+'</div></li>'}
+  +'<div class="dq-act">'+(canI("billing")?'<button class="shd-button shd-button--primary shd-button--sm" data-gobill="card">Update payment</button>':'<span class="dq-note">An Account Owner can update the card.</span>')+'</div></li>'}
 /* Worth a look: one line per workspace, the phrase that earns it banded */
 function dqWorthItem(c,F,mine){const w=F.w, parts=[], mk=t=>'<span class="dq-mku">'+t+'</span>';
  if(F.bounce){const o=mine.filter(x=>x.id!==c.id&&!x.disabled&&x.sent>0).map(x=>wk7(x)).filter(x=>x.sent>0&&x.bounce<3).map(x=>x.bounce), lo=Math.min(...o), hi=Math.max(...o);
   parts.push(mk("Bounce rate "+w.bounce.toFixed(1)+"%")+(o.length?", against "+(lo===hi?lo.toFixed(1)+"%":lo.toFixed(1)+"% to "+hi.toFixed(1)+"%")+" everywhere else":""))}
  if(F.reply) parts.push(mk((parts.length?"reply":"Reply")+" rate down "+Math.abs(w.rateD)+"%")+" to "+w.rate.toFixed(1)+"%"
    +(!F.bounce&&w.sdD!=null&&Math.abs(w.sdD)<10?", on steady volume ("+pd(w.sent)+" emails"+(perDay()?" a day":"")+")":""));
- F.near.forEach(y=>parts.push(mk(DQ_NM[y.k]+" "+dqPct(y)+"% used")+" ("+f(y.used)+" of "+f(y.cap)+")"));
+ F.near.forEach(y=>parts.push(mk(DQ_NM[y.k]+" "+dqPct(y)+"%")+" ("+f(y.used)+" of "+f(y.cap)+" used)"));
  const act=F.bounce||F.reply?'<button class="linkbtn dq-link" data-enter="'+c.id+'">Open workspace</button>'
    :'<button class="linkbtn dq-link" data-goclim="'+c.id+'|'+F.near[0].k+'">Open limits</button>';
  return '<li class="dq-wi"><span class="dq-wn">'+c.name+'</span><span>'+(parts.length===2?parts.join(", and "):listAnd(parts))+'.</span>'+act+'</li>'}
@@ -11945,9 +11949,9 @@ function wire(){
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans);
    logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
-   receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
-     ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
-     `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
+   receipt("queue",`Gave ${c.name} ${f(r.amount)} more ${R.short}. ${f(freeAfter)} available.`, /* change 261: the button's verb */
+     ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `gave ${c.name} ${f(r.amount)} more ${R.unit}`,
+     `Gave ${c.name} ${f(r.amount)} more ${R.short}`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
  const declineReq=(b,id)=>{const r=REQUESTS.find(x=>x.id===id); if(!r) return;
   FLASH_CID=(!REDUCED()&&view.name==="dash")?r.client:null;
   const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():"";
@@ -11963,9 +11967,9 @@ function wire(){
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; R.rows[r.client].cap+=free; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    const ans=Object.assign({},r,{state:"approved",on:TODAY_D,amount:free,asked:r.amount,to:R.rows[r.client].cap}); ANSWERS.push(ans);
    logAct(c.id,`Partly approved ${f(free)} of the ${f(r.amount)} more ${R.unit} asked and closed the line; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
-   receipt("queue",`Partly approved: ${f(free)} of ${f(r.amount)}, all the plan had. The line is closed; ${c.name.split(" ")[0]} can ask again.`,
-     ()=>{R.rows[r.client].cap-=free; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `partly approved ${f(free)} of ${c.name}'s request for ${f(r.amount)}`,
-     `Partly approved ${f(free)} of ${f(r.amount)} &middot; ${c.name}`)})});
+   receipt("queue",`Gave ${c.name} ${f(free)} of ${f(r.amount)} ${R.short}, all the plan had. The rest closes; ${c.name} can ask again.`, /* change 261 */
+     ()=>{R.rows[r.client].cap-=free; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `gave ${c.name} ${f(free)} of the ${f(r.amount)} asked`,
+     `Gave ${c.name} ${f(free)} of ${f(r.amount)}`)})});
  /* change 193: the split buttons' menus, and "Set a different limit" puts the cursor in the Limit cell */
  q("[data-lmmenu]").forEach(b=>b.onclick=e=>{e.stopPropagation();LM_MENU=LM_MENU===b.dataset.lmmenu?null:b.dataset.lmmenu;render()});
  q("[data-lmdecl]").forEach(b=>b.onclick=e=>{e.stopPropagation();LM_MENU=null;LM_DECL=b.dataset.lmdecl;render();const i=document.querySelector(".lm-note");if(i)i.focus()});
@@ -11974,7 +11978,7 @@ function wire(){
  /* change 117: the whole ask at once */
  q("[data-okall]").forEach(b=>b.onclick=()=>{const [cid,aid]=b.dataset.okall.split("|"), L=askLines(cid).filter(x=>!aid||(x.ask||x.id)===aid); if(!L.length) return; if(L.some(r=>compute(r.res).free<r.amount)) return;
   const c=byId[cid], undo=[]; L.forEach(r=>{const R=RES[r.res]; R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans); undo.push(()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); ANSWERS.splice(ANSWERS.indexOf(ans),1)}); logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`)});
-  REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); receipt("queue",`Approved all ${L.length} lines. ${c.name} can carry on.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`approved ${c.name}'s ask`); render()});
+  REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); receipt("queue",`Gave ${c.name} all ${L.length} lines it asked for.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`gave ${c.name} its ask`); render()});
  q("[data-noall]").forEach(b=>b.onclick=()=>{const [cid,aid]=b.dataset.noall.split("|"), L=askLines(cid).filter(x=>!aid||(x.ask||x.id)===aid); if(!L.length) return; const c=byId[cid], undo=[];
   L.forEach(r=>{const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():""; const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans); undo.push(()=>ANSWERS.splice(ANSWERS.indexOf(ans),1)); logAct(c.id,`Declined the request for ${f(r.amount)} more ${RES[r.res].unit}`)});
   REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); receipt("queue",`Declined all ${L.length} lines. ${c.name} keeps its limits.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`declined ${c.name}'s ask`); render()});
@@ -14071,7 +14075,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5ee7b75";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version E")+" \u00b7 "+B;
+(function(){var B="825f8bc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version E")+" \u00b7 "+B;
  console.log("%cversion E build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
