@@ -2583,15 +2583,15 @@ CLIENTS.forEach(growProspects);
    ANSWERS holds decided lines (approved or declined, with the agency's note) so
    the client's Usage can say what happened. */
 let REQUESTS=[
- {id:"r1",ask:"a1",client:"al",res:"lead_finder",amount:640,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
- {id:"r2",ask:"a2",client:"nw",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
- {id:"r3",ask:"a2",client:"nw",res:"lead_finder",amount:1000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
+ {id:"r1",ask:"a1",client:"al",by:"marcus@alloyco.com",res:"lead_finder",amount:640,note:"Sourcing a new ICP list for October. Ran out mid-build.",when:"2 days ago"},
+ {id:"r2",ask:"a2",client:"nw",by:"ops@northwind.co",res:"sends",amount:20000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
+ {id:"r3",ask:"a2",client:"nw",by:"ops@northwind.co",res:"lead_finder",amount:1000,note:"The Q4 campaign is bigger than the monthly email limit allows.",when:"Yesterday"},
 ];
 /* change 121: Vertex's last ask was decided on 6 Sep: the Lead Finder line raised
    (its limit is 3,500 now, was 3,000) and the email line declined with a note. */
 let ANSWERS=[
- {id:"r0a",ask:"a0",client:"vx",res:"lead_finder",amount:500,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"approved",on:"6 Sep",to:3500},
- {id:"r0b",ask:"a0",client:"vx",res:"sends",amount:15000,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"declined",on:"6 Sep",dnote:"60,000 already covers the renewals push. Let's look again after the 15th."},
+ {id:"r0a",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"lead_finder",amount:500,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"approved",on:"6 Sep",to:3500},
+ {id:"r0b",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"sends",amount:15000,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"declined",on:"6 Sep",dnote:"60,000 already covers the renewals push. Let's look again after the 15th."},
 ];
 const askLines=(cid)=>REQUESTS.filter(q=>q.client===cid);
 const askOf=(cid)=>{const L=askLines(cid); return L.length?{id:L[0].ask||L[0].id,lines:L,note:L[0].note,when:L[0].when}:null};
@@ -4543,7 +4543,7 @@ function askSend(){
  /* change 140: Send always answers. The missing piece is named under the field. */
  if(!picked.length||!why){modal.err=!picked.length?"amt":"why"; renderModal(); const f=document.querySelector(!picked.length?"[data-askamt]":"#askWhy"); if(f)f.focus(); return}
  const askId="a"+Date.now().toString(36).slice(-5), made=[];
- picked.forEach(k=>{if(REQUESTS.some(x=>x.client===c.id&&x.res===k)) return; const row={id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,res:k,amount:modal.amts[k],note:why,when:"just now"}; REQUESTS.push(row); made.push(row)});
+ picked.forEach(k=>{if(REQUESTS.some(x=>x.client===c.id&&x.res===k)) return; const row={id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,by:(actingClientUser(c)||[])[0],res:k,amount:modal.amts[k],note:why,when:"just now"}; REQUESTS.push(row); made.push(row)});
  const reA=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&made.some(m=>m.res===a.res)); reA.forEach(a=>a.re=true);   /* change 229 */
  modal=null; renderModal();
  receipt("client:"+c.id,`Sent to ${AGENCY.name}: ${linesText(made)}. They see it in their queue and you see the answer here.`,()=>{REQUESTS=REQUESTS.filter(x=>made.indexOf(x)<0);reA.forEach(a=>delete a.re);render()},`asked ${AGENCY.name} for more`);
@@ -5945,10 +5945,10 @@ function ulShortHTML(ro){const reqs=ulReqs(); const owner=canI("billing");
   return `<div class="msg m-warn ul-short" id="ulShort-${k}" role="status">${warnI}<span class="ul-short-t"><b>${R.label}: ${f(P)} asked, ${f(free)} available, short by ${f(gap)}.</b> ${who} Approve part, lower another workspace's limit below, or ${buy}.</span>${ro?"":`<button class="linkbtn ul-14 ul-reb" data-ulrebal="${k}">Rebalance in Limits <span aria-hidden="true">&darr;</span></button>`}</div>`}).join("")}
 function ulDecidedHTML(){const ids=new Set(myClientsForLimits().map(c=>c.id)), D=ANSWERS.filter(a=>ids.has(a.client)&&RES[a.res]&&byId[a.client]);
  if(!D.length) return `<div class="ul-decided"><p class="sub ul-none">No decided asks yet.</p></div>`;
- const G=[]; D.forEach(a=>{const id=a.ask||a.id; let g=G.find(x=>x.id===id); if(!g){g={id,client:a.client,lines:[],when:a.when,on:a.on,note:a.note};G.unshift(g)} g.lines.push(a)});   /* newest ask first, its lines in the order asked */
+ const G=[]; D.forEach(a=>{const id=a.ask||a.id; let g=G.find(x=>x.id===id); if(!g){g={id,client:a.client,by:a.by,lines:[],when:a.when,on:a.on,note:a.note};G.unshift(g)} g.lines.push(a)});   /* newest ask first, its lines in the order asked */
  const body=G.map(g=>{const c=byId[g.client];
   return `<tbody class="ul-ask-b">`+g.lines.map((a,i)=>{const R=RES[a.res], ok=a.state==="approved", cap=R.rows[a.client]?R.rows[a.client].cap:0;
-   return `<tr class="ul-ln"><td>${i?"":`<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm">${c.name}</span><span class="sub">Asked ${AGE(g.when).toLowerCase()} &middot; decided ${a.on||TODAY_D}</span></span></div>`}</td>
+   return `<tr class="ul-ln"><td>${i?"":`<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm">${c.name}</span><span class="sub">Asked ${g.by?"by "+g.by+", ":""}${AGE(g.when).toLowerCase()}; decided ${a.on||TODAY_D}</span></span></div>`}</td>
     <td><span class="ul-ask"><b>+${f(a.asked||a.amount)}</b> ${R.label}</span></td>
     <td data-uldecln="${a.id}"><span class="ul-chip ${ok?"is-ok":"is-no"}"${ansPart(a)?` title="Partly approved: ${f(a.amount)} of ${f(a.asked)}. The line is closed."`:""}>${ok?(ansPart(a)?"Partly approved":"Approved"):"Declined"}</span><span class="sub ul-dec">${ok?(ansPart(a)?`${f(a.amount)} of ${f(a.asked)}`:`+${f(a.amount)} in full`):"Limit unchanged"}</span></td>
     <td><span class="ul-plan">${f(ok?(a.to||cap):cap)}</span></td>
@@ -6102,7 +6102,7 @@ function ul3AnswerHTML(ro){const S=ul3Stops(), A=ulAsks(), n=new Set(S.map(s=>s.
   ${n?`<ol class="panel ul3-qs" aria-label="Needs you">${items}</ol>`:""}${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
 function ul3PlanHTML(ro){const reqs=ulReqs(), owner=canI("billing");
  const rows=UL_K().map(k=>{const R=RES[k], m=compute(k), free=m.free, want=reqs.filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0), short=want>free, p=R.pool>0?Math.round(m.caps/R.pool*100):0;
-  const ask=!want?"":short?`<span class="ul3-mk">${f(want)} asked, short by ${f(want-free)}</span>`:`${f(want)} <span class="ul3-g">fits</span>`;
+  const ask=!want?"":short?`${f(want)} <span class="ul3-g">asked</span>`:`${f(want)} <span class="ul3-g">fits</span>`;
   const acts=short&&!ro?`<button type="button" class="linkbtn ul3-l" data-ulrebal="${k}">Rebalance</button>${owner?`<button type="button" class="linkbtn ul3-l" data-ulbuy="${k}">Buy more</button>`:`<button type="button" class="linkbtn ul3-l" data-ulaskowner="${k}|${want-free}">Ask the Account Owner</button>`}`:"";
   return `<tr data-ul3plan="${k}"><td><span class="ul3-rn">${R.label}</span>${R.kind==="monthly"?`<span class="ul3-sub">Renews 1 Oct</span>`:""}</td><td class="ul3-num"><b>${f(free)}</b></td><td class="ul3-num">${ask}</td>
    <td class="ul3-num">${f(m.caps)} <span class="ul3-g">of ${f(R.pool)}</span></td><td class="ul3-num">${f(m.used)}</td><td><span class="ul3-hb">${pbar(p,UL3_GREY)}<span class="ul3-g">${p}%</span></span></td><td class="ul3-pa">${acts}</td></tr>`}).join("");
@@ -6320,6 +6320,203 @@ function ul3Toggle(id,kb){if(ul3Dirty()) return; UL.ed=null;   /* change 263 */
  UL.open3=UL.open3===id?null:id; UL.cell=null; ulLayer().innerHTML=""; render();
  const b=document.querySelector(`[data-ul3x="${id}"]`); if(b&&kb) b.focus({preventScroll:true})}
 
+/* ═══ change 262, 14 Oct 2026 (fd/queue-explore.html board 9, "One decision, then one batch"):
+   the top of Usage & limits. A headline that names the state, everything that fits in one batch
+   (first, so a stopped workspace is one click away), then one decision per short resource with a
+   drafted default. One mark (Short by N), one action style, one verb (Give). ═══ */
+const UL4_POOL=k=>k==="sends"?"Emails a month":RES[k].label;
+const UL4_LIM={sends:"email",lead_finder:"Lead Finder",verification:"verification",ai:"AI credit",dialer:"dialer",radar:"inbox test"};
+const ul4Are=k=>/s$/.test(UL3_NM[k]);
+const ul4Num=s=>{const d=String(s==null?"":s).replace(/[^\d]/g,""); return d===""?null:+d};
+const ul4First=c=>c.name.split(" ")[0];
+const ul4Asked=r=>`Asked ${r.by?`by ${r.by}, `:""}${AGE(r.when).toLowerCase()}`;   /* 262.6: who asked, then when */
+const ul4Step=k=>RES[k].pool>=100000?500:RES[k].pool>=5000?50:RES[k].pool>=1000?10:5;
+function ul4St(){UL.b4=UL.b4||{}; UL.t4=UL.t4||{}; UL.s4=UL.s4||{}}
+/* what needs you: short resources (asks over what is available), what fits, stops with nothing available */
+function ul4Model(){ul4St(); const reqs=ulReqs(), contested=[], fits=[], blocked=[];
+ UL_K().forEach(k=>{const L=reqs.filter(r=>r.res===k), free=compute(k).free, want=L.reduce((t,r)=>t+r.amount,0);
+  if(L.length&&want>free) contested.push({k,L,free,want,gap:want-free});
+  else L.forEach(r=>fits.push({key:r.id,k,c:byId[r.client],r}))});
+ const stops=[]; ul3Stops().forEach(s=>{const x={key:"s|"+s.k+"|"+s.c.id,k:s.k,c:s.c,stop:s.r}; (compute(s.k).free>0?stops:blocked).push(x)});
+ fits.sort((a,b)=>ulAge(b.r.when)-ulAge(a.r.when));   /* asks oldest first, after every stop */
+ return {contested,fits:stops.concat(fits),blocked}}
+function ul4Head(M){const sh=M.contested.map(x=>`${UL3_NM[x.k]} ${ul4Are(x.k)?"are":"is"} ${f(x.gap)} short`)
+  .concat(M.blocked.map(b=>`${b.c.name} used all its ${ul3Noun(b.k)} and none are available`));
+ const n=M.fits.length, ws=[...new Set(M.fits.map(x=>x.c.id))];
+ if(sh.length) return listAnd(sh)+"."+(n?" Everything else fits.":"");
+ if(!n) return "Nothing needs you.";
+ if(ws.length===1) return `${M.fits[0].c.name} needs more, and it ${n>1?"all ":""}fits.`;
+ return `${ws.length} workspaces need more, and ${ws.length===2?"both":"all"} fit.`}
+/* ── the batch ── */
+function ul4Sug(x){const row=x.stop, st=ul4Step(x.k), free=compute(x.k).free; return Math.min(free,Math.max(st,Math.round(row.cap/3/st)*st))}
+function ul4Val(x){const v=UL.b4[x.key]; return v!==undefined?v:x.stop?x.stop.cap+ul4Sug(x):x.r.amount}
+const ul4Amt=x=>{const v=ul4Val(x); return v==null?0:x.stop?v-x.stop.cap:v};
+const ul4Bad=x=>{const v=ul4Val(x); return v==null||(x.stop?v<=x.stop.cap:v<=0)};
+const ul4Review=F=>F.length>5;
+const ul4Sel=F=>ul4Review(F)?F.filter(x=>UL.t4[x.key]):F;
+function ul4Over(sel){const ks=[...new Set(sel.map(x=>x.k))]; return ks.map(k=>({k,by:sel.filter(x=>x.k===k).reduce((t,x)=>t+ul4Amt(x),0)-compute(k).free})).filter(o=>o.by>0)}
+function ul4StopWhy(c,k){if(k!=="sends") return `At its ${UL3_NM[k]} limit`;
+ const a=ACTIVITY.find(x=>x.client===c.id&&/^Sending stopped/.test(x.text||"")), n=hm(c).sysPaused;
+ return `Stopped${a?" "+AGE(a.when):" sending"}${n?`, ${n} sequence${n===1?"":"s"} paused`:""}`}
+function ul4Used(k,row){return row.used>=row.cap?`Has used all ${f(row.cap)}${k==="sends"?" for "+ul3Month():""}.`:`Has used ${f(row.used)} of ${f(row.cap)}.`}
+function ul4Hint(x){const k=x.k, row=RES[k].rows[x.c.id], v=ul4Val(x);
+ if(x.stop) return v!=null&&v<=row.cap?`Enter a limit above ${f(row.cap)}.`:ul4Used(k,row);
+ if(v==null||v<=0) return `Enter an amount, or decline the ask.`;
+ if(v<x.r.amount) return `Less than the ${f(x.r.amount)} asked. The rest closes; ${x.c.name} can ask again.`;
+ return ul4Used(k,row)}
+function ul4PoolHTML(F,titled,ro){const sel=ro?[]:ul4Sel(F), ks=[...new Set(F.map(x=>x.k))];
+ return ks.map(k=>{const free=compute(k).free, use=sel.filter(x=>x.k===k).reduce((t,x)=>t+ul4Amt(x),0), n=sel.filter(x=>x.k===k).length, aft=free-use;
+  return `${titled?UL4_POOL(k)+": ":""}<b>${f(free)}</b> available${n?aft>=0?`, <b>${f(aft)}</b> after${ks.length>1?"":n===2?" both":n===1?" this":" these"}`:", not enough for these":""}`}).join(". ")}
+function ul4FootHTML(F){const rv=ul4Review(F), sel=ul4Sel(F), n=sel.length, bad=sel.some(ul4Bad), over=ul4Over(sel);
+ const one=F[0], lab=rv?(n?`Give ${n} ticked`:"Give ticked"):F.length===1?(one.stop?`Raise to ${f(ul4Val(one)||0)}`:`Give ${f(ul4Val(one)||0)} ${ul3Unit(one.k)}`):F.length===2?"Give both":`Give all ${F.length}`;
+ return `<button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul4batch${!n||bad||over.length?" disabled":""}>${lab}</button>`
+  +over.map(o=>`<span class="ul3-mk">Over by ${f(o.by)}${over.length>1?" "+ul3Noun(o.k):""}</span>`).join("")
+  +(rv?`<span class="ul3-g">${n} of ${F.length} ticked</span>`:"")}
+function ul4Row(x,ro,rv){const c=x.c, k=x.k, row=RES[k].rows[c.id], v=ul4Val(x), id="ul4v-"+x.key.replace(/\|/g,"-");
+ const why=x.stop?ul4StopWhy(c,k):ul4Asked(x.r);
+ const inp=`<input class="ul4-qn${v!==(x.stop?x.stop.cap+ul4Sug(x):x.r.amount)?" is-ch":""}" type="text" inputmode="numeric" autocomplete="off" id="${id}" data-ul4v="${x.key}" value="${v==null?"":f(v)}" aria-label="${x.stop?`New ${UL4_LIM[k]} limit for ${c.name}`:`${UL4_POOL(k)} to give ${c.name}`}" aria-describedby="${id}-h">`;
+ const per=k==="sends"?"more emails a month":"more "+ul3Noun(k);
+ const what=x.stop?(ro?`Used all ${f(row.cap)} ${ul3Noun(k)}${k==="sends"?" for "+ul3Month():""}.`:`Raise the ${UL4_LIM[k]} limit from ${f(row.cap)} to ${inp}`)
+  :(ro?`Asked for ${f(x.r.amount)} ${per}.`:`Give ${inp} ${per}`);
+ const dec=!ro&&x.r&&UL.decl!==x.r.id?`<button type="button" class="linkbtn ul3-l" data-uldecl="${x.r.id}">Decline</button>`:"";
+ const tick=rv&&!ro?`<input type="checkbox" class="ul4-tk" data-ul4t="${x.key}"${UL.t4[x.key]?" checked":""} aria-label="Give this to ${c.name}">`:"";
+ return `<li class="ul4-r${rv&&!ro?" is-rv":""}" data-ul4r="${x.key}">${tick}<div class="ul4-who"><span class="ul4-nm">${c.name}</span><span class="ul4-why">${why}</span>${x.stop?`<span class="ul4-why">No ask yet</span>`:""}</div>
+  <div class="ul4-what"><p class="ul4-s">${what}</p><p class="ul4-h" id="${id}-h" data-ul4hint="${x.key}">${!ro?ul4Hint(x):x.stop?`${f(compute(k).free)} ${ul3Noun(k)} available in the plan.`:ul4Used(k,row)}</p></div><div class="ul4-act">${dec}</div>
+  ${x.r&&UL.decl===x.r.id&&!ro?`<div class="ul4-dcl">${ul3DeclHTML(x.r)}</div>`:""}</li>`}
+function ul4BatchHTML(M,ro){const F=M.fits; if(!F.length) return "";
+ const ks=[...new Set(F.map(x=>x.k))], titled=!!(M.contested.length||M.blocked.length||ks.length>1), rv=ul4Review(F);
+ return `<section class="panel ul4-p" id="ul4Batch" aria-labelledby="ul4BH"><div class="ul4-gh"><h3 class="ul4-t" id="ul4BH">${titled?"These fit":UL4_POOL(ks[0])}</h3><span class="ul4-n" data-ul4pool>${ul4PoolHTML(F,titled,ro)}</span></div>
+  ${rv&&!ro?`<p class="ul4-rvn">Tick what to give. Nothing is given until you choose it.</p>`:""}<ul class="ul4-rows">${F.map(x=>ul4Row(x,ro,rv)).join("")}</ul>
+  ${ro?"":`<div class="ul4-gf" data-ul4foot>${ul4FootHTML(F)}</div>`}</section>`}
+/* a stop with nothing available: 259's Rebalance and buy more, in its own block */
+function ul4BlockedHTML(M,ro){return M.blocked.map(x=>{const row=x.stop;
+ return `<section class="panel ul4-p" data-ul4blk="${x.key}"><div class="ul4-gh"><h3 class="ul4-t">${RES[x.k].label}</h3><span class="ul4-n"><b>0</b> available</span><span class="ul3-mk">Nothing available</span></div>
+  <ul class="ul4-rows"><li class="ul4-r"><div class="ul4-who"><span class="ul4-nm">${x.c.name}</span><span class="ul4-why">${ul4StopWhy(x.c,x.k)}</span><span class="ul4-why">No ask yet</span></div>
+  <div class="ul4-what"><p class="ul4-s">${ul4Used(x.k,row)} Nothing is available to raise it.</p></div><div class="ul4-act">${ro?"":`<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ulrebal="${x.k}">Rebalance</button>${ul3BuyHTML(x.k,1)}`}</div></li></ul></section>`}).join("")}
+/* ── the decision ── */
+const ul4Un=(k,r)=>{const row=RES[k].rows[r.client]; return Math.max(0,row.cap-row.used)};
+function ul4Pri(x){return x.L.slice().sort((a,b)=>ul4Un(x.k,a)-ul4Un(x.k,b)||ulAge(b.when)-ulAge(a.when))}
+function ul4Donor(x){const ask=new Set(x.L.map(r=>r.client)); let d=null;
+ ulRows().forEach(c=>{if(c.disabled||ask.has(c.id)) return; const row=RES[x.k].rows[c.id]; if(!row) return; const sp=Math.max(0,row.cap-row.used); if(!d||sp>d.sp) d={c,sp,row}});
+ return d&&d.sp>=x.gap?d:null}
+function ul4Plan(x){const S=UL.s4[x.k]||{}, P=ul4Pri(x), D=ul4Donor(x), owner=canI("billing");
+ const ch=S.ch&&(S.ch!=="move"||D)&&(S.ch!=="pri"||x.free>0)?S.ch:x.free>0?"pri":D?"move":"buy";
+ const pri={}; let rem=x.free; P.forEach(r=>{pri[r.id]=Math.min(r.amount,rem); rem-=pri[r.id]});
+ const p={ch,P,D,owner,give:{},move:0,buy:0,over:0,more:null};
+ if(ch==="pri") p.give=pri;
+ else if(ch==="move"){P.forEach(r=>p.give[r.id]=r.amount); p.move=x.gap}
+ else if(ch==="buy"){let m=x.free; P.forEach(r=>{if(r.amount<=m){p.give[r.id]=r.amount; m-=r.amount} else p.give[r.id]=0}); p.buy=P.filter(r=>!p.give[r.id]).reduce((t,r)=>t+r.amount,0)-m}
+ else {P.forEach(r=>{const v=S.v&&S.v[r.id]!==undefined?S.v[r.id]:pri[r.id]; p.give[r.id]=v==null?0:v});
+  p.more=P.find(r=>p.give[r.id]>r.amount)||null; p.over=Math.max(0,P.reduce((t,r)=>t+p.give[r.id],0)-x.free)}
+ p.nz=P.filter(r=>p.give[r.id]>0);
+ p.ok=!p.over&&!p.more&&(p.nz.length>0||p.buy>0);
+ return p}
+function ul4GoLabel(x,p){const u=ul3Unit(x.k), amts=listAnd(p.nz.map(r=>f(p.give[r.id])));
+ if(p.ch==="buy") return p.owner?(p.nz.length?`Give ${amts}, then buy ${f(p.buy)}`:`Buy ${f(p.buy)} in Billing`):(p.nz.length?`Give ${amts}, then ask for ${f(p.buy)}`:`Ask the Account Owner for ${f(p.buy)}`);
+ return p.nz.length?`Give ${amts} ${u}`:"Give"}
+function ul4CustomStat(x,p){return p.more?`<span class="ul3-mk">More than ${p.more.client&&byId[p.more.client].name} asked for</span>`:p.over?`<span class="ul3-mk">Over by ${f(p.over)}</span>`:`Gives ${f(p.P.reduce((t,r)=>t+p.give[r.id],0))} of ${f(x.free)} available.`}
+function ul4Opts(x,p){const k=x.k, P=p.P, nm=r=>byId[r.client].name, fn=r=>ul4First(byId[r.client]);
+ const pri={}; let rem=x.free; P.forEach(r=>{pri[r.id]=Math.min(r.amount,rem); rem-=pri[r.id]});
+ const short=P.filter(r=>pri[r.id]<r.amount), O=[];
+ const st=r=>{const row=RES[k].rows[r.client], un=ul4Un(k,r); return un?`${fn(r)} has ${f(un)} unused`:`${fn(r)} has used all ${f(row.cap)}`};
+ const told=short.map(r=>pri[r.id]?`${r.by||fn(r)} is told the other ${f(r.amount-pri[r.id])} needs more on the plan.`:`The ask from ${fn(r)} stays open.`).join(" ");
+ if(x.free>0) O.push(["pri",P.length===1?`Give what fits: ${f(pri[P[0].id])} to ${nm(P[0])}`:`${fn(P[0])} first: ${P.map(r=>`${f(pri[r.id])} to ${nm(r)}`).join(", ")}`,
+  (P.length>1?listAnd(P.map(st))+". ":"")+told]);
+ if(p.D){const row=p.D.row; O.push(["move",`Move ${f(x.gap)} from ${p.D.c.name} and give ${P.length===1?"it":P.length===2?"both":"all"} in full`,
+  `${p.D.c.name} has used ${f(row.used)} of ${f(row.cap)} and keeps ${f(p.D.sp-x.gap)} unused. It gets a notice.`])}
+ {let m=x.free; const g=[], w=[]; P.forEach(r=>{if(r.amount<=m){g.push(r); m-=r.amount} else w.push(r)}); const buy=w.reduce((t,r)=>t+r.amount,0)-m;
+  const now=g.length?`Give ${listAnd(g.map(r=>`${f(r.amount)} to ${nm(r)}`))} now and `:"";
+  const wait=`The ask from ${listAnd(w.map(fn))} stays open until you give ${w.length===1?"the "+f(w[0].amount):"them"}.`;
+  O.push(["buy",p.owner?`${now?now+"b":"B"}uy ${f(buy)} more in Billing`:`${now?now+"a":"A"}sk the Account Owner to buy ${f(buy)} more`,
+   p.owner?`Billing opens next. ${wait}`:`Sent to ${listAnd(ulOwners())}. ${wait}`])}
+ O.push(["custom","Split it another way","Type an amount for each workspace."]);
+ return O}
+function ul4AskerHTML(x,r,ro,inB){const c=byId[r.client], k=x.k, row=RES[k].rows[c.id], un=ul4Un(k,r);
+ const use=row.used>=row.cap?`Has used all ${f(row.cap)}${k==="lead_finder"?", so list building has stopped":k==="sends"?", so sending has stopped":""}.`:`Has used ${f(row.used)} of ${f(row.cap)}, so ${f(un)} ${un===1?"is":"are"} still unused.`;
+ const sib=ulReqs().filter(y=>(y.ask||y.id)===(r.ask||r.id)&&y!==r);
+ const also=sib.length?` The same ask has ${listAnd(sib.map(y=>`${f(y.amount)} ${ul3Noun(y.res)}`))}${sib.every(y=>inB.has(y.id))?", above":""}.`:"";
+ const dl=UL.decl===r.id&&!ro;
+ return `<div class="ul4-ask" data-ul4ask="${r.id}"><div class="ul4-top"><span class="ul4-nm">${c.name}</span><span class="ul4-why">${ul4Asked(r)}</span>${ro||dl?"":`<button type="button" class="linkbtn ul3-l" data-uldecl="${r.id}">Decline</button>`}</div>
+  <p class="ul4-amt">${f(r.amount)} <span>more</span></p><p class="ul4-d">${use}${also}</p>${r.note?`<p class="ul4-q">&ldquo;${r.note}&rdquo;</p>`:""}${dl?`<div class="ul4-dcl">${ul3DeclHTML(r)}</div>`:""}</div>`}
+function ul4DecisionHTML(x,ro,inB){const k=x.k, p=ul4Plan(x), n=new Set(x.L.map(r=>r.client)).size;
+ const head=`<div class="ul4-gh"><h3 class="ul4-t" id="ul4H-${k}">${RES[k].label}</h3><span class="ul4-n"><b>${f(x.free)}</b> available, <b>${f(x.want)}</b> asked by ${n===1?byId[x.L[0].client].name:n+" workspaces"}</span><span class="ul3-mk">Short by ${f(x.gap)}</span></div>`;
+ const asks=`<div class="ul4-asks${x.L.length>1?" is-"+Math.min(3,x.L.length):""}">${p.P.map(r=>ul4AskerHTML(x,r,ro,inB)).join("")}</div>`;
+ if(ro) return `<section class="panel ul4-p ul4-dec" data-ul4dec="${k}" aria-labelledby="ul4H-${k}">${head}${asks}</section>`;
+ const opt=([v,t,s])=>`<label class="ul4-opt"><input type="radio" name="ul4ch-${k}" id="ul4ch-${k}-${v}" value="${v}" data-ul4ch="${k}"${p.ch===v?" checked":""}><span class="ul4-ot"><span class="ul4-ol">${t}</span><span class="ul4-os">${s}</span></span></label>`;
+ const cust=p.ch==="custom"?`<div class="ul4-cus">${p.P.map(r=>{const id=`ul4c-${k}-${r.id}`; return `<span class="ul4-cf"><label for="${id}">${byId[r.client].name}</label><input class="ul-in ul4-ci" id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ul4cv="${k}|${r.id}" value="${S4v(k,r.id,p)}"></span>`}).join("")}<span class="ul4-cs" data-ul4cs="${k}" aria-live="polite">${ul4CustomStat(x,p)}</span></div>`:"";
+ return `<section class="panel ul4-p ul4-dec" data-ul4dec="${k}" aria-labelledby="ul4H-${k}">${head}${asks}
+  <div class="ul4-ch"><fieldset><legend>${x.free>0?`Choose how to split the ${f(x.free)}`:`Choose how to cover the ${f(x.want)}`}</legend>${ul4Opts(x,p).map(opt).join("")}</fieldset>${cust}
+  <div class="ul4-go"><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul4go="${k}"${p.ok?"":" disabled"}>${ul4GoLabel(x,p)}</button></div></div></section>`}
+function S4v(k,rid,p){const S=UL.s4[k]; const v=S&&S.v&&S.v[rid]!==undefined?S.v[rid]:p.give[rid]; return v==null?"":f(v)}
+/* ── the section ── */
+function ul4AnswerHTML(ro){const M=ul4Model(), any=M.contested.length+M.fits.length+M.blocked.length;
+ const ids=new Set(myClientsForLimits().map(c=>c.id)), hasDec=ANSWERS.some(a=>ids.has(a.client));
+ const dec=hasDec?`<button type="button" class="linkbtn ul3-l" data-uldecided aria-expanded="${!!UL.decided}">${UL.decided?"Hide decided asks":"Decided asks"}</button>`:"";
+ const inB=new Set(M.fits.filter(x=>x.r).map(x=>x.r.id));
+ return `<section class="ul3-ans ul4-ans" aria-labelledby="ul3H"><div class="ul3-hr"><h2 class="ul3-h" id="ul3H">${ul4Head(M)}</h2>${dec}</div>
+  ${any?"":`<p class="ul3-p">No asks are waiting and no workspace is at a limit.</p>`}
+  ${ul4BatchHTML(M,ro)}${ul4BlockedHTML(M,ro)}${M.contested.map(x=>ul4DecisionHTML(x,ro,inB)).join("")}
+  ${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
+/* ── deciding: one apply for the batch and the split, one toast with Undo ── */
+function ul4Apply(items){const before=REQUESTS.slice(), gone=[], ans=[], caps=[];
+ items.forEach(i=>{if(!(i.amt>0)) return; const R=RES[i.k], row=R.rows[i.c.id]; caps.push([row,row.cap,i.k]); row.cap+=i.amt; syncRes(i.k,row);
+  if(i.r){const part=i.amt<i.r.amount, a=Object.assign({},i.r,{state:"approved",on:TODAY_D,to:row.cap,amount:i.amt},part?{asked:i.r.amount}:{}); ANSWERS.push(a); ans.push(a); gone.push(i.r);
+   logAct(i.c.id,part?`Partly approved ${f(i.amt)} of the ${f(i.r.amount)} more ${R.unit} asked and closed the line; the ${R.label.toLowerCase()} limit is now ${f(row.cap)}`:`Approved ${f(i.amt)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(row.cap)}`)}
+  else logAct(i.c.id,`${R.label} limit raised from ${f(row.cap-i.amt)} to ${f(row.cap)} on Usage & limits`)});
+ REQUESTS=REQUESTS.filter(r=>gone.indexOf(r)<0);
+ return ()=>{caps.reverse().forEach(([row,cap,k])=>{row.cap=cap; syncRes(k,row)}); ans.forEach(a=>{const j=ANSWERS.indexOf(a); if(j>-1) ANSWERS.splice(j,1)});
+  const now=REQUESTS; REQUESTS=before.filter(r=>now.indexOf(r)>-1||gone.indexOf(r)>-1).concat(now.filter(r=>before.indexOf(r)<0))}}
+/* 261.2's toast voice: "Gave X 640 more ...", a partial "Gave X 960 of 1,000 ...", then "The rest closes; X can ask again." */
+const ul4Part=i=>!!i.r&&i.amt<i.r.amount;
+function ul4Gave(items){const ks=[...new Set(items.map(i=>i.k))];
+ return listAnd(ks.map(k=>{const I=items.filter(i=>i.k===k), pt=I.some(ul4Part); return `${listAnd(I.map(i=>`${i.c.name} ${f(i.amt)}${ul4Part(i)?" of "+f(i.r.amount):""}`))} ${pt?"":"more "}${ul3Noun(k)}`}))}
+const ul4Rest=items=>{const P=items.filter(ul4Part); return P.length?` The rest closes; ${listAnd(P.map(i=>i.c.name))} can ask again.`:""};
+const ul4Avail=ks=>ks.length===1?(compute(ks[0]).free?`${f(compute(ks[0]).free)} available.`:"Nothing is available now."):`${listAnd(ks.map(k=>`${f(compute(k).free)} ${ul3Noun(k)}`))} available.`;   /* 261.2's toast ending */
+function ul4GiveBatch(){const M=ul4Model(), F=M.fits, sel=ul4Sel(F); if(!sel.length||sel.some(ul4Bad)||ul4Over(sel).length) return;
+ const items=sel.map(x=>({k:x.k,c:x.c,r:x.r||null,amt:ul4Amt(x)})), undo=ul4Apply(items), ks=[...new Set(items.map(i=>i.k))];
+ receipt("ul",`Gave ${ul4Gave(items)}.${ul4Rest(items)} ${ul4Avail(ks)}`,undo,`gave ${ul4Gave(items)}`);
+ UL.b4={}; UL.t4={}; render()}
+function ul4Decide(k){const x=ul4Model().contested.find(y=>y.k===k); if(!x) return; const p=ul4Plan(x); if(!p.ok) return; const R=RES[k];
+ let dn=null; if(p.move&&p.D){const row=p.D.row; dn=[row,row.cap]; row.cap-=p.move; syncRes(k,row);
+  logAct(p.D.c.id,`${R.label} limit lowered from ${f(dn[1])} to ${f(row.cap)} on Usage & limits, to give ${listAnd(p.P.map(r=>byId[r.client].name))} their asks in full`)}
+ const items=p.nz.map(r=>({k,c:byId[r.client],r,amt:p.give[r.id]})), u1=ul4Apply(items);
+ const undo=()=>{u1(); if(dn){dn[0].cap=dn[1]; syncRes(k,dn[0])}};
+ const gave=items.length?`Gave ${ul4Gave(items)}.${ul4Rest(items)}`:"";
+ let t;
+ if(p.ch==="move") t=`Moved ${f(p.move)} from ${p.D.c.name} and gave ${ul4Gave(items)}. ${ul4Avail([k])}`;
+ else if(p.ch==="buy"){const w=p.P.filter(r=>!p.give[r.id]);
+  t=p.owner?`${gave} Buy ${f(p.buy)} more here, then give ${listAnd(w.map(r=>byId[r.client].name))} ${w.length===1?"the "+f(w[0].amount):"theirs"}.`
+   :`${gave} Asked ${listAnd(ulOwners())} to buy ${f(p.buy)} more ${R.label}.`}
+ else t=`${gave} ${ul4Avail([k])}`;
+ receipt("ul",t.trim(),undo,items.length?`gave ${ul4Gave(items)}`:`asked to buy ${f(p.buy)} more ${R.label}`);
+ delete UL.s4[k];
+ if(p.ch==="buy"&&p.owner){ctx="agency"; view={name:"credits"}; billTab=BS_BUY[k]||"plan"}
+ render()}
+/* typing repaints what depends on the number, not the page, so the caret stays */
+function ul4PaintB(){const M=ul4Model(), F=M.fits; if(!F.length) return; const ks=[...new Set(F.map(x=>x.k))], titled=!!(M.contested.length||M.blocked.length||ks.length>1);
+ const P=document.querySelector("[data-ul4pool]"); if(P) P.innerHTML=ul4PoolHTML(F,titled);
+ F.forEach(x=>{const h=document.querySelector(`[data-ul4hint="${x.key}"]`); if(h) h.textContent=ul4Hint(x);
+  const i=document.querySelector(`[data-ul4v="${x.key}"]`); if(i) i.classList.toggle("is-ch",ul4Val(x)!==(x.stop?x.stop.cap+ul4Sug(x):x.r.amount))});
+ const G=document.querySelector("[data-ul4foot]"); if(G){G.innerHTML=ul4FootHTML(F); ul4WireFoot()}}
+function ul4PaintC(k){const x=ul4Model().contested.find(y=>y.k===k); if(!x) return; const p=ul4Plan(x);
+ const s=document.querySelector(`[data-ul4cs="${k}"]`); if(s) s.innerHTML=ul4CustomStat(x,p);
+ const b=document.querySelector(`[data-ul4go="${k}"]`); if(b){b.textContent=ul4GoLabel(x,p); b.disabled=!p.ok}
+ q2(`[data-ul4cv^="${k}|"]`).forEach(i=>{const r=x.L.find(y=>y.id===i.dataset.ul4cv.split("|")[1]); i.setAttribute("aria-invalid",String(!!(p.over||(r&&p.give[r.id]>r.amount))))})}
+function ul4WireFoot(){q2("[data-ul4batch]").forEach(b=>b.onclick=ul4GiveBatch)}
+function ul4Wire(){if(view.name!=="limits"||ctx!=="agency") return; ul4St();
+ q2("[data-ul4v]").forEach(i=>{i.oninput=()=>{UL.b4[i.dataset.ul4v]=ul4Num(i.value); ul4PaintB()};
+  i.onblur=()=>{const v=UL.b4[i.dataset.ul4v]; if(v!=null) i.value=f(v)};
+  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=document.querySelector("[data-ul4batch]"); if(b&&!b.disabled) b.click()}}});
+ q2("[data-ul4t]").forEach(c=>c.onchange=()=>{UL.t4[c.dataset.ul4t]=c.checked; ul4PaintB()});
+ ul4WireFoot();
+ q2("[data-ul4ch]").forEach(r=>r.onchange=()=>{const k=r.dataset.ul4ch; UL.s4[k]=Object.assign({},UL.s4[k],{ch:r.value}); render();
+  const n=el(`ul4ch-${k}-${r.value}`); if(n) n.focus({preventScroll:true})});
+ q2("[data-ul4cv]").forEach(i=>{const [k,rid]=i.dataset.ul4cv.split("|");
+  i.oninput=()=>{const S=UL.s4[k]=Object.assign({ch:"custom"},UL.s4[k]); S.v=Object.assign({},S.v); S.v[rid]=ul4Num(i.value); ul4PaintC(k)};
+  i.onblur=()=>{const S=UL.s4[k]; const v=S&&S.v?S.v[rid]:undefined; if(v!=null) i.value=f(v)};
+  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=document.querySelector(`[data-ul4go="${k}"]`); if(b&&!b.disabled) b.click()}}});
+ q2("[data-ul4go]").forEach(b=>b.onclick=()=>ul4Decide(b.dataset.ul4go))}
+
 function vLimits(){
  if(!canI("limits")) return denied("see usage and limits");
  const W=ulRows(), ro=ulRo(), cl=W.filter(c=>!c.own);
@@ -6327,7 +6524,7 @@ function vLimits(){
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
    <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the asks they send you. Add a workspace and give it limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
- return `<div class="wrap ul-wrap">${graceBanner()}${ul3AnswerHTML(ro)}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
+ return `<div class="wrap ul-wrap">${graceBanner()}${ul4AnswerHTML(ro)/* change 262 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
@@ -10671,7 +10868,7 @@ function renderModal(){
      const why=(L.querySelector("#reqWhy").value||"").trim();
      if(!amt||!why){L.querySelector("#reqErr").hidden=false;return}
      if(!REQUESTS.some(r=>r.client===id&&r.res===modal.res))
-       REQUESTS.push({id:"r"+Date.now().toString(36).slice(-4),client:id,res:modal.res,
+       REQUESTS.push({id:"r"+Date.now().toString(36).slice(-4),client:id,by:(actingClientUser(byId[id])||[])[0],res:modal.res,
          amount:amt,note:why,when:"just now"});
      modal=null;renderModal();render();return;
    }
@@ -11516,7 +11713,7 @@ function wire(){
       way Withdraw's own Undo re-adds exactly the one it removed. */
    let row=REQUESTS.find(r=>r.client===id&&r.res===k);
    if(!row){
-     row={id:"r"+Date.now().toString(36).slice(-4),client:id,res:k,amount:amt,
+     row={id:"r"+Date.now().toString(36).slice(-4),client:id,by:(actingClientUser(byId[id])||[])[0],res:k,amount:amt,
        note:(whyEl&&whyEl.value||"").trim(),when:"just now"};
      REQUESTS.push(row);
    }
@@ -11711,6 +11908,7 @@ function wire(){
    const i=DECIDED.indexOf(RECEIPT.entry); if(i>-1) DECIDED.splice(i,1); clearReceipt(); render()});
  q("[data-rcpx]").forEach(b=>b.onclick=()=>{clearReceipt(); render()});
  ulWire();   /* change 226 */
+ ul4Wire();   /* change 262 */
  /* the generic switch handler: flips a switch that is decorative in this
     prototype. It must not touch a switch that owns real state, because this
     binding runs last and `onclick` assignment overwrites rather than adds.
@@ -11953,7 +12151,7 @@ function demoScenario(name){
  if(name==="crisis"){
   GRACE.on=true;
   const nw=RES.sends.rows.nw; nw.used=nw.cap; byId.nw.sent=nw.cap; growSequences(byId.nw); HOME_METRICS.nw=Object.assign({},HOME_METRICS.nw,{sysp:5,last:"today, 06:10"});
-  if(!REQUESTS.some(r=>r.client==="at")) REQUESTS.push({id:"r4",ask:"a3",client:"at",res:"verification",amount:1000,note:"Cleaning a 40,000-row list before the October push.",when:"3 hours ago"});
+  if(!REQUESTS.some(r=>r.client==="at")) REQUESTS.push({id:"r4",ask:"a3",client:"at",by:"marketing@atlasmfg.com",res:"verification",amount:1000,note:"Cleaning a 40,000-row list before the October push.",when:"3 hours ago"});
   ACTIVITY.unshift({client:"nw",who:"Alex Meridian",when:"3 hours ago",text:"Sending stopped: the Emails sent / month limit of "+f(nw.cap)+" was reached",at:-0.12});
  }
  DEMO=name;
@@ -13678,7 +13876,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b9ea42b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="a76813a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -13858,6 +14056,59 @@ body:has(#demoPill:not([hidden])) .ul-sticky,body:has(#demoPill:not([hidden])) .
 .ul3-pen{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:#6B7280;cursor:pointer}
 .ul3-pen svg{width:14px;height:14px}.ul3-pen:hover{background:#E5E7EB;color:#1F2937}
 .ul3-pen:focus-visible,.ul3-q .linkbtn:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:4px}
+/* change 262: board 9 in Saleshandy's look. Gray 800 / 500 / 200, Blue 700 actions, Amber only on Short by N. */
+.ul4-ans{gap:16px}.ul4-ans>.ul3-hr{margin-bottom:0}.ul4-ans>.ul3-p{margin-top:-12px}
+.ul4-ans>.ul4-p.panel{margin:0;overflow:hidden}
+.ul4-gh{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px;padding:16px 24px;border-bottom:1px solid #E5E7EB}
+.ul4-t{margin:0;font-size:16px;line-height:24px;font-weight:600;color:#1F2937}
+.ul4-n{font-size:14px;line-height:20px;color:#6B7280;font-variant-numeric:tabular-nums}.ul4-n b{font-weight:600;color:#1F2937}
+.ul4-gh .ul3-mk{font-size:14px;line-height:20px}
+.ul4-rows{list-style:none;margin:0;padding:0}
+.ul4-r{display:grid;grid-template-columns:300px minmax(0,1fr) auto;column-gap:24px;row-gap:12px;align-items:start;padding:16px 24px;border-top:1px solid #E5E7EB}
+.ul4-r:first-child{border-top:0}
+.ul4-r.is-rv{grid-template-columns:16px 300px minmax(0,1fr) auto}.ul4-tk{margin-top:4px!important}
+.ul4-who{display:flex;flex-direction:column;min-width:0}
+.ul4-nm{font-size:16px;line-height:24px;font-weight:600;color:#1F2937;overflow-wrap:anywhere}
+.ul4-why{font-size:14px;line-height:20px;color:#6B7280;overflow-wrap:anywhere}
+.ul4-what{min-width:0;max-width:72ch}
+.ul4-s{margin:0;font-size:16px;line-height:32px;color:#1F2937}
+.ul4-h{margin:0;font-size:14px;line-height:20px;color:#6B7280}
+input.ul4-qn{display:inline-block;width:104px;height:32px;margin:0 2px;padding:0 8px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font:inherit;font-size:16px;font-weight:600;color:#1F2937;font-variant-numeric:tabular-nums;vertical-align:baseline;box-sizing:border-box}
+input.ul4-qn:hover{border-color:#9CA3AF}input.ul4-qn:focus{outline:0;border-color:#1D4ED8;box-shadow:0 0 0 2px #DBEAFE}
+input.ul4-qn.is-ch{border-color:#1F2937}
+.ul4-act{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:32px;flex-wrap:wrap;max-width:360px}
+.ul4-act .ul3-buy{text-align:right}
+.ul4-dcl{grid-column:2/-1}.ul4-r.is-rv .ul4-dcl{grid-column:3/-1}.ul4-ask .ul4-dcl{margin-top:12px}
+.ul4-gf{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:16px 24px;border-top:1px solid #E5E7EB}
+.ul4-gf .ul3-mk{font-size:14px;line-height:20px}.ul4-gf .ul3-g{font-size:14px;line-height:20px}
+.ul4-rvn{margin:0;padding:12px 24px 0;font-size:14px;line-height:20px;color:#6B7280}
+.ul4-asks{display:grid;grid-template-columns:minmax(0,1fr)}
+.ul4-asks.is-2{grid-template-columns:repeat(2,minmax(0,1fr))}.ul4-asks.is-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ul4-ask{padding:16px 24px;min-width:0}.ul4-ask+.ul4-ask{border-left:1px solid #E5E7EB}
+.ul4-top{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:baseline}.ul4-top .ul4-why{grid-row:2;grid-column:1/-1}.ul4-top .linkbtn{grid-row:1;grid-column:2}
+.ul4-amt{margin:8px 0 0;font-size:20px;line-height:28px;font-weight:600;color:#1F2937;font-variant-numeric:tabular-nums}.ul4-amt span{font-size:14px;font-weight:400;color:#6B7280}
+.ul4-d,.ul4-q{margin:4px 0 0;max-width:72ch;font-size:14px;line-height:20px;color:#6B7280}
+.ul4-ask .ul3-decl{width:auto}
+.ul4-ch{display:flex;flex-direction:column;gap:16px;padding:16px 24px 20px;border-top:1px solid #E5E7EB}
+.ul4-ch fieldset{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;border:0;min-width:0}
+.ul4-ch legend{float:left;width:100%;margin:0;padding:0;font-size:14px;line-height:20px;font-weight:600;color:#1F2937}
+.ul4-ch legend+*{clear:both}
+.ul4-opt{display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:12px;align-items:start;cursor:pointer}
+.ul4-opt input{margin-top:2px!important}
+.ul4-ot{display:flex;flex-direction:column;max-width:80ch}
+.ul4-ol{font-size:14px;line-height:20px;color:#1F2937}
+.ul4-os{font-size:12px;line-height:16px;color:#6B7280}
+.ul4-cus{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-left:28px}
+.ul4-cf{display:inline-flex;align-items:center;gap:8px}.ul4-cf label{font-size:14px;line-height:20px;color:#6B7280}
+.ul4-ci.ul-in{width:112px}.ul4-ci[aria-invalid="true"]{border-color:#92400E;box-shadow:inset 0 0 0 1px #92400E}
+.ul4-cs{font-size:14px;line-height:20px;color:#6B7280;font-variant-numeric:tabular-nums}
+.ul4-go{display:flex}
+.ul4-ans .linkbtn:focus-visible,.ul4-opt input:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:4px}
+@media (max-width:1100px){.ul4-r,.ul4-r.is-rv{grid-template-columns:minmax(0,1fr)}.ul4-r.is-rv{grid-template-columns:16px minmax(0,1fr)}.ul4-r.is-rv>:not(.ul4-tk){grid-column:2}
+ .ul4-act{justify-content:flex-start;max-width:none;min-height:0}.ul4-act:empty{display:none}.ul4-act .ul3-buy{text-align:left}.ul4-dcl,.ul4-r.is-rv .ul4-dcl{grid-column:1/-1}
+ .ul4-asks.is-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:720px){.ul4-asks.is-2,.ul4-asks.is-3{grid-template-columns:minmax(0,1fr)}.ul4-ask+.ul4-ask{border-left:0;border-top:1px solid #E5E7EB}
+ .ul4-gh,.ul4-r,.ul4-ask,.ul4-ch,.ul4-gf{padding-left:16px;padding-right:16px}.ul4-cus{padding-left:0}.ul4-ask .ul3-decl{flex-wrap:wrap}}
 @container ulg (max-width:1199px){.ul3-xg{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* change 263: edit in place in the roster, and Edit limits one resource at a time */
 .ul3-ra{display:inline-flex;align-items:center;justify-content:flex-end;gap:16px}
