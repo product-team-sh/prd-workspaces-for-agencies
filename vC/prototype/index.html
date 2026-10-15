@@ -2160,19 +2160,16 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
 [
  [ "nw","Priya Nair","2 hours ago","Previewed the workspace as ops@northwind.co"],
  [ "at","Lena Okafor","3 hours ago","Email account connect@atlasmfg-go.com connected"],
- [ "sf","Alex Meridian","5 hours ago","Sending stopped: the Emails sent / month limit of 30,000 was reached"],
+ [ "sf","System","5 hours ago","Sending stopped: the Emails sent / month limit of 30,000 was reached"],
  [ "at","Jonah Reyes","6 hours ago","Bought 2 email accounts on atlas-mail.com, $7.00 a month"],
  [ "pc","Priya Nair","8 hours ago","Dedupe across sequences changed to Off"],
- [ "nw","Dev Kapoor","yesterday","Asked for 20,000 more emails"],
  [ "vx","Tariq Hassan","yesterday","Email account care@vertex-reach.com reconnected"],
- [ "nw","Jonah Reyes","yesterday","Limit on Email verification credits changed from 800 to 1,000"],
+ [ "nw","Jonah Reyes","yesterday","Email verification credits limit changed from 800 to 1,000"],
  [ "nw","Priya Nair","2 days ago","Emails sent / month limit changed from 45,000 to 50,000"],
- [ "al","Alex Meridian","2 days ago","Received a request for 640 more Lead Finder credits"],
  [ "at","Alex Meridian","2 days ago","AI credits limit changed from 400 to 500"],
  [ "sf","Priya Nair","2 days ago","Invited growth@summitfintech.com as Workspace Collaborator"],
  [ "pc","Alex Meridian","3 days ago","Signed in to the workspace as Workspace Admin"],
- [ "vx","Priya Nair","3 days ago","Approved Vertex Health's request for 500 Lead Finder credits; the limit is now 3,500"],
- [ "vx","Priya Nair","3 days ago","Declined the request for 15,000 more emails"],
+ [ "vx","Priya Nair","3 days ago","Gave 500 more Lead Finder credits and declined 15,000 more emails asked by growth@vertexhealth.io; the Lead Finder credits limit is now 3,500"],
  [ "at","Lena Okafor","3 days ago","Sending priority changed to Balanced Sending"],
  [ "bl","Dev Kapoor","4 days ago","Sequence Seed stage SaaS resumed"],
  [ "at","Tariq Hassan","4 days ago","Added 1,200 prospects from a CSV import"],
@@ -2596,6 +2593,8 @@ let ANSWERS=[
 const askLines=(cid)=>REQUESTS.filter(q=>q.client===cid);
 const askOf=(cid)=>{const L=askLines(cid); return L.length?{id:L[0].ask||L[0].id,lines:L,note:L[0].note,when:L[0].when}:null};
 const linesText=L=>listAnd(L.map(q=>f(q.amount)+" "+(RES[q.res].short||RES[q.res].unit)));
+/* change 274: who made the ask, from `by`; falls back to the workspace name when a fixture has none */
+const askerOf=(L,cid)=>listAnd([...new Set(L.map(q=>q.by).filter(Boolean))])||(cid&&byId[cid]?byId[cid].name:"");
 /* change 229, 13 Oct 2026 (Hitesh: "when ask is party approved then existing ask is closed user has to
    create new request"). Per line: approved for less than asked closes the line; nothing of it stays
    pending, and the client asks again for more. ansPart is that line ("Partly approved: 960 of 1,000");
@@ -3288,14 +3287,14 @@ function agencyUsage(c){
   const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
   const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
   const fill=pend?(cap/(cap+pend.amount))*pct:pct;
-  const line=pend?`<span class="cu-ans sub">${first} asked for ${f(pend.amount)} more</span>`
-   :ansPart(ans)?`<span class="cu-ans is-ok"><span><i></i>You approved ${f(ans.amount)} of the ${f(ans.asked)} ${first} asked for${ans.on?" &middot; "+ans.on:""}</span></span>`
+  const line=pend?`<span class="cu-ans sub">${pend.by||first} asked for ${f(pend.amount)} more</span>`
+   :ansPart(ans)?`<span class="cu-ans is-ok"><span><i></i>You approved ${f(ans.amount)} of the ${f(ans.asked)} ${ans.by||first} asked for${ans.on?" &middot; "+ans.on:""}</span></span>`
    :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>You raised this to ${f(ans.to||cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
    :ans?`<span class="cu-ans is-no"><span><i></i>You declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
   const act=pend?goBtn("Decide &rarr;","linkbtn cu-go"):goBtn(tone==="fine"?"Change limit &rarr;":"Raise limit &rarr;","linkbtn cu-go");
-  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?first+" asked for "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
+  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?(pend.by||first)+" asked for "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
  let top;
- if(ask) top=askGroups(ask.lines).map(g=>`<div class="cu-status is-pend"><span><i></i><b>${first} asked for ${linesText(g.lines)}</b> &middot; ${AGE(g.when)}${g.note?` &middot; &ldquo;${g.note}&rdquo;`:""} ${goBtn("Decide on the Limits tab &rarr;","linkbtn")}</span></div>`).join("");
+ if(ask) top=askGroups(ask.lines).map(g=>`<div class="cu-status is-pend"><span><i></i><b>${askerOf(g.lines,c.id)} asked for ${linesText(g.lines)}</b>, ${AGE(g.when).toLowerCase()}${g.note?`: &ldquo;${g.note}&rdquo;`:""} ${goBtn("Decide on the Limits tab &rarr;","linkbtn")}</span></div>`).join("");
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`
@@ -3781,9 +3780,9 @@ function vClients(){
    const mine=Array.from(new Set(REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).map(r=>r.client)));
    const ask=id=>`<span class="sub">(${linesText(askLines(id))})</span>`;
    return mine.length===1?
-   `<div class="msg m-info">${infoI}<span>${byId[mine[0]].name} has requested more capacity ${ask(mine[0])}.
-    <button class="linkbtn linkbtn--sm" data-reqws="${mine[0]}">Review</button> &middot; <button class="linkbtn linkbtn--sm" data-ulgo>See all asks</button></span></div>`
-   :mine.length?`<div class="msg m-info">${infoI}<span>${mine.length} workspaces have requested more capacity: ${mine.map(id=>`<button class="linkbtn linkbtn--sm" data-reqws="${id}">${byId[id].name}</button> ${ask(id)}`).join(", ")}. <button class="linkbtn linkbtn--sm" data-ulgo>See all asks</button></span></div>`:""})()}
+   `<div class="msg m-info">${infoI}<span>${askerOf(askLines(mine[0]),mine[0])} (${byId[mine[0]].name}) asked for more.
+    <button class="linkbtn linkbtn--sm" data-reqws="${mine[0]}">Review</button> <button class="linkbtn linkbtn--sm" style="margin-left:6px" data-ulgo>See all asks</button></span></div>`
+   :mine.length?`<div class="msg m-info">${infoI}<span>${listAnd(mine.map(id=>`${askerOf(askLines(id),id)} (<button class="linkbtn linkbtn--sm" data-reqws="${id}">${byId[id].name}</button>)`))} asked for more. <button class="linkbtn linkbtn--sm" data-ulgo>See all asks</button></span></div>`:""})()}
   ${seqAskBanner()}
   <div class="ws-meta">${wsOANote()}</div>
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
@@ -3812,8 +3811,10 @@ const rcHdrChip=c=>{
  const at=RK.filter(k=>RES[k].rows[c.id]&&rowState(k,c.id,compute(k)).room===0).map(k=>RES[k].label);
  const rq=REQUESTS.filter(q=>q.client===c.id);
  if(!at.length&&!rq.length) return "";
- const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):"Asked for "+f(rq[0].amount)+" more "+RES[rq[0].res].unit;
- return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="Open Limits">${t} &rarr;</button>`};
+ const L=at.length?[]:askLines(c.id);
+ const t=at.length?"At limit &middot; "+at[0]+(at.length>1?" +"+(at.length-1):""):(L.length>2?L.length+" asks waiting":"Asked for "+linesText(L));
+ const tip=at.length?"Open Limits":"Asked by "+askerOf(L,c.id)+", "+AGE(L[0].when).toLowerCase()+". Open Limits";
+ return `<button class="chip rc-hdrchip c-${at.length?"bad":"warn"}" data-tab="limits" title="${tip}">${t}</button>`};
 let RC_REFUSED=null, PREVIEW=false, LM_MENU=null, LM_DECL=null;
 function rSoon(title,line,c,icon,bullets){
  return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
@@ -3928,7 +3929,7 @@ function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu"})}).join("");
  const ask=askOf(c.id);
- const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Asked for ${linesText(ask.lines)} more</b> &middot; ${AGE(ask.when)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
+ const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Asked by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
@@ -3955,12 +3956,18 @@ function rOverview(c){
 function logAct(cid,text){ACTIVITY.unshift({client:cid,who:ME().name,when:"just now",text,at:Date.now()})}
 /* change 204: the same entry, named for whoever is acting, client sessions included */
 function seqAct(c,text){ACTIVITY.unshift({client:c.id,who:seqWho(c),when:"just now",text,at:Date.now()})}
+/* change 275: an ask is one entry, every resource named, the asker named; decisions name the asker too */
+const askShort=q=>f(q.amount)+" more "+RES[q.res].short+(q.res==="sends"?" a month":"");
+const moreText=L=>listAnd(L.map(q=>f(q.amount)+" more "+RES[q.res].short));
+const askBy=q=>q&&q.by?" asked by "+q.by:"";
+const limNow=(k,cap)=>RES[k].label+" limit is now "+f(cap);
 function rActivity(c){
  const rows=ACTIVITY.filter(a=>a.client===c.id).map(a=>({who:a.who,when:a.when,text:a.text,at:a.at||0}));
- REQUESTS.filter(q=>q.client===c.id).forEach(q=>rows.push({who:c.name,when:AGE(q.when),text:`Asked for ${f(q.amount)} more ${RES[q.res].unit}`,at:1}));
+ const groups={}; REQUESTS.filter(q=>q.client===c.id).forEach(q=>{const k=q.ask||q.id; (groups[k]=groups[k]||[]).push(q)});
+ Object.keys(groups).forEach(k=>{const L=groups[k], q=L[0]; rows.push({who:q.by||c.name,when:AGE(q.when),text:`Asked for ${listAnd(L.map(askShort))}`,note:q.note,at:-AGO_DAYS(q.when)})});
  rows.sort((a,b)=>(b.at||0)-(a.at||0));
  return `<div class="panel"><div class="panel-h"><span class="panel-t">Activity</span><span class="sub">What your team changed on this workspace. Sending and replies are in Analytics.</span></div>
-  <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(a=>`<div class="list-row rc-act"><span style="min-width:0"><b>${a.who}</b> &middot; ${a.text}</span><span class="sub" style="flex:none;margin-left:12px">${a.when}</span></div>`).join(""):'<p class="sub" style="margin:8px 0">Nothing yet.</p>'}</div></div>`;
+  <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(a=>`<div class="list-row rc-act"><span style="min-width:0"><b>${a.who}</b> &middot; ${a.text}${a.note?`<span class="sub rc-act-note" style="display:block">&ldquo;${a.note}&rdquo;</span>`:""}</span><span class="sub" style="flex:none;margin-left:12px">${a.when}</span></div>`).join(""):'<p class="sub" style="margin:8px 0">Nothing yet.</p>'}</div></div>`;
 }
 /* ═══ A4 Access, and A2's Add member drawer ═══════════════════════════════════
    09 §A4: one table shape for both groups, because a workspace has members and
@@ -3999,6 +4006,16 @@ let INVITED={"t:mira":"3 days ago","t:felix":"19 days ago","w:sf|growth@summitfi
 const INVITE_DAYS=14;
 const invExpired=w=>{const m=String(w||"").toLowerCase().match(/(\d+)\s*(day|week|month)/); if(!m) return false;
  return +m[1]*(m[2]==="day"?1:m[2]==="week"?7:30)>INVITE_DAYS};
+/* change 278: a person who has never signed in owns no sequence. The generator hands
+   sequences round-robin to every Member on a workspace; hand any that landed on a
+   never-signed-in Member to the next Member who has, else to the agency. */
+CLIENTS.forEach(c=>(c.sequences||[]).forEach((q,i)=>{
+ if(AGE(LASTSEEN[q.owner]||"unknown")!=="never") return;
+ const ok=staffOf(c).filter(x=>AGE(LASTSEEN[x.name]||"unknown")!=="never");
+ q.owner=(ok[i%Math.max(1,ok.length)]||{name:"the agency"}).name}));
+CLIENTS.forEach(c=>(PROSPECTS[c.id]||[]).forEach((p,i)=>{
+ if(AGE(LASTSEEN[p.owner]||"unknown")!=="never") return;
+ const ok=staffOf(c); p.owner=(ok[i%Math.max(1,ok.length)]||{name:"the agency"}).name}));
 const TODAY_STR="21 Sep";
 /* "just now" or "today" only, per the rule this round works to: an hour-old
    session does not count as someone still at the keyboard. */
@@ -4229,7 +4246,9 @@ const uncovered=()=>{
    temporal-dead-zone error every fixture load would hit. Function
    declarations hoist their body; const bindings do not. */
 function staffOf(c){
- return Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Member"&&PEOPLE[k].ws&&PEOPLE[k].ws.indexOf(c.id)>-1)
+ /* change 278: LASTSEEN is declared after the seed runs, so it is read guardedly */
+ const never=n=>{try{return AGE(LASTSEEN[n]||"unknown")==="never"}catch(e){return false}};
+ return Object.keys(PEOPLE).filter(k=>PEOPLE[k].role==="Member"&&PEOPLE[k].ws&&PEOPLE[k].ws.indexOf(c.id)>-1&&!never(PEOPLE[k].name))
    .map(k=>({key:k,name:PEOPLE[k].name,role:PEOPLE[k].role}));
 }
 /* membership says which workspaces exist for you, and a Member reaches
@@ -4489,7 +4508,7 @@ function rMembers(c){
  /* 2 Oct 2026, Hitesh: "this screen looks like not part of our product". The
     two groups are the People screen's own row grid now, not a bordered table,
     and every row that can change carries the People row menu. */
- const stat=r=>r.status==="Active"?`<span class="pp-st"><i></i>Active</span>`:r.status==="Invited"?`<span class="pp-st pp-st--inv"><i></i>Invited ${AGE(INVITED[r.key]||"3 days ago")}</span>${canEdit?`<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="pp-st pp-st--off"><i></i>Inactive</span>`;
+ const stat=r=>r.status==="Active"?(c.disabled?`<span class="pp-st pp-st--off"><i></i>No access while disabled</span>`:`<span class="pp-st"><i></i>Active</span>`):r.status==="Invited"?`<span class="pp-st pp-st--inv"><i></i>${invExpired(INVITED[r.key]||"3 days ago")?"Invite expired":"Invited "+AGE(INVITED[r.key]||"3 days ago")}</span>${canEdit?`<button class="linkbtn" data-pact="resend|${r.key}">Resend</button>`:""}`:`<span class="pp-st pp-st--off"><i></i>Disabled</span>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  /* 5 Oct 2026, change 113 (Changes needed.md #3): four columns packed from the left;
     the slack sits after the row menu instead of between Person and Role. */
@@ -4904,10 +4923,10 @@ function stSentence(name,role,names){
    A row's key is "t:<person key>" or "w:<workspace id>|<email>". */
 function peopleRows(){
  const t=Object.keys(PEOPLE).map(k=>{const P=PEOPLE[k];
-  const seen=AGE(LASTSEEN[P.name]||"unknown"), status=DISABLED["t:"+k]?"Inactive":seen==="never"?"Invited":"Active";
+  const seen=AGE(LASTSEEN[P.name]||"unknown"), status=(P.disabled||DISABLED["t:"+k])?"Disabled":seen==="never"?"Invited":"Active";
   return {key:"t:"+k,kind:"team",name:P.name,email:P.email||"",initials:P.initials,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,status,colour:"var(--blue-11)"}});
  const w=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0], seen=AGE(LASTSEEN[email]||"unknown"), key="w:"+c.id+"|"+email;
-  w.push({key,kind:"wsuser",name:email.split("@")[0].replace(/^./,x=>x.toUpperCase()),email,initials:initials(email.split("@")[0]),role:u[1],ws:[c.id],seen,status:DISABLED[key]?"Inactive":seen==="never"?"Invited":"Active",colour:c.colour,c})}));
+  w.push({key,kind:"wsuser",name:email.split("@")[0].replace(/^./,x=>x.toUpperCase()),email,initials:initials(email.split("@")[0]),role:u[1],ws:[c.id],seen,status:DISABLED[key]?"Disabled":seen==="never"?"Invited":"Active",colour:c.colour,c})}));
  const order={Owner:0,Admin:1,Member:2};
  t.sort((a,b)=>order[a.role]-order[b.role]||a.name.localeCompare(b.name));
  w.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
@@ -4924,7 +4943,7 @@ function peopleMenuHTML(r){
   ["chrole","Change role",owner?"The Account Owner role is transferred, not changed":""],
   r.kind==="team"&&r.role==="Member"?["assignws","Assign workspaces",""]:r.kind==="wsuser"?["assignws","Move to another workspace",""]:null,
   r.status==="Invited"?["resend","Resend invite",""]:null,
-  owner||isMe?null:[r.status==="Inactive"?"enable":"disable",r.status==="Inactive"?"Enable":"Disable",""],
+  owner||isMe?null:[r.status==="Disabled"?"enable":"disable",r.status==="Disabled"?"Enable":"Disable",""],
   owner||isMe?null:["delete",r.kind==="team"?"Delete user":"Remove from workspace",lastSignIn?"The only sign-in for "+r.c.name+"; disable the workspace instead":""]
  ].filter(Boolean);
  return `<div class="menu" style="width:260px;right:0;top:calc(100% + 4px)">${items.map(([k,l,why])=>`<button class="menu-i" ${why?`disabled title="${why}" style="opacity:.5"`:`data-pact="${k}|${r.key}"`}><span class="menu-l" style="${k==="delete"?"color:var(--red-12)":""}">${l}</span>${why?`<span class="menu-d">${why}</span>`:""}</button>`).join("")}</div>`;
@@ -4934,7 +4953,7 @@ function usersTable(rows,opts){
  const canEdit=canI("members");
  const q=PEOPLE_Q.trim().toLowerCase();
  const shown=rows.filter(r=>(PEOPLE_ROLE==="all"||r.role===PEOPLE_ROLE)&&(!q||(r.name+" "+r.email).toLowerCase().indexOf(q)>-1));
- const st=r=>r.status==="Active"?`<span class="chip c-ok">Active</span>`:r.status==="Invited"?`<span class="chip c-warn">Invited</span>`:`<span class="chip c-mute">Inactive</span>`;
+ const st=r=>r.status==="Active"?`<span class="chip c-ok">Active</span>`:r.status==="Invited"?`<span class="chip c-warn">${INVITED[r.key]&&invExpired(INVITED[r.key])?"Invite expired":"Invited"}</span>`:`<span class="chip c-mute">Disabled</span>`;
  return `<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:${opts.compact?860:1040}px">
    <thead><tr><th>Name</th><th>Email</th><th>Role</th>${opts.compact?"":"<th>Workspaces</th>"}<th>Last login</th><th>Status</th><th></th></tr></thead>
    <tbody>${shown.length?shown.map(r=>{const flash=PEOPLE_FLASH===r.key;return `<tr class="${flash?"crow-flash":""}" data-prow="${r.key}">
@@ -4994,7 +5013,7 @@ function ppClients(){
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
 /* change 121: a disabled person reads Disabled in grey; an invite older than 14 days reads expired, Resend stays */
 const ppStatus=r=>r.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span>`
- :r.invited?`<span class="pp-st pp-st--inv"><i></i>${invExpired(r.invited)?"Invite expired":"Invited "+(r.invited==="never"?"":AGE(r.invited))}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
+ :r.invited?`<span class="pp-st pp-st--inv"><i></i>${invExpired(r.invited)?"Invite expired":r.invited==="never"?"Not signed in yet":"Invited "+AGE(r.invited)}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
 function ppAccess(r){
  const all=myClients().concat([]);
  if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces${isATM()?"":" &middot; Workspace Admin"}</span>`;
@@ -5078,7 +5097,7 @@ function ppPanelHTML(){
  const k=modal.k, P=PEOPLE[k]; if(!P) return "";
  const r=ppTeam().find(x=>x.k===k), all=myClients(), inWs=r.ws===null?all:r.ws.map(id=>byId[id]), notIn=r.ws===null?[]:all.filter(c=>r.ws.indexOf(c.id)<0);
  const roleCard=(role,title,line)=>`<label class="pp-rcard${P.role===role?" is-on":""}"><span><input type="radio" name="ppacct" value="${role}" ${P.role===role?"checked":""} ${P.role==="Owner"?"disabled":""} data-ppacct>${title}</span><i>${line}</i></label>`;
- const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+roleName(P.role)+" role":"Since "+(c.created||"the start")+" &middot; "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequences owned"}</i></span>
+ const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+roleName(P.role)+" role":"Since "+(c.created||"the start")+" &middot; "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequence"+(((c.sequences||[]).filter(q=>q.owner===P.name).length)===1?"":"s")+" owned"}</i></span>
    ${r.ws===null?`<span class="sub">Workspace Admin</span>`:ddHTML("ppwsrole-"+c.id,ppWsRole(P,c.id),[{items:PP_WS_ROLES.map(x=>({value:x,label:ppShort(x),desc:roleLine(x)}))}])+`<button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
  return `<div class="mscrim" id="mscrim"><aside class="pp-drawer" role="dialog" aria-modal="true" aria-label="${P.name}">
   <div class="pp-dr-h">${ppAv(r.initials,"#DBEAFE",44)}<span class="pp-dr-t"><b>${P.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i><i>${r.invited?"Invited "+r.invited+" &middot; not signed in yet":"On your team &middot; last active "+r.seen}</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -5201,7 +5220,7 @@ function personAccessHTML(p){
  if(p.owner) cardHTML=cardHTML.replace('Account Admin &middot; all workspaces and People; no Billing','Account Owner &middot; everything, including billing. Transferred from your own page, never granted here.');
  if(r.mixed) cardHTML=cardHTML.replace('</div></div>$','')+'';
  const mixedNote=r.mixed&&!isATM()?`<p class="sub" style="margin:10px 0 0">${p.first} has a different role in some workspaces: ${r.wsList.map(id=>byId[id].name+" &middot; "+roleName(ppWsRole(p.P,id))).join(", ")}.</p>`:"";
- const since=p.disabled?`Disabled; their access is kept but they cannot sign in.`:p.invited?(invExpired(p.invited)?`Invited ${AGE(p.invited)}; the link expired after ${INVITE_DAYS} days.`:`Invited ${AGE(p.invited)}, not accepted yet.`):p.kind==="client"?`Client user of ${p.c.name} since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
+ const since=p.disabled?`Disabled; their access is kept but they cannot sign in.`:p.invited?(invExpired(p.invited)?`Invited ${AGE(p.invited)}; the link expired after ${INVITE_DAYS} days.`:p.invited==="never"?`Not signed in yet.`:`Invited ${AGE(p.invited)}, not accepted yet.`):p.kind==="client"?`Client user of ${p.c.name} since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
    :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
@@ -5223,9 +5242,14 @@ function personAccessHTML(p){
 /* exact time for an activity entry: a real clock for entries made in this
    session, a date derived from the relative wording for the seeded ones */
 function paStamp(a){
- let d; if(a.at&&a.at>1e12) d=new Date(a.at);
- else {const w=String(a.when||"").toLowerCase(), m=w.match(/(\d+)\s*(min|hour|day|week|month)/); d=new Date();
-  if(w==="yesterday") d.setDate(d.getDate()-1);
+ /* change 278: dates come from the demo clock (CYCLE.day of September 2026), never the
+    wall clock; times of day stay as they were */
+ const now=new Date(), demo=()=>{const x=new Date(2026,8,CYCLE.day); x.setHours(now.getHours(),now.getMinutes(),0,0); return x};
+ let d; if(a.at&&a.at>1e12){d=demo(); const t=new Date(a.at); d.setHours(t.getHours(),t.getMinutes(),0,0)}
+ else {const w=String(a.when||"").toLowerCase(), m=w.match(/(\d+)\s*(min|hour|day|week|month)/); d=demo();
+  const abs=Date.parse(String(a.when||"").replace(",",""));
+  if(!m&&w!=="yesterday"&&!isNaN(abs)&&/\d{4}/.test(w)) d=new Date(abs);
+  else if(w==="yesterday") d.setDate(d.getDate()-1);
   else if(m){const n=+m[1]; if(m[2]==="min")d.setMinutes(d.getMinutes()-n); else if(m[2]==="hour")d.setHours(d.getHours()-n); else if(m[2]==="day")d.setDate(d.getDate()-n); else if(m[2]==="week")d.setDate(d.getDate()-7*n); else d.setMonth(d.getMonth()-n)}
   else if(w.indexOf("last week")>-1) d.setDate(d.getDate()-7);
   if(!/min|hour|just now/.test(w)){let h=0; for(const ch of String(a.text||"")) h=(h*31+ch.charCodeAt(0))%1000; d.setHours(9+(h%9),(h*7)%60,0,0)}}
@@ -5256,7 +5280,7 @@ function vPerson(){
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
  const sub=p.kind==="client"?`Client user of ${p.c.name} &middot; ${roleName(p.role)}`:`On your team &middot; ${roleName(isATM()?atmRoleOf(p.k):p.role)}${isATM()&&teamsOf(p.k).length?" &middot; "+listAnd(teamsOf(p.k).map(t=>t.name)):""}`;
  const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span> &middot; cannot sign in &middot; last signed in ${p.seen}`
-  :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
+  :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv"><i></i>Invite expired</span> &middot; sent ${AGE(p.invited)}`:p.invited==="never"?`Not signed in yet`:`Invited ${AGE(p.invited)} &middot; not accepted`):`<span class="pp-st"><i></i>Active</span> &middot; last signed in ${p.seen}`;
  const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?` &middot; signs in at ${BRAND.domain}`:"";
  const iOwn=ME().role==="Owner", live=!p.invited&&!p.disabled;
  const ownerBtn=!iOwn||p.kind!=="team"?"":p.owner&&p.me?`<button class="shd-button shd-button--secondary" data-transfer ${transferCands().length&&!TRANSFER?"":"disabled"} title="${transferCands().length?"":"Needs an Account Admin or another Account Owner to hand to"}">Transfer ownership</button>`
@@ -5668,7 +5692,7 @@ function peopleModalOk(kind){
    receipt("people",`${r.email} moved from ${from.name} to ${to.name}.`,()=>{to.users.splice(to.users.indexOf(u),1);from.users.push(u)},`moved ${r.email}`)}}
  if(kind==="pconfirm"){const a=modal.act;
   if(a==="disable"){DISABLED[r.key]=1; receipt("people",`${r.name} disabled.`,()=>{delete DISABLED[r.key]},`disabled ${r.name}`)}
-  if(a==="enable"){delete DISABLED[r.key]; receipt("people",`${r.name} enabled.`,()=>{DISABLED[r.key]=1},`enabled ${r.name}`)}
+  if(a==="enable"){const sd=r.kind==="team"&&PEOPLE[r.key.slice(2)].disabled; delete DISABLED[r.key]; if(sd)PEOPLE[r.key.slice(2)].disabled=false; receipt("people",`${r.name} enabled.`,()=>{DISABLED[r.key]=1;if(sd)PEOPLE[r.key.slice(2)].disabled=true},`enabled ${r.name}`)}
   if(a==="delete"){ if(r.kind==="team"){const k=r.key.slice(2), P=PEOPLE[k]; delete PEOPLE[k]; receipt("people",`${r.name} deleted.`,()=>{PEOPLE[k]=P},`deleted ${r.name}`)}
    else {const u=r.c.users.find(x=>x[0]===r.email), i=r.c.users.indexOf(u); r.c.users.splice(i,1); receipt("people",`${r.email} removed from ${r.c.name}.`,()=>{r.c.users.splice(i,0,u)},`removed ${r.email}`)}}}
  modal=null; renderModal(); render();
@@ -6167,7 +6191,7 @@ function ulWsCell(c,ed){const ask=ulReqs().find(r=>r.client===c.id), st=wsState(
  return `<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub}</span></div>`}
 function ulGridRow(c,ro){const ks=UL_K(), off=!!c.disabled;
  return `<tr class="ul-wr${off?" is-off":""}" data-ulws="${c.id}"><td>${ulWsCell(c,false)}</td>${ks.map(k=>{const r=RES[k].rows[c.id]; if(!r) return `<td class="ul-c"><span class="sub">Not on this workspace</span></td>`;
-  const q=ulReqs().find(x=>x.client===c.id&&x.res===k), chip=q?`<span class="ul-chip is-ask" title="${c.name} asked for ${f(q.amount)} more">+${f(q.amount)}</span>`:"";
+  const q=ulReqs().find(x=>x.client===c.id&&x.res===k), chip=q?`<span class="ul-chip is-ask" title="${q.by||c.name} asked for ${f(q.amount)} more">+${f(q.amount)}</span>`:"";
   const inner=ulUse(k,r.used,r.cap,{ab:true,chip});
   return `<td class="ul-c${UL.focusK===k?" is-fk":""}">${ro?inner:`<button type="button" class="ul-cell" data-ulcell="${k}|${c.id}" aria-label="${c.name}, ${RES[k].label}: ${f(r.used)} used of ${f(r.cap)}. Change this limit">${inner}</button>`}</td>`}).join("")}</tr>`}
 function ulDraftRow(c){const ks=UL_K(), off=!!c.disabled;
@@ -6634,7 +6658,7 @@ function ul4AnswerHTML(ro){const M=ul4Model(), any=M.contested.length+M.fits.len
 function ul4Apply(items){const before=REQUESTS.slice(), gone=[], ans=[], caps=[];
  items.forEach(i=>{if(!(i.amt>0)) return; const R=RES[i.k], row=R.rows[i.c.id]; caps.push([row,row.cap,i.k]); row.cap+=i.amt; syncRes(i.k,row);
   if(i.r){const part=i.amt<i.r.amount, a=Object.assign({},i.r,{state:"approved",on:TODAY_D,to:row.cap,amount:i.amt},part?{asked:i.r.amount}:{}); ANSWERS.push(a); ans.push(a); gone.push(i.r);
-   logAct(i.c.id,part?`Partly approved ${f(i.amt)} of the ${f(i.r.amount)} more ${R.unit} asked and closed the line; the ${R.label.toLowerCase()} limit is now ${f(row.cap)}`:`Approved ${f(i.amt)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(row.cap)}`)}
+   logAct(i.c.id,part?`Gave ${f(i.amt)} of the ${f(i.r.amount)} more ${R.short} asked${askBy(i.r).replace(" asked","")} and closed the rest; the ${limNow(i.k,row.cap)}`:`Gave ${f(i.amt)} more ${R.short}${askBy(i.r)}; the ${limNow(i.k,row.cap)}`)}
   else logAct(i.c.id,`${R.label} limit raised from ${f(row.cap-i.amt)} to ${f(row.cap)} on Usage & limits`)});
  REQUESTS=REQUESTS.filter(r=>gone.indexOf(r)<0);
  return ()=>{caps.reverse().forEach(([row,cap,k])=>{row.cap=cap; syncRes(k,row)}); ans.forEach(a=>{const j=ANSWERS.indexOf(a); if(j>-1) ANSWERS.splice(j,1)});
@@ -6815,7 +6839,7 @@ function ulCellFx(){const [k,id]=UL.cell.split("|"), R=RES[k], r=R.rows[id], c=b
   ${over?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>Limits for ${R.label} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. The most ${c.name} can have is ${f(r.cap+free)}.</span></div>`:""}
   ${UL.cellErr?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>${UL.cellErr}</span></div>`:""}
   ${!over&&v<r.used?`<div class="msg m-warn ul-pop-m">${warnI}<span>Below the ${f(r.used)} ${c.own?"you have":first+" has"} used: ${R.label} stop${R.label.endsWith("s")?"":"s"} for ${c.own?"your workspace":first} now.</span></div>`:""}
-  ${q?`<p class="sub ul-pop-q">${first} asked for ${f(q.amount)} more. Saving here does not answer the ask; decide it at the top of this page.</p>`:""}
+  ${q?`<p class="sub ul-pop-q">${q.by||first} asked for ${f(q.amount)} more. Saving here does not answer the ask; decide it at the top of this page.</p>`:""}
   <div class="ul-pop-f"><button class="shd-button shd-button--secondary shd-button--sm" data-ulcellx>Cancel</button><button class="shd-button shd-button--primary shd-button--sm" data-ulcellsave${over||v===r.cap?" disabled":""}>Save</button></div>`}
 function ulCellHTML(){const [k,id]=UL.cell.split("|"), R=RES[k], r=R.rows[id], c=byId[id], v=UL.cellV==null?r.cap:UL.cellV;
  return `<div class="ul-pop" role="dialog" aria-label="Change ${c.name}'s ${R.label} limit" id="ulPop"><div class="ul-pop-h"><span class="ul-nm">${R.label}</span><span class="sub">${c.name} &middot; ${f(r.used)} used of ${f(r.cap)}</span></div>
@@ -7894,6 +7918,8 @@ const anWsName=c=>c.own?AGENCY.name:c.name;
 const anExportable=wss=>wss.filter(c=>canC(c,"export"));
 const anLeftOut=wss=>wss.filter(c=>!canC(c,"export")).map(anWsName);
 function anExportCtl(wss){
+ /* change 277: with no workspace in the filter there is nothing to export; the role reason was wrong */
+ if(!wss.length) return `<span class="sub an-export-no">Pick at least one workspace to export</span>`;
  const ok=anExportable(wss);
  if(!ok.length) return `<span class="sub an-export-no" title="Only a Workspace Admin can export these numbers. Ask one if you need a copy.">Export is with a Workspace Admin</span>`;
  const tip=ok.length<wss.length?` title="Exports only where you are a Workspace Admin: ${listAnd(ok.map(anWsName))}"`:"";
@@ -8004,21 +8030,48 @@ function anTotalsRow(cols,rows,N,overrideSums,peopleCount){
  return `<tr class="an-totals"><td colspan="${labels.length}"><strong>${label}</strong></td>`
   +nums.map(c=>{const v=sums[c[0]]; return `<td class="ar tnum"><strong>${v==null?"–":f(v)}</strong></td>`}).join("")+`</tr>`;
 }
+/* change 277: spread an integer total over weights so the parts add to it exactly (largest remainder) */
+function anSpread(total,w){
+ const s=w.reduce((a,b)=>a+b,0)||1, raw=w.map(x=>total*x/s), out=raw.map(Math.floor);
+ let left=total-out.reduce((a,b)=>a+b,0);
+ raw.map((x,i)=>[x-out[i],i]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).slice(0,left).forEach(([,i])=>out[i]++);
+ return out;
+}
+/* change 277: as anSpread, but no part exceeds its cap (the parent's day); the excess moves to days with room */
+function anSpreadCap(total,w,cap){
+ const out=anSpread(total,w).map((v,i)=>Math.min(v,cap[i]));
+ for(let g=0;g<50;g++){
+  const left=total-out.reduce((a,b)=>a+b,0); if(left<=0) break;
+  const room=out.map((v,i)=>cap[i]-v), idx=room.map((r,i)=>r>0?i:-1).filter(i=>i>=0); if(!idx.length) break;
+  const add=anSpread(left,idx.map(i=>w[i]*room[i]+1e-9));
+  idx.forEach((i,j)=>{out[i]+=Math.min(add[j],room[i])});
+ }
+ return out;
+}
 function anSeries(wss){
  /* thirty days ending today (9 Sep 2026), one point a day, from the same
     fixtures the table sums: contacted spread over the days with noise, the
     rest as shares of it. Weekly rolls seven days up. */
  const days=[], N=30, end=new Date(2026,8,9);
- const sent=wss.reduce((t,c)=>t+contOf(c),0) /* change 231: prospects contacted, as the tiles below */, reply=wss.length?wss.reduce((t,c)=>t+(c.reply||0),0)/wss.length:0,
-       ratio=wss.length?wss.reduce((t,c)=>t+(c.reply?c.pos/c.reply:0.3),0)/wss.length:0.3;
+ /* change 277: the totals are the tiles' (sequence-row sums); the days only decide the shape */
+ const rows=anSeqRowsFull(wss), tot=k=>rows.reduce((t,x)=>t+(x[k]||0),0);
+ const T={contacted:tot("contacted"),opened:tot("opened"),replies:tot("replied"),positive:tot("positive"),negative:tot("negative"),unsub:tot("unsub")};
  const r=rng("anseries:"+wss.map(c=>c.id).join(","));
- for(let k=N-1;k>=0;k--){const d=new Date(end.getTime()-k*864e5), wk=d.getDay()===0||d.getDay()===6;
-  const contacted=Math.round(sent/N*(wk?0.25:1.05)*(0.7+r()*0.6));
-  const opened=Math.round(contacted*(0.36+r()*0.1)), replies=Math.round(contacted*reply/100*(0.7+r()*0.6));
-  const positive=Math.round(replies*ratio), negative=Math.round(replies*0.18*r()), unsub=Math.round(contacted*0.004*r());
-  days.push({d,label:d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+", 26",contacted,opened,replies,positive,negative,unsub})}
+ const ds=[]; for(let k=N-1;k>=0;k--) ds.push(new Date(end.getTime()-k*864e5));
+ const shape=ds.map(d=>{const wk=d.getDay()===0||d.getDay()===6; return (wk?0.25:1.05)*(0.7+r()*0.6)});
+ const jit=p=>p.map(s=>s*(0.85+r()*0.3));
+ const contacted=anSpread(T.contacted,shape),
+       opened=anSpreadCap(T.opened,jit(contacted),contacted),
+       replies=anSpreadCap(T.replies,jit(opened),opened),
+       positive=anSpreadCap(T.positive,jit(replies),replies),
+       negative=anSpreadCap(T.negative,jit(replies),replies.map((v,i)=>v-positive[i])),
+       unsub=anSpreadCap(T.unsub,jit(contacted),contacted);
+ const S={contacted,opened,replies,positive,negative,unsub};
+ ds.forEach((d,i)=>{
+  days.push({d,label:d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+", 26",contacted:S.contacted[i],opened:S.opened[i],replies:S.replies[i],positive:S.positive[i],negative:S.negative[i],unsub:S.unsub[i]})});
  if(anGran!=="weekly") return days;
  const out=[]; for(let k=0;k<days.length;k+=7){const g=days.slice(k,k+7), o={d:g[0].d,label:g[0].label};
+  if(g.length<7){o.partial=g.length; o.label=g[0].d.getDate()+" to "+g[g.length-1].label.replace(", 26","")+", "+g.length+" days"} /* change 277 */
   ["contacted","opened","replies","positive","negative","unsub"].forEach(m=>o[m]=g.reduce((t,x)=>t+x[m],0)); out.push(o)}
  return out;
 }
@@ -8028,19 +8081,23 @@ function anChart(pts){
  const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(v))), m=v/p; return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p};
  const yl=nice(maxL), yr=nice(maxR);
  const x=i=>L+(pts.length>1?i*iw/(pts.length-1):iw/2), yL=v=>T+ih-v/yl*ih, yR=v=>T+ih-v/yr*ih;
- const line=(key,col,scale,dim)=>{const d=pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+scale(p[key]).toFixed(1)).join(" ");
-   return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" opacity="${dim?.45:1}"/>`+pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${scale(p[key]).toFixed(1)}" r="2.5" fill="${col}" opacity="${dim?.45:1}"/>`).join("")};
+ const line=(key,col,scale,dim,dash)=>{
+   /* change 277: a partial last week is drawn dashed so it does not read as a collapse */
+   const n=pts.length, part=n>1&&pts[n-1].partial, op=dim?.45:1;
+   const path=(a,b)=>pts.slice(a,b).map((p,k)=>(k?"L":"M")+x(a+k).toFixed(1)+" "+scale(p[key]).toFixed(1)).join(" ");
+   const seg=(dd,dsh)=>`<path d="${dd}" fill="none" stroke="${col}" stroke-width="1.5"${dsh?' stroke-dasharray="5 4"':""} opacity="${op}"/>`;
+   return (part?seg(path(0,n-1),dash)+seg(path(n-2,n),true):seg(path(0,n),dash))+pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${scale(p[key]).toFixed(1)}" r="2.5" fill="${col}" opacity="${dim?.45:1}"/>`).join("")};
  const grid=[0,1,2,3,4,5].map(k=>{const y=T+ih-k*ih/5; return `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="var(--gray-13)" stroke-dasharray="2 4"/>
    <text x="${L-12}" y="${y+4}" text-anchor="end" class="an-ax">${f(Math.round(yl*k/5))}</text><text x="${W-R+12}" y="${y+4}" class="an-ax">${f(Math.round(yr*k/5))}</text>`}).join("");
  const step=Math.max(1,Math.round(pts.length/7));
  const xl=pts.map((p,i)=>i%step===0?`<text x="${x(i).toFixed(1)}" y="${H-B+24}" text-anchor="middle" class="an-ax">${p.label}</text>`:"").join("");
  return `<svg class="an-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Contacted and engagement, last 30 days">
   ${grid}
-  <rect x="${L-30}" y="${T}" width="2" height="${ih}" fill="var(--blue-11)"/><text transform="translate(${L-56},${T+ih/2}) rotate(-90)" text-anchor="middle" class="an-ax">Contacted</text>
-  <rect x="${W-R+28}" y="${T}" width="2" height="${ih/2}" fill="#C026D3"/><rect x="${W-R+28}" y="${T+ih/2}" width="2" height="${ih/2}" fill="#10B981"/><text transform="translate(${W-R+56},${T+ih/2}) rotate(90)" text-anchor="middle" class="an-ax">Engagement</text>
-  ${line("unsub","#F59E0B",yR,true)}${line("negative","#EF4444",yR,true)}${line("positive","#10B981",yR)}${line("replies","#10B981",yR)}${line("opened","#C026D3",yR)}${line("contacted","#3B82F6",yL)}
+  <text transform="translate(${L-66},${T+ih/2}) rotate(-90)" text-anchor="middle" class="an-ax">Contacted</text>
+  <text transform="translate(${W-R+66},${T+ih/2}) rotate(90)" text-anchor="middle" class="an-ax">Engagement</text>
+  ${line("unsub","#F59E0B",yR,true)}${line("negative","#EF4444",yR,true)}${line("positive","#047857",yR,false,true)}${line("replies","#10B981",yR)}${line("opened","#C026D3",yR)}${line("contacted","#3B82F6",yL)}
   ${xl}</svg>
-  <div class="an-legend">${[["#3B82F6","Contacted"],["#C026D3","Opened"],["#10B981","Replies"],["#10B981","Positive Sentiment"],["#EF4444","Negative Sentiment",1],["#F59E0B","Unsubscribed",1]].map(([c,l,dim])=>`<span${dim?' class="is-dim"':""}><i style="background:${c}"></i>${l}</span>`).join("")}</div>`;
+  <div class="an-legend">${[["#3B82F6","Contacted"],["#C026D3","Opened"],["#10B981","Replies"],["#047857","Positive Sentiment",0,1],["#EF4444","Negative Sentiment",1],["#F59E0B","Unsubscribed",1]].map(([c,l,dim,dash])=>`<span${dim?' class="is-dim"':""}><i class="an-sw${dash?" an-sw--dash":""}" style="--c:${c}"></i>${l}</span>`).join("")}</div>`;
 }
 function anSeqRowsFull(wss){
  return anSeqRows(wss).map((r,i)=>{const g=rng("anfull:"+r.wsId+":"+i);
@@ -8073,6 +8130,9 @@ function vAgencyAnalytics(){
      ${empty?"":"<tfoot>"+(anTab==="team"?anTotalsRow(cols,rows,wss.length,anTeamTotals(wss),rows.length):anTotalsRow(cols,rows,wss.length))+"</tfoot>"}
    </table></div></div></div>`;
  }
+ if(!wss.length) return bar+`<div class="wrap an-wrap">${receiptBar("analytics")}<div class="panel an-empty"><div class="empty">
+   <p class="empty-t">No workspace selected</p><p class="empty-s">Pick at least one workspace to see results.</p>
+   <button class="shd-button shd-button--primary" data-anwsall>Select all workspaces</button></div></div></div>`;
  const rows=anSeqRowsFull(wss), pts=anSeries(wss);
  const sum=k=>rows.reduce((t,r)=>t+(r[k]||0),0);
  const S={prospects:sum("prospects"),contacted:sum("contacted"),opened:sum("opened"),replied:sum("replied"),unsub:sum("unsub"),positive:sum("positive"),negative:sum("negative"),notnow:sum("notnow"),dnc:sum("dnc"),unc:sum("unc")};
@@ -8433,7 +8493,7 @@ function dashItems(){
  REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
   out.push({score:80,sev:"decision",client:r.client,req:r.id,act:"Approve",age:r.when,
     what:byId[r.client].name+" asked for "+f(r.amount)+" more "+RES[r.res].label.replace(/^Monthly |^Active /,"").toLowerCase(),
-    why:r.note+" Approving leaves "+f(Math.max(0,m.free-r.amount))+" in the pool."})});
+    why:(r.by?r.by+": ":"")+r.note+" Approving leaves "+f(Math.max(0,m.free-r.amount))+" in the pool."})});
  /* operator work escalates here once it has aged. A disconnected mailbox is not
     the owner's job until nobody has done it for two days, at which point it is. */
  INFRA().filter(a=>a.client==="__x"||ageDays(a.age)>=2).forEach(a=>{
@@ -12210,7 +12270,7 @@ function wire(){
   if(compute(r.res).free<r.amount){RC_REFUSED={id:r.client,k:r.res,text:`Not approved. Only ${f(compute(r.res).free)} ${RES[r.res].unit} are available in the plan. Lower another workspace or add capacity.`};render();return}
   decide(b,()=>{const c=byId[r.client],R=RES[r.res],freeAfter=Math.max(0,compute(r.res).free-r.amount); R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans);
-   logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
+   logAct(c.id,`Gave ${f(r.amount)} more ${R.short}${askBy(r)}; the ${limNow(r.res,R.rows[r.client].cap)}`);
    receipt("queue",`Approved. ${c.name} can carry on, ${f(freeAfter)} ${R.unit} left in the pool.`,
      ()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `approved ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Approved &middot; ${c.name} &middot; ${f(freeAfter)} ${R.unit} left`, `${f(freeAfter)} ${R.unit} back in the pool`)})});
@@ -12219,7 +12279,7 @@ function wire(){
   const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():"";
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans);
-   logAct(c.id,`Declined the request for ${f(r.amount)} more ${R.unit}${dnote?" ("+dnote+")":""}`);
+   logAct(c.id,`Declined the request for ${f(r.amount)} more ${R.short}${askBy(r)}${dnote?" ("+dnote+")":""}`);
    receipt("queue",`Declined. ${c.name} keeps its ${R.label.toLowerCase()} limit of ${f(R.rows[r.client].cap)}.`,
      ()=>{REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `declined ${c.name}'s request for ${f(r.amount)} ${R.unit}`,
      `Declined &middot; ${c.name} &middot; limit stays ${f(R.rows[r.client].cap)}`)})};
@@ -12228,7 +12288,7 @@ function wire(){
  q("[data-okpart]").forEach(b=>b.onclick=()=>{const r=REQUESTS.find(x=>x.id===b.dataset.okpart); if(!r) return; const free=compute(r.res).free; if(free<=0) return;
   decide(b,()=>{const c=byId[r.client],R=RES[r.res]; R.rows[r.client].cap+=free; syncRes(r.res,R.rows[r.client]); REQUESTS=REQUESTS.filter(x=>x.id!==r.id);
    const ans=Object.assign({},r,{state:"approved",on:TODAY_D,amount:free,asked:r.amount,to:R.rows[r.client].cap}); ANSWERS.push(ans);
-   logAct(c.id,`Partly approved ${f(free)} of the ${f(r.amount)} more ${R.unit} asked and closed the line; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`);
+   logAct(c.id,`Gave ${f(free)} of the ${f(r.amount)} more ${R.short} asked${askBy(r).replace(" asked","")} and closed the rest; the ${limNow(r.res,R.rows[r.client].cap)}`);
    receipt("queue",`Partly approved: ${f(free)} of ${f(r.amount)}, all the plan had. The line is closed; ${c.name.split(" ")[0]} can ask again.`,
      ()=>{R.rows[r.client].cap-=free; syncRes(r.res,R.rows[r.client]); REQUESTS.push(r); ANSWERS.splice(ANSWERS.indexOf(ans),1)}, `partly approved ${f(free)} of ${c.name}'s request for ${f(r.amount)}`,
      `Partly approved ${f(free)} of ${f(r.amount)} &middot; ${c.name}`)})});
@@ -12239,10 +12299,12 @@ function wire(){
  q("[data-lmedit]").forEach(b=>b.onclick=()=>{const k=b.dataset.lmedit;LM_MENU=null;render();const i=document.querySelector(`input.lm-num[data-lim="${k}"]`);if(i){i.focus();i.select()}});
  /* change 117: the whole ask at once */
  q("[data-okall]").forEach(b=>b.onclick=()=>{const [cid,aid]=b.dataset.okall.split("|"), L=askLines(cid).filter(x=>!aid||(x.ask||x.id)===aid); if(!L.length) return; if(L.some(r=>compute(r.res).free<r.amount)) return;
-  const c=byId[cid], undo=[]; L.forEach(r=>{const R=RES[r.res]; R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans); undo.push(()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); ANSWERS.splice(ANSWERS.indexOf(ans),1)}); logAct(c.id,`Approved ${f(r.amount)} more ${R.unit}; the ${R.label.toLowerCase()} limit is now ${f(R.rows[r.client].cap)}`)});
+  const c=byId[cid], undo=[]; L.forEach(r=>{const R=RES[r.res]; R.rows[r.client].cap+=r.amount; syncRes(r.res,R.rows[r.client]); const ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:R.rows[r.client].cap}); ANSWERS.push(ans); undo.push(()=>{R.rows[r.client].cap-=r.amount; syncRes(r.res,R.rows[r.client]); ANSWERS.splice(ANSWERS.indexOf(ans),1)})});
+  logAct(c.id,`Gave ${moreText(L)}${askBy(L[0])}; ${listAnd(L.map(r=>`the ${limNow(r.res,RES[r.res].rows[r.client].cap)}`))}`);
   REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); receipt("queue",`Approved all ${L.length} lines. ${c.name} can carry on.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`approved ${c.name}'s ask`); render()});
  q("[data-noall]").forEach(b=>b.onclick=()=>{const [cid,aid]=b.dataset.noall.split("|"), L=askLines(cid).filter(x=>!aid||(x.ask||x.id)===aid); if(!L.length) return; const c=byId[cid], undo=[];
-  L.forEach(r=>{const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():""; const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans); undo.push(()=>ANSWERS.splice(ANSWERS.indexOf(ans),1)); logAct(c.id,`Declined the request for ${f(r.amount)} more ${RES[r.res].unit}`)});
+  L.forEach(r=>{const noteEl=document.querySelector(`[data-nonote="${r.id}"]`), dnote=noteEl?noteEl.value.trim():""; const ans=Object.assign({},r,{state:"declined",on:TODAY_D,dnote}); ANSWERS.push(ans); undo.push(()=>ANSWERS.splice(ANSWERS.indexOf(ans),1))});
+  logAct(c.id,`Declined the request for ${moreText(L)}${askBy(L[0])}`);
   REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); receipt("queue",`Declined all ${L.length} lines. ${c.name} keeps its limits.`,()=>{undo.forEach(f=>f()); L.forEach(r=>REQUESTS.push(r))},`declined ${c.name}'s ask`); render()});
  q("[data-undo]").forEach(b=>b.onclick=()=>{if(!RECEIPT) return; RECEIPT.undo&&RECEIPT.undo();
    const i=DECIDED.indexOf(RECEIPT.entry); if(i>-1) DECIDED.splice(i,1); clearReceipt(); render()});
@@ -12493,7 +12555,7 @@ function demoScenario(name){
   GRACE.on=true;
   const nw=RES.sends.rows.nw; nw.used=nw.cap; byId.nw.sent=nw.cap; growSequences(byId.nw); HOME_METRICS.nw=Object.assign({},HOME_METRICS.nw,{sysp:5,last:"today, 06:10"});
   if(!REQUESTS.some(r=>r.client==="at")) REQUESTS.push({id:"r4",ask:"a3",client:"at",by:"marketing@atlasmfg.com",res:"verification",amount:1000,note:"Cleaning a 40,000-row list before the October push.",when:"3 hours ago"});
-  ACTIVITY.unshift({client:"nw",who:"Alex Meridian",when:"3 hours ago",text:"Sending stopped: the Emails sent / month limit of "+f(nw.cap)+" was reached",at:-0.12});
+  ACTIVITY.unshift({client:"nw",who:"System",when:"3 hours ago",text:"Sending stopped: the Emails sent / month limit of "+f(nw.cap)+" was reached",at:-0.12});
  }
  DEMO=name;
 }
@@ -12857,6 +12919,10 @@ demoSync();
 .an-ax{font-size:11px;fill:var(--gray-15);font-family:inherit}
 .an-legend{display:flex;justify-content:center;gap:28px;padding:10px 0 4px;font-size:12px;color:var(--gray-15)}
 .an-legend span{display:inline-flex;align-items:center;gap:6px}.an-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}.an-legend .is-dim{opacity:.45}
+/* change 277: legend swatches are line segments; Positive sentiment is dashed Emerald 700 */
+.an-legend i.an-sw{width:16px;height:2px;border-radius:1px;background:var(--c)}
+.an-legend i.an-sw--dash{background:repeating-linear-gradient(90deg,var(--c) 0 5px,transparent 5px 8px)}
+.an-empty .empty{padding:96px 24px}
 .an-tiles{display:grid;grid-template-columns:5fr 4fr;gap:16px}
 .an-tiles-a,.an-tiles-b{display:flex}
 .an-tile{flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--gray-13)}
@@ -13986,7 +14052,7 @@ input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1
 .ws-table .meter.u-usagebtn{min-width:200px;max-width:100%}
 .ws-table td{height:75px}
 /* 19. the record header chip stands at button height */
-.rc-hdrchip{height:32px;padding:0 12px;display:inline-flex;align-items:center}
+.rc-hdrchip{min-height:32px;padding:5px 12px;display:inline-flex;align-items:center;max-width:100%;white-space:normal;text-align:left;line-height:1.35}
 /* 20. the ask bar's columns line up across lines */
 .rq-line{grid-template-columns:220px 170px 140px 200px 1fr}
 .rq-under{grid-column:1/-1}
@@ -14439,7 +14505,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9b15747";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="8c653cc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -14811,6 +14877,24 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .ul3-e2t td:nth-child(3){grid-column:2;grid-row:1/3;align-self:center}.ul3-e2t .ul3-in{width:100%}
  .ul3-e2t td:nth-child(4){grid-column:1/-1}
  .ul3-rv{padding:0 16px 8px}.ul3-rvt{display:block;overflow-x:auto}
+}
+/* change 279: at phone width Your plan stacks each resource into a block, and the roster row's closest-limit cell wraps under the name */
+@media (max-width:760px){
+ .ul3-pt colgroup,.ul3-pt thead{display:none}.ul3-pt,.ul3-pt tbody{display:block}
+ .ul3-pt tbody tr{display:block;padding:12px 16px;border-top:1px solid #E5E7EB}.ul3-pt tbody tr:first-child{border-top:0}
+ .ul3-pt tbody tr td{display:block;text-align:right;padding:3px 0!important;border-top:0!important;white-space:normal}
+ .ul3-pt tbody tr td .ul3-hb{display:inline-flex;vertical-align:middle}
+ .ul3-pt tbody tr td:nth-child(1){text-align:left;padding:0 0 6px!important}
+ .ul3-pt tbody tr td:nth-child(3):empty{display:none}
+ .ul3-pt tbody tr td:nth-child(n+2):nth-child(-n+6)::before{float:left;margin-right:12px;font-size:14px;line-height:20px;color:#6B7280;font-weight:400;font-variant-numeric:normal}
+ .ul3-pt tbody tr td:nth-child(2)::before{content:"Available"}.ul3-pt tbody tr td:nth-child(3)::before{content:"Asked for"}
+ .ul3-pt tbody tr td:nth-child(4)::before{content:"Given to workspaces"}.ul3-pt tbody tr td:nth-child(5)::before{content:"Used"}
+ .ul3-pt tbody tr td:nth-child(6)::before{content:"Share given"}
+ .ul3-pt tbody tr td:nth-child(7){text-align:left;padding-top:6px!important}.ul3-pt .ul3-pa .linkbtn{margin-right:16px}.ul3-pt tbody tr td:nth-child(7):empty{display:none}
+ .ul3-pt .ul3-pa .linkbtn+.linkbtn{margin-left:0}
+ .ul3-pt tbody tr td:nth-child(4){font-size:14px}.ul3-pt tbody tr td:nth-child(4) .ul3-g{white-space:nowrap}
+ .ul3-t tr.ul3-r td:nth-child(2){min-width:0}.ul3-t tr.ul3-r td:nth-child(4){padding-left:4px!important;padding-right:10px!important}.ul3-ra{gap:6px}
+ .ul3-cl{flex-wrap:wrap;gap:4px 12px}.ul3-cb{width:64px}.ul3-ct{white-space:normal}
 }
 @media (max-width:1100px){.ul3-q{grid-template-columns:minmax(0,1fr);row-gap:12px}.ul3-act{justify-content:flex-start;max-width:none}.ul3-lines{grid-column:1}.ul3-buy{text-align:left}}
 /* change 259, Edit limits and Review changes: the same draft, restyled to the colour rule */
