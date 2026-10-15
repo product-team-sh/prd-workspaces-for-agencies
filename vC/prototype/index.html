@@ -10182,6 +10182,7 @@ const ncOver=k=>ncIsSet(k)&&nc.custom[k]>compute(k).free;
 const ncSetCount=()=>RK.filter(ncIsSet).length;
 /* change 205: "N available" under every field while editing (was "of N available", which crowded the labels) */
 const ncHintText=k=>`of ${f(compute(k).free)} available`;
+const ncBarW=k=>{const a=compute(k).free;return a>0?Math.min(100,Math.max(0,ncCapFor(k))/a*100):0};
 /* change 264: an over value says so on its own line under the tile, never in the footer */
 const ncErrText=k=>ncOver(k)?`Only ${f(compute(k).free)} available.`:"";
 const ncEscH=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -10233,7 +10234,7 @@ function ncUsageHTML(){
     is left says so as you type and holds Add back. There is no Edit limits mode. */
  const SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
  const sumKeys=RK.filter(k=>RES[k].pool>0);
- const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
+ const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-bar" aria-hidden="true"><i style="width:${ncBarW(k)}%"></i></span><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
@@ -10251,7 +10252,7 @@ function ncPaintUsage(){
  document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
  document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}
  document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",ncIsSet(k))});
- document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k);const e=r.querySelector(".nc-sum-e");if(e)e.textContent=ncErrText(k);const i=r.querySelector("input");if(i){if(ncOver(k))i.setAttribute("aria-invalid","true");else i.removeAttribute("aria-invalid")}});
+ document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));{const bi=r.querySelector(".nc-sum-bar i");if(bi)bi.style.width=ncBarW(k)+"%"}const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k);const e=r.querySelector(".nc-sum-e");if(e)e.textContent=ncErrText(k);const i=r.querySelector("input");if(i){if(ncOver(k))i.setAttribute("aria-invalid","true");else i.removeAttribute("aria-invalid")}});
  ncPaintAdd();
 }
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
@@ -14556,6 +14557,16 @@ input:focus-visible,.search:focus-within,.pp-emails:focus-within{border-color:#1
 .nc-modal #ncUsage.is-edit .nc-sum-r input.nc-num:focus{outline:none;border-bottom:2px solid #1d4ed8!important;padding-bottom:0!important}.nc-modal #ncUsage.is-edit .nc-sum-r.is-over input.nc-num{color:#b91c1c;border-bottom:2px solid #dc2626!important;padding-bottom:0!important}
 .nc-modal #ncUsage.is-edit .nc-sum-h{justify-self:start;text-align:left;margin:0}
 .nc-modal #ncUsage .nc-sum-e{grid-column:2;grid-row:2;align-self:baseline;margin:0;text-align:left;font-size:13px;line-height:20px;white-space:nowrap}
+/* 287: option C, a bar for the slice: label and value, bar, "of N available"; same size in both modes */
+.nc-modal #ncUsage .nc-sum-r,.nc-modal #ncUsage.is-edit .nc-sum-r{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto;align-items:center;column-gap:8px;row-gap:0;height:50px;min-height:0;padding:4px 12px}
+.nc-modal #ncUsage .nc-sum-r label,.nc-modal #ncUsage.is-edit .nc-sum-r label{grid-column:1;grid-row:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:17px}
+.nc-modal #ncUsage .nc-sum-in{grid-column:2;grid-row:1;justify-self:end}
+.nc-modal #ncUsage:not(.is-edit) .nc-sum-r:not(.is-over) input.nc-num,.nc-modal #ncUsage.is-edit .nc-sum-r input.nc-num,.nc-modal #ncUsage.is-edit .nc-sum-r.is-over input.nc-num,.nc-modal #ncUsage.is-edit .nc-sum-r:hover input.nc-num:not(:focus){text-align:right;font-size:14px;line-height:17px;height:18px!important}
+.nc-sum-bar{display:block;grid-column:1/-1;grid-row:2;height:4px;margin:3px 0 2px;border-radius:2px;background:#e5e7eb;overflow:hidden}.nc-sum-bar i{display:block;height:100%;border-radius:2px;background:#6b7280;transition:width .15s}
+.nc-modal #ncUsage .nc-sum-r.is-over .nc-sum-bar i{background:#dc2626}
+.nc-modal #ncUsage .nc-sum-h,.nc-modal #ncUsage.is-edit .nc-sum-h{grid-column:1/-1;grid-row:3;justify-self:start;text-align:left;margin:0;font-size:12px;line-height:16px;color:#6b7280}
+.nc-modal #ncUsage .nc-sum-e{grid-column:1/-1;grid-row:3;font-size:12px;line-height:16px}
+@media (prefers-reduced-motion:reduce){.nc-sum-bar i{transition:none}}
 .nc-modal #ncUsage.nc-usage{gap:4px}.nc-modal .nc-moderow{margin:0}
 .nc-modal input#ncn.is-err,.nc-modal input#ncsite.is-err{border-color:#dc2626;box-shadow:0 0 0 3px #fee2e2}
 .nc-modal .nc-fielderr{margin:6px 0 16px;padding-left:64px;font-size:12px;line-height:18px}
@@ -14962,7 +14973,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0f8055f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="ba78794";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
