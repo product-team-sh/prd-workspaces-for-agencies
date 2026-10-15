@@ -330,6 +330,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .ubtn svg{width:20px;height:20px}
 .ubadge{position:absolute;top:2px;right:0;font-size:9px;font-weight:700;color:#fff;background:var(--red-18);
  border-radius:999px;padding:0 4px;line-height:14px}
+.ubadge--mute{background:var(--gray-500)} /* change 291: a count, not an alarm */
 .me{display:flex;align-items:center;gap:8px;border:0;background:none;border-radius:999px;padding:4px 8px 4px 4px;cursor:pointer}
 .me:hover{background:var(--gray-16)}
 /* a workspace-user session (asClient) or solo has nobody to switch to and no
@@ -1650,8 +1651,8 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
       <div class="crumb"><span class="crumb-tail" id="crumbTail">Dashboard</span></div>
       <div class="util">
         <button class="ubtn" title="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
-        <button class="ubtn" title="Quick actions"><span class="ubadge">2</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
-        <button class="ubtn" title="Notifications"><span class="ubadge">9+</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10.5 21a2 2 0 0 0 3 0"/></svg></button>
+        <button class="ubtn" title="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
+        <button class="ubtn" title="Notifications" data-flash="Not in this prototype"><span class="ubadge ubadge--mute">9+</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10.5 21a2 2 0 0 0 3 0"/></svg></button>
         <button class="me" id="meBtn" aria-haspopup="true" aria-expanded="false"><span class="avatar av-tint" id="meAv" style="--c:var(--blue-11)">AM</span>
           <span id="meNm" style="display:none">Alex Meridian</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="color:var(--gray-500)" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
@@ -2856,11 +2857,25 @@ function setLimit(k,id,v,why){
  RC_REFUSED=null; r.cap=v; r.custom=true; syncRes(k,r);
  if(TOUR&&TOUR.step===3&&TOUR.ws===id) TOUR.limitDone=true;   /* change 148 */
  const stops=v<r.used, pc=paceOf(k,id);
- receipt("client:"+id,`${c.name}'s ${R.label.toLowerCase()} limit is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":pc&&pc.hits&&v>was?" At this pace it lasts until "+pc.when+".":""} ${f(compute(k).free)} ${R.unit} stay available in the plan.`,
+ receipt("client:"+id,`${c.name}'s ${R.label.toLowerCase()} limit is now ${f(v)}, was ${f(was)}.${stops?" That resource stops now.":v>was&&paceLine(k,r)?" "+paceLine(k,r)+" at this pace.":""} ${f(compute(k).free)} ${R.unit} stay available in the plan.`,
    ()=>{r.cap=was;syncRes(k,r);render()},`changed ${c.name}'s ${R.label.toLowerCase()} limit`);
  logAct(id,`${R.label} limit changed from ${f(was)} to ${f(v)}${why?" ("+why+")":""}`);
  return true;
 }
+/* change 292 (audit P1-1): the one pace line, agency and client side. The day a resource runs out is its limit
+   over its use per day so far, rounded. Renewing resources (emails, Lead Finder credits) name the day of the cycle:
+   "Runs out around day 11 of 30", "Ran out on day 9". Balances count days from today: "Runs out in about 8 days",
+   and "None left" at zero. "" when it lasts the cycle or nothing is used yet. paceDays is the same number in days
+   from today. Exported (window.paceLine, window.paceDays) for change 290's Usage & limits. */
+const PACE_RENEW=k=>k==="sends"||k==="lead_finder";
+function paceDays(k,r){if(!r||!r.used||!(r.cap>0)) return null; const left=r.cap-r.used; return left<=0?0:left/(r.used/CYCLE.day)}
+function paceLine(k,r,all){if(!r||!(r.cap>0||r.used)) return ""; const left=r.cap-r.used, pd=r.used/CYCLE.day;   /* all: a balance's days even past the cycle */
+ if(PACE_RENEW(k)){if(!r.used) return ""; const d=Math.round(r.cap/pd);
+  if(left<=0) return `Ran out on day ${Math.min(CYCLE.day,Math.max(1,d))}`;
+  return d>=CYCLE.days?"":`Runs out around day ${Math.max(CYCLE.day,d)} of ${CYCLE.days}`}
+ if(left<=0) return "None left"; if(!r.used) return "";
+ const n=left/pd; if(!all&&n>=CYCLE.days-CYCLE.day) return ""; const m=Math.max(1,Math.round(n)); return `Runs out in about ${m} day${m===1?"":"s"}`}
+window.paceLine=paceLine; window.paceDays=paceDays;
 /* 2 Oct 2026 (doc 66 §7): pace = used ÷ day of cycle × days in cycle; the run-out
    day follows. Nothing is projected before day 3 of a cycle. */
 function paceOf(k,id){const r=RES[k].rows[id]; if(!r||CYCLE.day<3||!r.used) return null;
@@ -3293,7 +3308,7 @@ function agencyUsage(c){
  const rows=info.map(({k,R,r,st,pc,tone})=>{
   const pend=pendFor(k), ans=ansFor(k);
   const word=tone==="paused"?(own?"Paused until you raise it":`Paused until you raise it`):tone==="close"?(own?"Close to your limit":"Close to its limit"):"Fine";
-  const pace=pc&&pc.hits&&tone==="close"?` &middot; runs out around ${pc.when} at this pace`:"";
+  const pl=paceLine(k,r), pace=pl&&tone==="close"?`, ${pl.charAt(0).toLowerCase()+pl.slice(1)}`:"";
   const sub=R.kind==="balance"?"Topped up by you":"Renews 1 Oct";
   const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
   const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
@@ -3309,7 +3324,7 @@ function agencyUsage(c){
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`
-   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`}
+   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${paceLine(worst.k,R.rows[c.id])?`${paceLine(worst.k,R.rows[c.id])} at this pace, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it &rarr;","linkbtn")}</span></div>`}
  else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
@@ -3367,10 +3382,10 @@ function renderShell(){
  else {el("meAv").textContent=ME().initials; el("meNm").textContent=ME().name;}
  /* item 1, 28 Sep: a workspace-user session or solo has nobody to switch to,
     so the chip is a label, not a menu trigger - same treatment as wsStatic. */
- {const mb=el("meBtn"), st=asClient||solo;
+ {const mb=el("meBtn"), st=solo||(asClient&&(!inC||noClientUserYet(c)));   /* change 292 (audit P1-33): a client user gets the account menu */
   mb.classList.toggle("me-static",st); mb.setAttribute("aria-haspopup",st?"false":"true");
   if(st&&mePopOpen) closeMePop();}
- {const badge=document.querySelector(".ubadge"); if(badge) badge.hidden=asClient&&inC;}
+ /* change 291: Quick actions has no badge now; the Notifications count stays as it was */
  /* wsAv/wsNm live inside wsBtn, which does not exist in the DOM for a
     client-role or solo session (fix #20 above) - nothing to set them to. */
  if(!solo&&el("wsBtn")){
@@ -3513,13 +3528,22 @@ function renderMePop(){
   <button class="pop-r" data-tourreplay${tourReplayId()?"":" disabled"}>Replay the product tour</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
  el("mePopL").querySelectorAll("[data-tourreplay]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=tourReplayId();closeMePop();if(id) tourStart(id)});
- el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else flash(b,"Open a workspace's Settings for your profile")});
+ el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else tourToast("Open a workspace&rsquo;s Settings for your profile.")}); /* change 291: the flash was drawn inside the closed menu */
  el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
 }
 const openMePop=()=>{if(el("meBtn").classList.contains("me-static"))return;
  mePopOpen=true;const P=el("mePop"),R=el("meBtn").getBoundingClientRect();
  P.style.top=(R.bottom+6)+"px";P.style.right=Math.max(8,window.innerWidth-R.right)+"px";
- P.hidden=false;el("meBtn").setAttribute("aria-expanded","true");renderMePop()};
+ P.hidden=false;el("meBtn").setAttribute("aria-expanded","true");(asClient?renderClientMePop:renderMePop)()};
+/* change 292 (audit P1-33): the client user's account menu: the agency's, without Replay the product tour */
+function renderClientMePop(){const c=byId[ctx], u=c&&actingClientUser(c), email=u?u[0]:"";
+ el("mePopL").innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--gray-16)">
+   <span class="avatar av-tint" style="--c:var(--blue-11);width:32px;height:32px;font-size:12px">${email.slice(0,2).toUpperCase()}</span>
+   <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ppName(email)}</span><span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</span></span></div>
+  <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
+  <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
+ el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop(); cView="settings"; openProspect=null; openSeq=null; openReply=null; render()});
+ el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)})}
 const closeMePop=()=>{mePopOpen=false;el("mePop").hidden=true;el("meBtn").setAttribute("aria-expanded","false")};
 
 /* ═══ Client Management ═══ */
@@ -3572,8 +3596,8 @@ function homeRow(c,mode){
      +(c.disabled?'':'<button class="ubtn wsgo ws-go" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</span>'
    +'<span class="ws-sub">'+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
-   +'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
-      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>'
+   +(c.disabled?'':'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>')
    +'</span></div></td>'
    +wsStatusCell(c)
    /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
@@ -3672,6 +3696,11 @@ function hsVal(k,c){
  if(c.disabled||c.sent===0) return null;
  const w=wk7(c), N=v=>+String(pd(v)).replace(/,/g,"");
  return k==="pa"?N(w.pa):k==="sent"?N(w.sent):k==="bounce"?+w.bounce.toFixed(1):k==="rep"?+w.rate.toFixed(1):!w.calls?null:k==="calls"?N(w.calls):N(w.conn)}
+/* change 292 (audit P1-32): the default order of both tables: your own first, then used up, then 90% or more,
+   then A to Z; disabled last */
+const wsNeedTier=c=>{if(c.own) return 0; if(c.disabled||c.deletedOn) return 4; const L=RK.map(k=>RES[k].rows[c.id]).filter(r=>r&&r.cap>0);
+ return L.some(r=>r.used>=r.cap)?1:L.some(r=>r.used/r.cap>=.9)?2:3};
+function wsOrder(list,get){get=get||(x=>x); return list.slice().sort((a,b)=>{const A=get(a),B=get(b); return wsNeedTier(A)-wsNeedTier(B)||A.name.localeCompare(B.name,undefined,{sensitivity:"base"})})}
 function hsApply(list,t,get){const S=HSORT[t]; if(!S) return list;
  const rows=list.map((x,i)=>({x,i,v:hsVal(S.col,get?get(x):x)}));
  rows.sort((a,b)=>{const ea=a.v==null,eb=b.v==null; if(ea||eb) return ea&&eb?a.i-b.i:ea?1:-1;
@@ -3712,7 +3741,7 @@ function vClients(){
    cell:c=>`<td class="ar colact"><span class="tblacts"><button class="linkbtn linkbtn--sm" data-manage="${c.id}">Manage</button><button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button></span></td>`},
  ];
  const shown=COLS.filter(x=>x.req||cliCols.includes(x.id));
- const all=hsApply(myWorkspaces().filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1),"ws"); /* change 267 */
+ const all=hsApply(wsOrder(myWorkspaces()).filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1),"ws"); /* change 267 */
  const pg=pageOf("clients",all.length,25);
  const rows=all.slice(pg.from,pg.to).map(c=>`<tr>${shown.map(x=>x.cell(c)).join("")}</tr>`).join("")
    ||`<tr><td colspan="${shown.length}"><span class="sub">No workspace matches "${cliQ}".</span></td></tr>`;
@@ -3776,7 +3805,7 @@ function vClients(){
    <div class="search">${srchI}<input type="text" id="cliSearch" placeholder="Search workspaces" value="${cliQ.replace(/"/g,"&quot;")}"></div>
 </div>
   <div class="tools">
-   ${canI("billing")?'<button class="shd-button shd-button--tertiary" id="toCredits">Credits &amp; limits</button>':""}
+   ${canI("limits")?'<button class="shd-button shd-button--tertiary" id="toCredits">Usage &amp; limits</button>':""}
    ${canI("limits")?'<button class="shd-button shd-button--primary" id="addClient">'+ADD_I+'Add a workspace</button>':""}</div>
  </div>
  <div class="wrap">
@@ -4000,7 +4029,7 @@ const CLIENT_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer
 /* item 54, 28 Sep 2026: ROLEMAP deleted, unread. It mapped the old four
    staff titles onto the three account roles from before the six-role model. */
 const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"just now","Dev Kapoor":"yesterday","Mira Chen":"never",
- "ops@northwind.co":"yesterday","growth@vertexhealth.io":"6 days ago","sales@alloyco.com":"3 days ago",
+ "ops@northwind.co":"yesterday","finance@northwind.co":"3 days ago","growth@vertexhealth.io":"6 days ago","sales@alloyco.com":"3 days ago",
  "desk@cascade.partners":"never",
  /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
     is the case the last-screen confirmation below exists for. */
@@ -4455,7 +4484,7 @@ function transferCancel(){if(!TRANSFER) return; const T=PEOPLE[TRANSFER.to]; TRA
 function ownerConfirmHTML(){
  const p=personOf(modal.key); if(!p) return ""; const mk=modal.kind==="mkowner";
  return card(mk?`Make ${p.first} an Account Owner`:`Remove ${p.first}&rsquo;s Account Owner role`,mk
-  ?`<p class="ac-lead">${p.name} gets everything, including Billing, Whitelabel and the right to invite and remove Account Owners. You stay an Account Owner too; neither of you can remove the other except by Transfer ownership.</p>`
+  ?`<p class="ac-lead">${p.first} gets everything, including Billing and Whitelabel, and can make or remove Account Owners. You stay an Account Owner.</p>` /* change 291 (audit P0-5) */
   :`<p class="ac-lead">${p.name} becomes an Account Admin: every workspace, People and Analytics, no Billing, no Whitelabel, no Account Owner changes. ${ownersOf().length-1===1?"You will be the only Account Owner.":""}</p>`,
   `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button ${mk?"shd-button--primary":"shd-button--danger"}" data-ownok>${mk?"Make Account Owner":"Remove Account Owner role"}</button>`,"ac");
 }
@@ -4530,7 +4559,7 @@ function rMembers(c){
  let n=0;
  const roleDD=(pfx,key,val)=>{if(!canEdit) return `<span class="pp-roletxt">${ppShort(val)}</span>`; const id=pfx+(n++); RC_DDMAP[id]={key,c:c.id};
   return `<div class="rc-dd">${ddHTML(id,val,[{items:CLIENT_ROLES.map(x=>({value:x,label:ppShort(x),desc:roleLine(x)}))}])}</div>`};
- const urow=r=>`<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${roleDD("rcrole",r.key,r.role)}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`;
+ const urow=r=>`<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${roleDD("rcrole",r.key,r.role)}<span class="pp-seen${r.seen==="never"||r.seen==="unknown"?" is-never":""}">${r.seen==="never"||r.seen==="unknown"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`;
  const trow=r=>{const P=PEOPLE[r.key.slice(2)], fixed=r.role!=="Member";
   return `<div class="pp-row" style="${cols}" data-prow="${r.key}">${person(r)}${fixed?`<span class="pp-roletxt">Workspace Admin <span class="sub">&middot; every workspace</span></span>`:roleDD("rcwsrole",r.key,ppWsRole(P,c.id))}<span class="pp-seen${r.seen==="never"?" is-never":""}">${r.seen==="never"?"Never":r.seen}</span><span class="pp-status">${stat(r)}</span>${more(r)}</div>`};
  const group=(title,sub,act,lab,body,empty)=>`<div class="rc-grp"><div class="rc-grp-h"><b>${title}</b><span class="sub">${sub}</span>${act?`<span class="c-a">${act}</span>`:""}</div><section class="pp-sec rc-mtbl">${head(lab)}${body||`<div class="pp-empty">${empty}</div>`}</section></div>`;
@@ -4582,6 +4611,8 @@ const cuName=k=>k==="sends"?"Emails a month":RES[k].label;
 const cuPh=k=>k==="sends"?"emails a month":RES[k].short;
 const cuEsc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const cuMe=c=>(actingClientUser(c)||[])[0]||"";
+/* change 292 (audit P0-6): "You asked" only when the viewer asked; anyone else is named */
+const cuAsker=(q,c)=>{const me=cuMe(c); return q&&q.by&&me&&q.by.toLowerCase()!==me.toLowerCase()?q.by+" asked":"You asked"};
 const cuToday=()=>new Date(Date.UTC(+CYCLE.month.split(" ")[1],CU_MON.indexOf(CYCLE.month.slice(0,3)),CYCLE.day));
 const cuNext=()=>"1 "+CU_MON[(cuToday().getUTCMonth()+1)%12];
 /* an ask's date from `when` ("Yesterday", "8 days ago" or "1 Sep"): {d:"8 Sep", ago:1, m:7} */
@@ -4593,11 +4624,12 @@ const cuAgo=a=>a.dt.abs||a.dt.ago>6?"":a.dt.ago===0&&!/just now/i.test(a.when)?"
 const cuPd=r=>r.used/CYCLE.day;
 function cuRunsOut(k,r){if(!CU_RENEW(k)||!r.used||r.used>=r.cap) return null; const d=Math.round(r.cap/cuPd(r)); return d<CYCLE.days?Math.max(CYCLE.day,d):null}
 /* the grey lines beside an amount: how long it lasts at this pace (no suggested amount), then the new limit */
+/* change 292 (audit P0-7, P1-1): the hint reads the row's own pace (paceLine, rounded as the row is) */
 function cuHint(k,r,n){const pd=cuPd(r), av=Math.max(0,r.cap-r.used), nl=n?`<span class="cx-hl">New limit <b>${f(r.cap+n)}</b></span>`:"";
- let h; if(!pd) h=n?"At your pace, this lasts past the end of the cycle.":"";
- else if(CU_RENEW(k)){const d=Math.floor(CYCLE.day+(av+n)/pd);
-  h=d>=CYCLE.days?`At your pace, ${n?f(n)+" more lasts":"what you have lasts"} past the end of the cycle.`:`At your pace, ${n?f(n)+" more lasts":"your "+f(av)+" available lasts"} to about day ${d}.`}
- else{const m=Math.max(1,Math.floor((av+n)/pd)); h=`At your pace, ${n?"this":"your "+f(av)+" available"} lasts about ${m===1?"1 more day":m+" more days"}.`}
+ let h; if(!(av+n)) h="You have none left. Pick how many more you need.";
+ else if(!pd) h=n?"At your pace, this lasts past the end of the cycle.":"";
+ else{const pl=paceLine(k,{cap:r.used+av+n,used:r.used},true), lc=pl.charAt(0).toLowerCase()+pl.slice(1);
+  h=!pl?`At your pace, ${n?f(n)+" more lasts":"what you have lasts"} past the end of the cycle.`:n?`At your pace, with ${f(n)} more it ${lc}.`:`At your pace, your ${f(av)} available ${lc}.`}
  return (h?`<span class="cx-hl">${h}</span>`:"")+nl}
 /* one line of an ask. A waiting line is a REQUESTS row; one change 282 partly gave keeps the rest waiting and
    carries `given` (so far) and `asked0` (the first amount). A decided line is an ANSWERS row: approved for
@@ -4630,10 +4662,10 @@ const cuChip=(t,w)=>`<span class="cx-st${w?" is-w":""}">${w?CU_I.clock:""}${t}</
 /* the allowance table: each row says how this cycle is going and, when there is one, the ask on it */
 function cuRows(c,me,canReq){const AG=AGENCY.name;
  return RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return "";
-  const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=cuRunsOut(k,r), hot=stop||p>=R.warn||!!ro;
+  const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=stop?"":paceLine(k,r), hot=stop||p>=R.warn||!!ro;   /* change 292: paceLine */
   const wq=REQUESTS.find(x=>x.client===c.id&&x.res===k), pc=[];
   pc.push(stop?`<span class="cx-ul"><span class="cx-mk">At your limit</span></span>`
-   :ro?`<span class="cx-ul"><span class="cx-mk">Runs out around day ${ro} of ${CYCLE.days}</span></span>`
+   :ro?`<span class="cx-ul"><span class="cx-mk">${ro}</span></span>`
    :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to your limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`);
   if(wq){const l=cuLine(wq,true);
    pc.push(`<span class="cx-ul"><button type="button" class="cx-lk" data-cuopen="${wq.ask||wq.id}">${wq.by&&wq.by!==me?wq.by:"You"} asked for ${f(l.amt)} more</button> <span class="cx-s cx-in">${l.given?`${f(l.given)} given, ${f(l.wait)} waiting on ${AG}`:`waiting on ${AG}`}</span></span>`)}
@@ -4643,7 +4675,7 @@ function cuRows(c,me,canReq){const AG=AGENCY.name;
   return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Topped up by "+AG}</span></td>
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> available</span></td>
-   <td class="cx-c-pc">${pc.join("")}</td><td class="cx-c-ac">${canReq&&!wq&&hot?`<button type="button" class="cx-lk" data-askopen="${k}">Ask for more</button>`:""}</td></tr>`}).join("")}
+   <td class="cx-c-pc">${pc.join("")}</td></tr>`}).join("")}
 /* Requests: every ask from this workspace, whoever made it, with what came of it */
 function cuReqHTML(c,me,canReq){const AG=AGENCY.name, A=cuAsks(c), mon=cuToday().getUTCMonth();
  const per={cycle:a=>a.dt.ago<CYCLE.day,"3m":a=>(mon-a.dt.m+12)%12<=2,all:()=>true}[CU.per]||(()=>true);
@@ -4681,7 +4713,8 @@ function cuDrawerHTML(c,me,canReq){if(!CU.open) return ""; const a=cuAsks(c).fin
   const use=cur?`<div class="cx-rcu">${CU_I.gauge}<span>${f(r.used)} of ${f(r.cap)} used${CU_RENEW(l.k)?(r.used>=r.cap?"; at your limit":ro?`; runs out around day ${ro} of ${CYCLE.days}`:"; lasts the cycle at this pace"):""}</span></div>`:"";
   return `<div class="cx-rc${l.wait>0?"":" is-dec"}"><div class="cx-rch"><b>${cuName(l.k)}</b>${cuChip(cuLineSt(l),l.wait>0)}</div>
    <div class="cx-rcc"><div><span class="cx-l">Asked</span><span class="cx-big">+${f(l.amt)}</span><span class="cx-s">${f(l.from)} to ${f(l.from+l.amt)}</span></div><div><span class="cx-l">Given</span>${given}</div></div>${use}</div>`}).join("");
- const third=a.s.w&&!a.on?`<span class="cx-l">Waiting for</span><span class="cx-v">${a.dt.ago===0?"Just sent":a.dt.ago===1?"1 day":a.dt.ago+" days"}</span>`
+ const third=a.s.w&&a.on?`<span class="cx-l">Partly answered</span><span class="cx-v">${a.on}${a.on===TODAY_D?", today":""}</span>`
+  :a.s.w?`<span class="cx-l">Waiting for</span><span class="cx-v">${a.dt.ago===0?"Just sent":a.dt.ago===1?"1 day":a.dt.ago+" days"}</span>`
   :`<span class="cx-l">Answered</span><span class="cx-v">${a.on}${a.on===TODAY_D?", today":""}</span>`;
  const ago=cuAgo(a), again=!a.s.w&&cur&&canReq?a.lines.filter(l=>l.given<l.amt&&!REQUESTS.some(x=>x.client===c.id&&x.res===l.k)).map(l=>l.k):[];
  const foot=a.s.w?`${mine?`<span class="cx-from">Sent to ${AG}</span>`:`<span class="cx-only">Only ${a.by||"the person who asked"} can withdraw this</span>`}${mine&&canReq?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-cuwd="${a.id}">Withdraw ask</button>`:""}<button type="button" class="shd-button shd-button--primary shd-button--sm" data-cux>Close</button>`
@@ -4695,8 +4728,9 @@ function cuDrawerHTML(c,me,canReq){if(!CU.open) return ""; const a=cuAsks(c).fin
   ${cur?`<div class="cx-ctx"><b>This cycle</b><span><b>Day ${CYCLE.day}</b> <span class="cx-g">of ${CYCLE.days}</span></span></div>`:""}
   ${cards}
   <div class="cx-why">${CU_I.msg}<span><span class="cx-l">${mine?"Your reason":"Reason"}</span>${cuEsc(a.reason)}</span></div>
-  ${a.on?`<div class="cx-ans"><span class="cx-l">${AG}&rsquo;s note</span><p>${a.note?cuEsc(a.note):'<span class="cx-g">No note.</span>'}</p><div class="cx-by">Answered by ${AG}, ${a.on}. The answer was emailed to ${a.by||c.name}.</div></div>`:""}
-  ${a.s.w?`<div class="cx-ans"><span class="cx-l">What happens next</span><p>${AG} reviews it. ${mine?`You&rsquo;ll get an email at ${a.by}`:`${a.by||"The person who asked"} gets an email`} when they answer, and it shows up here.</p></div>`:""}
+  ${a.on&&a.note?`<div class="cx-ans"><span class="cx-l">${AG}&rsquo;s note</span><p>${cuEsc(a.note)}</p><div class="cx-by">Answered by ${AG}, ${a.on}. The answer was emailed to ${a.by||c.name}.</div></div>`
+   :a.on?`<div class="cx-ans"><div class="cx-by cx-by--only">Answered by ${AG}, ${a.on}. The answer was emailed to ${a.by||c.name}.</div></div>`:""}
+  ${a.s.w?`<div class="cx-ans"><span class="cx-l">What happens next</span><p>${a.lines.some(l=>l.given>0)?`${AG} still has ${listAnd(a.lines.filter(l=>l.wait>0).map(l=>`${f(l.wait)} ${cuPh(l.k)}`))} to answer. ${mine?"You&rsquo;ll get an email":`${a.by||"The person who asked"} gets an email`} when they do.`:`${AG} reviews it. ${mine?`You&rsquo;ll get an email at ${a.by}`:`${a.by||"The person who asked"} gets an email`} when they answer, and it shows up here.`}</p></div>`:""}
  </div>
  <div class="cx-dfoot">${foot}</div></aside>`}
 /* withdraw: only the person who asked, only while it waits. A line change 282 partly gave closes as Partly given. */
@@ -4726,10 +4760,10 @@ function cUsage(c){
  if(UB_TAB==="buy") return `${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${AG} yet.</span></div></div>`}`;
  return `${tabs}<div class="panel cx-pn" data-cuallow>
   <div class="cx-ph"><span class="panel-t">Allowance from ${AG}</span><span class="cx-hsub">Day ${CYCLE.day} of ${CYCLE.days}. Emails and Lead Finder credits renew on ${cuNext()}.</span></div>
-  <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col><col style="width:132px"></colgroup>
-   <thead><tr><th>Resource</th><th>Used</th><th>Available</th><th>This cycle</th><th><span class="cx-sr">Actions</span></th></tr></thead><tbody>${cuRows(c,me,canReq)}</tbody></table>
+  <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col></colgroup>
+   <thead><tr><th>Resource</th><th>Used</th><th>Available</th><th>This cycle</th></tr></thead><tbody>${cuRows(c,me,canReq)}</tbody></table>
   <div class="cx-foot">${AG} sets these for your workspace. Asking for more goes to them, not to Saleshandy.</div></div>
-  ${canReq?cuReqHTML(c,me,canReq)+cuDrawerHTML(c,me,canReq):""}`;
+  ${canReq?cuReqHTML(c,me,canReq):""}${cuDrawerHTML(c,me,canReq)}`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
 function askNeed(k,cid){const R=RES[k], r=R.rows[cid], pc=paceOf(k,cid), st=R.step||1;
@@ -4749,8 +4783,8 @@ function askHTML(){
   <div class="cx-mf"><button type="button" class="shd-button shd-button--primary" data-mclose data-cudone>Done</button></div></div></div>`;
  const waitK=k=>REQUESTS.find(x=>x.client===c.id&&x.res===k);
  if(!modal.pick){modal.pick={}; modal.why=modal.why||""; String(modal.pre||"").split(",").forEach(k=>{if(RES[k]&&RES[k].rows[c.id]&&!waitK(k)) modal.pick[k]=0})}
- const rows=RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return ""; const w=waitK(k), on=k in modal.pick, ro=cuRunsOut(k,r), p=r.cap?r.used/r.cap:1;
-  const meta=`${f(r.used)} of ${f(r.cap)} used${r.used>=r.cap?", at your limit":ro?`, runs out around day ${ro}`:p>=RES[k].warn?", close to your limit":""}`;
+ const rows=RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return ""; const w=waitK(k), on=k in modal.pick, ro=r.used>=r.cap?"":paceLine(k,r), p=r.cap?r.used/r.cap:1;   /* change 292: paceLine */
+  const meta=`${f(r.used)} of ${f(r.cap)} used${r.used>=r.cap?", at your limit":ro?`, ${ro.charAt(0).toLowerCase()+ro.slice(1)}`:p>=RES[k].warn?", close to your limit":""}`;
   if(w) return `<div class="cx-pick is-dis"><div class="cx-pk"><input type="checkbox" disabled aria-label="${cuName(k)}, already asked for"><span class="cx-nm"><b>${cuName(k)}</b><span class="cx-s">${meta}</span></span><span class="cx-st is-w">${CU_I.clock}Asked for ${f(w.asked0||w.amount)}</span></div></div>`;
   const v=on?modal.pick[k]:0, bad=modal.err&&on&&!(v>0);
   return `<div class="cx-pick${on?" is-on":""}"><label class="cx-pk"><input type="checkbox" data-cupick="${k}"${on?" checked":""}><span class="cx-nm"><b>${cuName(k)}</b><span class="cx-s">${meta}</span></span></label>
@@ -4851,24 +4885,23 @@ function rlNeeds(){
  return st.concat(asks)}
 /* nothing available (234): rebalance on Usage & limits, or buy more under it */
 const rlBuy=(k,n)=>`<span class="sub askl-buy">Or ${canI("billing")?`<button type="button" class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`<button type="button" class="linkbtn" data-ulaskowner="${k}|${n}">ask the Account Owner</button> to buy more`}</span>`;
-/* the ask ledger, scoped to one workspace (the Workspace column drops). "Available after" reads down the whole
-   account's list, so another workspace's earlier ask or stop counts first, as on Usage & limits. At merge this is
-   the one call to swap for 268's askLedgerHTML({ws}). */
+/* the ask ledger, scoped to one workspace (the Workspace column drops). Change 292 (audit P0-3): "Available after"
+   counts this workspace's own lines only; since 282 no other workspace's ask goes first. */
 function recAskLedger(c,ro){
  if(ro) return "";
  const N=rlNeeds(), rem={}, mine=[];
- N.forEach(n=>{const k=n.k; if(rem[k]==null) rem[k]=compute(k).free; rem[k]-=n.amt; if(n.c.id===c.id) mine.push(Object.assign({after:rem[k],i:N.indexOf(n)},n))});
+ N.forEach(n=>{if(n.c.id!==c.id) return; const k=n.k; if(rem[k]==null) rem[k]=compute(k).free; rem[k]-=n.amt; mine.push(Object.assign({after:rem[k],i:N.indexOf(n)},n))});
  if(!mine.length) return "";
  const can=canI("limits"), lock=rlDirty(), dis=lock?` disabled title="Save or cancel your limit changes first"`:"";
  const go=(attr,t)=>`<button type="button" class="linkbtn askl-go" ${attr}${dis}>${t}</button>`;
  const row=n=>{const r=n.row, out=r.cap>0&&r.used>=r.cap, free=compute(n.k).free, g=Math.min(n.amt,free);
-  const who=n.type==="ask"?`<span class="askl-nm">${n.r.by||n.c.name}</span><span class="sub">Asked ${AGE(n.r.when)}</span>`
+  const who=n.type==="ask"?`<span class="askl-nm">${n.r.by||n.c.name}</span><span class="sub">Asked ${AGE(n.r.when)}</span>${n.r.given?`<span class="sub">${f(n.r.given)} of ${f(n.r.asked0)} given</span>`:""}`
    :`<span class="askl-nm">No ask</span><span class="sub">${n.k==="sends"?"Stopped sending":"At its limit"}</span>`;
   let act="";
   if(can&&n.type==="ask"&&LM_DECL==="askl-"+n.r.id)
    act=`<div class="askl-decl"><input type="text" class="ul-in askl-note" data-nonote="${n.r.id}" placeholder="Why (optional)" aria-label="Note ${n.r.by||c.name} reads with the decline"><span class="askl-acts"><button type="button" class="linkbtn askl-go" data-no="${n.r.id}">Decline</button><button type="button" class="linkbtn askl-q" data-askldx>Cancel</button></span></div>`;
   else if(can&&n.type==="ask")
-   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-okpart="${n.r.id}"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
+   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-rlpart="${n.r.id}" aria-haspopup="dialog"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
   else if(can)
    act=`<span class="askl-acts">${g>0?go(`data-rlraise="${n.k}|${r.cap+g}"`,`Raise to ${f(r.cap+g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}</span>${g>0?"":rlBuy(n.k,n.amt)}`;
   const rid=mine.filter(m=>m.k===n.k).indexOf(n)?`askl-${n.k}-${mine.filter(m=>m.k===n.k).indexOf(n)+1}`:`askl-${n.k}`;   /* a second ask on one resource gets its own id */
@@ -4877,15 +4910,14 @@ function recAskLedger(c,ro){
    <td data-l="Wants"><span class="askl-w">+${f(n.amt)}</span>${n.type==="stop"?'<span class="sub">To restart, no ask</span>':""}</td>
    <td data-l="Available after">${n.after>=0?f(n.after):`<span class="ul3-mk">Short by ${f(-n.after)}</span>`}</td>${can?`<td class="askl-a">${act}</td>`:""}</tr>`};
  const ks=[...new Set(mine.map(m=>m.k))];
- const foot=ks.map(k=>{const M=mine.filter(m=>m.k===k), last=M[M.length-1], oth=N.slice(0,last.i).filter(n=>n.k===k&&n.c.id!==c.id), want=M.reduce((t,m)=>t+m.amt,0);
-  const sub=oth.length?`<span class="sub">${f(oth.reduce((t,n)=>t+n.amt,0))} of it goes first to ${canI("limits")?listAnd(oth.map(n=>n.c.name)):oth.length===1?"another workspace":"other workspaces"}, as on Usage &amp; limits</span>`:"";
-  return `<tr class="askl-f" data-asklf="${k}"><td colspan="3" data-l=""><span class="askl-fn"><b>${rlRes(k)}</b>, ${f(compute(k).free)} available</span>${sub}</td><td data-l="Wants"><b class="askl-w">+${f(want)}</b></td><td data-l="After">${last.after>=0?`<b>${f(last.after)}</b>`:`<span class="ul3-mk">Short by ${f(-last.after)}</span>`}</td>${can?"<td></td>":""}</tr>`}).join("");
+ const foot=ks.map(k=>{const M=mine.filter(m=>m.k===k), last=M[M.length-1], want=M.reduce((t,m)=>t+m.amt,0);
+  return `<tr class="askl-f" data-asklf="${k}"><td colspan="3" data-l=""><span class="askl-fn"><b>${rlRes(k)}</b>, ${f(compute(k).free)} available</span></td><td data-l="Wants"><b class="askl-w">+${f(want)}</b></td><td data-l="After">${last.after>=0?`<b>${f(last.after)}</b>`:`<span class="ul3-mk">Short by ${f(-last.after)}</span>`}</td>${can?"<td></td>":""}</tr>`}).join("");
  return `<div class="panel askl" id="recAskl"><table class="askl-t"><colgroup><col style="width:21%"><col style="width:16%"><col style="width:15%"><col style="width:10%"><col style="width:17%">${can?"<col>":""}</colgroup>
-  <thead><tr><th>Asked by</th><th>Resource</th><th>Has used</th><th>Wants</th><th>Available after, reading down</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
+  <thead><tr><th>Asked by</th><th>Resource</th><th>Has used</th><th>Wants</th><th>Available after</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
   <tbody>${mine.map(row).join("")}</tbody><tfoot>${foot}</tfoot></table></div>`}
 /* emails renew monthly, so a pace is known (used so far / day of cycle); credits are a balance: no pace */
-function rlPace(k,r){if(k!=="sends") return ""; const per=r.used/CYCLE.day; if(!per||r.used>=r.cap) return "";
- const d=(r.cap-r.used)/per; if(d>=CYCLE.days-CYCLE.day) return ""; return d<1?"Runs out today at this pace":`About ${Math.round(d)} day${Math.round(d)===1?"":"s"} at this pace`}
+/* change 292: the one pace line (paceLine); "None left" is already the cell's own text */
+function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
 function rlSheetHTML(c){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
   return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span>${k==="sends"?'<span class="sub">Renews 1 Oct</span>':""}</td>
@@ -4897,12 +4929,12 @@ function rlSheetHTML(c){
 /* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
 function rlFxLine(D,k,id){const e=ul3EdFx(D,k,id), r=RES[k].rows[id], d=ul3Dv(D,k,id)-r.cap, q=ul3Ask(id,k);
  if(e.bad) return e.html.replace(/ available\.$/," available on your plan.")+` <button type="button" class="linkbtn rlt-l" data-rlmove="${k}">Move more in Usage &amp; limits</button>`;
- let s=e.html; if(q&&!e.stop&&d>0) s+=d>=q.amount?" Fills the ask.":` Part of the ${f(q.amount)} asked; the rest of that line closes.`;
+ let s=e.html; if(q&&!e.stop&&d>0) s+=d>=q.amount?" Fills the ask.":` Gives ${f(d)} of the ${f(q.amount)} asked.`;
  return s}
 function rlDockHTML(c){const D=RL.D, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), st=ch.filter(ul3NewStop);
  const msg=!n?"No changes yet."
   :over.length?`<span class="ul3-mk">Above your plan: ${listAnd(over.map(k=>RES[k].label))}.</span> Lower ${over.length>1?"them":"it"} to save, or move capacity from another workspace in Usage &amp; limits.`
-  :`${ul3N(n,"change")}: ${listAnd(ch.map(x=>`${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?` ${c.name} stops ${listAnd(st.map(x=>UL3_STOP[x.k]))}.`:""}${ul3AskNote(D,c.id)}${ul3TellNote(ch)}`;
+  :`${ul3N(n,"change")}: ${listAnd(ch.map(x=>`${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?` ${c.name} stops ${listAnd(st.map(x=>UL3_STOP[x.k]))}.`:""}${rlAskNote(D,c.id)}${ul3TellNote(ch)}`;
  return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rlcancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlsave${!n||over.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
 function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[id]);
  const lines=ks.map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=!!ul3EdFx(D,k,id).bad;
@@ -4919,9 +4951,15 @@ function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledb
  const dirty=rlDirty(); document.querySelectorAll("#recAskl .askl-acts button").forEach(b=>{b.disabled=dirty; b.title=dirty?"Save or cancel your limit changes first":""})}
 function rlHeadLine(c,ro,busy){
  const cyc=`Day ${CYCLE.day} of ${CYCLE.days}. Emails renew on 1 Oct; credits last the plan term.`;
- const R=RK.filter(k=>RES[k].rows[c.id]&&RES[k].rows[c.id].cap>0), near=R.filter(k=>ul3Lv(RES[k].rows[c.id])===1).length, look=near>1?` ${near} limits are at 90% or more.`:"";
+ const R=RK.filter(k=>RES[k].rows[c.id]&&RES[k].rows[c.id].cap>0), lv=k=>ul3Lv(RES[k].rows[c.id]), out=R.filter(k=>lv(k)===2).length, near=R.filter(k=>lv(k)===1).length;
+ /* change 292 (audit P0-11): a run-out within 2 days leads; a used-up limit is counted apart from the 90%+ ones */
+ const when=d=>d<1?"today":`in about ${Math.round(d)} day${Math.round(d)===1?"":"s"}`;
+ const S=R.filter(k=>lv(k)!==2).map(k=>({k,d:paceDays(k,RES[k].rows[c.id])})).filter(x=>x.d!=null&&x.d>0&&x.d<=2).sort((a,b)=>a.d-b.d), soon=S.length?S.filter(x=>when(x.d)===when(S[0].d)).sort((a,b)=>RK.indexOf(a.k)-RK.indexOf(b.k)):[];
+ const lead=soon.length?`<b>${rlpCap(soon.length>2?`${soon[0].k==="sends"?"emails":RES[soon[0].k].label} and ${soon.length-1} other limits`:listAnd(soon.map(x=>x.k==="sends"?"emails":RES[x.k].label)))} run out ${when(S[0].d)} at this pace.</b>`:"";
+ const cnt=out?`${out} limit${out===1?" is":"s are"} used up${near?`; ${near} more ${near===1?"is":"are"} at 90% or more`:""}.`:near>1?`${near} limits are at 90% or more.`:"";
+ const look=[lead,cnt].filter(Boolean).join(" ");
  if(ro) return `<b>${c.deletedOn?"Deleted":"Disabled"}.</b> Its limits still count against the plan, and they can still change. ${cyc}`;
- if(busy) return cyc+look;
+ if(busy||look) return look?`${look} ${cyc}`:cyc;
  let b=null; R.forEach(k=>{const r=RES[k].rows[c.id], p=ulPct(r.used,r.cap); if(!b||p>b.p) b={k,p}});
  if(!b||!R.some(k=>RES[k].rows[c.id].used)) return `<b>Nothing needs you.</b> Nothing used yet. ${cyc}`;
  return `<b>Nothing needs you.</b> Closest to its limit: ${RES[b.k].label}, ${b.p}%.${look} ${cyc}`}
@@ -4951,9 +4989,10 @@ document.addEventListener("click",e=>{if(view.name!=="record") return;
  const d=t.dataset, c=byId[view.id]; if(!c) return;
  if(d.rledit!=null){if(!canI("limits")) return; RL={id:c.id,D:{}}; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("rlin-sends")||document.querySelector("[data-rlin]"); if(i){i.focus(); i.select()} return}
  if(d.rlcancel!=null){RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus(); return}
- if(d.rlsave!=null&&RL){if(ul3Commit(RL.D,"Saved","set on its Limits tab")) RL=null; render(); return}
+ if(d.rlsave!=null&&RL){if(rlpParts(RL.D,RL.id).length){if(RLP&&RLP.kind==="save"){RLP=null; rlpPaint(); return} RLP={kind:"save",keep:true,note:RLP_NOTE}; rlpPaint(); rlpFocus(); return}
+  if(rlSave(false,"")) RL=null; render(); return}
  /* more than the plan has: 263's roster editor on Usage & limits takes the draft and offers a donor */
- if(d.rlmove&&RL){UL.ed={id:RL.id,D:Object.assign({},RL.D),donor:{}}; UL.open3=RL.id; UL.cell=null; UL.edit=false; UL.ul3f="#ul3in-"+d.rlmove; RL=null; ORIGIN=null; ctx="agency"; asClient=false; view={name:"limits"}; render(); return}
+ if(d.rlmove&&RL){UL.ed=null; UL.draft=Object.assign({},RL.D); UL.focusK=d.rlmove; UL.rv2=false; UL.cell=null; UL.ul3f=`[data-uld="${d.rlmove}|${RL.id}"]`; RL=null;   /* change 290 */ ORIGIN=null; ctx="agency"; asClient=false; view={name:"limits"}; render(); return}
  if(d.rlraise){const [k,n]=d.rlraise.split("|"); setLimit(k,c.id,+n,"raised so it can restart"); render(); return}
  if(d.askld){LM_DECL="askl-"+d.askld; render(); const i=document.querySelector(`.askl-note[data-nonote="${d.askld}"]`); if(i) i.focus(); return}
  if(d.askldx!=null){LM_DECL=null; render(); return}});
@@ -4962,6 +5001,80 @@ document.addEventListener("focusout",e=>{const t=e.target; if(RL&&t.dataset&&t.d
 document.addEventListener("keydown",e=>{if(view.name!=="record"||!RL) return; const t=e.target; if(!t.dataset||!t.dataset.rlin) return;
  if(e.key==="Enter"){e.preventDefault(); const all=[...document.querySelectorAll("[data-rlin]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-rlsave]:not(:disabled)"); if(n) n.focus(); return}
  if(e.key==="Escape"&&!rlDirty()){e.preventDefault(); e.stopPropagation(); RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus()}},true);
+/* change 292 (audit P0-3): on the record, a give below the ask and a Change limits raise below the ask ask
+   what happens to the rest, in 282's words and look: "Keep N waiting" (default) or "Close the rest" with a
+   note. Kept: the request stays in REQUESTS with the remaining amount, `given` and `asked0`, as 282 does. */
+let RLP=null;
+const RLP_NOTE="We gave what was available today. Ask again next cycle if you still need it.";
+const rlpNoun=k=>k==="sends"?"emails":RES[k].short;
+const rlpEsc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+function rlpParts(D,id){return ulReqs().filter(r=>r.client===id).map(r=>({r,d:ul3Dv(D,r.res,id)-RES[r.res].rows[id].cap})).filter(x=>x.d>0&&x.d<x.r.amount)}
+function rlAskNote(D,id){const g=ulReqs().filter(r=>r.client===id).map(r=>({r,d:ul3Dv(D,r.res,id)-RES[r.res].rows[id].cap})), hit=g.filter(x=>x.d>0); if(!hit.length) return "";
+ const full=hit.filter(x=>x.d>=x.r.amount), part=hit.filter(x=>x.d<x.r.amount), open=g.filter(x=>x.d<=0), amt=x=>`${f(x.r.amount)} ${ul3Noun(x.r.res)}`;
+ if(!part.length&&!open.length) return " Gives all it asked for.";
+ const t=[]; if(full.length) t.push(`gives the ${listAnd(full.map(amt))} asked`); part.forEach(x=>t.push(`gives ${f(x.d)} of the ${amt(x)} asked`));
+ const s=" "+t.join("; "); return s.charAt(0)+s.charAt(1).toUpperCase()+s.slice(2)+"."+(open.length?` The ask for ${listAnd(open.map(amt))} stays waiting.`:"")}
+function rlpHTML(){const o=RLP; if(!o||view.name!=="record") return ""; const c=byId[view.id]; if(!c) return ""; const nick=c.name.split(" ")[0];
+ let L, title, ok;
+ if(o.kind==="give"){const r=REQUESTS.find(x=>x.id===o.id); if(!r){RLP=null; return ""} const g=Math.min(r.amount,compute(r.res).free); if(!(g>0)){RLP=null; return ""}
+  L=[{r,d:g}]; title=`Give ${f(g)} ${rlpNoun(r.res)}`; ok=`Give ${f(g)}`}
+ else{if(!RL){RLP=null; return ""} L=rlpParts(RL.D,RL.id); if(!L.length){RLP=null; return ""} const n=ul3Ch(RL.D).length;
+  title=`Save ${ul3N(n,"change")}`; ok="Save"}
+ const one=L.length===1?L[0]:null, rest=x=>`${f(x.r.amount-x.d)} ${rlpNoun(x.r.res)}`, by=L[0].r.by||c.name;
+ const lead=o.kind==="save"?`${rlpCap(listAnd(L.map(x=>`gives ${f(x.d)} of the ${f(x.r.amount)} ${rlpNoun(x.r.res)} asked`)))}. `:"";
+ return `<div class="rqc-pop rlp-pop" id="rlpPop" role="dialog" aria-labelledby="rlpPopT" data-for="${o.kind}|${o.id||""}"><div class="rqc-pt" id="rlpPopT">${title}</div>
+  <p class="rqc-pp">${lead}What happens to the other ${listAnd(L.map(rest))}?</p>
+  <label class="rqc-opt"><input type="radio" name="rlpm" data-rlpmode="keep"${o.keep?" checked":""}><span><b>Keep ${one?f(one.r.amount-one.d):"the rest"} waiting</b><span class="rqc-s">${nick} won't have to ask again. The rest fills in when more is available or you buy more.</span></span></label>
+  <label class="rqc-opt"><input type="radio" name="rlpm" data-rlpmode="close"${o.keep?"":" checked"}><span><b>Close the rest</b><span class="rqc-s">${nick} sees a note and can ask again.</span></span></label>
+  ${o.keep?"":`<label class="rqc-pl" for="rlpNote">Note to ${by} (optional)</label><textarea id="rlpNote" class="rqc-ta" data-rlpnote>${rlpEsc(o.note)}</textarea>`}
+  <div class="rqc-pf"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rlpx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlpok>${ok}, ${o.keep?`keep ${one?f(one.r.amount-one.d):"the rest"} waiting`:"close the rest"}</button></div></div>`}
+const rlpCap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+function rlpAnchor(){if(!RLP) return null; return RLP.kind==="give"?document.querySelector(`[data-rlpart="${RLP.id}"]`):document.querySelector("[data-rlsave]")}
+function rlpPaint(){let Ly=el("rlpLayer"); if(!Ly){Ly=document.createElement("div"); Ly.id="rlpLayer"; document.body.appendChild(Ly)} Ly.innerHTML=rlpHTML();
+ const m=el("rlpPop"); if(!m) return; const b=rlpAnchor(); if(!b){m.style.left="50%"; m.style.top="120px"; return}
+ const R=b.getBoundingClientRect(), W=m.offsetWidth; let x=Math.max(8,Math.min(R.right-W,innerWidth-W-8)), y=R.bottom+6;
+ if(y+m.offsetHeight>innerHeight-8) y=Math.max(8,R.top-m.offsetHeight-6); m.style.left=x+"px"; m.style.top=y+"px"}
+function rlpFocus(){const i=document.querySelector("#rlpPop textarea,#rlpPop input:checked"); if(i) i.focus({preventScroll:true})}
+function rlpWire(){if(view.name!=="record"||tab!=="limits"){RLP=null} rlpPaint()}
+/* a give from the ledger: 282's rqcGiveDo for one line */
+function rlGive(r,keep,note){const c=byId[r.client], R=RES[r.res], row=R.rows[r.client], g=Math.min(r.amount,compute(r.res).free); if(!(g>0)) return;
+ const cap0=row.cap, was={amount:r.amount,given:r.given,asked0:r.asked0}, orig=r.asked0||r.amount, left=r.amount-g, before=REQUESTS.slice(), nn=rlpNoun(r.res); let ans=null;
+ row.cap+=g; syncRes(r.res,row);
+ if(keep){r.asked0=orig; r.given=(r.given||0)+g; r.amount=left;
+  logAct(c.id,`Gave ${f(g)} of the ${f(orig)} more ${R.short} asked${askBy(r).replace(" asked","")}; the other ${f(left)} stay waiting; the ${limNow(r.res,row.cap)}`)}
+ else{const tot=(r.given||0)+g; ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:row.cap,amount:tot,asked:orig,dby:me_,g,req0:Object.assign({},r)},note?{dnote:note}:{}); delete ans.given; delete ans.asked0;
+  ANSWERS.push(ans); REQUESTS=REQUESTS.filter(y=>y!==r);
+  logAct(c.id,`Gave ${f(tot)} of the ${f(orig)} more ${R.short} asked${askBy(r).replace(" asked","")} and closed the rest; the ${limNow(r.res,row.cap)}`)}
+ receipt("queue",`Gave ${c.name} ${f(g)} of ${f(was.amount)} ${nn}. ${keep?`The other ${f(left)} ${nn} stay waiting.`:`The rest closes; ${c.name.split(" ")[0]} can ask again.`} ${f(compute(r.res).free)} ${nn} available.`,
+  ()=>{row.cap=cap0; syncRes(r.res,row); r.amount=was.amount; ["given","asked0"].forEach(p=>{if(was[p]==null) delete r[p]; else r[p]=was[p]}); if(ans){const j=ANSWERS.indexOf(ans); if(j>-1) ANSWERS.splice(j,1)} REQUESTS=before},
+  `gave ${c.name} ${f(g)} of ${f(was.amount)} ${nn}`)}
+/* Save on Change limits: keep moves the partly raised lines out of 263's commit (which closes them), then
+   keeps the rest of each waiting; close leaves the commit as it is and adds the note */
+function rlSave(keep,note){const D=RL.D, id=RL.id, P=rlpParts(D,id), hold=keep?P.map(x=>x.r):[], before=REQUESTS.slice();
+ if(hold.length) REQUESTS=REQUESTS.filter(r=>hold.indexOf(r)<0);
+ if(!ul3Commit(D,"Saved","set on its Limits tab")){REQUESTS=before; return false}
+ const now=REQUESTS; REQUESTS=before.filter(r=>now.indexOf(r)>-1||hold.indexOf(r)>-1).concat(now.filter(r=>before.indexOf(r)<0));
+ if(!keep&&note) ANSWERS.filter(a=>P.some(x=>x.r.id===a.id)&&a.on===TODAY_D).forEach(a=>a.dnote=note);
+ if(!hold.length) return true;
+ const was=P.map(x=>({r:x.r,amount:x.r.amount,given:x.r.given,asked0:x.r.asked0}));
+ P.forEach(({r,d})=>{const orig=r.asked0||r.amount; r.asked0=orig; r.given=(r.given||0)+d; r.amount-=d;
+  logAct(id,`Gave ${f(d)} of the ${f(orig)} more ${RES[r.res].short} asked${askBy(r).replace(" asked","")}; the other ${f(r.amount)} stay waiting`)});
+ if(RECEIPT){const u=RECEIPT.undo; RECEIPT.text+=` Gave ${listAnd(P.map(x=>`${f(x.d)} of the ${f(x.d+x.r.amount)} ${rlpNoun(x.r.res)} asked`))}; the other ${listAnd(P.map(x=>f(x.r.amount)))} ${P.length===1&&P[0].r.amount===1?"stays":"stay"} waiting.`; RECEIPT.short=RECEIPT.text;
+  RECEIPT.undo=()=>{was.forEach(w=>{w.r.amount=w.amount; ["given","asked0"].forEach(p=>{if(w[p]==null) delete w.r[p]; else w.r[p]=w[p]})}); if(u) u()}}
+ return true}
+document.addEventListener("click",e=>{if(view.name!=="record") return;
+ const t=e.target.closest("[data-rlpart],[data-rlpx],[data-rlpok]");
+ if(!t){if(RLP&&!e.target.closest("#rlpPop,[data-rlsave]")){RLP=null; rlpPaint()} return}
+ if(t.disabled) return; const d=t.dataset; e.preventDefault();
+ if(d.rlpart){if(RLP&&RLP.kind==="give"&&RLP.id===d.rlpart){RLP=null; rlpPaint(); return} RLP={kind:"give",id:d.rlpart,keep:true,note:RLP_NOTE}; rlpPaint(); rlpFocus(); return}
+ if(d.rlpx!=null){const o=RLP; RLP=null; rlpPaint(); const b=o&&(o.kind==="give"?document.querySelector(`[data-rlpart="${o.id}"]`):document.querySelector("[data-rlsave]")); if(b) b.focus(); return}
+ if(d.rlpok!=null){const o=RLP; RLP=null; if(!o) return; const note=o.keep?"":(o.note||"").trim();
+  if(o.kind==="give"){const r=REQUESTS.find(x=>x.id===o.id); if(r) rlGive(r,o.keep,note)}
+  else if(RL&&rlSave(o.keep,note)) RL=null;
+  render(); return}});
+document.addEventListener("change",e=>{const t=e.target; if(t.dataset&&t.dataset.rlpmode&&RLP){RLP.keep=t.dataset.rlpmode==="keep"; rlpPaint(); const i=document.querySelector(`#rlpPop [data-rlpmode="${t.dataset.rlpmode}"]`); if(i) i.focus()}});
+document.addEventListener("input",e=>{const t=e.target; if(t.dataset&&t.dataset.rlpnote!=null&&RLP) RLP.note=t.value});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&RLP){e.preventDefault(); e.stopPropagation(); const o=RLP; RLP=null; rlpPaint(); const b=o.kind==="give"?document.querySelector(`[data-rlpart="${o.id}"]`):document.querySelector("[data-rlsave]"); if(b) b.focus()}},true);
 /* 54 mailboxes is a page, not a list. The health summary is the line an agency
    actually reads on this screen: they are not auditing addresses, they are
    asking how much of this client's sending estate is currently up.        */
@@ -5084,11 +5197,11 @@ function peopleMenuHTML(r){
  const isMe=r.kind==="team"&&r.key==="t:"+me_, owner=r.role==="Owner";
  const lastSignIn=r.kind==="wsuser"&&r.c.users.length===1;
  const items=[
-  ["chrole","Change role",owner?"The Account Owner role is transferred, not changed":""],
+  r.kind==="wsuser"?null:["chrole","Change role",owner?"The Account Owner role is transferred, not changed":""],   /* change 292: a client user's role is the dropdown */
   r.kind==="team"&&r.role==="Member"?["assignws","Assign workspaces",""]:r.kind==="wsuser"?["assignws","Move to another workspace",""]:null,
   r.status==="Invited"?["resend","Resend invite",""]:null,
   owner||isMe?null:[r.status==="Disabled"?"enable":"disable",r.status==="Disabled"?"Enable":"Disable",""],
-  owner||isMe?null:["delete",r.kind==="team"?"Delete user":"Remove from workspace",lastSignIn?"The only sign-in for "+r.c.name+"; disable the workspace instead":""]
+  owner||isMe?null:["delete",r.kind==="team"?"Delete user":"Remove from "+r.c.name,lastSignIn?"The only sign-in for "+r.c.name+"; disable the workspace instead":""]
  ].filter(Boolean);
  return `<div class="menu" style="width:260px;right:0;top:calc(100% + 4px)">${items.map(([k,l,why])=>`<button class="menu-i" ${why?`disabled title="${why}" style="opacity:.5"`:`data-pact="${k}|${r.key}"`}><span class="menu-l" style="${k==="delete"?"color:var(--red-12)":""}">${l}</span>${why?`<span class="menu-d">${why}</span>`:""}</button>`).join("")}</div>`;
 }
@@ -5196,9 +5309,9 @@ function vPeople(){
    <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
    ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?roleName(r.role):"Client user"}</span>
    <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}${r.c.name} <span class="sub">&middot; ${ppShort(r.role)}</span></span></span>
-   <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
+   <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
-   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key?`<div class="menu" style="width:240px;right:0;top:calc(100% + 4px)">${PP_WS_ROLES.filter(x=>x!==r.role).map(x=>`<button class="menu-i" data-ppclrole="${r.key}|${x}">Make ${roleA(x)}</button>`).join("")}<button class="menu-i" data-ppresend="${r.key}">Resend invite</button><button class="menu-i" style="color:var(--red-12)" data-ppclremove="${r.key}">Remove from ${r.c.name}</button></div>`:""}</span></div>`;
+   <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key&&rowByKey(r.key)?peopleMenuHTML(rowByKey(r.key)):""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
  const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":tab==="teams"?"Search teams":"Search invites";
@@ -5354,16 +5467,10 @@ const personCanEdit=p=>canI("members")&&!p.owner;
    Removing an Account Admin is the Account Owner's; editing stays with both. */
 const personCanRemove=p=>personCanEdit(p)&&(p.kind!=="team"||p.role!=="Admin"||ME().role==="Owner");
 function personAccessHTML(p){
- const r=personInvRow(p), wsList=fundedWorkspaces().filter(x=>!x.own);
- let cardHTML=invRowHTML(p.email,r,p.kind==="team"?Object.keys(PEOPLE).indexOf(p.k):1,p.kind==="client"?p.c:null,wsList);
+ /* change 291 (audit P0-4): the Access card is the data, said once. It was a read-only copy of the
+    invite form whose radios picked the nearest card, so an Account Owner read as an Account Admin
+    and a Member with a role per workspace read as Workspace Admin everywhere. */
  const editBtn=personCanEdit(p)?`<button class="shd-button shd-button--tertiary shd-button--sm" data-pedit="${p.key}">Edit</button>`:"";
- cardHTML=cardHTML.replace(/<span class="inv-tag[^"]*">[^<]*<\/span>/,editBtn).replace(/<span class="avatar av-tint"[^>]*>[^<]*<\/span>/,ppAv(p.initials,p.colour,32,!!p.invited))
-   .replace(/<input type="radio"/g,'<input type="radio" disabled tabindex="-1"')
-   .replace('<p class="inv-help">Change this later from their profile.</p>','')
-   .replace(/Matched by email domain\. Change it if we got it wrong\./,'');
- if(p.owner) cardHTML=cardHTML.replace('Account Admin &middot; all workspaces and People; no Billing','Account Owner &middot; everything, including billing. Transferred from your own page, never granted here.');
- if(r.mixed) cardHTML=cardHTML.replace('</div></div>$','')+'';
- const mixedNote=r.mixed&&!isATM()?`<p class="sub" style="margin:10px 0 0">${p.first} has a different role in some workspaces: ${r.wsList.map(id=>byId[id].name+" &middot; "+roleName(ppWsRole(p.P,id))).join(", ")}.</p>`:"";
  const since=p.disabled?`Disabled; their access is kept but they cannot sign in.`:p.invited?(invExpired(p.invited)?`Invited ${AGE(p.invited)}; the link expired after ${INVITE_DAYS} days.`:p.invited==="never"?`Not signed in yet.`:`Invited ${AGE(p.invited)}, not accepted yet.`):p.kind==="client"?`Client user of ${p.c.name} since ${p.c.created||"the start"}.`:p.owner?"Owns the account.":"On your team.";
  const signin=p.invited?`<span class="sub">No password yet; they set it when they accept.</span><button class="linkbtn" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`
    :`<span class="sub">Signs in with a password they set${p.kind==="client"&&brandOn()&&BRAND.domain?", on "+BRAND.domain:""}.</span><button class="linkbtn" data-preset="${p.email}">Send reset link</button>`;
@@ -5372,10 +5479,24 @@ function personAccessHTML(p){
     different level per client is set from their profile") */
  const lvlRows=p.kind==="team"&&p.P.role==="Member"?(p.P.ws||[]).filter(id=>byId[id]&&!byId[id].deletedOn).map(id=>[byId[id],ppWsRole(p.P,id)])
    :p.kind==="client"?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0]===p.email)).map(c=>[c,(c.users.find(u=>u[0]===p.email)||[])[1]]):[];
- const lvlPanel=lvlRows.length&&canI("members")&&!p.disabled&&!isATM()?`<div class="panel"><div class="panel-h"><span class="panel-t">Role per workspace</span><span class="sub">Changes apply on their next request. Undo from the toast.</span></div>
-   <div class="panel-b" style="padding-top:4px">${lvlRows.map(([c,lv])=>`<div class="prm-row"><span class="prm-ws">${av(c,24)}<span><b>${c.name}</b><i>${c.own?"Your workspace":c.company||""}</i></span></span><span class="prm-to">${ddHTML("pplvl_"+c.id,lv,[{items:roleItems()}],{})}</span></div>`).join("")}</div></div>`:"";
- const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since} Edit opens the form they were invited with.</span></div>
-   <div class="panel-b"><div class="inv-list inv-ro">${cardHTML}</div>${mixedNote}</div></div>${lvlPanel}`;
+ /* the account role once (team only), then the role in each workspace: a dropdown where it can change
+    (change 156, in place, Undo on the toast), plain text where it cannot (disabled, or ATM, where an
+    Account Member has no role per workspace, change 157). Owners and Admins are in every workspace. */
+ const atm=isATM(), aRole=p.kind==="team"?(atm?atmRoleOf(p.k):p.role):null, allWs=aRole==="Owner"||aRole==="Admin";
+ const ROLE_SAYS={Owner:"Everything, including Billing. Another Account Owner can remove this role; the last one can&rsquo;t be removed.",
+  Admin:"Every workspace and People; no Billing.",Member:atm?"Their own records, in the workspaces below.":"Only the workspaces below, with a role in each.",
+  "Team Manager":"Their own and their team&rsquo;s records, in the workspaces below."};
+ const canLvl=canI("members")&&!p.disabled&&!atm, noLvl=atm&&p.kind==="team";
+ const row=(k,v,cls)=>`<div class="pacc-r${cls?" "+cls:""}"><span class="pacc-k">${k}</span><div class="pacc-v">${v}</div></div>`;
+ const wsLine=([c,lv])=>`<div class="pacc-ws"><span class="pacc-wn" title="${c.name}">${c.name}</span>${noLvl?"":canLvl?`<span class="pacc-dd">${ddHTML("pplvl_"+c.id,lv,[{items:roleItems()}],{})}</span>`:`<span class="pacc-ro">${roleName(lv)}</span>`}</div>`;
+ const wsVal=allWs?(atm?`<b>All workspaces</b>`:`<b>Workspace Admin in every workspace</b><span class="pacc-s">Including workspaces added later.</span>`)
+   :lvlRows.length?lvlRows.map(wsLine).join(""):`<b>Not in any workspace yet</b>`;
+ const teams=noLvl?teamsOf(p.k):[];
+ const rows=(aRole?row("Account role",`<b>${roleName(aRole)}</b><span class="pacc-s">${ROLE_SAYS[aRole]||""}</span>`):"")
+   +row(noLvl||allWs?"Workspaces":lvlRows.length>1?"Workspace roles":"Workspace role",wsVal,!allWs&&lvlRows.length&&canLvl?"pacc-r--dd":"")
+   +(noLvl&&!allWs?row("Teams",`<b>${teams.length?listAnd(teams.map(t=>t.name+(t.manager===p.k?" (manager)":""))):"Not in a team"}</b>`):"");
+ const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since}</span>${editBtn?`<span class="c-a tools">${editBtn}</span>`:""}</div>
+   <div class="panel-b pacc">${rows}</div></div>`;
  return html0+`
   ${/* change 119, 5 Oct 2026: the Sign-in card is gone. The header carries the
      state (Active / Invited · Resend), the reset link and, for a client user on a
@@ -5430,7 +5551,12 @@ function vPerson(){
  const ownerBtn=!iOwn||p.kind!=="team"?"":p.owner&&p.me?`<button class="shd-button shd-button--secondary" data-transfer ${transferCands().length&&!TRANSFER?"":"disabled"} title="${transferCands().length?"":"Needs an Account Admin or another Account Owner to hand to"}">Transfer ownership</button>`
    :p.owner&&live&&ownersOf().length>1?`<button class="shd-button shd-button--tertiary pa-danger" data-rmowner="${p.key}">Remove Account Owner role</button>`
    :p.role==="Admin"&&live?`<button class="shd-button shd-button--secondary" data-mkowner="${p.key}">Make Account Owner</button>`:"";
- const rm=p.owner?(p.me?"":`<span class="sub">An Account Owner is removed by Transfer ownership or Remove Account Owner role.</span>`):p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":!personCanRemove(p)?`<span class="sub">Only an Account Owner can remove an Account Admin.</span>`:p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
+ /* change 291 (audit P0-5): no rule sentence beside the button that does it */
+ const rm=p.owner?"":p.me?`<span class="sub">This is you.</span>`:!canI("members")?"":!personCanRemove(p)?`<span class="sub">Only an Account Owner can remove an Account Admin.</span>`:p.kind==="client"?`<button class="shd-button shd-button--tertiary pa-danger" data-prmc="${p.key}">Remove from ${p.c.name.split(" ")[0]}</button>`:`<button class="shd-button shd-button--tertiary pa-danger" data-prm="${p.key}">Remove from the account</button>`;
+ /* change 291 (audit P1-28): Disable or Enable beside Remove, on Remove's gate; nobody disables an
+    Account Owner, themself or an open invite */
+ const dis=p.kind!=="team"||p.owner||p.me||p.invited||!personCanRemove(p)?""
+   :p.disabled?`<button class="shd-button shd-button--secondary" data-penable="${p.key}">Enable</button>`:`<button class="shd-button shd-button--tertiary" data-pdisable="${p.key}">Disable</button>`;
  const tr=TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)?(()=>{const F=PEOPLE[TRANSFER.from],T=PEOPLE[TRANSFER.to];
    const st=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
    return `<div class="msg m-warn" role="status" style="margin:0 24px 12px">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name} &middot; ${st(TRANSFER.from)} &middot; ${st(TRANSFER.to)}. Nothing changes until both confirm.
@@ -5440,7 +5566,7 @@ function vPerson(){
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
    ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email} &middot; ${sub} &middot; ${status}${signsAt}</span></span></div>
-  <div class="tools">${reset}${ownerBtn}${rm}</div></div>
+  <div class="tools">${reset}${ownerBtn}${dis}${rm}</div></div>
  ${receiptBar("people")}${tr}
  <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
@@ -5552,9 +5678,9 @@ const INV_BLANK=()=>({emails:[],draft:"",err:"",rows:{},lock:null,preset:null,ed
 function openInvite(o){o=o||{}; INV=INV_BLANK(); INV.lock=o.lock||null;
  const pre=Array.isArray(o.ws)?o.ws:(o.ws?Object.keys(o.ws):null); if(pre&&pre.length)INV.preset={kind:"team",wsList:pre.filter(id=>byId[id])};
  /* change 198: one set of choices for every address in the send (INV.f), open from the start */
- const lv={}; (INV.preset?INV.preset.wsList:[]).forEach(id=>lv[id]="Workspace Admin");
+ const lv={}; (INV.preset?INV.preset.wsList:[]).forEach(id=>lv[id]=DEFAULT_CLIENT_ROLE);   /* change 292 (audit P1-25): least role first */
  INV.f=INV.lock?{kind:"client",acc:"pick",ws:INV.lock,wsList:[],lv:{},level:INV_LEVEL_DEFAULT,asOwner:false,teams:{},from:"lock"}
-   :{kind:"team",acc:"pick",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],lv,level:"Workspace Admin",asOwner:false,teams:{},from:"default"};
+   :{kind:"team",acc:"pick",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],lv,level:DEFAULT_CLIENT_ROLE,asOwner:false,teams:{},from:"default"};
  modal={kind:"invite"}; renderModal()}
 const INV_LEVEL_DEFAULT="Workspace Viewer";
 const agencyDomains=()=>{const d=new Set(); (AGENCY_OWN.mailboxes||[]).forEach(m=>{const x=(m[0].split("@")[1]||"").toLowerCase(); if(x)d.add(x)}); return d};
@@ -5564,9 +5690,9 @@ function invPropose(addr){
     another workspace (PRD §2.1 flow); an agency user is refused in commit() */
  const ex=onAccount(addr); if(ex&&ex.kind==="client") return {kind:"client",ws:INV.lock&&ex.ws.indexOf(INV.lock)<0?INV.lock:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"existing",existing:ex.ws,open:false};
  if(INV.lock) return {kind:"client",ws:INV.lock,wsList:[],level:INV_LEVEL_DEFAULT,from:"lock",open:false};
- if(agencyDomains().has(d)) return {kind:"team",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],level:"Workspace Admin",from:"domain",open:false};
+ if(agencyDomains().has(d)) return {kind:"team",ws:"",wsList:INV.preset?INV.preset.wsList.slice():[],level:DEFAULT_CLIENT_ROLE,from:"domain",open:false};
  const g=invGuessWs(addr); if(g) return {kind:"client",ws:g,wsList:[],level:INV_LEVEL_DEFAULT,from:"domain",open:false};
- if(INV.preset) return {kind:"team",ws:"",wsList:INV.preset.wsList.slice(),level:"Workspace Admin",from:"preset",open:false};
+ if(INV.preset) return {kind:"team",ws:"",wsList:INV.preset.wsList.slice(),level:DEFAULT_CLIENT_ROLE,from:"preset",open:false};
  return {kind:null,ws:"",wsList:[],level:INV_LEVEL_DEFAULT,from:"none",open:false};
 }
 const invSettled=r=>!r.blocked&&(r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0));
@@ -5818,7 +5944,7 @@ function pconfirmHTML(){
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button ${a==="delete"?"shd-button--secondary":"shd-button--primary"}" data-pconfirmok>${title.replace("?","")}</button>`,"ac");
 }
 function peopleAct(k,key){
- const r=rowByKey(key); if(!r) return; peopleMenu=null;
+ const r=rowByKey(key); if(!r) return; peopleMenu=null; PP.menu=null;
  if(k==="chrole"){modal={kind:"chrole",key};renderModal();render();return}
  if(k==="assignws"){modal={kind:"assignws",key};renderModal();render();return}
  if(k==="resend"){receipt("people",`Invite resent to ${r.email}.`,null,`resent an invite`);render();return}
@@ -5864,7 +5990,7 @@ function wirePeopleModal(L){
   L.querySelectorAll("[data-invchange]").forEach(b=>b.onclick=()=>{INV.emails.forEach(a=>{if(row(a).open){row(a).open=false}}); const r=row(b.dataset.invchange); r.open=true; r.snap=JSON.stringify(r); rerender()});
   L.querySelectorAll("[data-invkind]").forEach(c=>c.onchange=()=>{const r=row(c.dataset.invkind); r.kind=c.value; r.from="pick";
     if(r.kind==="client"&&!r.ws){const g=invGuessWs(c.dataset.invkind); if(g){r.ws=g;r.from="domain"} r.level=INV_LEVEL_DEFAULT}
-    if(r.kind==="team"){if(!r.wsList.length&&INV.preset)r.wsList=INV.preset.wsList.slice(); r.level="Workspace Admin"}
+    if(r.kind==="team"){if(!r.wsList.length&&INV.preset)r.wsList=INV.preset.wsList.slice(); r.level=DEFAULT_CLIENT_ROLE}
     rerender()});
   L.querySelectorAll("[data-invlevel]").forEach(c=>c.onchange=()=>{row(c.dataset.invlevel).level=c.value;rerender()});
   L.querySelectorAll("[data-invown]").forEach(c=>c.onchange=()=>{row(c.dataset.invown).asOwner=c.value==="owner";rerender()});
@@ -5881,7 +6007,7 @@ function wirePeopleModal(L){
    L.querySelectorAll("[data-invfacc]").forEach(c=>c.onchange=()=>{f.acc=c.value; f.kind=c.value==="all"?"admin":"team"; rerender()});
    L.querySelectorAll("[data-invfown]").forEach(c=>c.onchange=()=>{f.asOwner=c.value==="owner"; rerender()});
    L.querySelectorAll("[data-invfrm]").forEach(b=>b.onclick=()=>{const id=b.dataset.invfrm; f.wsList=f.wsList.filter(x=>x!==id); delete f.lv[id]; rerender()});
-   wireDD(L,"invfadd",v=>{if(v&&f.wsList.indexOf(v)<0){const last=f.wsList[f.wsList.length-1]; f.lv[v]=last?f.lv[last]:"Workspace Admin"; f.wsList.push(v)} rerender()});
+   wireDD(L,"invfadd",v=>{if(v&&f.wsList.indexOf(v)<0){const last=f.wsList[f.wsList.length-1]; f.lv[v]=last?f.lv[last]:DEFAULT_CLIENT_ROLE; f.wsList.push(v)} rerender()});
    f.wsList.forEach(id=>wireDD(L,"invlv_"+id,v=>{if(v)f.lv[id]=v; rerender()}));
    wireDD(L,"invlvall",v=>{if(v){f.wsList.forEach(id=>f.lv[id]=v); f.level=v} rerender()});
    wireDD(L,"invfws",v=>{if(v){f.ws=v;f.from="pick"} rerender()});
@@ -6215,18 +6341,18 @@ function mailPurchasesHTML(c,forClient){
  const mine=INFRA_BUY.filter(r=>r.ws===c.id); if(!mine.length) return "";
  const rows=mine.map(r=>`<tr>
    <td class="tnum">${r.on}</td>
-   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP?` <span class="sub">${r.domP}</span>`:""}</td>
-   <td><b>${r.mbx}</b>${r.mbxP?` <span class="sub">${r.mbxP}</span>`:""}</td>
-   <td><b>${r.ip}</b>${r.ipP?` <span class="sub">${r.ipP}</span>`:""}</td>
-   <td class="tnum">${r.renew}${r.due?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
-   <td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn linkbtn--sm" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td></tr>`).join("");
+   <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP&&!forClient?` <span class="sub">${r.domP}</span>`:""}</td>
+   <td><b>${r.mbx}</b>${r.mbxP&&!forClient?` <span class="sub">${r.mbxP}</span>`:""}</td>
+   <td><b>${r.ip}</b>${r.ipP&&!forClient?` <span class="sub">${r.ipP}</span>`:""}</td>
+   <td class="tnum">${r.renew}${r.due&&!forClient?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
+   ${forClient?"":`<td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn linkbtn--sm" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td>`}</tr>`).join("");
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">Purchase History</span><span class="sub">Domains, email accounts and IPs this workspace sends from, with their renewal dates</span></div>
-  <div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>
+  ${forClient?"":`<div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>`}
   <div class="tscroll"><table class="organism inf-table" style="min-width:900px">
-   <thead><tr><th>PURCHASE DATE</th><th>DOMAINS</th><th>EMAIL ACCOUNTS</th><th>IPS / AZURE TENANTS</th><th>RENEWAL DATE</th><th>PLAN TYPE</th><th class="colact"></th></tr></thead>
+   <thead><tr><th>Purchase date</th><th>Domains</th><th>Email accounts</th><th>IPs / Azure tenants</th><th>Renewal date</th><th>Plan type</th>${forClient?"":'<th class="colact"></th>'}</tr></thead>
    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">Billed to ${AGENCY.name}'s plan.</p></div>`;
+  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${forClient?`${AGENCY.name} renews these for you.`:`Billed to ${AGENCY.name}'s plan.`}</p></div>`;
 }
 function vAddons(only){
  const row=(name,...a)=>!only||only===name?row0(name,...a):"";
@@ -6450,7 +6576,7 @@ function ulBarHTML(){const ch=ulChanges(), over=UL_K().filter(k=>ulDfree(k)<0), 
   <button class="shd-button shd-button--secondary" data-uldiscard>Discard</button>
   <button class="shd-button shd-button--primary" data-ulreview${why?` disabled title="${why}"`:""}>Review changes</button>`}
 function ulLimitsHTML(ro){const W=ulRows(), ks=UL_K(), ed=UL.edit&&!ro;
- return ed?ul3E2HTML():ul3RosterHTML(ro);   /* change 263: Edit limits is one resource at a time; the grid below is no longer reached */
+ return ul3E2HTML(ro);   /* change 290: limits by resource, always visible; the roster and the grid below are no longer reached */
  const right=ro?`<span class="sub">Read only.</span>`
   :ed?`<span class="ul-legend"><span><i class="ul-lg is-ch"></i>Changed</span><span><i class="ul-lg is-sg"></i>Suggested by a workspace</span><span class="sub">Tab moves right, Enter moves down</span></span>`
   :`<span class="sub">Each cell is used of that workspace's limit. Click a cell to change one limit.</span><button class="shd-button shd-button--secondary shd-button--sm nc-modebtn" data-uledit>${NC_PEN}Edit limits</button>`;
@@ -6657,26 +6783,45 @@ function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on 
 
 /* ── Edit limits: one resource at a time, the draft (UL.draft) carried across tabs ── */
 const ul3E2K=()=>UL_K().indexOf(UL.focusK)>-1?UL.focusK:UL_K()[0];
+/* change 290: rows by % used of this resource, highest first; disabled last (as board 2) */
+const ul3E2P=(k,c)=>{const r=RES[k].rows[c.id]; return r.cap>0?r.used/r.cap:0};
+const ul3E2Rows=k=>ulRows().filter(c=>RES[k].rows[c.id]).sort((a,b)=>(!!a.disabled-!!b.disabled)||ul3E2P(k,b)-ul3E2P(k,a)||a.name.localeCompare(b.name));
+/* a limit never goes below what is used (282's rule: a limit already below it can stay or rise) */
+const ul3E2Low=(k,id)=>{const r=RES[k].rows[id], v=ulDv(k,id); return v<r.used&&v<r.cap};
+const ul3E2Lows=()=>ulChanges().filter(x=>ul3E2Low(x.k,x.id));
+/* short: what the waiting asks on this resource want is more than the plan has available (rqcShortHTML's test) */
+const ul3E2Short=k=>{const a=ulReqs().filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0); return a>0&&a>compute(k).free};
+/* Billing's own wording (bpRenew): Emails and Lead Finder renew on the plan date; the credits do not */
+const ul3E2Renew=k=>/^Renews/.test(bpRenew(k))?`Renews on ${PLAN.next.split(",")[0]}`:"Doesn't renew";
+const ul3E2Lab=k=>k==="lead_finder"||k==="ai"?RES[k].label:RES[k].label.charAt(0).toLowerCase()+RES[k].label.slice(1);
+/* the last column: % used and who asked, in grey; deciding stays on the Request card, so no Give here */
 function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=ul3Ask(c.id,k), U=r.used; let s;
- if(d&&ul3Below({k,id:c.id,v})) s=`<span class="ul3-mk">${r.cap<=U?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`Below the ${f(U)} used.`:"The limit is 0."}`;
+ const ask=q?`<span class="ul3-g">Asked for ${f(q.amount)}${q.by?` by ${q.by}`:""}</span>`:"";
+ if(ul3E2Low(k,c.id)) s=`<span class="ul3-mk">Below the ${f(U)} used</span> <span class="ul3-g">A limit can't go below what is used.</span>`;
+ else if(d&&ul3Below({k,id:c.id,v})) s=`<span class="ul3-mk">${r.cap<=U?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`Below the ${f(U)} used.`:"The limit is 0."}`;
  else if(d) s=`${d>0?"+":"&minus;"}${f(Math.abs(d))}${q&&d>0?(d>=q.amount?". Fills the ask.":`. Part of the ${f(q.amount)} asked.`):""}`;
- else s=`<span class="ul3-g">${r.cap>0?ul3Mk(ul3Lv(r),`${ulPct(U,r.cap)}% used`):"No limit"}${q?`${ul3Lv(r)===2?" ":". "}Asked for ${f(q.amount)}.`:""}</span>`;   /* no full stop after a solid mark */
- if(q&&d<q.amount) s+=` <button type="button" class="linkbtn ul3-l" data-ul3give2="${k}|${c.id}">Give ${f(q.amount)}</button>`;
+ else s=`${r.cap>0?ul3Mk(ul3Lv(r),`${ulPct(U,r.cap)}% used`):"No limit"}${q?`${ul3Lv(r)===2?" ":". "}${ask}`:""}`;   /* no full stop after a solid mark */
  return s}
-function ul3PoolHTML(k,D){const R=RES[k], m=compute(k), av=D?ul3Free(D,k):ulDfree(k), was=m.free;   /* change 282: D, Adjust limits' own draft */
+function ul3PoolHTML(k){const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;   /* change 290: the draft is UL.draft (282's Adjust pop-up and its own draft are gone) */
  return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
   <div class="ul3-pi"><span>Available</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
+/* change 290: the strip's right end: when it renews, then Your plan's way to get more (271/285's buy link with
+   Back to Usage & limits; Change plan for emails; an Account Admin asks the owner, naming the shortfall) */
+function ul3PaHTML(k){const gap=Math.max(0,ulReqs().filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0)-compute(k).free);
+ const act=ulRo()?"":canI("billing")?`<button type="button" class="linkbtn rqc-lk" data-ulbuy="${k}">${k==="sends"?"Change plan":"Buy more"}</button>`:`<button type="button" class="linkbtn rqc-lk" data-ulaskowner="${k}|${gap}">Ask the Account Owner</button>`;
+ return `<div class="ul3-pa"><span class="ul3-rn" data-ul3renew="${k}">${ul3E2Renew(k)}</span>${act}</div>`}
 const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
-function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
- const msg=!n?`No changes yet. Your plan has ${f(compute(k).free)} ${RES[k].label} available.`
+function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), low=ul3E2Lows(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
+ const msg=!n?`No changes yet. The plan has ${f(compute(k).free)} ${ul3E2Lab(k)} available.`
   :over.length?`<span class="ul3-mk">Above your plan: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}.</span> Lower a limit to review.`
+  :low.length?`<span class="ul3-mk">Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}.</span> Raise it to review.`
   :`${ul3N(n,"change")} across ${ul3N(nW,"workspace")}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}`;
- return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3rv${!n||over.length?" disabled":""}>${n?`Review ${ul3N(n,"change")}`:"Review changes"}</button></span>`}
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db">${n?`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button>`:""}<button type="button" class="shd-button shd-button--primary" data-ul3rv${!n||over.length||low.length?" disabled":""}>${n?`Review ${ul3N(n,"change")}`:"Review changes"}</button></span>`}
 const ul3TabN=x=>{const n=ulChanges().filter(y=>y.k===x).length; return n?`${n} changed`:""};
 function ul3E2Paint(id){const k=ul3E2K(), P=document.querySelector(".ul3-e2"); if(!P) return;
  const pool=P.querySelector("[data-ul3pool]"); if(pool) pool.innerHTML=ul3PoolHTML(k);
  P.querySelectorAll("[data-ul3tabn]").forEach(s=>{s.textContent=ul3TabN(s.dataset.ul3tabn)});
- (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i) i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap)});
+ (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i){i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap); i.setAttribute("aria-invalid",String(ul3E2Low(k,c.id)))}});
  const d=P.querySelector("[data-ul3e2dock]"); if(d) d.innerHTML=ul3E2DockHTML()}
 /* what each workspace reads, from the same numbers Apply writes */
 function ul3Notice(x){const c=byId[x.id], later=c.disabled?" Its users see this once it is enabled.":""; return ul3Notice1(x)+later}
@@ -6695,19 +6840,28 @@ function ul3E2ReviewHTML(){const ch=ulChanges(), n=ch.length, ks=UL_K().filter(k
   <h3 class="ul3-rvh">Limits</h3><table class="ul-t ul3-rvt"><colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:10%"><col></colgroup><thead><tr><th>Workspace</th><th>Limit</th><th>From</th><th>To</th><th>Notice to the workspace</th></tr></thead><tbody>${rows}</tbody></table>
   <h3 class="ul3-rvh">Your plan after this</h3><table class="ul-t ul3-rvt"><colgroup><col style="width:42%"><col style="width:20%"><col style="width:14%"><col></colgroup><thead><tr><th>Resource</th><th>Available now</th><th>After</th><th>Asks still open</th></tr></thead><tbody>${plan}</tbody></table></div>
   <div class="ul3-e2d"><p class="ul3-dm">${ul3N(n,"change")} to ${ul3N(new Set(ch.map(x=>x.id)).size,"workspace")}. Nothing changes until you apply.</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-ul3back>Back to editing</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3apply>${ul3StopLab(ch,`Apply ${ul3N(n,"change")}`)}</button></span></div>`}
-function ul3E2HTML(){const k=ul3E2K(), R=RES[k], n=ulChanges().length;
- if(UL.rv2&&n&&!ul3E2Over().length) return `<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div>`;
+/* ═══ change 290, 15 Oct 2026 (Hitesh: "on this screen we can have [the resource tabs] as user who is coming to
+   this screen can see by each resource because by workspace they can anyway go inside workspace and see"):
+   263's Edit limits (board 2 of fd/edit-limits-explore.html) is the page's one limits panel, always shown, in
+   place of Your plan and the roster. Tabs, the pool strip, one row per workspace; editing is 263's draft,
+   Review and Apply through ul3Commit. ═══ */
+function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRows().length;
+ const head=`<div class="rqc-hd"><h2 class="ul3-h" id="ul3E2H">Limits</h2><span class="rqc-hs">${nW===1?"1 workspace":`${nW} workspaces`}</span></div>`;
+ if(!ro&&UL.rv2&&n&&!ul3E2Over().length&&!ul3E2Lows().length) return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div></section>`;
  UL.rv2=false;
- const W=ul3RosterRows().filter(c=>RES[k].rows[c.id]);
- const tabs=UL_K().map(x=>`<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}">${RES[x].label}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`).join("");
- const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New":"";
+ const W=ul3E2Rows(k);
+ const tabs=UL_K().map(x=>{const sh=ul3E2Short(x); return `<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}"${sh?` title="Asks for more ${RES[x].label} than the plan has available"`:""}>${RES[x].label}${sh?`<span class="ul3-tdot" data-ul3dot="${x}" aria-hidden="true"></span><span class="cx-sr">, asks exceed what is available</span>`:""}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`}).join("");
+ const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New, nothing used yet":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
   return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
-   <td class="ul3-num">${f(r.used)}<span class="ul3-nu"> used</span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit"${ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
- return `<div class="panel ul-panel ul3-e2" id="ulLimits"><div class="panel-h"><span class="panel-t">Edit limits</span><span class="sub ul-hsub">A draft. Nothing changes until you review and apply.</span></div>
-  <div class="ul3-e2h"><div class="ul3-tabs" role="tablist" aria-label="Resource">${tabs}</div><div class="ul3-pool" data-ul3pool aria-live="polite">${ul3PoolHTML(k)}</div></div>
-  <table class="ul-t ul3-e2t" id="ul3E2T" role="tabpanel" aria-labelledby="ul3tab-${k}"><colgroup><col style="width:34%"><col style="width:12%"><col style="width:168px"><col></colgroup>
+   <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit" aria-invalid="${ul3E2Low(k,c.id)}"${!ro&&ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
+ return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2" id="ulLimits">
+  <div class="ul3-e2h"><div class="ul3-tabs" role="tablist" aria-label="Resource">${tabs}</div><div class="ul3-pool"><div class="ul3-pn" data-ul3pool aria-live="polite">${ul3PoolHTML(k)}</div>${ul3PaHTML(k)}</div></div>
+  <table class="ul-t ul3-e2t" id="ul3E2T" role="tabpanel" tabindex="-1" aria-labelledby="ul3tab-${k}"><colgroup><col class="ul3-c1"><col class="ul3-c2"><col class="ul3-c3"><col></colgroup>
    <thead><tr><th>Workspace</th><th>Used</th><th>Limit</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="ul3-e2d" data-ul3e2dock>${ul3E2DockHTML()}</div></div>`}
+  ${ro?"":`<div class="ul3-e2d" data-ul3e2dock>${ul3E2DockHTML()}</div>`}</div></section>`}
+/* an Adjust limits link (the short lines and the cards' Available tiles): this panel, that resource, its table */
+function ul3Go(k){UL.focusK=k; UL.rv2=false; render();
+ const S=el("ul3E2S"), T=el("ul3E2T"); if(S) S.scrollIntoView({block:"start",behavior:REDUCED()?"auto":"smooth"}); if(T) T.focus({preventScroll:true})}
 function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.acc={}; UL.dis={}; UL.focusK=null}
 /* after a render: the locks, and the focus an action asked for */
 function ul3Wire(){if(UL.ed&&!byId[UL.ed.id]) UL.ed=null; ul3Lock();
@@ -6730,8 +6884,8 @@ document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency") r
  if(d.ul3give2){const [k,id]=d.ul3give2.split("|"), q=ul3Ask(id,k); if(!q) return; UL.draft[k+"|"+id]=RES[k].rows[id].cap+q.amount; const i=document.querySelector(`[data-uld="${k}|${id}"]`); if(i) i.value=f(ulDv(k,id)); ul3E2Paint(id); return}
  if(d.ul3rv!=null){UL.rv2=true; UL.ul3f="[data-ul3apply]"; render(); const P=el("ulLimits"); if(P&&P.getBoundingClientRect().top<0) P.scrollIntoView({block:"start"}); return}
  if(d.ul3back!=null){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
- if(d.ul3apply!=null){if(ul3Commit(UL.draft,"Applied")) ul3E2Close(); render(); return}
- if(d.ul3discard!=null){ul3E2Close(); UL.ul3f="[data-uledit]"; render(); return}},true);
+ if(d.ul3apply!=null){const k=ul3E2K(); if(ul3Commit(UL.draft,"Applied")){ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k} render(); return}
+ if(d.ul3discard!=null){const k=ul3E2K(); ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k; render(); return}},true);   /* change 290: the panel stays on the same tab */
 document.addEventListener("input",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
  if(t.dataset&&t.dataset.ul3in&&UL.ed){ul3Set(UL.ed.D,t.dataset.ul3in,UL.ed.id,ulNum(t.value)); ul3EdPaint(); return}
  if(t.dataset&&t.dataset.uld&&t.closest(".ul3-e2")){const [k,id]=t.dataset.uld.split("|"), v=ulNum(t.value); if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v; ul3E2Paint(id)}});
@@ -6740,7 +6894,7 @@ document.addEventListener("focusout",e=>{const t=e.target; if(t.dataset&&t.datas
 document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
  if(t.dataset&&t.dataset.ul3in&&e.key==="Enter"){e.preventDefault(); const all=[...q2("[data-ul3in]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-ul3save]:not(:disabled)"); if(n) n.focus(); return}
  if(e.key==="Escape"&&UL.ed&&t.closest&&t.closest("[data-ul3edbox]")&&!ul3Dirty()&&t.tagName!=="SELECT"){e.stopImmediatePropagation(); ul3EdClose(); return}
- if(e.key==="Escape"&&UL.edit&&UL.rv2){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
+ if(e.key==="Escape"&&UL.rv2){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
  if(t.dataset&&t.dataset.ul3tab&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){const K=UL_K(), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
 
 function ul3RosterHTML(ro){const W=ul3RosterRows();
@@ -7097,42 +7251,10 @@ function rqcPopHTML(){const o=RQC.pop; if(!o) return ""; const a=rqcAskOf(o.id);
 function rqcPlace(){const m=el("rqcPop"); if(!m||!RQC.pop) return; const [kind,id]=m.dataset.for.split("|"), b=document.querySelector(kind==="decl"?`[data-rqcdecl="${id}"]`:`[data-rqcgive="${id}"]`);
  if(!b){m.style.left="50%"; m.style.top="120px"; return} const R=b.getBoundingClientRect(), W=m.offsetWidth; let x=Math.max(8,Math.min(R.left,innerWidth-W-8)), y=R.bottom+6;
  if(y+m.offsetHeight>innerHeight-8) y=Math.max(8,R.top-m.offsetHeight-6); m.style.left=x+"px"; m.style.top=y+"px"}
-/* ── Adjust limits: one resource across every workspace (263's one-resource view as a pop-up), committed by ul3Commit ── */
-function rqcAdjOpen(k){const sp=c=>RES[k].rows[c.id].cap-RES[k].rows[c.id].used;
- RQC.adj={k,D:{},order:ulRows().filter(c=>RES[k].rows[c.id]).sort((a,b)=>sp(b)-sp(a)||a.name.localeCompare(b.name)).map(c=>c.id)}; RQC.pop=null; RQC.edit=null}
-const rqcAdjV=(id)=>ul3Dv(RQC.adj.D,RQC.adj.k,id);
-const rqcLow=id=>{const r=RES[RQC.adj.k].rows[id], v=rqcAdjV(id); return v<r.used&&v<r.cap};   /* not below what it has used */
-const rqcPace=(k,u,c)=>!RQC_RENEW(k)?"":u===0?"Nothing used":u>=c?`Ran out by day ${CYCLE.day}`:(d=>d<=CYCLE.days?`Around day ${d}`:"Not this cycle")(Math.ceil(c*CYCLE.day/u));
-function rqcAdjFoot(){const A=RQC.adj, k=A.k, D=A.D, now=compute(k).free, after=ul3Free(D,k), ch=ul3Ch(D).filter(x=>x.k===k), low=A.order.some(rqcLow);
- let left=after; const fits=ulReqs().filter(r=>r.res===k).sort((a,b)=>ulAge(b.when)-ulAge(a.when)).map(r=>{const ok=r.amount<=left; if(ok) left-=r.amount; return `<span class="rqc-af">${ul4First(byId[r.client])}'s ${f(r.amount)}: ${ok?"fits":rqcMk("short by "+f(r.amount-Math.max(0,left)),true)}</span>`}).join("");
- return `<div class="rqc-afl"><div>Available now ${f(now)}. After your changes <b>${after<0?"&minus;"+f(-after):f(after)}</b>.${after<0?` ${rqcMk(`${f(-after)} more than your plan`,true)}`:""}</div>${fits?`<div class="rqc-afs">${fits}</div>`:""}</div>
-  <div class="rqc-afb"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcax>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rqcasave${!ch.length||after<0||low?" disabled":""}>${ch.length>1?`Save ${ch.length} changes`:"Save"}</button></div>`}
-const rqcAdjD=id=>{const d=rqcAdjV(id)-RES[RQC.adj.k].rows[id].cap; return d?`${d>0?"+":"&minus;"}${f(Math.abs(d))}`:""};
-const rqcAdjErr=id=>rqcLow(id)?`Can't go below what ${ul4First(byId[id])} has used: ${f(RES[RQC.adj.k].rows[id].used)}`:"";
-function rqcAdjHTML(){const A=RQC.adj; if(!A) return ""; const k=A.k, ren=RQC_RENEW(k), asks={}, W=Object.fromEntries(ulRows().map(c=>[c.id,c]));
- ulReqs().filter(r=>r.res===k).forEach(r=>asks[r.client]=(asks[r.client]||0)+r.amount);
- const rows=A.order.map(id=>{const c=W[id], r=RES[k].rows[id], n=rqcAdjV(id), pc=r.cap>0?Math.min(100,r.used/r.cap*100):0, low=rqcLow(id);
-  return `<tr data-rqcar="${id}"><td><div class="rqc-wsc">${ulAv(c)}<span><span class="rqc-nm">${c.name}</span>${c.own?' <span class="ul-tag">Yours</span>':""}${c.disabled?'<span class="rqc-s">Disabled</span>':""}${asks[id]?`<span class="rqc-s">Asks for ${f(asks[id])}</span>`:""}</span></div></td>
-   <td class="rqc-n" data-l="Given">${f(r.cap)}</td><td data-l="Used"><span class="rqc-hb">${pbar(pc,UL3_GREY)}<span>${f(r.used)}</span></span></td><td class="rqc-n" data-l="Unused">${f(Math.max(0,r.cap-r.used))}</td>
-   ${ren?`<td class="rqc-pc" data-l="Runs out" data-rqcap="${id}">${rqcPace(k,r.used,n)}</td>`:""}
-   <td data-l="New limit"><span class="rqc-ain"><input type="text" class="ul-in" inputmode="numeric" autocomplete="off" data-rqca="${id}" value="${f(n)}" aria-label="New ${UL4_POOL(k)} limit for ${rqcEsc(c.name)}" aria-invalid="${low}" aria-describedby="rqcae-${id}"><span class="rqc-ad" data-rqcad="${id}">${rqcAdjD(id)}</span></span><span class="rqc-aerr" id="rqcae-${id}" data-rqcae="${id}">${rqcAdjErr(id)}</span></td></tr>`}).join("");
- return `<div class="ul-scrim rqc-scrim" data-rqcax></div><div class="rqc-mdl" role="dialog" aria-modal="true" aria-labelledby="rqcAdjT">
-  <div class="rqc-mh"><div><div class="rqc-mt" id="rqcAdjT">${UL4_POOL(k)} across workspaces</div><div class="rqc-ms">Day ${CYCLE.day} of ${CYCLE.days}. Lower a limit to free ${k==="sends"?"emails":k==="radar"?"tests":"credits"}, then give them.</div></div><button type="button" class="ubtn rqc-mx" data-rqcax aria-label="Close">${RQC_I.x}</button></div>
-  <div class="ul3-pool rqc-pool" data-rqcapool aria-live="polite">${ul3PoolHTML(k,A.D)}</div>
-  <div class="rqc-mb"><table class="rqc-at"><colgroup><col><col style="width:96px"><col style="width:132px"><col style="width:96px">${ren?'<col style="width:148px">':""}<col style="width:230px"></colgroup>
-   <thead><tr><th>Workspace</th><th class="rqc-n">Given</th><th>Used</th><th class="rqc-n">Unused</th>${ren?"<th>Runs out</th>":""}<th>New limit</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="rqc-mf" data-rqcafoot aria-live="polite">${rqcAdjFoot()}</div></div>`}
-function rqcAdjLive(){const A=RQC.adj; if(!A) return; const k=A.k, p=document.querySelector("[data-rqcapool]"), ft=document.querySelector("[data-rqcafoot]");
- if(p) p.innerHTML=ul3PoolHTML(k,A.D); if(ft) ft.innerHTML=rqcAdjFoot();
- A.order.forEach(id=>{const r=RES[k].rows[id], d=document.querySelector(`[data-rqcad="${id}"]`), pc=document.querySelector(`[data-rqcap="${id}"]`), e=document.querySelector(`[data-rqcae="${id}"]`), i=document.querySelector(`[data-rqca="${id}"]`);
-  if(d) d.innerHTML=rqcAdjD(id); if(pc) pc.textContent=rqcPace(k,r.used,rqcAdjV(id)); if(e) e.textContent=rqcAdjErr(id); if(i) i.setAttribute("aria-invalid",String(rqcLow(id)))})}
-function rqcAdjSave(){const A=RQC.adj; if(!A) return; const k=A.k, ch=ul3Ch(A.D); if(!ch.length||ul3Free(A.D,k)<0||A.order.some(rqcLow)) return;
- if(ul3Commit(A.D,"Saved")&&RECEIPT){const one=ch.length===1?ch[0]:null, t=(one?`${one.v<one.was?"Lowered":"Raised"} ${byId[one.id].name} to ${f(one.v)}.`:`Changed ${ch.length} ${UL4_POOL(k)} limits.`)+` ${f(compute(k).free)} ${rqcNoun(k)} available.`;
-  RECEIPT.text=t; RECEIPT.short=t}
- RQC.adj=null; render()}
-/* the layer outside the page: the pop-over and Adjust limits; painted after every render */
+/* change 290: Adjust limits is no longer a pop-up; it goes to the Limits panel below (ul3Go) */
+/* the layer outside the page: the pop-over; painted after every render */
 function rqcLayer(){let L=el("rqcLayer"); if(!L){L=document.createElement("div"); L.id="rqcLayer"; document.body.appendChild(L)} return L}
-function rqcPaint(){const L=rqcLayer(); L.innerHTML=rqcPopHTML()+rqcAdjHTML(); rqcPlace()}
+function rqcPaint(){const L=rqcLayer(); L.innerHTML=rqcPopHTML(); rqcPlace()}
 function rqcWire(){const on=view.name==="limits"&&ctx==="agency"&&!!document.querySelector(".rqc");
  if(!on){RQC.pop=null; RQC.adj=null; RQC.edit=null; const L=el("rqcLayer"); if(L) L.innerHTML=""; return}
  const fo=RQC.focus; RQC.focus=null; rqcPaint();
@@ -7141,7 +7263,7 @@ function rqcWire(){const on=view.name==="limits"&&ctx==="agency"&&!!document.que
  else if(RQC.pop&&!el("rqcPop").contains(document.activeElement)){const i=document.querySelector("#rqcPop textarea,#rqcPop input:checked"); if(i) i.focus({preventScroll:true})}}
 /* one listener per event, so a partial repaint never needs rewiring */
 document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency"||!document.querySelector(".rqc")) return;
- const t=e.target.closest("[data-rqcgive],[data-rqcdecl],[data-rqcamt],[data-rqcadj],[data-rqcbuy],[data-rqcpx],[data-rqcdeclok],[data-rqcgiveok],[data-rqcax],[data-rqcasave],[data-rqcundo],[data-rqcdec],[data-rqcdr]");
+ const t=e.target.closest("[data-rqcgive],[data-rqcdecl],[data-rqcamt],[data-rqcadj],[data-rqcbuy],[data-rqcpx],[data-rqcdeclok],[data-rqcgiveok],[data-rqcundo],[data-rqcdec],[data-rqcdr]");
  if(!t){if(RQC.pop&&!e.target.closest("#rqcPop")){RQC.pop=null; rqcPaint()} else if(RQC.edit&&!e.target.closest("[data-rqcwants]")){RQC.edit=null; render()} return}
  if(t.disabled) return; const d=t.dataset; e.preventDefault();
  if(RQC.edit&&d.rqcamt==null){RQC.edit=null}
@@ -7153,26 +7275,20 @@ document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency"||!
  if(d.rqcdeclok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcDeclDo(a,(o.note||"").trim()); render(); return}
  if(d.rqcgiveok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcGiveDo(a,o.keep,o.keep?"":(o.note||"").trim()); render(); return}
  if(d.rqcamt){const r=REQUESTS.find(x=>x.id===d.rqcamt); if(!r) return; RQC.pop=null; RQC.edit={id:r.id,val:rqcV(r)}; render(); return}
- if(d.rqcadj){rqcAdjOpen(d.rqcadj); RQC.focus=`[data-rqca]`; render(); return}
+ if(d.rqcadj){ul3Go(d.rqcadj); return}   /* change 290 */
  if(d.rqcbuy){const [k,n]=d.rqcbuy.split("|"); rqcBuy(k,+n); return}
- if(d.rqcax!=null){const k=RQC.adj&&RQC.adj.k; RQC.adj=null; RQC.focus=k?`[data-rqcshort="${k}"] [data-rqcadj]`:null; render(); return}
- if(d.rqcasave!=null){rqcAdjSave(); return}
  if(d.rqcundo){rqcUndoAns(d.rqcundo); render(); return}
  if(d.rqcdec!=null){UL.decided=!UL.decided; RQC.focus="[data-rqcdec]"; render(); return}
  if(d.rqcdr){RQC.exp[d.rqcdr]=!RQC.exp[d.rqcdr]; RQC.focus=`[data-rqcdr="${d.rqcdr}"]`; render(); return}});
 document.addEventListener("input",e=>{const t=e.target; if(!t.dataset||view.name!=="limits"||ctx!=="agency") return;
  if(t.dataset.rqcin&&RQC.edit){RQC.edit.val=ulNum(t.value); rqcLive(t.dataset.rqcin); return}
- if(t.dataset.rqcnote!=null&&RQC.pop){RQC.pop.note=t.value; return}
- if(t.dataset.rqca&&RQC.adj){ul3Set(RQC.adj.D,RQC.adj.k,t.dataset.rqca,ulNum(t.value)); rqcAdjLive()}});
+ if(t.dataset.rqcnote!=null&&RQC.pop){RQC.pop.note=t.value; return}});
 document.addEventListener("change",e=>{const t=e.target; if(t.dataset&&t.dataset.rqcmode&&RQC.pop){RQC.pop.keep=t.dataset.rqcmode==="keep"; rqcPaint(); const i=document.querySelector(`#rqcPop [data-rqcmode="${t.dataset.rqcmode}"]`); if(i) i.focus()}});
-document.addEventListener("focusout",e=>{const t=e.target; if(t.dataset&&t.dataset.rqca&&RQC.adj&&t.isConnected) t.value=f(rqcAdjV(t.dataset.rqca))});
 document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
  if(t.dataset&&t.dataset.rqcin&&RQC.edit){
   if(e.key==="Enter"){e.preventDefault(); const r=REQUESTS.find(x=>x.id===RQC.edit.id), v=RQC.edit.val; if(r){if(v===r.amount) delete RQC.amt[r.id]; else RQC.amt[r.id]=v} RQC.focus=`[data-rqcamt="${RQC.edit.id}"]`; RQC.edit=null; render()}
   if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); RQC.focus=`[data-rqcamt="${RQC.edit.id}"]`; RQC.edit=null; render()}
   return}
- if(t.dataset&&t.dataset.rqca&&e.key==="Enter"){e.preventDefault(); const all=[...document.querySelectorAll("[data-rqca]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-rqcasave]:not(:disabled)"); if(n) n.focus(); return}
- if(e.key==="Escape"&&RQC.adj){e.preventDefault(); e.stopImmediatePropagation(); const k=RQC.adj.k; RQC.adj=null; RQC.focus=`[data-rqcshort="${k}"] [data-rqcadj]`; render(); return}
  if(e.key==="Escape"&&RQC.pop){e.preventDefault(); e.stopImmediatePropagation(); const o=RQC.pop; RQC.pop=null; RQC.focus=o.kind==="decl"?`[data-rqcdecl="${o.id}"]`:`[data-rqcgive="${o.id}"]`; render(); return}
  if((e.key==="Enter"||e.key===" ")&&t.dataset&&t.dataset.rqcdr){e.preventDefault(); RQC.exp[t.dataset.rqcdr]=!RQC.exp[t.dataset.rqcdr]; RQC.focus=`[data-rqcdr="${t.dataset.rqcdr}"]`; render()}},true);
 addEventListener("resize",rqcPlace); addEventListener("scroll",rqcPlace,true);
@@ -7184,7 +7300,7 @@ function vLimits(){
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
    <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the asks they send you. Add a workspace and give it limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
- return `<div class="wrap ul-wrap">${graceBanner()}${rqcHTML(ro)/* change 282 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
+ return `<div class="wrap ul-wrap">${graceBanner()}${rqcHTML(ro)/* change 282 */}${ulLimitsHTML(!canI("limits"))/* change 290: Your plan and the roster are one panel *//* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
@@ -7398,7 +7514,7 @@ function vCredits(){
     ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
     <span class="cs">${c.own?"Your own outreach workspace":c.email}</span></span></div></td>
    <td class="ar">${numIn(r.cap,R.unit,`data-cid="${c.id}" data-fld="cap" aria-label="Limit for ${c.name}"${canI("limits")?"":" disabled"}`)}</td>
-   <td style="min-width:340px">${apuItem("Used",r.used,r.cap,{note:pcx&&pcx.hits&&!pcx.atLimit?(activeRes==="sends"?"Hits the limit around ":"Runs out around ")+pcx.when:""})}</td></tr>`}).join("");
+   <td style="min-width:340px">${apuItem("Used",r.used,r.cap,{note:r.used<r.cap?paceLine(activeRes,r):""})}</td></tr>`}).join("");
  const reqs=REQUESTS.length?REQUESTS.map(q=>{const c=byId[q.client],QR=RES[q.res],qm=compute(q.res),ok=qm.free>=q.amount;
   return `<div class="req"><div class="req-h">
    <div><div style="font-size:14px;font-weight:600;color:var(--gray-800)">${c.name}</div>
@@ -7668,9 +7784,9 @@ function vDash(){
     sort by what most needs attention, then by sends. */
  /* 2 Oct 2026, Hitesh: the group pills are gone; the period line under the title says what cycle every number is for. */
  cliTab="all";
- /* change 267: a header sort reorders the whole list before its first DASH_ROWS; ties keep this order */
- const list=hsApply(flag
-   .sort((a,b)=>(b.c.own?1:0)-(a.c.own?1:0)||((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent),"home",x=>x.c);
+ /* change 267: a header sort reorders the whole list before its first DASH_ROWS; ties keep this order.
+    Change 292 (audit P1-32): the default is wsOrder, the same as the Workspaces page */
+ const list=hsApply(wsOrder(flag,x=>x.c),"home",x=>x.c);
  const crow=({c})=>homeRow(c);
 
  /* 21 Sep, delight pass round 4: one client, never sent. The row that would
@@ -7794,11 +7910,23 @@ function vDash(){
   /* 30 Sep 2026, Hitesh: "let's remove Plan pacing as well". The multi-workspace
      Home is the four cards and the workspaces table, full width; pacing lives on
      Billing. */
-  :heroCards(mine,tch,rep,items)+'<div class="dwrap dwrap-hero dwrap-hero--full">'
+  :dashNeedHTML()+heroCards(mine,tch,rep,items)+'<div class="dwrap dwrap-hero dwrap-hero--full">'
    +'<div class="dmain">'+graceBanner()+tableCard+'</div>'
   +'</div>');
 }
 
+/* change 291 (audit P0-2, needs-your-call C4 answer A): the Dashboard is the one summary, so the
+   asks waiting on you are counted here in one line, naming the workspaces (two, then "N more"); the
+   detail lives on the request cards that Review asks opens (Usage & limits). Payment failure leads
+   the line. No asks, no line. */
+function dashNeedHTML(){
+ if(!canI("limits")) return "";
+ const asks=[]; ulReqs().forEach(r=>{const id=r.ask||r.id; let a=asks.find(x=>x.id===id); if(!a){a={id,c:byId[r.client],L:[]}; asks.push(a)} a.L.push(r)});
+ if(!asks.length) return "";
+ const ws=[...new Set(asks.map(a=>a.c.name))], from=ws.length>2?`${ws.slice(0,2).join(", ")} and ${ws.length-2} more`:listAnd(ws);
+ const lead=`${asks.length} ask${asks.length===1?" waits":"s wait"} for you`;
+ return `<div class="dash-need-w"><div class="msg dash-need" role="status">${warnI}<span class="dash-need-t">${grace()?`<strong>Payment failed on ${GRACE.failedOn}.</strong> ${lead}`:`<strong>${lead}</strong>`} from ${from}.</span><button type="button" class="linkbtn dash-need-go" data-ulgo>Review asks</button></div></div>`;
+}
 /* the Home hero: four metric cards, from Hitesh's design (30 Sep 2026) */
 /* 30 Sep 2026, Hitesh: "workspaces are not coming here" (Running group, fresh
    account). An empty group was a bare "Nothing in this group." line with no
@@ -7820,10 +7948,11 @@ function heroCards(mine,tch,rep,items){
     limit" were not statuses (a running workspace at a limit was in both). Deleted
     workspaces are not in the total (they leave the list and the plan count), so
     Deleted comes last, as a ring, and says so on hover. */
- const byState=["Active","New","Disabled"].map(s=>[s,mine.filter(c=>wsState(c)===s).length]).filter(x=>x[1]>0);
+ const byState=["Paused","Active","New","Disabled"].map(s=>[s,mine.filter(c=>wsShownState(c)===s).length]).filter(x=>x[1]>0); /* change 291 */
  const wsScope=ME().ws, gone=CLIENTS.filter(c=>c.deletedOn&&(!wsScope||wsScope.indexOf(c.id)>-1)).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
- const active=mine.reduce((t,c)=>t+activeSeqs(c),0), sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
+ /* change 291 (audit P0-1): while payment has failed nothing runs; the sequences that would are held */
+ const held=mine.reduce((t,c)=>t+activeSeqs(c),0), active=grace()?0:held, sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
  /* a pill only when there is a real comparison: growth in workspaces, and a
     cycle with sends behind it. A fresh account shows the numbers alone. */
  /* change 167, 9 Oct 2026 (Hitesh): "Outreach this cycle" read vague. The card
@@ -7855,11 +7984,12 @@ function heroCards(mine,tch,rep,items){
  return `<div class="hero">
   ${card("clients",svg("clients"),"Workspaces",pill(dClients,f(Math.abs(dClients||0)),win().added),
     `<span class="hero-v">${f(mine.length)}</span>`,
-    (byState.length?byState.map(([s,n])=>`<span class="hero-dot" style="--c:${wsStateDot(s)}">${f(n)} ${s.toLowerCase()}</span>`).join(""):"<span>No workspaces yet</span>")
+    (byState.length?byState.map(([s,n])=>`<span class="hero-dot${s==="Paused"?" hero-need":""}" style="--c:${wsStateDot(s)}">${f(n)} ${s.toLowerCase()}</span>`).join(""):"<span>No workspaces yet</span>")
     +(gone?`<span class="hero-dot hero-dot--gone" title="Not counted in the ${f(mine.length)}. A deleted workspace is kept for 30 days, then removed.">${f(gone)} deleted</span>`:""))}
   ${card("clients",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
     `<span class="hero-v">${f(active)}</span>`,
-    `<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
+    grace()?`<span class="hero-need">${f(held)} paused until payment is fixed</span>`
+    :`<span>across ${mine.length} workspaces</span>${sysPaused?`<span style="color:var(--red-18)">${sysPaused} paused by the system</span>`:""}`)}
   ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(cW.d,Math.abs(cW.d||0)+"%","vs previous "+win().days+" days"),
     `<span class="hero-vrow"><span class="hero-v">${pd(cW.now)}<span class="hero-u">${perDay()?" a day":(HOME_WIN==="mtd"?" this month":" in "+win().days+" days")}</span></span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chan||"nothing yet"}</span>`)}
  </div>`;
@@ -8291,7 +8421,9 @@ function anExportCtl(wss){
 const anVisible=()=>{const mine=anSources();
  if(anWsSel===null) return mine;
  const sel=new Set(anWsSel); return mine.filter(c=>sel.has(c.id))};
-const anWsLabel=()=>anWsSel===null?"All mine":anWsSel.length+" of "+anSources().length;
+/* change 291 (audit P2-13): an Account Owner or Admin sees every workspace, so theirs is "All" */
+const anAllWord=()=>ME().role==="Owner"||ME().role==="Admin"?"All":"All mine";
+const anWsLabel=()=>anWsSel===null?anAllWord():anWsSel.length+" of "+anSources().length;
 /* 5 Oct 2026, change 113 (Changes needed.md #2): Emails & Domain and Teams are gone from
    the account's Analytics; one tab means no tab bar. anMailRows/anTeamRows stay unreachable. */
 const AN_TABS=[["seq","Sequence"]];
@@ -8475,9 +8607,9 @@ function vAgencyAnalytics(){
  const dd=(label,icon,attrs)=>`<button class="an-dd" ${attrs}>${icon}<span>${label}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>`;
  const wsPick=`<span style="position:relative">${dd("Workspaces: "+anWsLabel(),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>',`data-anwstoggle aria-expanded="${anWsOpen}"`)}
      ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;right:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
-       <div class="panel-b" style="padding-bottom:8px;border-bottom:1px solid var(--gray-13)"><button class="linkbtn" data-anwsall>All mine</button></div>
+       <div class="panel-b" style="padding-bottom:8px;border-bottom:1px solid var(--gray-13)"><button class="linkbtn" data-anwsall>${anAllWord()}</button></div>
        <div class="panel-b" style="max-height:220px;overflow:auto;padding-top:8px">
-        ${wsOpts.map(c=>`<label class="list-row" style="padding:5px 0"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
+        ${wsOpts.map(c=>`<label class="list-row" style="padding:5px 0;justify-content:flex-start;gap:8px"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
        </div>
        <div class="panel-b" style="border-top:1px solid var(--gray-13)"><button class="linkbtn" data-anwsdone>Done</button></div>
       </div>`:""}</span>`;
@@ -8500,12 +8632,15 @@ function vAgencyAnalytics(){
  const sum=k=>rows.reduce((t,r)=>t+(r[k]||0),0);
  const S={prospects:sum("prospects"),contacted:sum("contacted"),opened:sum("opened"),replied:sum("replied"),unsub:sum("unsub"),positive:sum("positive"),negative:sum("negative"),notnow:sum("notnow"),dnc:sum("dnc"),unc:sum("unc")};
  const neutral=Math.max(0,S.replied-S.positive-S.negative);
- const seg=(name,opts,cur,attr)=>`<span class="segc" role="group" aria-label="${name}">${opts.map(([k,l,dis])=>`<button type="button" ${attr}="${k}" aria-pressed="${cur===k}" ${dis?"disabled":""}>${l}</button>`).join("")}</span>`;
+ /* change 291 (audit P1-23): an option that is off says why, on hover and to a screen reader */
+ const seg=(name,opts,cur,attr)=>`<span class="segc" role="group" aria-label="${name}">${opts.map(([k,l,dis])=>dis&&typeof dis==="string"
+   ?`<span class="segc-off" title="${dis}"><button type="button" ${attr}="${k}" aria-pressed="false" disabled aria-label="${l}. ${dis}">${l}</button></span>`
+   :`<button type="button" ${attr}="${k}" aria-pressed="${cur===k}" ${dis?"disabled":""}>${l}</button>`).join("")}</span>`;
  const ctl=`<div class="an-ctl">
    <span class="an-ctl-l">View by</span>${seg("View by",[["prospect","Prospect"],["email","Email"]],anView,"data-anview")}
    <span class="an-pct"><span>#</span><button class="sqsw" role="switch" aria-checked="${anPct}" aria-label="Show percentages" data-anpct></button><span>%</span></span>
    ${/* change 228: the chart is every workspace in the filter, so it downloads only when all of them are yours to export */wss.length&&anExportable(wss).length===wss.length?`<button class="ubtn" title="Download chart" data-anchartdl data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>`:""}
-   <span class="an-mid">${seg("Granularity",[["daily","Daily"],["weekly","Weekly"],["monthly","Monthly",1],["quarterly","Quarterly",1]],anGran,"data-angran")}</span>
+   <span class="an-mid">${seg("Granularity",[["daily","Daily"],["weekly","Weekly"],["monthly","Monthly","Needs a range longer than 30 days"],["quarterly","Quarterly","Needs a range longer than 30 days"]],anGran,"data-angran")}</span>
    <span class="an-ctl-l">Count by</span>${seg("Count by",[["relative","Relative"],["absolute","Absolute"]],anCount,"data-ancount")}
    <label class="an-first"><input type="checkbox" data-anfirst ${anFirst?"checked":""}>First time event</label></div>`;
  const tile=(v,l,sub,extra)=>`<div class="an-tile"><span class="an-tile-v tnum">${v}${sub?` <span class="an-tile-p">(${sub})</span>`:""}${extra||""}</span><span class="an-tile-l">${l}</span></div>`;
@@ -8955,6 +9090,10 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
   leads:m.leads!=null?m.leads:(L.r.used||0),ld:m.ld!=null?m.ld:null,last:m.last||"today",
   disc:(c.mailboxes||[]).filter(x=>x[1]==="Disconnected").length,paused:m.mpaused||0,
   sysPaused:m.sysp!=null?m.sysp:(L.s.tone==="bad"?Math.max(1,pz):0)}}
+/* change 292 (audit P0-12): each sequence's bounce rate keeps its spread but is scaled so the rates, weighed by
+   emails sent, come back to the workspace's own rate (the cell) */
+function hpBounce(M,SW){const fac=SW.map((_,i)=>0.6+((i*37)%9)/10), tot=SW.reduce((a,b)=>a+(+b||0),0), w=tot?SW.reduce((t,s,i)=>t+(+s||0)*fac[i],0)/tot:1;
+ return fac.map(x=>+(M.bounce*x/(w||1)).toFixed(1))}
 /* change 173, 11 Oct 2026 (Hitesh): "all metrics we are showing on homepage
    with details like not sending, paused etc. should come in pop-up at click
    with full information fetching each line item and their status and user can
@@ -8972,10 +9111,14 @@ function hm(c){const m=HOME_METRICS[c.id]||{}, L=lf(c.id), pz=(c.sequences||[]).
    disabled, deleted, new"): the status and its dot live once, so the Status column
    and the Dashboard's Workspaces card can never disagree. */
 function wsState(c){return c.disabled?"Disabled":c.sent===0?"New":"Active"}
-function wsStateDot(s){return s==="Disabled"?"var(--gray-11)":s==="New"?"var(--blue-11)":"var(--green-16)"}
+/* change 291 (audit P0-1): while payment has failed nothing sends, so a workspace that would be
+   Active is shown Paused, the banner's word. Only the tables and the Workspaces card use it. */
+const wsShownState=c=>{const s=wsState(c); return s==="Active"&&grace()?"Paused":s};
+/* colour only means "needs you": grey for the states, amber for Paused */
+function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
 function wsStatusCell(c){
- const t=wsState(c), dot=wsStateDot(t), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):"";
- return '<td><span class="ws-stat'+(c.disabled?' is-off':'')+'"><i style="background:'+dot+'"></i>'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
+ const t=wsShownState(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
+ return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':'')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_TITLE={people:"People",usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
@@ -9109,14 +9252,14 @@ function hpData(c,k){
   const rows=S.map((x,i)=>{const v=i===S.length-1?left:Math.round(PA*(x.q.prospects||0)/tot);left-=v;return {name:x.q.name,st:x.st,tone:x.tone,cells:[pd(Math.max(0,v))],n:v,go:seqGo(x.q)}}).filter(r=>r.n>0);
   return {cols:["Sequence","Status","Prospects added"],rows,num:true}}
  if(k==="sent"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent);
-  const rows=R.map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
+  const BB=hpBounce(M,SW), rows=R.map((x,i)=>{const b=BB[i];
    /* change 208, 12 Oct 2026 (Hitesh): "Remove bounce rate from this pop-up". The column and its note go; a
       sequence at 3% or more still reads High bounce in Status, as the Dashboard's Bounce rate cell is red there. */
    return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[pd(SW[i])],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Emails sent"],rows,num:true}}
  /* change 217: the Bounce rate cell's own pop-up, as the Emails sent pop-up was before 208 */
- if(k==="bounce"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent);
-  const rows=R.map((x,i)=>{const b=+(M.bounce*(0.6+((i*37)%9)/10)).toFixed(1);
+ if(k==="bounce"){const R=S.filter(x=>x.q.sent>0), SW=hpWeek(R.map(x=>x.q.sent),wk7(c).sent), BB=hpBounce(M,SW);
+  const rows=R.map((x,i)=>{const b=BB[i];
    return {name:x.q.name,st:b>=3?"High bounce":x.st,tone:b>=3?"bad":x.tone,cells:[pd(SW[i]),b.toFixed(1)+"%"],go:seqGo(x.q)}});
   return {cols:["Sequence","Status","Emails sent","Bounce rate"],rows,num:true}}
  if(k==="rep"){const w=wk7(c), R=S.filter(x=>x.q.sent>0), sp=contSplit(c,w.sent), SW=sp.SW, CW=sp.CW, RW=sp.RW;
@@ -9578,7 +9721,7 @@ let FLASH_CID=null;
    view stops showing a receipt that is no longer about what is on screen. */
 function receipt(scope,text,undo,what,short,freed){
  clearTimeout(receiptTimer); const entry={what,at:Date.now(),freed}; DECIDED.unshift(entry);
- RECEIPT={scope,text,short:short||text,undo,entry}; receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast();render()},8000)}
+ RECEIPT={scope,text,short:short||text,undo,entry,side:!!asClient};   /* change 292: which side made it */ receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast();render()},8000)}
 function clearReceipt(){RECEIPT=null;clearTimeout(receiptTimer);const L=document.getElementById("toastLayer");if(L)L.innerHTML=""}
 /* 1 Oct 2026, Hitesh: "follow the Saleshandy confirmation toast; don't invent
    designs on each new screen". The inline green band is gone. Every receipt
@@ -9590,7 +9733,8 @@ const receiptBar=()=>"";
 const TOAST_V={success:{bd:"#A7F3D0",bg:"#D1FAE5",ic:"#047857",tx:"#065F46"},error:{bd:"#FECACA",bg:"#FEE2E2",ic:"#B91C1C",tx:"#991B1B"},warning:{bd:"#FDE68A",bg:"#FEF3C7",ic:"#B45309",tx:"#92400E"},info:{bd:"#BFDBFE",bg:"#DBEAFE",ic:"#2563EB",tx:"#1E40AF"},neutral:{bd:"#E5E7EB",bg:"#F3F4F6",ic:"#374151",tx:"#1F2937"}};
 function renderToast(){
  let L=document.getElementById("toastLayer"); if(!L){L=document.createElement("div");L.id="toastLayer";document.body.appendChild(L)}
- if(!RECEIPT){L.innerHTML="";return}
+ /* change 292 (audit P2-16): a toast shows only on the side that made it; an agency toast never follows a switch to the client view */
+ if(!RECEIPT||(RECEIPT.side!=null&&RECEIPT.side!==!!asClient)){L.innerHTML="";return}
  const v=TOAST_V[RECEIPT.variant||"success"];
  L.innerHTML=`<div class="toast" role="status" style="--t-bd:${v.bd};--t-bg:${v.bg};--t-ic:${v.ic};--t-tx:${v.tx}"><span class="toast-ic">${RECEIPT.variant==="error"?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>'}</span><span class="toast-t">${RECEIPT.text}</span>${RECEIPT.undo?'<button type="button" class="toast-act" data-toastundo>Undo</button>':""}<button type="button" class="toast-x" data-toastx aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`;
  const u=L.querySelector("[data-toastundo]"); if(u)u.onclick=()=>{const f=RECEIPT&&RECEIPT.undo;clearReceipt();if(f)f();renderToast();if(modal)renderModal();render()};
@@ -9643,7 +9787,7 @@ function homeOrderIds(ft){
  const mine=myClients(), flag=mine.map(c=>({c,a:attention(c)}));
  const grpOf=x=>x.c.disabled?"att":x.a&&x.a.pin?"att":x.c.sent>0?"run":"new";
  return (ft==="all"?flag:flag.filter(x=>grpOf(x)===ft))
-   .sort((a,b)=>((a.a&&a.a.rank)??5)-((b.a&&b.a.rank)??5)||b.c.sent-a.c.sent).map(x=>x.c.id);
+   .slice().sort(((o)=>(a,b)=>o.indexOf(a.c)-o.indexOf(b.c))(wsOrder(mine))).map(x=>x.c.id);   /* change 292: the Dashboard's order */
 }
 function queueOrderIds(){
  const Q=queueItems(), F=QSEV[qFilter]?Q.filter(x=>QSEV[qFilter].includes(x.sev)):Q, ids=[];
@@ -10634,7 +10778,7 @@ function cLeads(c){
        ${left?"":"You are at the limit, so revealing is paused until they raise it."}</p>
       ${left?""
         :!canReq?""
-        :pl?`<span class="sub">You asked ${AGENCY.name} for ${f(pl.amount)} more ${AGE(pl.when)}. Waiting on them.</span>`
+        :pl?`<span class="sub">${cuAsker(pl,c)} ${AGENCY.name} for ${f(pl.amount)} more ${AGE(pl.when)}. Waiting on them.</span>`
         :`<button class="shd-button shd-button--secondary shd-button--sm" data-request="lead_finder">Ask ${AGENCY.name} for more</button>`}`
     : `<p class="sub" style="margin:0 0 10px">You can search and save, and ${AGENCY.name} reveals the
        contacts. Revealing spends their credits, so it is theirs to do unless they hand it over.</p>`}
@@ -11313,7 +11457,7 @@ function atLimitBanner(c){
  return `<div class="msg m-bad" style="margin-bottom:16px">${warnI}<span>
    Your <strong>${RES[k].label}</strong> allowance is paused. You have used the ${f(RES[k].rows[c.id].cap)}
    ${AGENCY.name} allocated for September. ${STILL_WORKS[k]||""} ${pend
-     ?`You asked ${AGENCY.name} for ${f(pend.amount)} more ${AGE(pend.when)}. Waiting on them.`
+     ?`${cuAsker(pend,c)} ${AGENCY.name} for ${f(pend.amount)} more ${AGE(pend.when)}. Waiting on them.`
      :canReq?`${AGENCY.name} can raise this. <button class="linkbtn" data-request="${k}">Request more from ${AGENCY.name}</button>`
      :`${AGENCY.name} can raise this.`}</span></div>`;
 }
@@ -12050,7 +12194,7 @@ function wire(){
  /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
     puts focus back on the redrawn header; a mouse click leaves no ring behind) */
  q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
-   HSORT[t]=S&&S.col===k?{col:k,dir:-S.dir}:{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws") PAGE.clients=1;
+   HSORT[t]=S&&S.col===k?(S.dir===(HS_FIRST[k]||-1)?{col:k,dir:-S.dir}:null):{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws") PAGE.clients=1;   /* change 292: a third click returns to the default order */
    render(); const b=kb&&document.querySelector('th[data-hsort="'+t+'|'+k+'"] .hs-b'); if(b) b.focus({preventScroll:true})});
  if(HPOP) hpClose();
  q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
@@ -12338,6 +12482,9 @@ function wire(){
  q("[data-cview]").forEach(b=>b.onclick=()=>{cView=b.dataset.cview;openProspect=null;openSeq=null;openReply=null;render()});
  q("[data-orientok]").forEach(b=>b.onclick=()=>{ORIENT_SEEN[b.dataset.orientok]=true;render()});
  q("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
+ /* change 291: the person page's Disable confirms (the People confirm); Enable acts at once; both toast with Undo */
+ q("[data-pdisable]").forEach(b=>b.onclick=()=>{modal={kind:"pconfirm",key:b.dataset.pdisable,act:"disable"};renderModal()});
+ q("[data-penable]").forEach(b=>b.onclick=()=>{modal={kind:"pconfirm",key:b.dataset.penable,act:"enable"};peopleModalOk("pconfirm")});
  q("[data-seqask]").forEach(b=>b.onclick=()=>{seqConfirm=b.dataset.seqask;render()});
  q("[data-seqcancel]").forEach(b=>b.onclick=()=>{seqConfirm=null;render()});
  q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
@@ -12480,7 +12627,7 @@ function wire(){
  /* change 214: each workspace named in the capacity line opens its own Limits tab */
  q("[data-reqws]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.reqws};tab="limits";render()});
  ["toCredits","toCredits2"].forEach(i=>{const b=el(i);if(b)b.onclick=()=>{
-   if(canI("billing")){ctx="agency"; if(REQUESTS.length){view={name:"record",id:REQUESTS[0].client};tab="limits"} else {view={name:"credits"};billTab="plan"}}
+   if(canI("limits")){ctx="agency"; asClient=false; view={name:"limits"}}   /* change 292 (audit P0-8): always the page it names */
    else{ctx="agency";view=homeView()}
    render()}});
  q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;BILL.buy=null;BILL.amt=null;BILL.from=null;BILL.bought=null;BILL.back=null;render()});
@@ -12700,6 +12847,7 @@ function wire(){
  ulWire();   /* change 226 */
  ul4Wire();   /* change 262 */
  rqcWire();   /* change 282 */
+ rlpWire();   /* change 292 */
  /* the generic switch handler: flips a switch that is decorative in this
     prototype. It must not touch a switch that owns real state, because this
     binding runs last and `onclick` assignment overwrites rather than adds.
@@ -12766,7 +12914,7 @@ function wire(){
  }}
 el("meBtn").onclick=e=>{
   e.stopPropagation();
-  if(asClient||solo)return;   /* nobody to switch to in a workspace-user or solo session; me-static also drops the chevron */
+  if(el("meBtn").classList.contains("me-static"))return;   /* change 292: solo, or a preview with no client user yet */
   mePopOpen?closeMePop():openMePop()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
 el("popQ").oninput=e=>renderPop(e.target.value);
@@ -12938,6 +13086,8 @@ function demoScenario(name){
   if(nwDisc) INFRA_ALL.splice(INFRA_ALL.indexOf(nwDisc),1);
   /* nothing falling either: last cycle's rate sits where this cycle's is */
   CLIENTS.forEach(c=>{if(c.prev&&c.reply&&c.reply<c.prev*0.75) c.prev=+(c.reply*0.95).toFixed(1)});
+  /* change 292 (audit P2-16): calm has no sequences paused by the system and no flagged cell */
+  Object.keys(HOME_METRICS).forEach(id=>{const m=HOME_METRICS[id]; m.sysp=0; if(m.bounce!=null&&m.bounce>=3) m.bounce=1.6});
  }
  if(name==="crisis"){
   GRACE.on=true;
@@ -12989,7 +13139,7 @@ function scaleTo(n){
    person goes through the hash (the hashchange handler reloads), so the
    choice survives the reload and the URL can be copied. In-session only. */
 let demoOpen=false, demoVA=null;
-const DEMO_SCN=[["fresh","Fresh account (no workspace yet)"],["busy","Busy: 10 workspaces, asks waiting"],["calm","Calm: nothing wrong"],["crisis","Crisis: two paused, three asks, grace"]];
+const DEMO_SCN=[["fresh","Fresh account (no workspace yet)"],["busy","Busy: 10 workspaces, asks waiting"],["calm","Calm: nothing wrong"],["crisis","Crisis: payment failed, three asks"]];
 const DEMO_SHORT={fresh:"Fresh account",busy:"Busy",calm:"Calm",crisis:"Crisis"};
 /* which showcase the current load is: the route says, not the fixtures */
 function demoScn(){const r=HASHX.route; if(!r||/^(setup|home|new-agency)$/.test(r)) return "fresh"; const m=r.match(/^demo=?(.*)$/); return m?(m[1]||"busy"):null}
@@ -13306,16 +13456,24 @@ demoSync();
 .an-chart{width:100%;height:auto;display:block}
 .an-ax{font-size:11px;fill:var(--gray-15);font-family:inherit}
 .an-legend{display:flex;justify-content:center;gap:28px;padding:10px 0 4px;font-size:12px;color:var(--gray-15)}
-.an-legend span{display:inline-flex;align-items:center;gap:6px}.an-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}.an-legend .is-dim{opacity:.45}
+.an-legend span{display:inline-flex;align-items:center;gap:6px}.an-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}.an-legend .is-dim i{opacity:.45} /* change 291: the label at full opacity; the swatch matches its line */
 /* change 277: legend swatches are line segments; Positive sentiment is dashed Emerald 700 */
 .an-legend i.an-sw{width:16px;height:2px;border-radius:1px;background:var(--c)}
 .an-legend i.an-sw--dash{background:repeating-linear-gradient(90deg,var(--c) 0 5px,transparent 5px 8px)}
 .an-empty .empty{padding:96px 24px}
-.an-tiles{display:grid;grid-template-columns:5fr 4fr;gap:16px}
-.an-tiles-a,.an-tiles-b{display:flex}
+/* change 291 (audit P1-23, P2-13): a tile is never narrower than its value line, so the breakdown
+   chevron clears the percentage (6px gap) and no figure is cut. Side by side the two groups need about
+   1,600px of content width (five and four tiles at the widest value plus 20px padding), so below a
+   1,720px window they take a row each, full width and level; above it they share one row, level.
+   Tiles in a group share the width evenly. */
+.an-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:1720px){.an-tiles{grid-template-columns:minmax(0,5fr) minmax(0,4fr)}}
+.an-tiles>.panel,.an-tiles>.panel+.panel{margin:0;min-width:0} /* .panel+.panel added 16px on the second group: the 16px misalignment */
+.an-tiles-a{display:grid;grid-template-columns:repeat(5,minmax(max-content,1fr))}
+.an-tiles-b{display:grid;grid-template-columns:repeat(4,minmax(max-content,1fr))}
 .an-tile{flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--gray-13)}
 .an-tile:last-child{border-right:0}
-.an-tile-v{font-size:20px;line-height:24px;font-weight:600;color:var(--gray-17);display:flex;align-items:center;gap:6px}
+.an-tile-v{font-size:20px;line-height:24px;font-weight:600;color:var(--gray-17);display:flex;align-items:center;gap:6px;white-space:nowrap}.an-tile-v>*{flex:none}
 .an-tile-p{font-size:12px;font-weight:400;color:var(--gray-15)}
 .an-tile-l{font-size:13px;line-height:18px;color:var(--gray-12)}
 .an-chev{width:24px;height:24px;margin-left:2px}.an-chev svg{width:14px;height:14px}
@@ -13807,6 +13965,12 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 #homeWin{width:160px;flex:none;margin-right:4px}.home-unit{flex:none;margin-right:8px}#homeWin .dd-ic{width:16px;height:16px;flex:none;color:var(--gray-12)}
 .grace-bar{align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:13px;line-height:20px;font-weight:400;color:var(--gray-17)}.grace-bar .grace-t{flex:1;min-width:0}.grace-bar strong{font-weight:600}
 .grace-bar .grace-go{flex:none;margin:0}.grace-bar .grace-who{flex:none;color:var(--gray-15)}
+/* change 291: the Dashboard's needs-you line, the grace bar's numbers on Amber 100 with Amber 800 text; it
+   sits in the hero's gutters, 16px above the cards */
+.dash-need-w{padding:4px 24px 12px}
+.msg.dash-need{align-items:center;gap:12px;padding:10px 16px;font-size:13px;line-height:20px;font-weight:400;color:#92400E;background:#FEF3C7;border:1px solid #FDE68A}
+.msg.dash-need svg{color:#B45309}.dash-need-t{flex:1;min-width:0}.dash-need strong{font-weight:600}.dash-need-go{flex:none;margin:0;font-size:13px;line-height:20px;font-weight:600}
+@media (max-width:640px){.msg.dash-need{flex-wrap:wrap;align-items:flex-start}.msg.dash-need>svg{margin-top:2px}.dash-need-t{flex:1 1 calc(100% - 28px)}.dash-need-go{margin-left:28px}}
 @media (max-width:640px){.grace-bar{flex-wrap:wrap;align-items:flex-start}.grace-bar>svg{margin-top:2px}.grace-bar .grace-t{flex:1 1 calc(100% - 28px)}.grace-bar .grace-go,.grace-bar .grace-who{margin-left:28px}}
 .home-tbl thead th{color:var(--gray-15);font-weight:500}.home-tbl thead th .th-u{color:var(--gray-11)}
 /* change 267: production's sortable column header (column-header.tsx, _tanstack-table.scss) */
@@ -13874,6 +14038,9 @@ td>.cs:only-child{display:block}
 .rq2-panel .panel-h .sub{font-size:13px}.lm-asknote.rq2-note{padding:0 24px 14px;margin-top:-4px}
 .lm-asknote{margin:0;padding:12px 24px 4px;font-size:13px;color:var(--gray-15)}.lm-asknote b{color:var(--gray-17);font-weight:600}.lm-share-h{display:inline-flex;align-items:center;gap:6px}.lm-share-h .sub{font-size:13px}
 .ws-stat{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--gray-17);white-space:nowrap}.ws-stat i{width:8px;height:8px;border-radius:50%;flex:none}.ws-stat.is-off{color:var(--gray-15)}
+/* change 291: Paused needs you (Amber 100 fill, Amber 800 text); the sub line sits 2px under the chip */
+.ws-stat.is-need{height:20px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:500}.ws-stat.is-need+.stackb{margin-top:2px}
+.hero-dot.hero-need,.hero-need{color:#92400E}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
 .u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -13882,6 +14049,7 @@ td>.cs:only-child{display:block}
 .home-tbl .qa{display:none;margin:0;gap:2px;border:0;background:none;border-radius:0;overflow:visible}
 .home-tbl .crow:hover .qa,.home-tbl .crow:focus-within .qa{display:flex}
 .home-tbl .crow:hover .ws-sub,.home-tbl .crow:focus-within .ws-sub{display:none}
+.home-tbl .crow .ws-id:not(:has(.qa)) .ws-sub{display:flex}   /* change 292: a disabled row has no quick links, so its email stays on hover */
 .home-tbl .qa button{width:26px;height:24px;border:0;border-right:0;background:none;border-radius:var(--radius-input);color:var(--gray-11)}.home-tbl .qa button svg{width:14px;height:14px}
 .home-tbl .qa button:hover{background:var(--blue-17);color:var(--blue-11)}
 .home-tbl td{vertical-align:top;box-sizing:border-box}.home-tbl th{box-sizing:border-box}.home-tbl .crow td:first-child{min-width:0}
@@ -14162,6 +14330,14 @@ td>.cs:only-child{display:block}
 .pa-row{display:grid;grid-template-columns:minmax(0,1fr) 220px 160px;gap:16px;align-items:center;padding:12px 0;border-top:1px solid var(--gray-16);font-size:14px;color:var(--gray-17)}.pa-row:first-child{border-top:0}
 .pa-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-15)}.pa-ts{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pa-danger{color:var(--red-12)!important;border-color:var(--gray-23)!important}
+/* change 291: the person page's Access rows, Billing's label and value rows (bs-pr) */
+.pacc{padding-top:0;padding-bottom:12px}.pacc-r{display:grid;grid-template-columns:160px minmax(0,1fr);gap:2px 24px;align-items:baseline;padding:12px 0;border-top:1px solid #E5E7EB}.pacc-r:first-child{border-top:0}
+.pacc-k{font-size:14px;line-height:20px;color:#6B7280}.pacc-v{display:flex;flex-direction:column;min-width:0;font-size:14px;line-height:20px;color:#1F2937}.pacc-v b{font-weight:500}
+.pacc-s{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280}
+.pacc-r--dd{align-items:start}.pacc-r--dd .pacc-k{padding-top:6px}
+.pacc-ws{display:flex;align-items:center;gap:16px;max-width:560px}.pacc-ws+.pacc-ws{margin-top:8px}.pacc-wn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pacc-dd{width:230px;flex:none}.pacc-dd .dd{width:100%}.pacc-ro{flex:none;width:230px;color:#1F2937}
+@media (max-width:640px){.pacc-r{grid-template-columns:minmax(0,1fr);row-gap:4px}.pacc-r--dd .pacc-k{padding-top:0}.pacc-ws{gap:4px 16px}.pacc-ws:has(.pacc-dd){flex-wrap:wrap}.pacc-ws:has(.pacc-dd)+.pacc-ws{margin-top:12px}.pacc-dd{width:100%}.pacc-ro{width:auto}}
 .prm-list{border:1px solid var(--gray-16);border-radius:4px}.prm-row{display:grid;grid-template-columns:1fr 230px;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--gray-16)}.prm-row:first-child{border-top:0}
 .prm-ws{display:flex;align-items:center;gap:8px;font-size:14px}.prm-ws b{font-weight:500;color:var(--gray-17)}.prm-ws i{display:block;font-style:normal;font-size:12px;color:var(--gray-15)}.prm-to{display:flex;align-items:center;gap:8px}.prm-to .dd{flex:1}
 
@@ -14587,7 +14763,7 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .an-table td:first-child,table.organism.an-table td:first-child{min-width:200px}
 .an-table th .sortable{gap:4px}
 /* 30. tile percent never runs into the chevron */
-.an-chev{position:static;margin-left:6px;flex:none}
+.an-chev{position:static;margin-left:0;flex:none}
 /* 32. one link style in the Usage & billing action column */
 .cu-act .linkbtn{color:#1D4ED8}
 /* 34 / 35. first-workspace flow: the stage holds its height; every avatar centres its initials */
@@ -15001,7 +15177,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0d5924b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="7afe823";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -15090,7 +15266,8 @@ else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.pad
 .ul-lg{display:inline-block;width:12px;height:12px;border-radius:2px;box-sizing:border-box}.ul-lg.is-ch{background:#eff6ff;border:1px solid #93c5fd}.ul-lg.is-sg{background:#fffbeb;border:1px solid #fde68a}
 .ul-avr td{border-top:1px solid var(--gray-13);background:#f9fafb}.ul-avr td b{display:block;font-size:14px;font-weight:600;line-height:20px}
 .ul-sticky{position:sticky;bottom:0;z-index:6;display:flex;align-items:center;gap:12px;margin:0 -24px -32px;padding:12px 24px;background:#fff;border-top:1px solid var(--gray-13);box-shadow:0 -4px 12px rgba(17,24,39,.06)}
-body:has(#demoPill:not([hidden])) .ul-sticky,body:has(#demoPill:not([hidden])) .ul-sheet-f{padding-right:100px}   /* clear the presenter's Demo pill */
+body:has(#demoPill:not([hidden])) .ul-sticky,body:has(#demoPill:not([hidden])) .ul-sheet-f{padding-right:100px}
+body:has(#demoPill:not([hidden])) .ul3-e2s .ul3-e2d{padding-right:108px}   /* 296: clear the Demo pill on the Limits footer */   /* clear the presenter's Demo pill */
 .ul-sb-t{display:flex;flex-direction:column;min-width:0;flex:1 1 0}.ul-sticky>button,.ul-sb-w{flex:none}.ul-sb-t b{font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17)}.ul-sb-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ul-sb-w{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--orange-12);white-space:nowrap}.ul-sb-w svg{width:14px;height:14px;flex:none}
 .ul-sb-why{flex:0 1 260px;min-width:160px;font-size:12px;line-height:16px}
@@ -15443,6 +15620,60 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ul3-rvt{border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
 .ul3-rvt th{border-bottom:1px solid #E5E7EB}.ul3-rvt td{vertical-align:top;color:#1F2937}
 .ul3-rvt tbody tr td{border-top:1px solid #E5E7EB}.ul3-rvt tbody tr:first-child td{border-top:0}
+/* change 290: the Limits panel, board 2 of fd/edit-limits-explore.html: tabs 16px 24px 0 with 4px gaps and 6px 12px pills,
+   the pool 16px 24px 18px with 12px 40px gaps, cells 10px 16px (24px at the edges), a floating footer 12px from the
+   panel's edges. Saleshandy's Gray ramp, Blue 700 links, production inputs and buttons. */
+.ul3-e2s{display:flex;flex-direction:column;gap:16px;margin-top:12px}
+.ul3-e2s>.panel{margin:0}
+.ul3-e2s .ul3-e2h{border-top:0;border-radius:8px 8px 0 0}
+.ul3-e2s .ul3-tabs{flex-wrap:wrap;gap:4px;padding:16px 24px 0;border-bottom:0;overflow:visible}
+.ul3-e2s .ul3-tab{gap:0;padding:6px 12px;border:1px solid transparent;border-radius:6px;font-weight:400;color:#6B7280}
+.ul3-e2s .ul3-tab:hover{color:#1F2937}
+.ul3-e2s .ul3-tab.is-on{color:#1F2937;font-weight:600;background:#F3F4F6;border-color:#E5E7EB}
+.ul3-e2s .ul3-tab.is-on::after{display:none}
+.ul3-e2s .ul3-tab:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:6px}
+.ul3-tdot{width:6px;height:6px;margin-left:6px;border-radius:50%;background:#D97706;flex:none}
+.ul3-e2s .ul3-tn{margin-left:6px;padding:0;background:none;font-weight:400;color:#6B7280}
+.ul3-e2s .ul3-pool{align-items:flex-end;gap:12px 40px;padding:16px 24px 18px;border-bottom:0}
+.ul3-e2s .ul3-pi>b{font-size:20px}
+.ul3-e2s .ul3-was{margin-left:-2px;font-size:12px;line-height:16px}
+.ul3-pn{display:contents}
+.ul3-pa{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-left:auto;padding-bottom:4px;font-size:14px;line-height:20px}
+.ul3-rn{color:#6B7280}
+.ul3-e2s .ul3-e2t{border-top:1px solid #E5E7EB}
+.ul3-e2s .ul3-e2t th{padding:10px 16px}
+.ul3-e2s .ul3-e2t td{padding:10px 16px}
+.ul3-e2s .ul3-e2t th:first-child,.ul3-e2s .ul3-e2t td:first-child{padding-left:24px}
+.ul3-e2s .ul3-e2t th:last-child,.ul3-e2s .ul3-e2t td:last-child{padding-right:24px}
+.ul3-e2s .ul3-e2t:focus{outline:none}
+.ul3-e2s .ul3-c1{width:300px}.ul3-e2s .ul3-c2{width:216px}.ul3-e2s .ul3-c3{width:172px}
+.ul3-e2s .ul3-e2t .ul3-in{width:140px}
+.ul3-e2s .ul3-e2t .ul3-in[aria-invalid="true"]{border-color:#B91C1C;box-shadow:inset 0 0 0 1px #B91C1C}
+.ul3-e2s .ul3-e2t .ul3-in:disabled{background:#F9FAFB;color:#6B7280}
+.ul3-ub{display:flex;align-items:center;gap:10px}
+.ul3-ub .pbw{width:56px;height:4px;flex:none}
+.ul3-e2s .ul3-e2c{color:#1F2937}
+.ul3-e2s .ul3-e2d{position:sticky;bottom:12px;margin:0 12px 12px;padding:12px 16px 12px 20px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
+.ul3-e2s .ul3-e2d .shd-button{height:auto;min-height:36px;padding:6px 16px;font-size:14px;line-height:20px}
+.ul3-e2s .ul3-e2d .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF}
+body:has([data-ul3e2dock]) #toastLayer{bottom:88px}   /* the Undo toast sits above the floating footer, not on it */
+.ul3-e2s .ul3-e2.is-rv .ul3-e2d{position:static;margin:16px 0 0;border:0;border-top:1px solid #E5E7EB;border-radius:0 0 8px 8px;box-shadow:none;padding:12px 24px}
+@media (max-width:760px){
+ .ul3-e2s{margin-top:8px}
+ .ul3-e2s .ul3-e2h{position:static}
+ .ul3-e2s .ul3-tabs{padding:12px 16px 0}
+ .ul3-e2s .ul3-pool{padding:12px 16px 14px;gap:12px 24px}
+ .ul3-pa{flex:1 1 100%;margin-left:0;padding-bottom:0}
+ .ul3-e2s .ul3-e2t tr{grid-template-columns:minmax(0,1fr) 112px;row-gap:8px;padding:12px 16px}
+ .ul3-e2s .ul3-e2t tr td{padding:0!important}
+ .ul3-e2s .ul3-e2t td:nth-child(1){grid-column:1;grid-row:1;align-self:center}
+ .ul3-e2s .ul3-e2t td:nth-child(3){grid-column:2;grid-row:1;align-self:center}
+ .ul3-e2s .ul3-e2t td:nth-child(2){grid-column:1/-1;grid-row:2;color:#1F2937}
+ .ul3-e2s .ul3-e2t td:nth-child(4){grid-column:1/-1;grid-row:3}
+ .ul3-e2s .ul3-e2t .ul3-in{width:100%}
+ .ul3-e2s .ul3-e2d{margin:0 8px 8px;bottom:8px;padding:12px}
+ body:has([data-ul3e2dock]) #toastLayer{bottom:136px}
+}
 @media (max-width:1100px){.ul3-el{grid-template-columns:minmax(140px,200px) 132px minmax(0,1fr);column-gap:16px}}
 @media (max-width:760px){
  .ul3-r:not(.is-open) .ul3-chg{display:none}
@@ -15519,7 +15750,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .cx-ut td,.cx-rt td{padding:12px;border-top:1px solid #E5E7EB;vertical-align:top;font-size:14px;line-height:20px;color:#1F2937;text-align:left}
 .cx-ut tbody tr:first-child td,.cx-rt tbody tr:first-child td{border-top:0}
 .cx-ut th:first-child,.cx-ut td:first-child,.cx-rt th:first-child,.cx-rt td:first-child{padding-left:24px}
-.cx-ut th:last-child,.cx-ut td:last-child{padding-right:24px;text-align:right}
+.cx-ut th:last-child,.cx-ut td:last-child{padding-right:24px;text-align:left}
 .cx-rt th:last-child,.cx-rt td:last-child{padding-right:16px}
 .cx-rn{display:block;font-weight:500;color:#1F2937}
 .cx-s{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280;font-weight:400}
@@ -15600,6 +15831,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .cx-ans .cx-l{margin-bottom:4px}
 .cx-ans p{margin:0;color:#1F2937}
 .cx-by{margin-top:8px;font-size:13px;line-height:18px;color:#6B7280}
+.cx-by.cx-by--only{margin-top:0}
 .cx-dfoot{flex:none;border-top:1px solid #E5E7EB;background:#fff;padding:12px 20px 14px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px}
 .cx-dfoot .shd-button{margin-top:0;min-width:0}
 .cx-from{margin-right:auto;font-size:12px;line-height:16px;color:#9CA3AF}
@@ -15646,7 +15878,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .cx-ph{padding:14px 16px 12px}
  .cx-ut thead{display:none}
  .cx-ut,.cx-ut tbody{display:block}
- .cx-ut tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rn av" "us us" "pc pc" "ac ac";gap:6px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .cx-ut tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rn av" "us us" "pc pc";gap:6px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
  .cx-ut tbody tr:first-child{border-top:0}
  .cx-ut td{display:block;padding:0!important;border:0!important;text-align:left!important}
  .cx-ut td.cx-c-rn{grid-area:rn}.cx-ut td.cx-c-us{grid-area:us}.cx-ut td.cx-c-av{grid-area:av;text-align:right!important}.cx-ut td.cx-c-pc{grid-area:pc}.cx-ut td.cx-c-ac{grid-area:ac}
