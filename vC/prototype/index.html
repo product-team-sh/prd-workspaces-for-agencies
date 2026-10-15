@@ -2976,7 +2976,10 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
     every limited resource's share used; the colour is the worst resource's state (usageOf
     sorts worst first): red when one is at its limit, orange when one is near, green otherwise. */
  const lim=u.filter(y=>y.cap>0), p=lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0;
- const top=u[0], col=USE_COL[top.tone]||USE_COL.ok;
+ const top=u[0];
+ /* change 281, 15 Oct 2026 (Hitesh: "color of the indicator should follow overall usage and remove line below it"):
+    the bar takes the band the overall % falls in (the bar component's own bands, pbCol); the % stays neutral ink; a resource at
+    its limit shows through the warning icon, which opens the pop-up. */
  /* change 232, 13 Oct 2026 (Hitesh: "Red bar + named line", "Only say Emails at limit"). A resource at
     its limit stops the workspace there whatever the overall %, so the bar and % turn production red, the
     % stays overall, and a 12px line under the bar names it. The name is doc 94's ("Emails" for Emails
@@ -2987,7 +2990,6 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
     coordinator, 13 Oct: "Placement" was unclear). Full names stay in the label. */
  const LIM_NAME={sends:"Emails",lead_finder:"Lead Finder",verification:"Verification",ai:"AI credits",dialer:"Dialer",radar:"Inbox tests"};
  const atLim=u.filter(y=>y.cap>0&&y.used>=y.cap);
- const limLine=atLim.length>1?atLim.length+" resources at limit":atLim.length?(LIM_NAME[atLim[0].k]||USAGE_SHORT[atLim[0].k])+" at limit":"";
  /* change 266, 14 Oct 2026 (Hitesh: "keep it as it is ... if some of the things is fully used up or near limit
     then we can show danger icon besides %"). Production's alert triangle right of the %: red when a resource
     is used up (atLim, the line's own rule), orange when none is but one is at 90% or more. The tooltip and
@@ -2996,18 +2998,19 @@ function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
  const uwNear=atLim.length?[]:u.filter(y=>y.cap>0&&y.used<y.cap&&Math.round(y.pct*100)>=UW_NEAR).sort((a,b)=>b.pct-a.pct);
  const uwTone=c.disabled?"":atLim.length?"bad":uwNear.length?"warn":"";
  const uwLines=uwTone==="bad"?atLim.slice().sort((a,b)=>b.pct-a.pct).map(y=>uwN(y)+" used up: "+f(y.used)+" of "+f(y.cap)):uwNear.map(y=>uwN(y)+" "+Math.round(y.pct*100)+"%: "+f(y.used)+" of "+f(y.cap)+" used");
- const uwIcon=uwTone?'<span class="u-wi is-'+uwTone+'" title="" data-uwtip="'+uwLines.join("&#10;")+'">'+UW_SVG[uwTone]+'<span hidden id="uwd-'+c.id+'">'+uwLines.join(". ")+'.</span></span>':"";
+ const uwTrig=uwTone==="bad"?atLim:uwNear;
+ const uwAria=uwTone==="bad"?atLim.slice().sort((a,b)=>b.pct-a.pct).map(y=>uwN(y)+" used up").join(", "):uwNear.map(y=>uwN(y)+" at "+Math.round(y.pct*100)+"%").join(", ");
+ const uwIcon=uwTone?'<button type="button" class="u-wi is-'+uwTone+'" title="" data-uwtip="'+uwLines.join("&#10;")+'" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="'+uwAria+': open usage">'+UW_SVG[uwTone]+'</button>':"";
  const why=atLim.length>1?" "+atLim.map(y=>RES[y.k].label).join(", ")+" are at their limits.":atLim.length?" "+RES[atLim[0].k].label+" is at its limit.":top.tone==="bad"?" "+RES[top.k].label+" is at its limit.":top.tone==="warn"?" "+RES[top.k].label+" is near its limit.":"";
  /* change 210, 12 Oct 2026 (Hitesh): "Everywhere we are saying 60% used, 50% used: repetitive, not required; the
     % can be shown towards the right side of the usage indicator". Production's Email Accounts "Emails sent"
     cell: the bar, then the figure to its right, 12px apart (email-sent-field.tsx, .email-sent-field). The
     column header already says Usage, so the figure is the percentage alone. */
- return '<button type="button" class="meter u-usagebtn u-home u-row hp-cell'+(limLine?' u-lim':'')+'" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource"'+(uwTone?' aria-describedby="uwd-'+c.id+'"':'')+' title="'+usageTip(u)+'">'
-  +'<span class="apu-b u-pb">'+(limLine?pbar(p,PB_COL[2]):pbar(p))+'</span>'
-  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b>'+uwIcon+'</span>'
-  +(limLine?'<span class="u-lim-l">'+limLine+'</span>':'')
+ return '<div class="u-hw"><button type="button" class="meter u-usagebtn u-home u-row hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource" title="'+usageTip(u)+'">'
+  +'<span class="apu-b u-pb">'+pbar(p,pbCol(p))+'</span>'
+  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b></span>'
   /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
-  +'</button>'}
+  +'</button>'+uwIcon+'</div>'}
 
 /* change 266: production's AlertTriangleRed / AlertTriangleOrange (src/assets/images), drawn at 16px like the
    Email Accounts status icon. 90% is the near line for the icon only (the bar's colour keeps change 196's rule),
@@ -3024,7 +3027,7 @@ function uwShow(ic,by){if(!ic||!ic.isConnected)return;
  const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), y=r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6;
  uwTipEl.style.left=Math.round(x)+"px"; uwTipEl.style.top=Math.round(y)+"px"}
 document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
-document.addEventListener("focusin",e=>{const b=e.target.closest&&e.target.closest(".u-home"), ic=b&&b.querySelector(".u-wi[data-uwtip]"); if(ic&&b.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
+document.addEventListener("focusin",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip]"); if(ic&&ic.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
 document.addEventListener("focusout",()=>{if(uwTipBy==="focus")uwHide()});
 document.addEventListener("click",()=>{if(uwTipAt)uwHide()},true);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uwTipAt)uwHide()},true);
@@ -6287,15 +6290,14 @@ function ul3AnswerHTML(ro){const S=ul3Stops(), A=ulAsks(), n=new Set(S.map(s=>s.
  return `<section class="ul3-ans" aria-labelledby="ul3H"><div class="ul3-hr"><h2 class="ul3-h" id="ul3H">${n?`${n} workspace${n===1?" needs":"s need"} more capacity`:"Nothing needs you"}</h2>${dec}</div>
   <p class="ul3-p">${n?parts.join("; ")+".":"No asks are waiting and no workspace is at a limit."}</p>
   ${n?`<ol class="panel ul3-qs" aria-label="Needs you">${items}</ol>`:""}${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
-function ul3PlanHTML(ro){const reqs=ulReqs(), owner=canI("billing");
- const rows=UL_K().map(k=>{const R=RES[k], m=compute(k), free=m.free, want=reqs.filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0), short=want>free, p=R.pool>0?Math.round(m.caps/R.pool*100):0;
-  const ask=!want?"":short?`${f(want)} <span class="ul3-g">asked</span>`:`${f(want)} <span class="ul3-g">fits</span>`;
-  const acts=short&&!ro?`<button type="button" class="linkbtn ul3-l" data-ulrebal="${k}">Rebalance</button>${owner?`<button type="button" class="linkbtn ul3-l" data-ulbuy="${k}">Buy more</button>`:`<button type="button" class="linkbtn ul3-l" data-ulaskowner="${k}|${want-free}">Ask the Account Owner</button>`}`:"";
-  return `<tr data-ul3plan="${k}"><td><span class="ul3-rn">${R.label}</span>${R.kind==="monthly"?`<span class="ul3-sub">Renews 1 Oct</span>`:""}</td><td class="ul3-num"><b>${f(free)}</b></td><td class="ul3-num">${ask}</td>
-   <td class="ul3-num">${f(m.caps)} <span class="ul3-g">of ${f(R.pool)}</span></td><td class="ul3-num">${f(m.used)}</td><td><span class="ul3-hb">${pbar(p,UL3_GREY)}<span class="ul3-g">${p}%</span></span></td><td class="ul3-pa">${acts}</td></tr>`}).join("");
+function ul3PlanHTML(ro){const owner=canI("billing");
+ /* change 280: Resource, Available (of the plan), how much is given to workspaces, and one action. Rebalance lives in the roster's Change limits (change 263) and the ask ledger */
+ const rows=UL_K().map(k=>{const R=RES[k], m=compute(k), p=R.pool>0?Math.round(m.caps/R.pool*100):0;
+  const act=ro?"":owner?`<button type="button" class="linkbtn ul3-l" data-ulbuy="${k}">Buy more</button>`:`<button type="button" class="linkbtn ul3-l" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
+  return `<tr data-ul3plan="${k}"><td><span class="ul3-rn">${R.label}</span></td><td class="ul3-num"><b>${f(m.free)}</b> <span class="ul3-g">of ${f(R.pool)}</span></td><td><span class="ul3-hb">${pbar(p,UL3_GREY)}<span class="ul3-g">${p}% given</span></span></td><td class="ul3-pa">${act}</td></tr>`}).join("");
  return `<div class="panel ul-panel ul3-plan" id="ul3Plan"><div class="panel-h"><span class="panel-t">Your plan</span><span class="sub ul-hsub">${PLAN.name.replace(/\s*\(.*\)$/,"")} plan, day ${CYCLE.day} of ${CYCLE.days}. Emails renew on 1 Oct; credits last the plan term.</span></div>
-  <table class="ul-t ul3-pt"><colgroup><col style="width:20%"><col style="width:9%"><col style="width:19%"><col style="width:16%"><col style="width:9%"><col style="width:11%"><col></colgroup>
-   <thead><tr><th>Resource</th><th>Available</th><th>Asked for</th><th>Given to workspaces</th><th>Used</th><th>Share given</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div>`}
+  <table class="ul-t ul3-pt"><colgroup><col style="width:28%"><col style="width:24%"><col style="width:24%"><col></colgroup>
+   <thead><tr><th>Resource</th><th>Available</th><th>Given to workspaces</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the roster: by how close each workspace is to its closest limit; new and disabled ones last */
 function ul3Close(c){let b=null; UL_K().forEach(k=>{const r=RES[k].rows[c.id]; if(!r||!(r.cap>0)) return; const x=Math.min(1,r.used/r.cap); if(!b||x>b.x) b={k,r,x}}); return b}
 const ul3Quiet=c=>!!c.disabled||UL_K().every(k=>!RES[k].rows[c.id]||!RES[k].rows[c.id].used);
@@ -6908,7 +6910,7 @@ function ulWire(){const L=ulLayer();
    if(!P||!i){if(++n<40) setTimeout(land,50); return} P.scrollIntoView({block:"start",behavior:"auto"}); i.focus({preventScroll:true})}; land()});
  if(view.name!=="limits"||ctx!=="agency"){
   q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.ulbuy]||"plan";render()});
-  q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
+  q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: ${+n>0?`buy ${f(+n)} more`:"buy more"} ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
  if(view.name!=="limits"||ctx!=="agency"){L.innerHTML="";UL.cell=null;UL.review=false;return}
  q2("[data-uladd]").forEach(b=>b.onclick=openAddClient);
  q2("[data-ulfold]").forEach(b=>b.onclick=()=>{const a=ulAsks().find(x=>x.id===b.dataset.ulfold); if(!a) return; UL.fold[a.id]=!ulFolded(a); UL.seen[a.id]=true; render()});
@@ -6918,7 +6920,7 @@ function ulWire(){const L=ulLayer();
  q2("[data-uldeclx]").forEach(b=>b.onclick=()=>{UL.decl=null; render()});
  q2(".ul-note").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){const b=document.querySelector(`[data-no="${i.dataset.nonote}"]`); if(b) b.click()} if(e.key==="Escape"){UL.decl=null;render()}});
  q2("[data-ulbuy]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.ulbuy]||"plan";render()});
- q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()});
+ q2("[data-ulaskowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.ulaskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: ${+n>0?`buy ${f(+n)} more`:"buy more"} ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()});
  q2("[data-ulrebal]").forEach(b=>b.onclick=()=>{const k=b.dataset.ulrebal; UL.edit=true; UL.focusK=k; UL.cell=null; render();
   const P=el("ulLimits"); if(P) P.scrollIntoView({block:"start",behavior:REDUCED()?"auto":"smooth"});
   const i=[...q2(`[data-uld^="${k}|"]`)].find(x=>!x.disabled); if(i) i.focus({preventScroll:true})});
@@ -8715,6 +8717,8 @@ function homeCells(c){
 const activeSeqs=c=>c.disabled?0:hpSeqStates(c).filter(x=>x.st==="Active").length;
 /* change 178: a cycle-total split scaled to the last 7 days, the last row taking the rounding */
 const hpWeek=(parts,total)=>{const sum=parts.reduce((a,b)=>a+b,0)||1;let left=total;return parts.map((p,i)=>{const v=i===parts.length-1?left:Math.round(total*p/sum);left-=v;return Math.max(0,v)})};
+/* change 281: the resources behind the Usage icon: every one used up (or over), else every one at 90% or more */
+function uwTrigKeys(u){const at=u.filter(y=>y.cap>0&&y.used>=y.cap); return (at.length?at:u.filter(y=>y.cap>0&&Math.round(y.pct*100)>=UW_NEAR)).map(y=>y.k)}
 function hpData(c,k){
  const M=hm(c), live=!c.disabled;
  const seqGo=q=>live?"seq|"+c.id+"|"+q.name:"";
@@ -8731,7 +8735,7 @@ function hpData(c,k){
  if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return {cols:[],rows:[]};
   return {cols:["Resource","Status","Used of limit","%"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
    return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"At limit"):y.draw===0?"Pool empty":y.tone==="warn"?"Near limit":"Fine",tone:y.tone==="bad"?"bad":y.tone==="warn"?"warn":"ok",
-    cells:[f(y.used)+" of "+f(y.cap),pc+"%"],go:"lim|"+c.id+"|"+y.k}})}}
+    cells:[f(y.used)+" of "+f(y.cap),pc+"%"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&uwTrigKeys(u).includes(y.k)}})}}
  if(k==="people"){const P=wsPeopleOf(c), L=P.client.concat(P.team);
   return {cols:["Person","Status","Side","Role","Last sign-in"],left:true,rows:L.map(x=>({name:x.name,
    st:x.disabled?"Disabled":x.expired?"Invite expired":x.invited?"Invited":"Active",tone:x.disabled?"mute":x.expired?"bad":x.invited?"warn":"ok",
@@ -8795,7 +8799,7 @@ function hpOpen(btn){
  if(HPOP&&HPOP.btn===btn){hpClose();btn.focus();return}
  hpClose();
  let L=el("hpop"); if(!L){L=document.createElement("div");L.id="hpop";L.className="hpop";L.setAttribute("role","dialog");document.body.appendChild(L)}
- const D=hpData(c,k), rows=[...D.rows].sort((a,b)=>HP_RANK[a.tone]-HP_RANK[b.tone]);
+ const D=hpData(c,k), rows=[...D.rows].sort((a,b)=>(b.hl?1:0)-(a.hl?1:0)||HP_RANK[a.tone]-HP_RANK[b.tone]);
  const st=r=>r.st?'<span class="hp-st'+(r.tone==="bad"?" is-bad":r.tone==="warn"?" is-warn":"")+'">'+r.st+'</span>':"";
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
@@ -8803,7 +8807,7 @@ function hpOpen(btn){
  L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b> &middot; '+c.name+(["pa","sent","bounce","rep","leads"].includes(k)?' &middot; '+(perDay()?'a day, ':'')+win().lower:k==="usage"?' &middot; this billing cycle':'')+'</span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:k==="people"?rows.length+(rows.length===1?' person':' people'):rows.length)+(bad?' &middot; '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map(h=>'<th>'+h+'</th>').join("")+'</tr></thead><tbody>'
-  +rows.map(r=>'<tr><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
+  +rows.map(r=>'<tr'+(r.hl?' class="hp-hl is-'+r.tone+'"':'')+'><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
   /* change 200: the header no longer says what a rate is of, so its pop-up does */
   +(k==="rep"?'<p class="hp-note">Reply rate: prospects who replied, as a share of prospects contacted.</p>':k==="bounce"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':'')
   +'<div class="hp-f">'+(k==="people"?'<button type="button" class="linkbtn" data-hpgo="mem|'+c.id+'|">Manage members of '+c.name+' &rarr;</button>':c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
@@ -13440,9 +13444,12 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .meter.u-row.u-lim .u-pct{color:var(--red-18)}
 /* change 266: the warning icon 4px right of the %, centred on it (the triangle sits high in production's viewBox, so the
    glyph drops 1px to centre its ink on the digits); rows without one keep its 20px when the table has any */
-.home-tbl .u-home.u-row .meter-t:has(.u-wi){display:inline-flex;align-items:center;gap:4px}
-.u-wi{display:inline-flex;flex:none;width:16px;height:16px;cursor:default}.u-wi svg{display:block;width:16px;height:16px;position:relative;top:1px}
-.home-tbl:has(.u-wi) .u-home.u-row .meter-t:not(:has(.u-wi)){padding-right:20px}
+/* change 281: the icon is its own button beside the cell button, 4px right of the %; rows without one keep its 20px */
+.u-hw{display:flex;align-items:center;gap:4px;min-width:0;width:100%}.u-hw>.u-home{flex:1 1 auto;width:auto}
+.u-wi{display:inline-flex;flex:none;width:16px;height:16px;cursor:pointer;background:none;border:0;padding:0;margin:0;border-radius:4px}.u-wi svg{display:block;width:16px;height:16px;position:relative;top:1px}
+.u-wi:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.home-tbl:has(.u-wi) .u-hw:not(:has(.u-wi)){padding-right:20px}
+.hp-t tr.hp-hl>td:first-child{box-shadow:inset 2px 0 0 var(--orange-14)}.hp-t tr.hp-hl.is-bad>td:first-child{box-shadow:inset 2px 0 0 var(--red-18)}
 .dq-fore.uw-tip{display:block;position:fixed;left:0;top:0;z-index:1005;white-space:pre-line;pointer-events:none}.dq-fore.uw-tip[hidden]{display:none}
 .u-lim .u-lim-l{grid-column:1/-1;min-width:0;font-size:12px;line-height:16px;font-weight:500;color:var(--red-18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
@@ -14505,7 +14512,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8c653cc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="79f1d0d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -14882,17 +14889,10 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 @media (max-width:760px){
  .ul3-pt colgroup,.ul3-pt thead{display:none}.ul3-pt,.ul3-pt tbody{display:block}
  .ul3-pt tbody tr{display:block;padding:12px 16px;border-top:1px solid #E5E7EB}.ul3-pt tbody tr:first-child{border-top:0}
- .ul3-pt tbody tr td{display:block;text-align:right;padding:3px 0!important;border-top:0!important;white-space:normal}
- .ul3-pt tbody tr td .ul3-hb{display:inline-flex;vertical-align:middle}
- .ul3-pt tbody tr td:nth-child(1){text-align:left;padding:0 0 6px!important}
- .ul3-pt tbody tr td:nth-child(3):empty{display:none}
- .ul3-pt tbody tr td:nth-child(n+2):nth-child(-n+6)::before{float:left;margin-right:12px;font-size:14px;line-height:20px;color:#6B7280;font-weight:400;font-variant-numeric:normal}
- .ul3-pt tbody tr td:nth-child(2)::before{content:"Available"}.ul3-pt tbody tr td:nth-child(3)::before{content:"Asked for"}
- .ul3-pt tbody tr td:nth-child(4)::before{content:"Given to workspaces"}.ul3-pt tbody tr td:nth-child(5)::before{content:"Used"}
- .ul3-pt tbody tr td:nth-child(6)::before{content:"Share given"}
- .ul3-pt tbody tr td:nth-child(7){text-align:left;padding-top:6px!important}.ul3-pt .ul3-pa .linkbtn{margin-right:16px}.ul3-pt tbody tr td:nth-child(7):empty{display:none}
- .ul3-pt .ul3-pa .linkbtn+.linkbtn{margin-left:0}
- .ul3-pt tbody tr td:nth-child(4){font-size:14px}.ul3-pt tbody tr td:nth-child(4) .ul3-g{white-space:nowrap}
+ .ul3-pt tbody tr td{display:block;text-align:left;padding:3px 0!important;border-top:0!important;white-space:normal}
+ .ul3-pt tbody tr td:nth-child(1){padding:0 0 2px!important}
+ .ul3-pt tbody tr td:nth-child(4){padding-top:4px!important}.ul3-pt tbody tr td:nth-child(4):empty{display:none}
+ .ul3-plan .panel-h{flex-wrap:wrap;row-gap:4px}.ul3-plan .ul-hsub{white-space:normal}
  .ul3-t tr.ul3-r td:nth-child(2){min-width:0}.ul3-t tr.ul3-r td:nth-child(4){padding-left:4px!important;padding-right:10px!important}.ul3-ra{gap:6px}
  .ul3-cl{flex-wrap:wrap;gap:4px 12px}.ul3-cb{width:64px}.ul3-ct{white-space:normal}
 }
