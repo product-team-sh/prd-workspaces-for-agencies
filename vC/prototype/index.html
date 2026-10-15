@@ -10166,7 +10166,7 @@ function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share=
    for the rest"): the share is now a share of what is AVAILABLE, per resource, so
    the one number shown is the one the slider sets and no limit can be capped.
    Replaces the share-of-plan rule of 2 Oct (board row 03, C2) and change 130. */
-function ncDerived(k){const st=ncStep(k),free=compute(k).free;if(free<st)return 0;return Math.max(st,Math.floor(free*ncShare()/100/st)*st)}
+function ncDerived(k){const free=compute(k).free;return Math.max(0,Math.floor(free*ncShare()/100))} /* 289d: exactly the share of what's available, in whole units ("10% should exactly 10% of what is available") */
 function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
 const ncDefaultCap=ncDerived;
 function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const st=R.step||1,want=Math.max(st,Math.floor(R.pool*sh/100/st)*st),left=R.pool-(allocOf(k)-r.cap);if(left>0){m=Math.max(m,want/left);if(want>left&&!first)first=k}});
@@ -10238,8 +10238,8 @@ function ncUsageHTML(){
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
-  ${nc.edit?"":`<div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><span class="nc-info${nc.learn?" is-on":""}" id="ncInfo"><button type="button" class="nc-info-b" id="ncLearn" aria-label="What available means" aria-expanded="${nc.learn?"true":"false"}" aria-describedby="ncLearnBox">${NC_INFO}</button><span class="nc-pop" role="tooltip" id="ncLearnBox">${ncLearnHTML()}</span></span></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
-  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available">`}
+  ${`<div class="nc-urow${nc.edit?" is-off":""}"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><span class="nc-info${nc.learn?" is-on":""}" id="ncInfo"><button type="button" class="nc-info-b" id="ncLearn" aria-label="What available means" aria-expanded="${nc.learn?"true":"false"}" aria-describedby="ncLearnBox">${NC_INFO}</button><span class="nc-pop" role="tooltip" id="ncLearnBox">${ncLearnHTML()}</span></span></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
+  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available"${nc.edit?' disabled title="The slider is off while you edit values. Use the slider to turn it back on."':""}>`}
   <div class="nc-moderow">${ncModeBtnHTML()}</div>
   <div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
  </div>`;
@@ -14713,6 +14713,9 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .nc-modal #ncUsage .nc-sum-r:hover{background:#f9fafb}
 /* Edit values link: room from the slider above and the tiles below ("edit button looks cramped up") */
 .nc-modal #ncUsage .nc-moderow{margin:12px 0 8px}
+/* 289d: in Edit values the share row and slider stay, greyed and disabled, so nothing moves */
+.nc-modal #ncUsage .nc-urow.is-off .flabel,.nc-modal #ncUsage .nc-urow.is-off .nc-upct{color:#9ca3af}
+.nc-modal #ncUsage.is-edit input#ncShare{filter:grayscale(1);opacity:.45;cursor:not-allowed}
 @media (max-width:520px){.nc-modal #ncUsage .nc-sum-r:nth-child(odd),.nc-modal #ncUsage.is-edit .nc-sum-r:nth-child(odd){border-right:0}}
 </style>
 <div id="sess" class="collapsed" hidden>
@@ -14995,7 +14998,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c11938f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="e47bc0a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
