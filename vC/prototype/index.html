@@ -10181,7 +10181,7 @@ const ncIsSet=k=>!!nc.custom&&nc.custom[k]!=null;
 const ncOver=k=>ncIsSet(k)&&nc.custom[k]>compute(k).free;
 const ncSetCount=()=>RK.filter(ncIsSet).length;
 /* change 205: "N available" under every field while editing (was "of N available", which crowded the labels) */
-const ncHintText=k=>`of ${f(compute(k).free)} available`;
+const ncHintText=k=>`${f(compute(k).free)} available`;
 const ncBarW=k=>{const a=compute(k).free;return a>0?Math.min(100,Math.max(0,ncCapFor(k))/a*100):0};
 /* change 264: an over value says so on its own line under the tile, never in the footer */
 const ncErrText=k=>ncOver(k)?`Only ${f(compute(k).free)} available.`:"";
@@ -10234,7 +10234,7 @@ function ncUsageHTML(){
     is left says so as you type and holds Add back. There is no Edit limits mode. */
  const SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
  const sumKeys=RK.filter(k=>RES[k].pool>0);
- const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-bar" aria-hidden="true"><i style="width:${ncBarW(k)}%"></i></span><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
+ const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
  const anyCapped=RK.some(ncCapped);
  const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
  return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
@@ -14700,6 +14700,11 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .nc-modal #ncUsage .nc-sum-bar{margin:8px 0 6px}
 .nc-modal #ncUsage .nc-sum-h,.nc-modal #ncUsage.is-edit .nc-sum-h,.nc-modal #ncUsage .nc-sum-e{font-size:12px;line-height:16px}
 .nc-modal .dr-b{overflow-y:auto}
+/* 289: the 'Today' tile: name and amount on one line, "N available" under the name, no bar */
+.nc-modal #ncUsage .nc-sum-r,.nc-modal #ncUsage.is-edit .nc-sum-r{height:64px;padding:12px 16px;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:20px 16px;row-gap:4px;align-content:center;align-items:center}
+.nc-modal #ncUsage .nc-sum-h,.nc-modal #ncUsage.is-edit .nc-sum-h,.nc-modal #ncUsage .nc-sum-e{grid-column:1/-1;grid-row:2;margin:0;font-size:12px;line-height:16px}
+.nc-modal #ncUsage .nc-sum-h,.nc-modal #ncUsage.is-edit .nc-sum-h{color:#6b7280}
+.nc-modal #ncUsage .nc-sum-bar{display:none}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -14981,7 +14986,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="aa7fe07";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="2abb177";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
