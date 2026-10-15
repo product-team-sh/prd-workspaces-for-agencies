@@ -2587,8 +2587,16 @@ let REQUESTS=[
 /* change 121: Vertex's last ask was decided on 6 Sep: the Lead Finder line raised
    (its limit is 3,500 now, was 3,000) and the email line declined with a note. */
 let ANSWERS=[
- {id:"r0a",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"lead_finder",amount:500,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"approved",on:"6 Sep",to:3500},
- {id:"r0b",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"sends",amount:15000,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"declined",on:"6 Sep",dnote:"60,000 already covers the renewals push. Let's look again after the 15th."},
+ /* change 284: Northwind's earlier asks, as the prototype's history, by its two real users (the prototype's
+    sdr@northwind.co is not a Northwind user in vC). `re`: a later ask followed each, so only lists of decided
+    asks show them, never a "last answer" line. */
+ {id:"h1a",ask:"h1",client:"nw",by:"ops@northwind.co",res:"sends",amount:10000,note:"Peak season outreach is starting early.",when:"58 days ago",state:"approved",on:"14 Jul",to:40000,re:true},
+ {id:"h1b",ask:"h1",client:"nw",by:"ops@northwind.co",res:"lead_finder",amount:500,note:"Peak season outreach is starting early.",when:"58 days ago",state:"approved",on:"14 Jul",to:1400,re:true},
+ {id:"h2a",ask:"h2",client:"nw",by:"finance@northwind.co",res:"sends",amount:10000,note:"Summer promotion sequence plus a new lane list.",when:"30 days ago",state:"approved",on:"11 Aug",to:50000,re:true},
+ {id:"h2b",ask:"h2",client:"nw",by:"finance@northwind.co",res:"lead_finder",amount:500,asked:800,note:"Summer promotion sequence plus a new lane list.",when:"30 days ago",state:"approved",on:"11 Aug",to:1900,dnote:"500 now, the rest next cycle.",re:true},
+ {id:"h3a",ask:"h3",client:"nw",by:"finance@northwind.co",res:"verification",amount:500,note:"Cleaning the Q4 prospect list before sending.",when:"8 days ago",state:"approved",on:"2 Sep",to:1000,re:true},
+ {id:"r0a",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"lead_finder",amount:500,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"approved",on:"6 Sep",to:3500,dby:"owner"},
+ {id:"r0b",ask:"a0",client:"vx",by:"growth@vertexhealth.io",res:"sends",amount:15000,note:"Two new clinic groups to source before the renewals push.",when:"3 days ago",state:"declined",on:"6 Sep",dnote:"60,000 already covers the renewals push. Let's look again after the 15th.",dby:"owner"},
 ];
 const askLines=(cid)=>REQUESTS.filter(q=>q.client===cid);
 const askOf=(cid)=>{const L=askLines(cid); return L.length?{id:L[0].ask||L[0].id,lines:L,note:L[0].note,when:L[0].when}:null};
@@ -4559,85 +4567,218 @@ function rMembers(c){
    Every limit message names the agency rather than Saleshandy, because when an
    agency oversubscribes several clients stop at once and all of them escalate to
    us unless the copy says whose limit it was.                                   */
+/* ═══ change 284, 15 Oct 2026 (Hitesh: "let's build this into vC"; the approved design is
+   experiments/c282-proto/client-requests.html): the client's Usage page. One allowance table (Resource, Used,
+   Available, This cycle) with each row's ask on it; "Ask Meridian Growth for more" covers several resources at
+   once, each with an empty amount, a live pace hint and the new limit; then Requests, every ask this workspace
+   made, with filters and a read-only Ask details drawer. Asks are REQUESTS and ANSWERS as the agency writes them,
+   read only through cuLine, so the agency's partial give (change 282: `given` and `asked0` on a row that keeps
+   the rest waiting) merges in one place. The client never sees the pool, other workspaces or who at the agency
+   decided; the agency is its name. A Viewer sees the allowance only, as before. ═══ */
+let CU={st:"all",by:"any",per:"3m",open:null,flash:null};
+const CU_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CU_RENEW=k=>k==="sends"||k==="lead_finder";   /* pace and "Renews 1 Oct" only for what renews each cycle */
+const cuName=k=>k==="sends"?"Emails a month":RES[k].label;
+const cuPh=k=>k==="sends"?"emails a month":RES[k].short;
+const cuEsc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const cuMe=c=>(actingClientUser(c)||[])[0]||"";
+const cuToday=()=>new Date(Date.UTC(+CYCLE.month.split(" ")[1],CU_MON.indexOf(CYCLE.month.slice(0,3)),CYCLE.day));
+const cuNext=()=>"1 "+CU_MON[(cuToday().getUTCMonth()+1)%12];
+/* an ask's date from `when` ("Yesterday", "8 days ago" or "1 Sep"): {d:"8 Sep", ago:1, m:7} */
+function cuDate(w){const s=String(w||""), x=s.match(/^(\d{1,2}) ([A-Z][a-z]{2})/), t=cuToday();
+ if(x){const m=CU_MON.indexOf(x[2]), dt=Date.UTC(t.getUTCFullYear(),m,+x[1]); return {d:+x[1]+" "+x[2],ago:Math.round((t-dt)/864e5),m,abs:true}}
+ const ago=Math.round(ulAge(s)), dt=new Date(t-ago*864e5); return {d:dt.getUTCDate()+" "+CU_MON[dt.getUTCMonth()],ago,m:dt.getUTCMonth()}}
+const cuAgo=a=>a.dt.abs||a.dt.ago>6?"":a.dt.ago===0&&!/just now/i.test(a.when)?"today":AGE(a.when).toLowerCase();
+/* the day of the cycle a renewing resource runs out at this pace; null when it lasts the cycle */
+const cuPd=r=>r.used/CYCLE.day;
+function cuRunsOut(k,r){if(!CU_RENEW(k)||!r.used||r.used>=r.cap) return null; const d=Math.round(r.cap/cuPd(r)); return d<CYCLE.days?Math.max(CYCLE.day,d):null}
+/* the grey lines beside an amount: how long it lasts at this pace (no suggested amount), then the new limit */
+function cuHint(k,r,n){const pd=cuPd(r), av=Math.max(0,r.cap-r.used), nl=n?`<span class="cx-hl">New limit <b>${f(r.cap+n)}</b></span>`:"";
+ let h; if(!pd) h=n?"At your pace, this lasts past the end of the cycle.":"";
+ else if(CU_RENEW(k)){const d=Math.floor(CYCLE.day+(av+n)/pd);
+  h=d>=CYCLE.days?`At your pace, ${n?f(n)+" more lasts":"what you have lasts"} past the end of the cycle.`:`At your pace, ${n?f(n)+" more lasts":"your "+f(av)+" available lasts"} to about day ${d}.`}
+ else{const m=Math.max(1,Math.floor((av+n)/pd)); h=`At your pace, ${n?"this":"your "+f(av)+" available"} lasts about ${m===1?"1 more day":m+" more days"}.`}
+ return (h?`<span class="cx-hl">${h}</span>`:"")+nl}
+/* one line of an ask. A waiting line is a REQUESTS row; one change 282 partly gave keeps the rest waiting and
+   carries `given` (so far) and `asked0` (the first amount). A decided line is an ANSWERS row: approved for
+   `amount` (of `asked` when partial) or declined. This is the only place those fields are read. */
+function cuLine(x,waiting){const cap=(RES[x.res].rows[x.client]||{cap:0}).cap;
+ if(waiting){const g=x.given||0; return {k:x.res,amt:x.asked0||x.amount,given:g,wait:x.amount,from:cap-g}}
+ if(x.state==="approved"){const to=x.to!=null?x.to:cap; return {k:x.res,amt:x.asked||x.amount,given:x.amount,wait:0,from:to-x.amount}}
+ return {k:x.res,amt:x.asked0||x.asked||x.amount,given:0,wait:0,from:x.from!=null?x.from:cap}}
+const cuLineSt=l=>l.wait>0?(l.given?`Partly given, ${f(l.wait)} waiting`:"Waiting"):l.given>=l.amt?"Given":l.given?"Partly given":"Declined";
+function cuStatus(a){const W=a.lines.filter(l=>l.wait>0), giv=a.lines.some(l=>l.given>0);
+ if(W.length) return giv?{t:`Partly given, ${W.length===1?f(W[0].wait):"rest"} waiting`,f:"part",w:true}:{t:"Waiting",f:"wait",w:true};
+ if(a.lines.every(l=>l.given>=l.amt)) return {t:"Given",f:"given"};
+ return giv?{t:"Partly given",f:"part"}:{t:"Declined",f:"declined"}}
+/* this workspace's asks, newest first: decided lines and waiting lines grouped by `ask` */
+function cuAsks(c){const M=new Map(), add=(x,w)=>{if(!RES[x.res]) return; const id=x.ask||x.id; let a=M.get(id);
+  if(!a){a={id,by:x.by||"",reason:x.note||"",when:x.when,lines:[],on:null,note:""}; M.set(id,a)}
+  a.lines.push(cuLine(x,w)); if(!w&&x.on&&!a.on) a.on=x.on; if(x.dnote&&!a.note) a.note=x.dnote};
+ ANSWERS.filter(a=>a.client===c.id).forEach(a=>add(a,false));
+ REQUESTS.filter(r=>r.client===c.id).forEach(r=>add(r,true));
+ const A=[...M.values()]; A.forEach(a=>{a.lines.sort((p,q)=>RK.indexOf(p.k)-RK.indexOf(q.k)); a.dt=cuDate(a.when); a.s=cuStatus(a)});
+ return A.sort((p,q)=>p.dt.ago-q.dt.ago)}
+const CU_I={clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+ chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+ msg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+ gauge:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'};
+const cuChip=(t,w)=>`<span class="cx-st${w?" is-w":""}">${w?CU_I.clock:""}${t}</span>`;
+/* the allowance table: each row says how this cycle is going and, when there is one, the ask on it */
+function cuRows(c,me,canReq){const AG=AGENCY.name;
+ return RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return "";
+  const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=cuRunsOut(k,r), hot=stop||p>=R.warn||!!ro;
+  const wq=REQUESTS.find(x=>x.client===c.id&&x.res===k), pc=[];
+  pc.push(stop?`<span class="cx-ul"><span class="cx-mk">At your limit</span></span>`
+   :ro?`<span class="cx-ul"><span class="cx-mk">Runs out around day ${ro} of ${CYCLE.days}</span></span>`
+   :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to your limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`);
+  if(wq){const l=cuLine(wq,true);
+   pc.push(`<span class="cx-ul"><button type="button" class="cx-lk" data-cuopen="${wq.ask||wq.id}">${wq.by&&wq.by!==me?wq.by:"You"} asked for ${f(l.amt)} more</button> <span class="cx-s cx-in">${l.given?`${f(l.given)} given, ${f(l.wait)} waiting on ${AG}`:`waiting on ${AG}`}</span></span>`)}
+  else{const an=ANSWERS.filter(a=>a.client===c.id&&a.res===k&&ansLive(a)&&a.on&&cuDate(a.on).ago<CYCLE.day).slice(-1)[0];
+   if(an){const l=cuLine(an,false), on=an.on===TODAY_D?"today":"on "+an.on;
+    pc.push(`<span class="cx-ul"><button type="button" class="cx-lk is-ans" data-cuopen="${an.ask||an.id}">${l.given>=l.amt?`${AG} gave ${f(l.given)} ${on}`:l.given?`${AG} gave ${f(l.given)} of ${f(l.amt)} ${on}`:`${AG} declined your ask ${on}`}</button></span>`)}}
+  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Topped up by "+AG}</span></td>
+   <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
+   <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> available</span></td>
+   <td class="cx-c-pc">${pc.join("")}</td><td class="cx-c-ac">${canReq&&!wq&&hot?`<button type="button" class="cx-lk" data-askopen="${k}">Ask for more</button>`:""}</td></tr>`}).join("")}
+/* Requests: every ask from this workspace, whoever made it, with what came of it */
+function cuReqHTML(c,me,canReq){const AG=AGENCY.name, A=cuAsks(c), mon=cuToday().getUTCMonth();
+ const per={cycle:a=>a.dt.ago<CYCLE.day,"3m":a=>(mon-a.dt.m+12)%12<=2,all:()=>true}[CU.per]||(()=>true);
+ const st={all:()=>true,wait:a=>!!a.s.w,given:a=>a.s.f==="given",part:a=>a.s.f==="part",declined:a=>a.s.f==="declined"}[CU.st]||(()=>true);
+ const L=A.filter(a=>st(a)&&per(a)&&(CU.by==="any"||a.by===me)), nW=A.filter(a=>a.s.w).length;
+ const opt=(v,l,cur)=>`<option value="${v}"${cur===v?" selected":""}>${l}</option>`;
+ const head=`<div class="cx-sh"><h2 id="cuReqH">Requests</h2><span class="cx-hs" data-cuwait>${nW?`${nW} waiting for ${AG}`:A.length?`Nothing waiting for ${AG}`:""}</span></div>`;
+ if(!A.length) return `<section class="cx-sec" aria-labelledby="cuReqH">${head}<div class="panel cx-pn"><div class="cx-empty"><b>No asks yet</b><p>When you need more than ${AG} set for this workspace, ask them here. Their answer and note show up in this list, and you get an email.</p>${canReq?`<button type="button" class="shd-button shd-button--secondary" data-askopen="">Ask for more</button>`:""}</div></div></section>`;
+ const flt=`<div class="cx-flt"><select class="cx-sel${CU.st!=="all"?" is-on":""}" data-cuf="st" aria-label="Status">${opt("all","All statuses",CU.st)}${opt("wait","Waiting",CU.st)}${opt("given","Given",CU.st)}${opt("part","Partly given",CU.st)}${opt("declined","Declined",CU.st)}</select>
+  <select class="cx-sel${CU.by!=="any"?" is-on":""}" data-cuf="by" aria-label="Asked by">${opt("any","Anyone",CU.by)}${opt("me","Asked by me",CU.by)}</select>
+  <select class="cx-sel${CU.per!=="3m"?" is-on":""}" data-cuf="per" aria-label="Period">${opt("cycle","This cycle",CU.per)}${opt("3m","Last 3 months",CU.per)}${opt("all","All time",CU.per)}</select>
+  <span class="cx-cnt">${L.length} ask${L.length===1?"":"s"}</span></div>`;
+ const body=!L.length?`<div class="cx-empty"><p>No asks match these filters.</p><button type="button" class="cx-lk" data-cuclear>Show all asks</button></div>`
+  :`<table class="cx-rt"><colgroup><col style="width:100px"><col style="width:206px"><col style="width:21%"><col><col style="width:150px"><col style="width:116px"><col class="cx-c-note"><col style="width:40px"></colgroup>
+  <thead><tr><th>Asked</th><th>Asked by</th><th>What</th><th>Reason</th><th>Status</th><th>Answered on</th><th class="cx-c-note">${AG}&rsquo;s note</th><th><span class="cx-sr">Details</span></th></tr></thead><tbody>${L.map(a=>{const ago=cuAgo(a);
+   const what=a.lines.map(l=>{const sub=l.wait>0?(l.given?`${f(l.given)} given`:""):l.given>=l.amt?"given":l.given?`${f(l.given)} given`:"declined";
+    return `<span class="cx-wl">+${f(l.amt)} ${cuPh(l.k)}${sub?` <span class="cx-s">${sub}</span>`:""}</span>`}).join("");
+   return `<tr class="${a.s.w?"":"is-dec"}${CU.open===a.id?" is-cur":""}${CU.flash===a.id?" is-new":""}" data-cuopen="${a.id}" tabindex="0" aria-label="Ask from ${a.dt.d}, ${a.s.t}">
+   <td class="cx-c-ask">${a.dt.d}${ago?` <span class="cx-s">${ago}</span>`:""}</td>
+   <td class="cx-c-by"><span class="cx-ml">Asked by </span>${a.by||c.name}${a.by&&a.by===me?'<span class="cx-g">, you</span>':""}</td>
+   <td class="cx-c-wh">${what}</td>
+   <td class="cx-c-why"><span class="cx-clamp">${cuEsc(a.reason)}</span></td>
+   <td class="cx-c-st">${cuChip(a.s.t,a.s.w)}</td>
+   <td class="cx-c-an${a.on?"":" is-wt"}">${a.on?`<span class="cx-ml">Answered </span>${a.on}${a.on===TODAY_D?'<span class="cx-s">today</span>':""}`:'<span class="cx-none">Not yet</span>'}</td>
+   <td class="cx-c-note${a.note?"":" is-e"}">${a.note?`<span class="cx-clamp">${cuEsc(a.note)}</span>`:""}</td>
+   <td class="cx-c-ch"><span class="cx-chev">${CU_I.chev}</span></td></tr>`}).join("")}</tbody></table>`;
+ return `<section class="cx-sec" aria-labelledby="cuReqH">${head}${flt}<div class="panel cx-pn">${body}</div></section>`}
+/* Ask details, read only: the shared drawer's structure, without the agency's pool or who decided */
+function cuDrawerHTML(c,me,canReq){if(!CU.open) return ""; const a=cuAsks(c).find(x=>x.id===CU.open); if(!a){CU.open=null; return ""}
+ const AG=AGENCY.name, cur=a.dt.ago<CYCLE.day, mine=!!a.by&&a.by===me;
+ const cards=a.lines.map(l=>{const r=RES[l.k].rows[c.id]||{cap:0,used:0}, ro=cuRunsOut(l.k,r);
+  const given=l.wait>0&&!l.given?`<span class="cx-big is-g">Waiting</span><span class="cx-s">${AG} has not answered yet</span>`
+   :!l.given?`<span class="cx-big is-g">None</span><span class="cx-s">The limit stays ${f(l.from)}</span>`
+   :`<span class="cx-big">${f(l.given)}</span><span class="cx-s">${f(l.from)} to ${f(l.from+l.given)}${l.wait>0?`; ${f(l.wait)} still waiting`:""}</span>`;
+  const use=cur?`<div class="cx-rcu">${CU_I.gauge}<span>${f(r.used)} of ${f(r.cap)} used${CU_RENEW(l.k)?(r.used>=r.cap?"; at your limit":ro?`; runs out around day ${ro} of ${CYCLE.days}`:"; lasts the cycle at this pace"):""}</span></div>`:"";
+  return `<div class="cx-rc${l.wait>0?"":" is-dec"}"><div class="cx-rch"><b>${cuName(l.k)}</b>${cuChip(cuLineSt(l),l.wait>0)}</div>
+   <div class="cx-rcc"><div><span class="cx-l">Asked</span><span class="cx-big">+${f(l.amt)}</span><span class="cx-s">${f(l.from)} to ${f(l.from+l.amt)}</span></div><div><span class="cx-l">Given</span>${given}</div></div>${use}</div>`}).join("");
+ const third=a.s.w&&!a.on?`<span class="cx-l">Waiting for</span><span class="cx-v">${a.dt.ago===0?"Just sent":a.dt.ago===1?"1 day":a.dt.ago+" days"}</span>`
+  :`<span class="cx-l">Answered</span><span class="cx-v">${a.on}${a.on===TODAY_D?", today":""}</span>`;
+ const ago=cuAgo(a), again=!a.s.w&&cur&&canReq?a.lines.filter(l=>l.given<l.amt&&!REQUESTS.some(x=>x.client===c.id&&x.res===l.k)).map(l=>l.k):[];
+ const foot=a.s.w?`${mine?`<span class="cx-from">Sent to ${AG}</span>`:`<span class="cx-only">Only ${a.by||"the person who asked"} can withdraw this</span>`}${mine&&canReq?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-cuwd="${a.id}">Withdraw ask</button>`:""}<button type="button" class="shd-button shd-button--primary shd-button--sm" data-cux>Close</button>`
+  :again.length?`<button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-cux>Close</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-askopen="${again.join(",")}">Ask again</button>`
+  :`<button type="button" class="shd-button shd-button--primary shd-button--sm" data-cux>Close</button>`;
+ return `<div class="cx-scrim" data-cux></div><aside class="cx-dw" role="dialog" aria-modal="true" aria-labelledby="cuDwT">
+ <div class="cx-dtop"><div class="cx-dh"><h2 class="cx-dt" id="cuDwT">Ask details</h2><button type="button" class="cx-x" data-cux data-cuxbtn aria-label="Close">${CU_I.x}</button></div>
+  <div class="cx-who">${av(c)}<span><b>${c.name}</b><span class="cx-s">Asked by ${a.by||c.name}${mine?", you":""}, ${ago||a.dt.d}</span></span></div>
+  <div class="cx-strip"><div><span class="cx-l">Asked on</span><span class="cx-v">${a.dt.d}</span></div><div><span class="cx-l">Resources</span><span class="cx-v">${a.lines.map(l=>cuName(l.k)).join(", ")}</span></div><div>${third}</div></div></div>
+ <div class="cx-dbody">
+  ${cur?`<div class="cx-ctx"><b>This cycle</b><span><b>Day ${CYCLE.day}</b> <span class="cx-g">of ${CYCLE.days}</span></span></div>`:""}
+  ${cards}
+  <div class="cx-why">${CU_I.msg}<span><span class="cx-l">${mine?"Your reason":"Reason"}</span>${cuEsc(a.reason)}</span></div>
+  ${a.on?`<div class="cx-ans"><span class="cx-l">${AG}&rsquo;s note</span><p>${a.note?cuEsc(a.note):'<span class="cx-g">No note.</span>'}</p><div class="cx-by">Answered by ${AG}, ${a.on}. The answer was emailed to ${a.by||c.name}.</div></div>`:""}
+  ${a.s.w?`<div class="cx-ans"><span class="cx-l">What happens next</span><p>${AG} reviews it. ${mine?`You&rsquo;ll get an email at ${a.by}`:`${a.by||"The person who asked"} gets an email`} when they answer, and it shows up here.</p></div>`:""}
+ </div>
+ <div class="cx-dfoot">${foot}</div></aside>`}
+/* withdraw: only the person who asked, only while it waits. A line change 282 partly gave closes as Partly given. */
+function cuWithdraw(c,id){const L=REQUESTS.filter(x=>x.client===c.id&&(x.ask||x.id)===id&&x.by===cuMe(c)); if(!L.length) return;
+ const closed=L.filter(r=>r.given>0).map(r=>{const a=Object.assign({},r,{state:"approved",on:TODAY_D,amount:r.given,asked:r.asked0||r.amount+r.given,to:RES[r.res].rows[r.client].cap}); delete a.given; delete a.asked0; ANSWERS.push(a); return a});
+ REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0); CU.open=null; CU.flash=null;
+ receipt("client:"+c.id,`Ask withdrawn. ${AGENCY.name} no longer sees it.`,()=>{L.forEach(r=>REQUESTS.push(r)); closed.forEach(a=>{const i=ANSWERS.indexOf(a); if(i>-1) ANSWERS.splice(i,1)}); receipt("client:"+c.id,"Ask restored.",null,"restored an ask")},"withdrew an ask");
+ renderToast(); render(); const r=document.querySelector("#cuReqH"); if(r){r.tabIndex=-1; r.focus({preventScroll:true})}}
+const cuOn=()=>asClient&&cView==="usage"&&byId[ctx];
+function cuClose(){const id=CU.open; CU.open=null; render(); const r=id&&document.querySelector(`tr[data-cuopen="${id}"]`); if(r) r.focus({preventScroll:true})}
+function cuOpen(id){CU.open=id; CU.flash=null; render(); const x=document.querySelector("[data-cuxbtn]"); if(x) x.focus({preventScroll:true})}
+document.addEventListener("click",e=>{if(!cuOn()||!e.target.closest) return; const c=byId[ctx];
+ if(e.target.closest("[data-askopen]")){if(CU.open){CU.open=null; render()} return}
+ const t=e.target.closest("[data-cuopen],[data-cux],[data-cuwd],[data-cuclear]"); if(!t) return;
+ if(t.dataset.cuwd!=null){cuWithdraw(c,t.dataset.cuwd); return}
+ if(t.dataset.cux!=null){cuClose(); return}
+ if(t.dataset.cuclear!=null){CU.st="all"; CU.by="any"; CU.per="all"; render(); return}
+ cuOpen(t.dataset.cuopen)});
+document.addEventListener("keydown",e=>{if(!cuOn()) return;
+ if(e.key==="Escape"&&CU.open&&!modal){e.preventDefault(); cuClose(); return}
+ if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches("tr[data-cuopen]")){e.preventDefault(); cuOpen(e.target.dataset.cuopen)}});
+document.addEventListener("change",e=>{const s=cuOn()&&e.target.closest&&e.target.closest("[data-cuf]"); if(!s) return;
+ CU[s.dataset.cuf]=s.value; CU.open=null; render(); const n=document.querySelector(`[data-cuf="${s.dataset.cuf}"]`); if(n) n.focus({preventScroll:true})});
 function cUsage(c){
- /* change 117 (canvas rows 23 B, 23b E; doc 13 §3): the client asks one question,
-    "can our outreach keep running this month?", and when the answer is no makes one
-    move, "ask the agency for more", then wants to know what happened. The page reads
-    as a status, not a table; the ask is one sheet covering every allowance; the
-    answer lands on the rows. A Viewer sees the allowance only. */
- const daysLeft=CYCLE.days-CYCLE.day, canReq=canC(c,"request"), first=AGENCY.name;
- const ask=askOf(c.id), answered=ANSWERS.filter(a=>a.client===c.id&&ansLive(a));
- let worst=null;
- const info=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[k==="sends"?c.id:c.id],st=rowState(k,c.id,m),pc=paceOf(k,c.id);
-  /* close means the limit is near, or the pace says it runs out before the cycle ends */
-  const tone=st.room===0?"paused":(st.pct>=R.warn||(pc&&pc.hits))?"close":"fine";
-  if(tone!=="fine"&&(!worst||st.pct>worst.pct)) worst={k,pct:st.pct,tone,pc};
-  return {k,R,r,st,pc,tone}});
- const pendFor=k=>REQUESTS.find(x=>x.client===c.id&&x.res===k);
- const ansFor=k=>answered.filter(a=>a.res===k).slice(-1)[0];
- const rows=info.map(({k,R,r,st,pc,tone})=>{
-  const pend=pendFor(k), ans=ansFor(k);
-  const word=tone==="paused"?`Paused until ${first} raises it`:tone==="close"?"Close to your limit":"Fine";
-  const pace=pc&&pc.hits&&tone==="close"?` &middot; runs out around ${pc.when} at this pace`:"";
-  const sub=R.kind==="balance"?`Topped up by ${first}`:"Renews 1 Oct";
-  const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
-  const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
-  const fill=pend?(cap/(cap+pend.amount))*pct:pct;
-  const line=pend?`<span class="cu-ans sub">Asked for ${f(pend.amount)} more</span>`
-   :ansPart(ans)?`<span class="cu-ans is-ok" data-cupart="${k}"><span><i></i>Approved ${f(ans.amount)} of the ${f(ans.asked)} you asked for.${canReq?` Need more? <button class="linkbtn cu-again" data-askopen="${k}">Ask again</button>`:""}</span></span>`
-   :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>${first} raised this to ${f(ans.to||R.rows[c.id].cap)}${ans.on?" &middot; "+ans.on:""}</span></span>`
-   :ans?`<span class="cu-ans is-no"><span><i></i>${first} declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
-  const act="";
-  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?"Asked for "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
- let top;
- if(ask){const G=askGroups(ask.lines);
-  top=G.map(g=>`<div class="cu-status is-pend"><span><i></i>Asked ${first} for <b>${linesText(g.lines)}</b> &middot; ${AGE(g.when)}${g.note?` &middot; &ldquo;${g.note}&rdquo;`:""}${canReq?` <button class="linkbtn" data-askwithdraw="${c.id}${G.length>1?"|"+g.id:""}">Withdraw</button>`:""}</span></div>`).join("")}
- else if(answered.length){const pt=answered.filter(ansPart).length, up=answered.filter(a=>a.state==="approved").length-pt, dn=answered.length-up-pt;
-  const said=[up?up+" line"+(up===1?"":"s")+" raised":"", pt?pt+(up?"":" line"+(pt===1?"":"s"))+" partly approved":"", dn?dn+" declined":""].filter(Boolean).join(", ");
-  top=`<p class="cu-line">${first} answered your ask: ${said}. ${worst?"":"Your outreach is running."}</p>`}
- else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm);
-  top=worst.tone==="paused"
-   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> You have used the ${f(R.rows[c.id].cap)} ${first} set for this month; sending for this stops until ${first} raises it.</span></div>`
-   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${worst.pc&&worst.pc.hits?`At this pace ${pl?"they run":"it runs"} out around ${worst.pc.when}, and ${pl?"they pause":"it pauses"} until ${first} raises the limit.`:""}</span></div>`}
- else top=`<p class="cu-line">Your outreach is running. Nothing is close to its limit.</p>`;
+ const AG=AGENCY.name, canReq=canC(c,"request"), me=cuMe(c);
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
- if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${first} yet.</span></div></div>`}`;
- return `${top}${tabs}<div class="panel">
-  <div class="panel-h"><span class="panel-t">Allowance from ${first}</span>${canReq&&RK.some(k=>RES[k].rows[c.id]&&!pendFor(k))?`<span class="c-a"><button class="shd-button shd-button--primary" data-askopen="${worst&&!pendFor(worst.k)?worst.k:""}">Ask for more</button></span>`:""}</div>
-  <div class="panel-b" style="padding-top:0;padding-bottom:0"><div class="apu-grid">${rows}</div></div>
-  <div class="panel-b cu-foot"><span class="sub">${first} sets these for your workspace. Asking for more goes to them, not to Saleshandy, and the answer lands on this page.</span></div></div>`;
+ if(UB_TAB==="buy") return `${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${AG} yet.</span></div></div>`}`;
+ return `${tabs}<div class="panel cx-pn" data-cuallow>
+  <div class="cx-ph"><span class="panel-t">Allowance from ${AG}</span><span class="cx-hsub">Day ${CYCLE.day} of ${CYCLE.days}. Emails and Lead Finder credits renew on ${cuNext()}.</span></div>
+  <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col><col style="width:132px"></colgroup>
+   <thead><tr><th>Resource</th><th>Used</th><th>Available</th><th>This cycle</th><th><span class="cx-sr">Actions</span></th></tr></thead><tbody>${cuRows(c,me,canReq)}</tbody></table>
+  <div class="cx-foot">${AG} sets these for your workspace. Asking for more goes to them, not to Saleshandy.</div></div>
+  ${canReq?cuReqHTML(c,me,canReq)+cuDrawerHTML(c,me,canReq):""}`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
 function askNeed(k,cid){const R=RES[k], r=R.rows[cid], pc=paceOf(k,cid), st=R.step||1;
  if(pc&&pc.hits) return Math.max(st,Math.ceil((pc.proj-r.cap)/st)*st);
  return Math.max(st,Math.round(r.cap*0.5/st)*st)}
+/* change 284: "Ask Meridian Growth for more". Several resources in one ask; each picked one gets an empty amount
+   (no suggestion) with the new limit and a live pace hint; a resource that already has a waiting ask is greyed
+   out; a reason is required. Send writes REQUESTS rows with `by` (the signed-in client user), so the ask appears
+   on the agency's side; then a confirmation and an Undo toast. `pre` is a resource key or a comma list. */
 function askHTML(){
- const c=byId[modal.client]; if(!c) return "";
- const pendK=k=>REQUESTS.find(x=>x.client===c.id&&x.res===k);   /* change 229 */
- modal.amts=modal.amts||(()=>{const o={}; RK.forEach(k=>{const R=RES[k], r=R.rows[c.id]; if(!r||pendK(k)) return; const st=rowState(k,c.id,compute(k)); if(k===modal.pre||st.room===0||st.pct>=R.warn) o[k]=askNeed(k,c.id)}); return o})();
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const st=rowState(k,c.id,compute(k)), pc=paceOf(k,c.id), on=!!modal.amts[k];
-  const tone=st.room===0?"paused":st.pct>=R.warn?"close":"fine";
-  return `<div class="ask-row"><span><b>${k==="sends"?"Emails":R.label.replace(/ \/ month$/,"")}</b><span class="cs">${f(r.used)} of ${f(r.cap)}${R.kind==="balance"?"":" this month"}</span></span><span class="cu-word is-${tone}">${tone==="paused"?"Paused":tone==="close"?"Close to your limit":""}</span>${pendK(k)?`<span class="sub ask-pend">Asked for ${f(pendK(k).amount)} more</span>`:`<span class="numin"><input type="text" inputmode="numeric" value="${on?f(modal.amts[k]):""}" placeholder="no change" data-askamt="${k}" aria-label="${R.label}, how much more"><span class="unit">more</span></span>`}</div>`}).join("");
- const picked=RK.filter(k=>modal.amts[k]>0);
- const say=picked.length?`${c.name.split(" ")[0]} ${reqState(picked[0],c.id)} and asked for ${listAnd(picked.map(k=>f(modal.amts[k])+" more "+(RES[k].short||RES[k].unit)))}${modal.why?": "+modal.why:""}`:"Pick at least one allowance.";
- return card(`Ask ${AGENCY.name} for more`,`
-   <div class="ask-head"><span>Allowance</span><span></span><span>How much more</span></div>
-   <div class="ask-rows">${rows}</div>
-   <div class="field" style="margin:16px 0 0"><label class="flabel" for="askWhy">Why? <span style="color:var(--red-18)">*</span> <span class="sub">One line is enough; ${AGENCY.name} decides on it.</span></label><input type="text" id="askWhy" required value="${(modal.why||"").replace(/"/g,"&quot;")}" placeholder="What the extra is for" class="${modal.err==="why"?"is-err":""}" style="width:100%;height:36px;padding:0 10px;border-radius:var(--radius-input);border:1px solid ${modal.err==="why"?"var(--red-18)":"var(--gray-23)"};font:inherit;box-sizing:border-box"></div>
-   <p class="sub" id="askErr" style="margin:8px 0 0;color:var(--red-18);min-height:18px">${modal.err==="why"?"Say why, in one line.":modal.err==="amt"?"Pick at least one allowance and say how much more.":""}</p>
-   <p class="sub" id="askSay" style="margin:12px 0 0">${AGENCY.name} will read: &ldquo;${say}&rdquo;</p>`,
-  `<span class="sub" style="margin-right:auto">${PREVIEW?"Preview: this goes to "+AGENCY.name+" as "+c.name.split(" ")[0]+"'s "+actingRole(c)+".":"One ask. "+AGENCY.name+" decides each line and you see the answer here."}</span><button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-asksend>Send ask more request</button>`,"ac ask-b");
+ const c=byId[modal.client]; if(!c) return ""; const AG=AGENCY.name;
+ const head=(t,sub)=>`<div class="cx-mh"><div><h2 class="cx-mt" id="cuAskT">${t}</h2>${sub?`<p>${sub}</p>`:""}</div><button type="button" class="ubtn cx-mx" data-mclose aria-label="Close">${CU_I.x}</button></div>`;
+ if(modal.sent) return `<div class="mscrim" id="mscrim"><div class="modal cx-askm is-sent" role="dialog" aria-modal="true" aria-labelledby="cuAskT">
+  <div class="cx-mh"><div><span class="cx-doneic">${CU_I.check}</span><h2 class="cx-mt" id="cuAskT">Ask sent</h2></div><button type="button" class="ubtn cx-mx" data-mclose aria-label="Close">${CU_I.x}</button></div>
+  <div class="cx-mb"><ul class="cx-done">${modal.sent.map(r=>`<li>+${f(r.amount)} ${cuPh(r.res)}</li>`).join("")}</ul>
+   <p class="cx-donep">Your agency, ${AG}, will review it. You&rsquo;ll get an email when they answer.</p></div>
+  <div class="cx-mf"><button type="button" class="shd-button shd-button--primary" data-mclose data-cudone>Done</button></div></div></div>`;
+ const waitK=k=>REQUESTS.find(x=>x.client===c.id&&x.res===k);
+ if(!modal.pick){modal.pick={}; modal.why=modal.why||""; String(modal.pre||"").split(",").forEach(k=>{if(RES[k]&&RES[k].rows[c.id]&&!waitK(k)) modal.pick[k]=0})}
+ const rows=RK.map(k=>{const r=RES[k].rows[c.id]; if(!r) return ""; const w=waitK(k), on=k in modal.pick, ro=cuRunsOut(k,r), p=r.cap?r.used/r.cap:1;
+  const meta=`${f(r.used)} of ${f(r.cap)} used${r.used>=r.cap?", at your limit":ro?`, runs out around day ${ro}`:p>=RES[k].warn?", close to your limit":""}`;
+  if(w) return `<div class="cx-pick is-dis"><div class="cx-pk"><input type="checkbox" disabled aria-label="${cuName(k)}, already asked for"><span class="cx-nm"><b>${cuName(k)}</b><span class="cx-s">${meta}</span></span><span class="cx-st is-w">${CU_I.clock}Asked for ${f(w.asked0||w.amount)}</span></div></div>`;
+  const v=on?modal.pick[k]:0, bad=modal.err&&on&&!(v>0);
+  return `<div class="cx-pick${on?" is-on":""}"><label class="cx-pk"><input type="checkbox" data-cupick="${k}"${on?" checked":""}><span class="cx-nm"><b>${cuName(k)}</b><span class="cx-s">${meta}</span></span></label>
+   ${on?`<div class="cx-pamt"><input type="text" class="cx-amt" inputmode="numeric" autocomplete="off" data-cuamt="${k}" value="${v>0?f(v):""}" placeholder="How many more" aria-label="How many more ${cuPh(k)}" aria-describedby="cuH-${k}"${bad?' aria-invalid="true"':""}><span class="cx-hint" id="cuH-${k}" aria-live="polite">${cuHint(k,r,v)}</span></div>`:""}</div>`}).join("");
+ const ks=Object.keys(modal.pick), errPick=modal.err&&!ks.length, errAmt=modal.err&&ks.some(k=>!(modal.pick[k]>0)), errWhy=modal.err&&!(modal.why||"").trim();
+ return `<div class="mscrim" id="mscrim"><div class="modal cx-askm" role="dialog" aria-modal="true" aria-labelledby="cuAskT">
+  ${head(`Ask ${AG} for more`,`Pick what you need. ${AG} answers each one.`)}
+  <div class="cx-mb"><span class="cx-flab" id="cuNeedL">What do you need?</span><div class="cx-picks" role="group" aria-labelledby="cuNeedL">${rows}</div>
+   ${errPick?`<span class="cx-ferr" role="alert">Pick at least one resource.</span>`:errAmt?`<span class="cx-ferr" role="alert">Say how many more for each resource you picked.</span>`:""}
+   <label class="cx-flab" for="cuWhy">Why do you need it?<span class="cx-req" aria-hidden="true">*</span></label>
+   <textarea id="cuWhy" class="cx-ta" required placeholder="For example: The Q4 campaign starts on 15 Sep and needs about 4,000 emails a day."${errWhy?' aria-invalid="true"':""}>${cuEsc(modal.why)}</textarea>
+   ${errWhy?`<span class="cx-ferr" role="alert">Add a reason. ${AG} decides on it.</span>`:`<span class="cx-s cx-whyh">One or two sentences. ${AG} reads this when they decide.</span>`}</div>
+  <div class="cx-mf"><span class="cx-to">${PREVIEW?`Preview: this goes to ${AG} as ${cuMe(c)}.`:`Goes to ${AG}, not to Saleshandy.`}</span><button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-asksend>Send ask</button></div></div></div>`;
 }
 function askSend(){
- const c=byId[modal.client]; if(!c) return; const why=(modal.why||"").trim(); const picked=RK.filter(k=>modal.amts[k]>0);
- /* change 140: Send always answers. The missing piece is named under the field. */
- if(!picked.length||!why){modal.err=!picked.length?"amt":"why"; renderModal(); const f=document.querySelector(!picked.length?"[data-askamt]":"#askWhy"); if(f)f.focus(); return}
- const askId="a"+Date.now().toString(36).slice(-5), made=[];
- picked.forEach(k=>{if(REQUESTS.some(x=>x.client===c.id&&x.res===k)) return; const row={id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,by:(actingClientUser(c)||[])[0],res:k,amount:modal.amts[k],note:why,when:"just now"}; REQUESTS.push(row); made.push(row)});
- const reA=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&made.some(m=>m.res===a.res)); reA.forEach(a=>a.re=true);   /* change 229 */
- modal=null; renderModal();
- receipt("client:"+c.id,`Sent to ${AGENCY.name}: ${linesText(made)}. They see it in their queue and you see the answer here.`,()=>{REQUESTS=REQUESTS.filter(x=>made.indexOf(x)<0);reA.forEach(a=>delete a.re);render()},`asked ${AGENCY.name} for more`);
- render();
+ const c=byId[modal.client]; if(!c) return; const AG=AGENCY.name, why=(modal.why||"").trim();
+ if(!modal.pick) modal.pick=Object.assign({},modal.amts||{});   /* a caller that fills the old sheet's `amts` */
+ const ks=RK.filter(k=>k in modal.pick&&!REQUESTS.some(x=>x.client===c.id&&x.res===k));
+ if(!ks.length||ks.some(k=>!(modal.pick[k]>0))||!why){modal.err=true; renderModal();
+  const t=!ks.length?document.querySelector("[data-cupick]"):document.querySelector('[data-cuamt][aria-invalid="true"]')||document.querySelector("#cuWhy"); if(t) t.focus(); return}
+ const askId="a"+Date.now().toString(36).slice(-5), by=cuMe(c);
+ const made=ks.map(k=>({id:"r"+Date.now().toString(36).slice(-4)+k.slice(0,2),ask:askId,client:c.id,by,res:k,amount:modal.pick[k],note:why,when:"just now"}));
+ made.forEach(r=>REQUESTS.push(r));
+ const reA=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&ks.indexOf(a.res)>-1); reA.forEach(a=>a.re=true);   /* change 229 */
+ CU.flash=askId; CU.open=null; modal={kind:"ask",client:c.id,sent:made}; renderModal();
+ receipt("client:"+c.id,`Ask sent to ${AG}.`,()=>{REQUESTS=REQUESTS.filter(x=>made.indexOf(x)<0); reA.forEach(a=>delete a.re); CU.flash=null;
+   if(modal&&modal.sent===made){modal=null; renderModal()} receipt("client:"+c.id,"Ask cancelled. Nothing was sent.",null,"cancelled an ask")},`asked ${AG} for more`);
+ renderToast(); render();
 }
 /* limits are edited as a draft and applied together. Typing a number used to
    change the pool on the spot, so a slip of the finger reallocated a client
@@ -5753,11 +5894,12 @@ function wirePeopleModal(L){
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal};renderModal()});
   const send=L.querySelector("[data-invsend]"); if(send)send.onclick=()=>{if(INV.edit){if(!L.querySelector("[data-invsend]").disabled)personSave();return} if(inp.value.trim()){commit(); if(INV.err)return} if(!L.querySelector("[data-invsend]").disabled)inviteSend()};
   if(!L.querySelector(".inv-ed"))inp.focus();}
- if(k==="ask"){const upd=()=>{const say=L.querySelector("#askSay"); const picked=RK.filter(x=>modal.amts[x]>0), why=(modal.why||"").trim(); if(modal.err==="amt"&&picked.length)modal.err=null; if(modal.err==="why"&&why)modal.err=null; const html=askHTML(); const tmp=document.createElement("div"); tmp.innerHTML=html; if(say)say.innerHTML=tmp.querySelector("#askSay").innerHTML; const e=L.querySelector("#askErr"); if(e)e.textContent=tmp.querySelector("#askErr").textContent; const w=L.querySelector("#askWhy"); if(w)w.style.borderColor=modal.err==="why"?"var(--red-18)":"var(--gray-23)"};
-  L.querySelectorAll("[data-askamt]").forEach(i=>i.oninput=()=>{modal.amts[i.dataset.askamt]=num(i.value)||0; upd()});
-  const w=L.querySelector("#askWhy"); if(w)w.oninput=()=>{modal.why=w.value; upd()};
-  const send=L.querySelector("[data-asksend]"); if(send)send.onclick=()=>{if(!send.disabled)askSend()};
-  const f1=L.querySelector(`[data-askamt="${modal.pre}"]`)||L.querySelector("#askWhy"); if(f1)f1.focus()}
+ if(k==="ask"){   /* change 284: picks repaint the sheet; amounts and the reason update in place so the caret stays */
+  L.querySelectorAll("[data-cupick]").forEach(i=>i.onchange=()=>{const kk=i.dataset.cupick; if(i.checked) modal.pick[kk]=0; else delete modal.pick[kk]; const sc=L.querySelector(".cx-mb"), y=sc?sc.scrollTop:0; renderModal(); const sb=document.querySelector(".cx-mb"); if(sb) sb.scrollTop=y; const a=document.querySelector(`[data-cuamt="${kk}"]`)||document.querySelector(`[data-cupick="${kk}"]`); if(a) a.focus({preventScroll:!i.checked})});
+  L.querySelectorAll("[data-cuamt]").forEach(i=>{const kk=i.dataset.cuamt; i.oninput=()=>{modal.pick[kk]=num(i.value); i.removeAttribute("aria-invalid"); const h=L.querySelector("#cuH-"+kk); if(h) h.innerHTML=cuHint(kk,RES[kk].rows[modal.client],modal.pick[kk])}; i.onblur=()=>{const n=num(i.value); i.value=n?f(n):""}});
+  const w=L.querySelector("#cuWhy"); if(w) w.oninput=()=>{modal.why=w.value; if(w.value.trim()) w.removeAttribute("aria-invalid")};
+  const send=L.querySelector("[data-asksend]"); if(send) send.onclick=askSend;
+  const f1=modal.sent?L.querySelector("[data-cudone]"):L.querySelector("[data-cuamt]")||L.querySelector("[data-cupick]"); if(f1&&!modal.err) f1.focus({preventScroll:true})}
  if(k==="transfer"){wireDD(L,"trTo",v=>{modal.to=v;rerender()}); const go=L.querySelector("[data-trgo]"); if(go) go.onclick=transferStart}
  if(k==="teamedit"){const nm=L.querySelector("#teamNm"); if(nm) nm.oninput=()=>{modal.d.name=nm.value; const sv=L.querySelector("[data-teamsave]"); if(sv) sv.disabled=!(nm.value.trim()&&modal.d.members.length)};
   wireDD(L,"teamAdd",v=>{if(v&&modal.d.members.indexOf(v)<0){modal.d.members.push(v); if(!modal.d.manager) modal.d.manager=v} rerender()});
@@ -5833,8 +5975,16 @@ const BS_BUY={ai:"ai",verification:"ev",dialer:"dialer",radar:"radar"};
 document.addEventListener("click",e=>{if(!e.target.closest(".bs-mb")) document.querySelectorAll(".bs-mb-menu").forEach(m=>{m.hidden=true;const t=m.parentNode.querySelector("[data-bsmb]");if(t)t.setAttribute("aria-expanded","false")})});
 /* change 271: "buy more in Billing" (Usage & limits, a workspace's Limits tab) lands where BS_BUY says
    with that resource's buy panel open, the default amount filled in and focus on it */
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ulbuy],[data-ul3buy]"); if(!b||!canI("billing")) return;
- const k=b.dataset.ulbuy||b.dataset.ul3buy; if(BP_PRICE[k]!=null){BILL.buy=k;BILL.amt=null;BILL.focus=true}},true);
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ulbuy],[data-ul3buy],[data-askl-buy]"); if(!b||!canI("billing")) return;
+ const k=b.dataset.ulbuy||b.dataset.ul3buy||b.dataset.asklBuy; if(BP_PRICE[k]!=null){BILL.buy=k;BILL.amt=null;BILL.focus=true;
+  /* change 285: "From a buy link". An amount named on the link ("Buy 1,000 in Billing") is filled in; the
+     headline and a Back link name where the reader came from. */
+  const m=/^\s*Buy ([\d,]+) /.exec(b.textContent||""); if(m&&bpNum(m[1])>0) BILL.amt=bpNum(m[1]);
+  BILL.from="link"; BILL.bought=null;
+  BILL.back={ctx,view:Object.assign({},view),tab:typeof tab!=="undefined"?tab:null,
+   label:view.name==="record"&&byId[view.id]?byId[view.id].name:view.name==="dash"?"Dashboard":"Usage & limits"}}},true);
+/* change 285: leaving Billing from the rail ends the buy-link state */
+document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("[data-nav]")){BILL.from=null;BILL.bought=null;BILL.back=null}},true);
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
 /* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
@@ -5880,10 +6030,12 @@ const CREDIT_LAST={};
 Object.keys(CREDIT_SRC).forEach(k=>Object.defineProperty(CREDIT_LAST,k,{enumerable:true,
  get:()=>{const l=CREDIT_SRC[k].buys.slice(-1)[0];return l?"Last bought "+f(l[0])+" on "+l[1]:""}}));
 /* change 271: buying on Billing. Card and prices are illustrative (fd/billing.html). */
-const BILL_CARD="Visa ending 4242";
+let BILL_CARD="Visa ending 4242", BILL_EXP="08/2027"; /* change 285: let, so a new card replaces it */
 const BP_PRICE={lead_finder:.05,verification:.004,ai:.01,dialer:.03,radar:.4};
 const BP_DEF={lead_finder:2000,verification:5000,ai:1000,dialer:2000,radar:240};
-const BILL={open:{},buy:null,amt:null,focus:false,charged:0};
+const BILL={open:{},buy:null,amt:null,focus:false,charged:0,
+ /* change 285: from (a buy link), bought {k,a}, back {ctx,view,tab,label}; the card form: open, values, errors, paying */
+ from:null,bought:null,back:null,card:false,cv:{num:"",exp:"",cvc:""},ce:{},paying:false,focusCard:false};
 const bpUnit=k=>RES[k].unit==="tests"?"tests":"credits";
 const bpPriceTxt=k=>CREDIT_PRICE[k].replace(" / "," a ");
 const bpRenew=k=>k==="sends"?"Renews on "+PLAN.next.split(",")[0]:k==="lead_finder"?"Renews with the plan on "+PLAN.next.split(",")[0]:"Does not renew";
@@ -5898,13 +6050,95 @@ function billLine(){
    carries the seats and Whitelabel (the Seats and add-ons panel went). Where your plan goes is one
    table read from compute(), the source Usage & limits' Your plan reads, so Used and Available to
    give agree on both screens. No asks, no limits list, one link to Usage & limits (239). */
-const BP_CHEV='<span class="bp-chev" aria-hidden="true"><svg width="7" height="10" viewBox="0 0 7 10"><path d="M1.5 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>';
+/* change 283: Download usage report. One control for Billing's Where your plan goes and the client's Usage page.
+   The popover is state (UR), so a repaint keeps it open; listeners are delegated once on the document. */
+const UR={open:null,per:"90",from:"2026-08-10",to:"2026-09-09",busy:false,t:null}, UR_TODAY="2026-09-09";
+const UR_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const urDay=iso=>{const p=iso.split("-");return +p[2]+" "+UR_MON[+p[1]-1]+" "+p[0]};
+const urMs=iso=>Date.parse(iso+"T00:00:00Z");
+const urMinFrom=()=>new Date(urMs(UR_TODAY)-365*864e5).toISOString().slice(0,10);
+function urErr(){if(UR.per!=="custom") return "";
+ if(!UR.from||!UR.to) return "Pick both dates.";
+ if(UR.from>UR.to) return "The start date is after the end date.";
+ if(UR.to>UR_TODAY) return "The end date cannot be in the future.";
+ if(urMs(UR.to)-urMs(UR.from)>365*864e5) return "Pick a range of one year or less.";
+ return ""}
+function urPeriod(){return UR.per==="custom"?urDay(UR.from)+" to "+urDay(UR.to)
+ :UR.per==="cycle"?"this cycle ("+CYCLE.month.split(" ")[0]+")":"the last "+UR.per+" days"}
+function urCtl(id,scope){const o=UR.open===id, er=urErr();
+ const opt=(v,l)=>`<option value="${v}"${UR.per===v?" selected":""}>${l}</option>`;
+ return `<span class="ur"><button type="button" class="linkbtn ur-t" id="urT-${id}" data-urt="${id}" aria-haspopup="dialog" aria-expanded="${o}"${o?` aria-controls="urP-${id}"`:""}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download usage report</button>${o?`<div class="ur-p" id="urP-${id}" role="dialog" aria-labelledby="urL-${id}">
+  <label class="ur-l" id="urL-${id}" for="urS-${id}">Select time period</label>
+  <select id="urS-${id}" data-urper>${opt("7","Last 7 days")}${opt("30","Last 30 days")}${opt("90","Last 90 days")}${opt("cycle","This cycle ("+CYCLE.month.split(" ")[0]+")")}${opt("custom","Custom range")}</select>
+  <div class="ur-c" data-urc${UR.per==="custom"?"":" hidden"}><label>From<input type="date" data-urd="from" value="${UR.from}" min="${urMinFrom()}" max="${UR_TODAY}"></label><label>To<input type="date" data-urd="to" value="${UR.to}" min="${urMinFrom()}" max="${UR_TODAY}"></label></div>
+  <p class="sub ur-err" data-urerr role="alert"${er?"":" hidden"}>${er}</p>
+  ${scope?`<p class="sub ur-sc">${scope}</p>`:""}
+  <div class="ur-f"><button type="button" class="shd-button shd-button--primary" data-urgo${UR.busy||er?" disabled":""}>${UR.busy?"Exporting...":"Export"}</button></div></div>`:""}</span>`}
+function urClose(focus){const id=UR.open; UR.open=null; UR.busy=false; clearTimeout(UR.t); render(); if(focus&&id){const t=document.getElementById("urT-"+id); if(t) t.focus({preventScroll:true})}}
+document.addEventListener("click",e=>{
+ const t=e.target.closest&&e.target.closest("[data-urt]");
+ if(t){const id=t.dataset.urt; if(UR.open===id) urClose(true); else {UR.open=id; UR.busy=false; render(); const s=document.getElementById("urS-"+id); if(s) s.focus({preventScroll:true})} return}
+ if(!UR.open) return;
+ const go=e.target.closest&&e.target.closest("[data-urgo]");
+ if(go){if(UR.busy||urErr()) return; UR.busy=true; go.textContent="Exporting..."; go.disabled=true;
+  UR.t=setTimeout(()=>{const me=actor().email||ME().email, txt=`Usage report for ${urPeriod()} is on its way to ${me}.`, id=UR.open;
+   UR.open=null; UR.busy=false; clearTimeout(receiptTimer);
+   RECEIPT={scope:"ur",text:txt,short:txt,undo:null,entry:null}; receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast();render()},8000);
+   render(); renderToast(); const tr=document.getElementById("urT-"+id); if(tr) tr.focus({preventScroll:true})},700); return}
+ if(!e.target.closest(".ur")){urClose(false); const a=document.activeElement; if(!a||a===document.body){const tr=document.querySelector(".ur-t"); if(tr) tr.focus({preventScroll:true})}}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UR.open){e.stopPropagation(); e.preventDefault(); urClose(true)}},true);
+document.addEventListener("change",e=>{const s=e.target.closest&&e.target.closest("[data-urper]"); if(!s) return;
+ UR.per=s.value; const p=s.closest(".ur-p"); p.querySelector("[data-urc]").hidden=UR.per!=="custom"; urPaint(p)});
+document.addEventListener("input",e=>{const d=e.target.closest&&e.target.closest("[data-urd]"); if(!d) return; UR[d.dataset.urd]=d.value; urPaint(d.closest(".ur-p"))});
+function urPaint(p){const er=urErr(), m=p.querySelector("[data-urerr]"); m.textContent=er; m.hidden=!er; const g=p.querySelector("[data-urgo]"); g.disabled=!!er||UR.busy}
 const bpWs=id=>id==="own"?OWN_WS:byId[id];
-function bpHead(){if(grace()) return "";
+/* change 285: the headline names the state: payment failed first (with the Payment panel under it), then a
+   buy link (buy, then bought), then the next bill */
+const bpBack=()=>BILL.from==="link"&&BILL.back?`<button type="button" class="linkbtn bp-back" data-bpback>Back to ${BILL.back.label.replace(/&/g,"&amp;")}</button>`:"";
+const bpHl=(h,p)=>`<section class="bp-ans" aria-labelledby="bpH"><div class="bp-hl"><h2 class="ul3-h" id="bpH" tabindex="-1">${h}</h2>${bpBack()}</div><p class="ul3-p">${p}</p></section>`;
+function bpLinkHead(){if(BILL.from!=="link") return ""; const k=BILL.bought?BILL.bought.k:BILL.buy; if(!k||!RES[k]) return "";
+ const lab=RES[k].label, free=`<b>${f(compute(k).free)}</b>`;
+ return BILL.bought?bpHl(`Bought ${f(BILL.bought.a)} ${lab}.`,`Your plan now has ${free} to give. Give them to a workspace in Usage &amp; limits.`)
+  :bpHl(`Buy ${lab}.`,`Your plan has ${free} to give. Check the amount below and buy.`)}
+function bpHead(){
+ if(grace()) return bpHl(`Payment failed on ${GRACE.failedOn}.`,`Sending is paused in every workspace. Update the card within ${GRACE.daysLeft} days, or the account pauses.`)+bpPayHTML();
+ const L=bpLinkHead(); if(L) return L;
  const n=s=>parseFloat(String(s).replace(/[^0-9.]/g,"")), a=n(PLAN.amount), b=n(PLAN.lastAmount||PLAN.amount);
  const cmp=a===b?"Same as last month":a>b?`Up from ${PLAN.lastAmount} last month`:`Down from ${PLAN.lastAmount} last month`;
- return `<section class="bp-ans" aria-labelledby="bpH"><h2 class="ul3-h" id="bpH">Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}.</h2>
-  <p class="ul3-p">${cmp}, charged to ${BILL_CARD}.${BILL.charged?` ${usd(BILL.charged)} for credits was charged today, separately.`:""}</p></section>`}
+ return bpHl(`Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}.`,`${cmp}, charged to ${BILL_CARD}.${BILL.charged?` ${usd(BILL.charged)} for credits was charged today, separately.`:""}`)}
+/* change 285.1: fd's rows folded into production's Plan Details, in place of its three-column strip */
+function bpPlanRows(){const g=grace(), nx=PLAN.next.split(",")[0], mon=CYCLE.month.split(" ")[0];
+ const n=s=>parseFloat(String(s).replace(/[^0-9.]/g,"")), a=n(PLAN.amount), b=n(PLAN.lastAmount||PLAN.amount);
+ const cmp=a===b?"Same as last month.":a>b?`Up from ${PLAN.lastAmount} last month.`:`Down from ${PLAN.lastAmount} last month.`;
+ const row=(k,v,s)=>`<div class="bs-pr"><span class="bs-pr-k">${k}</span><span class="bs-pr-v">${v}${s?`<span class="ul3-sub">${s}</span>`:""}</span></div>`;
+ return `<div class="bs-prs">${g?row("Bill due",`${PLAN.amount} for ${mon}, not paid`,`Tried on 1 ${mon.slice(0,3)} and ${GRACE.failedOn}. The next bill is on ${nx}.`)
+   :row("Next bill",`${PLAN.amount} on ${nx}`,cmp+(BILL.charged?` ${usd(BILL.charged)} for credits was charged today, separately.`:""))}
+  ${row("Payment card",BILL_CARD,g?`<span class="ul3-chip">Declined on ${GRACE.failedOn}</span>`:`Expires ${BILL_EXP}.`)}
+  ${row("Subscription",`Started on ${PLAN.start.replace(/^0/,"").replace(",","")}`,"")}</div>`}
+/* change 285.2: the Payment panel (payment failed) and its card form */
+function bpPayHTML(){const mon=CYCLE.month.split(" ")[0];
+ return `<div class="panel bp-pay" role="region" aria-labelledby="bpPayK"><div class="bp-pay-k"><span class="bp-pay-t" id="bpPayK">Payment</span><span class="ul3-sub">Failed on ${GRACE.failedOn}</span></div>
+  <div class="bp-pay-v"><p class="bp-pay-l">The ${mon} payment of ${PLAN.amount} did not go through: ${BILL_CARD} was declined.</p><p class="bp-pay-s">Sending is paused in every workspace until it is paid.</p>${BILL.card?bpCardHTML():""}</div>
+  ${BILL.card?"":`<div class="bp-pay-a"><button type="button" class="shd-button shd-button--primary" data-bpcard aria-expanded="false">Update card</button></div>`}</div>`}
+function bpCardHTML(){const q=v=>String(v||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+ const F=(k,lab,ac,ph,num)=>{const e=BILL.ce[k];return `<div class="bp-fl bp-fl--${k}"><label for="bpC-${k}">${lab}</label><input id="bpC-${k}" class="ul-in${e?" is-err":""}" type="text"${num?' inputmode="numeric"':""} autocomplete="${ac}" placeholder="${ph}" value="${q(BILL.cv[k])}" data-bpc="${k}" aria-invalid="${!!e}"${e?` aria-describedby="bpCe-${k}"`:""}>${e?`<span class="bp-fe" id="bpCe-${k}">${e}</span>`:""}</div>`};
+ return `<form class="bp-card" id="bpCardF" novalidate aria-label="New card">
+  <div class="bp-card-g">${F("num","Card number","cc-number","1234 1234 1234 1234",1)}${F("exp","Expiry","cc-exp","MM/YY")}${F("cvc","Security code","cc-csc","123",1)}</div>
+  <p class="bp-pay-s">Pays the ${PLAN.amount} for ${CYCLE.month.split(" ")[0]} now. Sending starts again in every workspace once it goes through.</p>
+  <div class="bp-buy-f"><button type="submit" class="shd-button shd-button--primary" id="bpPayGo"${BILL.paying?" disabled":""}>${BILL.paying?"Paying...":`Save card and pay ${PLAN.amount}`}</button><button type="button" class="shd-button shd-button--secondary" data-bpcardx${BILL.paying?" disabled":""}>Cancel</button></div></form>`}
+const bpLuhn=d=>{let t=0; d.split("").reverse().forEach((c,i)=>{let x=+c; if(i%2){x*=2; if(x>9) x-=9} t+=x}); return t%10===0};
+const bpExp=v=>{const m=/^(\d{1,2})\s*\/\s*(\d{2}|\d{4})$/.exec(String(v||"").trim()); return m&&+m[1]>=1&&+m[1]<=12?{m:+m[1],y:m[2].length===2?2000+ +m[2]:+m[2]}:null};
+const bpBrand=d=>/^4/.test(d)?"Visa":/^(5[1-5]|2[2-7])/.test(d)?"Mastercard":/^3[47]/.test(d)?"American Express":"Card";
+function bpCardErr(k){const v=String(BILL.cv[k]||"").trim();
+ if(k==="num"){const d=v.replace(/[\s-]/g,""); return !d?"Enter the card number.":!/^\d{13,19}$/.test(d)?"Enter all the digits on the card.":!bpLuhn(d)?"This card number is not valid.":""}
+ if(k==="exp"){const x=bpExp(v); return !v?"Enter the expiry date.":!x?"Use MM/YY, for example 08/29.":x.y*12+x.m<2026*12+9?"This card has expired.":""}
+ return !v?"Enter the security code.":!/^\d{3,4}$/.test(v)?"Use the 3 or 4 digits on the back.":""}
+/* a message clears (or changes) in place as the field is fixed, so typing keeps focus */
+function bpPaintErr(k,e){if(e) BILL.ce[k]=e; else delete BILL.ce[k]; const i=el("bpC-"+k); if(!i) return;
+ i.classList.toggle("is-err",!!e); i.setAttribute("aria-invalid",String(!!e)); let s=el("bpCe-"+k);
+ if(e){if(!s){s=document.createElement("span"); s.className="bp-fe"; s.id="bpCe-"+k; i.after(s); i.setAttribute("aria-describedby",s.id)} s.textContent=e}
+ else if(s){s.remove(); i.removeAttribute("aria-describedby")}}
 function vPlatform(){
  const seats=Object.keys(PEOPLE).length;
  /* change 238 (item 23): production's Plan Details (plan-details.tsx, getBillOverview): the
@@ -5914,18 +6148,18 @@ function vPlatform(){
  return `${bpHead()}<div class="panel plancard bs-plan">
    <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3><span class="bs-plan-d">${isNormal()?"":`Covers ${AGENCY.name} and ${CLIENTS.length} workspaces. `}15 team seats, ${seats} used.${AGENCY.whitelabel?" Whitelabel included.":""}</span></div>
     <div class="bs-plan-act"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button><span class="bs-mb"><button class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false">Manage Billing</button><div class="bs-mb-menu" role="menu" hidden><button role="menuitem" data-flash="Opens the billing portal">Update Card / Invoices</button><button role="menuitem" data-flash="Not in this prototype">Cancel Subscription</button></div></span></div></div>
-   <div class="bs-plan-ov"><div><span>Start Date</span><b>${dd(PLAN.start)}</b></div>${grace()?`<div><span>Payment failed</span><b>${dd(GRACE.failedOn+", "+PLAN.next.split(", ")[1])}</b></div>`:`<div><span>Next Billing Date</span><b>${dd(PLAN.next)}</b></div>`}<div><span>Next Billing Amount</span><b>${PLAN.amount}</b></div></div>
+   ${bpPlanRows()/* change 285.1 */}
   </div>
   ${isNormal()?"":`<div class="panel bp-panel" id="bpGoes">
-   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub bp-hsub">${CYCLE.month.split(" ")[0]}, day ${CYCLE.day} of ${CYCLE.days}</span><span class="c-a"><button class="linkbtn ul3-l" data-ulgo>Asks, limits and usage</button></span></div>
+   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub bp-hsub">${CYCLE.month.split(" ")[0]}, day ${CYCLE.day} of ${CYCLE.days}</span><span class="c-a">${urCtl("bill","")}<button class="linkbtn ul3-l" data-ulgo>Asks, limits and usage</button></span></div>
    ${bpTable(RK.filter(k=>RES[k].pool>0))}</div>`}
   ${bpAddons()}`;
 }
 /* one row per resource: Used (of the plan), Available to give, the largest share, one action.
-   Opening a row shows where its total came from (CREDIT_SRC) and its price; the renewal is under the name.
-   `single` is a credits page: one resource, its detail always shown. */
+   The renewal is under the name. Rows are plain (change 283: the row expansion went).
+   `single` is a credits page: one resource, where its total came from (CREDIT_SRC) and its price always shown. */
 function bpTable(ks,single){
- const rows=ks.map(k=>{const R=RES[k], m=compute(k), P=R.pool, open=!!single||!!BILL.open[k], price=BP_PRICE[k], buy=BILL.buy===k&&price!=null;
+ const rows=ks.map(k=>{const R=RES[k], m=compute(k), P=R.pool, open=!!single, price=BP_PRICE[k], buy=BILL.buy===k&&price!=null;
   const top=Object.entries(R.rows).filter(([id,r])=>r.cap>0&&bpWs(id)).sort((a,b)=>b[1].cap-a[1].cap)[0];
   const share=top?`<span class="bp-sh-n">${bpWs(top[0]).name}</span><span class="ul3-sub">${Math.round(top[1].cap/P*100)}% of the plan</span>`:`<span class="ul3-g">None given</span>`;
   const today=CREDIT_SRC[k].buys.filter(b=>b[1]==="today").reduce((t,b)=>t+b[0],0);
@@ -5937,7 +6171,7 @@ function bpTable(ks,single){
     <div><span class="bp-k">Where the ${f(P)} came from</span><div class="bp-hist">${hist.map(x=>`<div class="bp-hr"><span>${x[0]}</span><span class="ul3-num">${f(x[1])}</span></div>`).join("")}${hist.length>1?`<div class="bp-hr bp-tot"><span>Total</span><span class="ul3-num">${f(P)}</span></div>`:""}</div></div>
     <dl class="bp-about"><div><dt>Price</dt><dd>${price!=null?bpPriceTxt(k):"Comes with the plan; a bigger plan has more"}</dd></div></dl></div></td></tr>`:"";
   return `<tr class="bp-r${open?" is-open":""}" data-pg="${k}">
-   <td>${single?`<span class="ul3-rn">${R.label}</span>`:`<button type="button" class="bp-nm" data-bprow="${k}" aria-expanded="${open}">${BP_CHEV}<span class="ul3-rn">${R.label}</span></button>`}<span class="ul3-sub${single?"":" bp-ind"}">${bpRenew(k)}</span></td>
+   <td><span class="ul3-rn">${R.label}</span><span class="ul3-sub">${bpRenew(k)}</span></td>
    <td data-l="Used"><span class="ul3-hb">${pbar(P>0?m.used/P*100:0,UL3_GREY)}<span class="ul3-num">${f(m.used)} <span class="ul3-g">of ${f(P)}</span></span></span></td>
    <td data-l="Available to give" class="ul3-num"><b>${f(m.free)}</b>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
    <td class="bp-share">${share}</td><td class="bp-act">${act}</td></tr>${det}${buy?`<tr class="bp-buyrow"><td colspan="5">${bpBuyHTML(k)}</td></tr>`:""}`}).join("");
@@ -6429,7 +6663,7 @@ function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=u
  else s=`<span class="ul3-g">${r.cap>0?ul3Mk(ul3Lv(r),`${ulPct(U,r.cap)}% used`):"No limit"}${q?`${ul3Lv(r)===2?" ":". "}Asked for ${f(q.amount)}.`:""}</span>`;   /* no full stop after a solid mark */
  if(q&&d<q.amount) s+=` <button type="button" class="linkbtn ul3-l" data-ul3give2="${k}|${c.id}">Give ${f(q.amount)}</button>`;
  return s}
-function ul3PoolHTML(k){const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;
+function ul3PoolHTML(k,D){const R=RES[k], m=compute(k), av=D?ul3Free(D,k):ulDfree(k), was=m.free;   /* change 282: D, Adjust limits' own draft */
  return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
   <div class="ul3-pi"><span>Available</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
 const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
@@ -6716,113 +6950,232 @@ function ul4Wire(){if(view.name!=="limits"||ctx!=="agency") return; ul4St();
   i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=document.querySelector(`[data-ul4go="${k}"]`); if(b&&!b.disabled) b.click()}}});
  q2("[data-ul4go]").forEach(b=>b.onclick=()=>ul4Decide(b.dataset.ul4go))}
 
-/* ═══ change 268, 14 Oct 2026 (fd/queue-explore.html board 4, "Ledger", plus "Asked by"): the ask ledger.
-   One row per need, numbers in columns, what the plan has after each row reading down, a total per
-   resource, one action per row. It is the one ask panel of the prototype (Hitesh, 14 Oct: "match ask
-   panel throughout prototype"), so it is reusable and carries its own look (.askl-) and wiring:
-     askLedgerModel({ws})                       -> {rows, F}  rows to show, F footers per resource
-     askLedgerHead({ws})                        -> "3 workspaces need more capacity" | "<name> needs more capacity" | "Nothing needs you."
-     askLedgerHTML({ws, ro, compact, bare, foot, labelledby}) -> "" when nothing needs you, else the panel
-       ws: a workspace id; rows for that workspace only, the Workspace column hidden (its "when" line
-           moves under Asked by). ro: read only, no action column. compact: always the stacked card
-           layout (it also stacks by itself in any container under 720px). bare: no card around it.
-           foot: false drops the per-resource footers. labelledby: id of the heading that names it.
-     askLedgerWire(root)                        binds every ledger inside root (the global wire calls it
-                                                with document on every render; call it again for a layer
-                                                or modal rendered after that)
-   Usage & limits shows it under the page headline (ul5LedgerHTML). ═══ */
-let ASKL={decl:null};
-const asklSug=(k,row)=>{const st=ul4Step(k); return Math.max(st,Math.round(row.cap/3/st)*st)};
-function asklWhen(x){if(!x.stop) return `Asked ${AGE(x.r.when).toLowerCase()}`; if(x.k!=="sends") return "At its limit";
- const a=ACTIVITY.find(y=>y.client===x.c.id&&/^Sending stopped/.test(y.text||"")); return a?`Stopped ${AGE(a.when).toLowerCase()}`:"Stopped sending"}
-/* every need on the plan: stops with no ask first, then ask lines oldest first */
-function asklAll(){
- const S=ul3Stops().map(s=>({key:"s|"+s.k+"|"+s.c.id,k:s.k,c:s.c,row:s.r,stop:true,want:asklSug(s.k,s.r)}));
- const A=ulReqs().map((r,i)=>({key:r.id,k:r.res,c:byId[r.client],row:RES[r.res].rows[r.client],r,want:r.amount,i}))
-  .sort((a,b)=>ulAge(b.r.when)-ulAge(a.r.when)||a.i-b.i);
- return S.concat(A)}
-/* the workspace with the most unused that is not in the ledger for this resource: it covers the gap or is not offered */
-function asklDonor(k,all,gap){const inT=new Set(all.filter(x=>x.k===k).map(x=>x.c.id)); let d=null;
- ulRows().forEach(c=>{if(c.disabled||inT.has(c.id)) return; const row=RES[k].rows[c.id]; if(!row) return; const sp=Math.max(0,row.cap-row.used); if(!d||sp>d.sp) d={c,sp,row}});
- return d&&d.sp>=gap?d:null}
-function askLedgerModel(o){o=o||{}; const all=asklAll(), rows=(o.ws?all.filter(x=>x.c.id===o.ws):all).map(x=>Object.assign({},x)), rem={}, F=[];
- rows.forEach(x=>{const k=x.k; if(!(k in rem)){rem[k]=compute(k).free; F.push({k,free:rem[k],want:0})}
-  rem[k]-=x.want; x.after=rem[k]; F.find(y=>y.k===k).want+=x.want;
-  x.give=Math.max(0,Math.min(x.want,compute(k).free))});   /* an action gives what is available now */
- F.sort((a,b)=>UL_K().indexOf(a.k)-UL_K().indexOf(b.k));   /* footers keep the plan's resource order, so they do not jump after an action */
- F.forEach(y=>{y.after=y.free-y.want; y.gap=Math.max(0,-y.after); y.D=y.gap?asklDonor(y.k,all,y.gap):null});
- return {rows,F}}
-function askLedgerHead(o){const M=askLedgerModel(o), ws=[...new Set(M.rows.map(x=>x.c.id))];
- return !ws.length?"Nothing needs you.":ws.length===1?`${M.rows[0].c.name} needs more capacity`:`${ws.length} workspaces need more capacity`}
-const asklAft=n=>n>=0?f(n):`<span class="askl-mk">Short by ${f(-n)}</span>`;
-function asklAct(x){const c=x.c, k=x.k;
- if(x.stop) return x.give?`<button type="button" class="linkbtn askl-l" data-askl-raise="${x.key}">Raise to ${f(x.row.cap+x.give)}</button>`:`<span class="askl-g">None available</span>`;
- const go=x.give?`<button type="button" class="linkbtn askl-l" data-askl-give="${x.key}" aria-label="Give ${c.name} ${f(x.give)} ${ul3Noun(k)}">Give ${f(x.give)}</button>`:`<span class="askl-g">None available</span>`;
- const dec=ASKL.decl===x.r.id?"":`<button type="button" class="linkbtn askl-l" data-askl-decl="${x.r.id}" aria-label="Decline ${c.name}'s ask for ${f(x.want)} ${ul3Noun(k)}">Decline</button>`;
- return `<div class="askl-acts">${go}${dec}</div>${x.give&&x.give<x.want?`<span class="askl-sub">The rest closes</span>`:""}`}
-function asklDeclHTML(r){const c=byId[r.client];
- return `<div class="askl-decl"><input type="text" class="ul-note askl-note" data-nonote="${r.id}" placeholder="Note for ${c.name} (optional)" aria-label="Note ${c.name} reads with the decline"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-askl-declx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-no="${r.id}">Decline</button></div>`}
-function asklRowHTML(x,o,n){const c=x.c, k=x.k, row=x.row, used=`${f(row.used)} of ${f(row.cap)}`, when=asklWhen(x), dl=x.r&&ASKL.decl===x.r.id&&!o.ro;
- const by=(x.stop?`<span class="askl-g">No ask</span>`:x.r.by||`<span class="askl-g">&ndash;</span>`)+(o.ws?`<span class="askl-sub">${when}</span>`:"");
- return `<tr class="askl-r" data-askl-r="${x.key}">${o.ws?"":`<td class="askl-w" data-l=""><span class="askl-nm">${c.name}</span><span class="askl-sub">${when}</span></td>`}
-  <td class="askl-by" data-l="Asked by">${by}</td>
-  <td class="askl-res" data-l="Resource">${UL4_POOL(k)}</td>
-  <td class="askl-n" data-l="Has used">${x.stop?`<span class="askl-mk">${used}</span>`:used}</td>
-  <td class="askl-n" data-l="Wants"><b>+${f(x.want)}</b>${x.stop?`<span class="askl-sub">To restart</span>`:""}</td>
-  <td class="askl-n" data-l="Available after">${asklAft(x.after)}</td>${o.ro?"":`<td class="askl-a" data-l="">${asklAct(x)}</td>`}</tr>`
-  +(dl?`<tr class="askl-dr"><td colspan="${n}">${asklDeclHTML(x.r)}</td></tr>`:"")}
-function asklFootHTML(y,o){const k=y.k;
- let fix="";
- if(y.gap&&!o.ro){const D=y.D;
-  fix=D?`<button type="button" class="linkbtn askl-l" data-askl-move="${k}|${D.c.id}|${y.gap}" title="Lowers ${D.c.name}'s limit from ${f(D.row.cap)} to ${f(D.row.cap-y.gap)}; it has used ${f(D.row.used)}">Move ${f(y.gap)} from ${ul4First(D.c)}</button>`
-   :canI("billing")?`<button type="button" class="linkbtn askl-l" data-askl-buy="${k}">Buy ${f(y.gap)} in Billing</button>`
-   :`<button type="button" class="linkbtn askl-l" data-askl-askowner="${k}|${y.gap}">Ask the Account Owner for ${f(y.gap)}</button>`}
- return `<tr class="askl-f" data-askl-f="${k}"><td colspan="${o.ws?3:4}" class="askl-fl" data-l=""><b>${UL4_POOL(k)}</b>, <span class="askl-g">${f(y.free)} available</span></td>
-  <td class="askl-n" data-l="Wants"><b>+${f(y.want)}</b></td><td class="askl-n" data-l="Available after">${y.after>=0?`<b>${f(y.after)}</b>`:asklAft(y.after)}</td>${o.ro?"":`<td class="askl-a" data-l="">${fix}</td>`}</tr>`}
-function askLedgerHTML(o){o=Object.assign({ws:null,ro:false,compact:false,bare:false,foot:true,labelledby:""},o||{}); const M=askLedgerModel(o); if(!M.rows.length) return "";
- const C=[["ws",17,"Workspace"],["by",16,"Asked by"],["res",13,"Resource"],["used",13,"Has used"],["wants",9,"Wants"],["after",16,"Available after, reading down"],["act",16,""]].filter(([id])=>!(id==="ws"&&o.ws)&&!(id==="act"&&o.ro));
- const tw=C.reduce((t,c)=>t+c[1],0);
- return `<div class="askl${o.bare?"":" panel"}${o.compact?" is-compact":""}${o.ws?" is-ws":""}"${o.ws?` data-askl-ws="${o.ws}"`:""}><table class="askl-t"${o.labelledby?` aria-labelledby="${o.labelledby}"`:` aria-label="Asks and stopped workspaces"`}><colgroup>${C.map(c=>`<col style="width:${Math.round(c[1]/tw*1000)/10}%">`).join("")}</colgroup>
-  <thead><tr>${C.map(c=>c[0]==="act"?`<th aria-label="Action"></th>`:`<th>${c[2]}</th>`).join("")}</tr></thead>
-  <tbody>${M.rows.map(x=>asklRowHTML(x,o,C.length)).join("")}</tbody>${o.foot?`<tfoot>${M.F.map(y=>asklFootHTML(y,o)).join("")}</tfoot>`:""}</table></div>`}
-/* acting: 262's shared apply (limit, ANSWERS with asked on a partial, REQUESTS, Activity) and toast voice, one toast with Undo */
-function asklFind(key){return asklAll().map(x=>Object.assign(x,{give:Math.max(0,Math.min(x.want,compute(x.k).free))})).find(y=>y.key===key)}
-function asklRaise(key){const x=asklFind(key); if(!x||!x.stop||!x.give) return; const k=x.k, cap0=x.row.cap;
- const undo=ul4Apply([{k,c:x.c,r:null,amt:x.give}]);
- receipt("ul",`Raised ${x.c.name}'s ${UL4_LIM[k]} limit from ${f(cap0)} to ${f(cap0+x.give)}. ${ul4Avail([k])}`,undo,`raised ${x.c.name}'s ${UL4_LIM[k]} limit to ${f(cap0+x.give)}`)}
-function asklGive(key){const x=asklFind(key); if(!x||!x.r||!x.give) return;
- const items=[{k:x.k,c:x.c,r:x.r,amt:x.give}], undo=ul4Apply(items); ASKL.decl=null;
- receipt("ul",`Gave ${ul4Gave(items)}.${ul4Rest(items)} ${ul4Avail([x.k])}`,undo,`gave ${ul4Gave(items)}`)}
-function asklMove(k,did,gap){const all=asklAll(), c=ulRows().find(z=>z.id===did)||byId[did], row=RES[k]&&RES[k].rows[did]; if(!c||!row||!(gap>0)) return;
- if(row.cap-row.used<gap) return; const cap0=row.cap, R=RES[k], to=[...new Set(all.filter(x=>x.k===k).map(x=>x.c.name))];
- row.cap-=gap; syncRes(k,row);
- logAct(did,`${R.label} limit lowered from ${f(cap0)} to ${f(row.cap)} on Usage & limits, to make room for ${listAnd(to)}`);
- const a=ACTIVITY[0];
- receipt("ul",`Moved ${f(gap)} ${ul3Noun(k)} from ${c.name}. ${f(compute(k).free)} available, enough for ${listAnd(to)}.`,
-  ()=>{row.cap=cap0; syncRes(k,row); const j=ACTIVITY.indexOf(a); if(j>-1) ACTIVITY.splice(j,1)},`moved ${f(gap)} ${ul3Noun(k)} from ${c.name}`)}
-function asklRepaint(){render(); if(typeof modal!=="undefined"&&modal) renderModal()}
-/* after an action the row's own link is gone: keyboard focus goes to the next action in the same ledger, not the page top */
-function asklDo(b,e,fn){const L=b.closest(".askl"), ws=L&&L.dataset.asklWs, sel=ws?`.askl[data-askl-ws="${ws}"]`:".askl:not([data-askl-ws])";
- const btns=()=>{const R=document.querySelector(sel); return R?[...R.querySelectorAll(".askl-a button")]:[]}, i=btns().indexOf(b), kb=!!e&&e.detail===0;
- fn(); asklRepaint(); if(!kb) return; const now=btns(), n=now[Math.min(Math.max(0,i),now.length-1)]||document.getElementById("ul3H"); if(n) n.focus({preventScroll:true})}
-function askLedgerWire(root){root=root||document; const Q=s=>root.querySelectorAll(s);
- Q("[data-askl-raise]").forEach(b=>b.onclick=e=>asklDo(b,e,()=>asklRaise(b.dataset.asklRaise)));
- Q("[data-askl-give]").forEach(b=>b.onclick=e=>asklDo(b,e,()=>asklGive(b.dataset.asklGive)));
- Q("[data-askl-move]").forEach(b=>b.onclick=e=>{const [k,d,g]=b.dataset.asklMove.split("|"); asklDo(b,e,()=>asklMove(k,d,+g))});
- Q("[data-askl-decl]").forEach(b=>b.onclick=()=>{ASKL.decl=b.dataset.asklDecl; asklRepaint(); const i=document.querySelector(`.askl-note[data-nonote="${ASKL.decl}"]`); if(i) i.focus()});
- Q("[data-askl-declx]").forEach(b=>b.onclick=()=>{const id=ASKL.decl; ASKL.decl=null; asklRepaint(); const n=document.querySelector(`[data-askl-decl="${id}"]`); if(n) n.focus({preventScroll:true})});
- Q(".askl-note").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const b=i.parentNode.querySelector("[data-no]"); if(b) b.click()} if(e.key==="Escape"){ASKL.decl=null; asklRepaint()}});
- /* the decline itself is the app's data-no handler (declineReq: ANSWERS with the note, Activity, toast with Undo); the note row closes with it */
- Q(".askl-decl [data-no]").forEach(b=>{if(!b.dataset.asklBound){b.dataset.asklBound="1"; b.addEventListener("click",()=>{ASKL.decl=null},true)}});
- Q("[data-askl-buy]").forEach(b=>b.onclick=()=>{ctx="agency"; view={name:"credits"}; billTab=BS_BUY[b.dataset.asklBuy]||"plan"; if(typeof modal!=="undefined"&&modal){modal=null; renderModal()} render()});
- Q("[data-askl-askowner]").forEach(b=>b.onclick=()=>{const [k,n]=b.dataset.asklAskowner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast()})}
-/* Usage & limits: the page headline, then the ledger */
-function ul5LedgerHTML(ro){const L=askLedgerHTML({ro,labelledby:"ul3H"});
- const ids=new Set(myClientsForLimits().map(c=>c.id)), hasDec=ANSWERS.some(a=>ids.has(a.client));
- const dec=hasDec?`<button type="button" class="linkbtn ul3-l" data-uldecided aria-expanded="${!!UL.decided}">${UL.decided?"Hide decided asks":"Decided asks"}</button>`:"";
- return `<section class="ul3-ans ul5-ans" aria-labelledby="ul3H"><div class="ul3-hr"><h2 class="ul3-h" id="ul3H">${askLedgerHead()}</h2>${dec}</div>
-  ${L?L:`<p class="ul3-p">No asks are waiting and no workspace is at a limit.</p>`}
-  ${UL.decided?`<div class="panel ul-panel ul3-dec">${ulDecidedHTML()}</div>`:""}</section>`}
+/* ═══ change 282, 15 Oct 2026 (Hitesh: "let's build this card version in vC"; the approved design is
+   experiments/c282-proto/requests-proto.html, B cards): the top of Usage & limits is "Requests".
+   One card per ask, as the workspace sent it: who asked and why, then one row of tiles per resource
+   (what it wants, what it has used and its pace, what the plan has available). One Give that names what
+   it gives and one Decline per card. A line given less than asked keeps the rest waiting by default
+   (Hitesh's choice in the design; it replaces decision 229's "the rest closes" here): the request stays
+   in REQUESTS with the remaining amount, the same asker and reason, `given` and `asked0`. A short
+   resource gets one line above the cards with Adjust limits (one resource across workspaces, committed
+   through 263's ul3Commit) and Buy more (Billing's buy flow, change 271) or Change plan for emails.
+   Workspaces stopped without an ask are not requests; they stay in the roster. Decided (N) folds below.
+   Every decision writes the limit, ANSWERS (with `dby`, who decided), REQUESTS, Activity and one toast
+   with Undo, as the earlier ask panels did. ═══ */
+let RQC={amt:{},edit:null,pop:null,adj:null,exp:{}};
+const RQC_RENEW=k=>k==="sends"||k==="lead_finder";   /* pace only for what renews each cycle */
+const rqcNoun=k=>k==="sends"?"emails":RES[k].short;
+const rqcEsc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const rqcCap1=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const rqcMk=(t,sm)=>`<span class="rqc-mk${sm?" is-sm":""}">${t}</span>`;
+const rqcMon=()=>CYCLE.month.slice(0,3), rqcYr=()=>CYCLE.month.split(" ")[1];
+const rqcAsked=w=>`${Math.max(1,CYCLE.day-Math.round(ulAge(w)))} ${rqcMon()}`;   /* "2 days ago" on day 9 reads 7 Sep */
+const rqcLong=d=>`${d} ${rqcYr()}`;
+const RQC_I={check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ half:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>',
+ chev:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>',
+ elbow:'<svg viewBox="0 0 16 16" fill="none" stroke="#D1D5DB" stroke-width="1.5" aria-hidden="true"><path d="M4 1v7h9"/></svg>',
+ note:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+ undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>'};
+/* the amount a line gives: the inline field while it is open, an applied change, or the ask */
+const rqcV=r=>RQC.edit&&RQC.edit.id===r.id?RQC.edit.val:RQC.amt[r.id]!=null?RQC.amt[r.id]:r.amount;
+const rqcG=r=>Math.max(0,Math.min(rqcV(r),compute(r.res).free));
+const rqcAskOf=id=>ulAsks().find(a=>a.id===id)||null;
+/* the card's Give: its label names what it gives; lines with nothing available are left out */
+function rqcGive(a){const gl=a.lines.map(r=>({r,g:rqcG(r)})).filter(x=>x.g>0), cr=new Set(gl.filter(x=>x.r.res!=="sends").map(x=>x.r.res)).size;
+ const u=x=>gl.length===1?(x.r.res==="sends"?"emails a month":RES[x.r.res].short):x.r.res==="sends"?"emails":cr>1?RES[x.r.res].short:x.r.res==="radar"?"tests":"credits";
+ const label=gl.length?`Give ${listAnd(gl.map(x=>`${f(x.g)} ${u(x)}`))}`:"Give";
+ const stays=a.lines.filter(r=>rqcG(r)<r.amount).map(r=>`${f(r.amount-rqcG(r))} ${rqcNoun(r.res)}`);
+ return {label,can:gl.length>0,tip:(gl.length?label+".":"Nothing is available to give.")+(stays.length?` ${rqcCap1(listAnd(stays))} ${stays.length===1?"stays":"stay"} waiting.`:"")}}
+/* the two ways out of a short resource */
+const rqcAdjB=k=>`<button type="button" class="linkbtn rqc-lk" data-rqcadj="${k}">Adjust limits</button>`;
+const rqcBuyB=(k,n)=>`<button type="button" class="linkbtn rqc-lk" data-rqcbuy="${k}|${n}">${!canI("billing")?"Ask the Account Owner":k==="sends"?"Change plan":"Buy more"}</button>`;
+/* Buy more is Billing's buy panel for that resource (change 271), Change plan is Billing's plan; an Account Admin asks the owner */
+function rqcBuy(k,n){if(!canI("billing")){receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast(); return}
+ if(BP_PRICE[k]!=null){BILL.buy=k; BILL.amt=null; BILL.focus=true}
+ RQC.pop=null; RQC.adj=null; RQC.edit=null; ctx="agency"; view={name:"credits"}; billTab=BS_BUY[k]||"plan"; render()}
+function rqcShortHTML(ro){const R=ulReqs();
+ const rows=UL_K().map(k=>{const L=R.filter(r=>r.res===k); if(!L.length) return ""; const asked=L.reduce((t,r)=>t+r.amount,0), free=compute(k).free, gap=asked-free; if(gap<=0) return "";
+  return `<div class="rqc-ql" data-rqcshort="${k}"><span><b>${UL4_POOL(k)}:</b> ${f(asked)} asked, ${f(free)} available ${rqcMk("Short by "+f(gap))}</span>${ro?"":`<span class="rqc-qa">${rqcAdjB(k)}${rqcBuyB(k,gap)}</span>`}</div>`}).join("");
+ return rows?`<div class="rqc-short">${rows}</div>`:""}
+const rqcWait=r=>`<span class="rqc-st is-w">${RQC_I.half}Partly given, ${f(r.amount)} waiting</span>`;
+function rqcUsed(r){const x=RES[r.res].rows[r.client], u=x.used, c=x.cap;
+ const main=c>0&&u>=c?`All ${f(c)} used`:u===0?`Nothing used of ${f(c)}`:`${f(u)} of ${f(c)} used`;
+ let sub=""; if(RQC_RENEW(r.res)&&u>0){if(u>=c) sub=`Ran out by day ${CYCLE.day} of ${CYCLE.days}`; else {const d=Math.ceil(c*CYCLE.day/u); sub=d<=CYCLE.days?`Runs out around day ${d} of ${CYCLE.days}`:"Within its limit at this pace"}}
+ return `<div class="rqc-tile"><span class="rqc-l">Used</span><span class="rqc-v">${main}</span>${sub?`<span class="rqc-s">${sub}</span>`:""}</div>`}
+function rqcWants(r,ro){const ed=RQC.edit&&RQC.edit.id===r.id, ov=RQC.amt[r.id]!=null&&RQC.amt[r.id]!==r.amount;
+ const v=ed?`<input type="text" class="ul-in rqc-in" data-rqcin="${r.id}" inputmode="numeric" autocomplete="off" value="${f(RQC.edit.val)}" aria-label="Amount to give ${rqcEsc(byId[r.client].name)}, ${UL4_POOL(r.res)}"><span class="rqc-s">Enter applies, Esc cancels</span>`
+  :`<span class="rqc-v">+${f(r.amount)}</span>${r.given?`<span class="rqc-s">${f(r.given)} of ${f(r.asked0)} given</span>`:""}${ov?`<span class="rqc-s">Giving ${f(RQC.amt[r.id])}</span>`:""}${ro?"":`<button type="button" class="linkbtn rqc-lk" data-rqcamt="${r.id}">Change amount</button>`}`;
+ return `<div class="rqc-tile" data-rqcwants="${r.id}"><span class="rqc-l">Wants</span>${v}</div>`}
+/* Available: the plan's number; Short by only when this ask alone is more than that, then its two ways out */
+function rqcAvail(r,ro){const k=r.res, free=compute(k).free, v=rqcV(r), gap=v-free, links=n=>ro?"":`<span class="rqc-tl">${rqcAdjB(k)}${rqcBuyB(k,n)}</span>`;
+ const short=gap>0?`<span class="rqc-mkl">${rqcMk("Short by "+f(gap),true)}</span>`:"";
+ const body=v!==r.amount?(gap>0?short+links(gap):`<span class="rqc-s">Giving ${f(v)} leaves ${f(free-v)}</span>`)
+  :short+`<span class="rqc-s">of ${f(RES[k].pool)} in your plan</span>`+(gap>0?links(gap):"");
+ return `<div class="rqc-tile" data-rqcavail="${r.id}"><span class="rqc-l">Available</span><span class="rqc-v">${f(free)} ${rqcNoun(k)}</span>${body}</div>`}
+function rqcCard(a,ro){const c=byId[a.client], G=rqcGive(a);
+ const rows=a.lines.map(r=>`<div class="rqc-row" data-rqcrow="${r.id}"><div class="rqc-tile"><span class="rqc-l">Resource</span><span class="rqc-v">${UL4_POOL(r.res)}</span>${r.given?`<span class="rqc-mkl">${rqcWait(r)}</span>`:""}</div>${rqcWants(r,ro)}${rqcUsed(r)}${rqcAvail(r,ro)}</div>`).join("");
+ const acts=ro?"":`<div class="rqc-acts"><button type="button" class="shd-button shd-button--primary rqc-give" data-rqcgive="${a.id}" title="${rqcEsc(G.tip)}"${G.can?"":" disabled"}>${RQC_I.check}<span>${G.label}</span></button><button type="button" class="shd-button shd-button--secondary rqc-dec" data-rqcdecl="${a.id}">${RQC_I.x}Decline</button></div>`;
+ return `<article class="panel rqc-card" data-rqccard="${a.id}" aria-labelledby="rqcT-${a.id}"><div class="rqc-h"><div><h3 class="rqc-t" id="rqcT-${a.id}">${c.name} asked for more</h3><span class="rqc-tg">Asked ${AGE(a.when)}</span></div>${acts}</div>
+  <div class="rqc-b"><div class="rqc-who">${ulAv(c,32)}<span><span class="rqc-by"><b>${askerOf(a.lines,c.id)}</b> asked</span>${a.note?`<p>${rqcEsc(a.note)}</p>`:""}</span></div><div class="rqc-rows">${rows}</div></div></article>`}
+/* while a field is typed in, only the Give label and the Available tile repaint, so the caret stays */
+function rqcLive(id){const r=REQUESTS.find(x=>x.id===id); if(!r) return; const a=rqcAskOf(r.ask||r.id);
+ const t=document.querySelector(`[data-rqcavail="${id}"]`); if(t) t.outerHTML=rqcAvail(r,false);
+ const b=a&&document.querySelector(`[data-rqcgive="${a.id}"]`); if(b){const G=rqcGive(a); b.querySelector("span").textContent=G.label; b.title=G.tip; b.disabled=!G.can}}
+/* ── deciding ── */
+function rqcGiveDo(a,keep,note){const c=byId[a.client], before=REQUESTS.slice(), parts=[], kept=[], undos=[], ks=[]; let closed=false;
+ a.lines.forEach(x=>{const r=REQUESTS.find(y=>y.id===x.id); if(!r) return; const g=rqcG(r); delete RQC.amt[r.id]; if(!(g>0)) return;
+  const R=RES[r.res], row=R.rows[r.client], cap0=row.cap, was={amount:r.amount,given:r.given,asked0:r.asked0}, orig=r.asked0||r.amount, left=r.amount-g;
+  row.cap+=g; syncRes(r.res,row); ks.push(r.res);
+  if(left>0&&keep){r.asked0=orig; r.given=(r.given||0)+g; r.amount=left; kept.push(r);
+   logAct(c.id,`Gave ${f(g)} of the ${f(orig)} more ${R.short} asked${askBy(r).replace(" asked","")}; the other ${f(left)} stay waiting; the ${limNow(r.res,row.cap)}`);
+   parts.push(`${f(g)} of ${f(was.amount)} ${rqcNoun(r.res)}`);
+   undos.push(()=>{row.cap=cap0; syncRes(r.res,row); r.amount=was.amount; ["given","asked0"].forEach(p=>{if(was[p]==null) delete r[p]; else r[p]=was[p]})})}
+  else{const tot=(r.given||0)+g, req0=Object.assign({},r), ans=Object.assign({},r,{state:"approved",on:TODAY_D,to:row.cap,amount:tot,dby:me_,g,req0},tot<orig?{asked:orig}:{},left>0&&note?{dnote:note}:{});
+   delete ans.given; delete ans.asked0; ANSWERS.push(ans); REQUESTS=REQUESTS.filter(y=>y!==r); if(left>0) closed=true;
+   logAct(c.id,tot<orig?`Gave ${f(tot)} of the ${f(orig)} more ${R.short} asked${askBy(r).replace(" asked","")} and closed the rest; the ${limNow(r.res,row.cap)}`:`Gave ${f(tot)} more ${R.short}${askBy(r)}; the ${limNow(r.res,row.cap)}`);
+   parts.push(left>0?`${f(g)} of ${f(r.amount)} ${rqcNoun(r.res)}`:`${f(g)} more ${rqcNoun(r.res)}`);
+   undos.push(()=>{row.cap=cap0; syncRes(r.res,row); const j=ANSWERS.indexOf(ans); if(j>-1) ANSWERS.splice(j,1)})}});
+ if(!parts.length) return;
+ const undo=()=>{undos.slice().reverse().forEach(u=>u()); const now=REQUESTS; REQUESTS=before.filter(r=>now.indexOf(r)>-1||a.lines.some(x=>x.id===r.id)).concat(now.filter(r=>before.indexOf(r)<0))};
+ const tail=(kept.length?` The other ${listAnd(kept.map(r=>`${f(r.amount)} ${rqcNoun(r.res)}`))} stay waiting.`:"")+(closed?` The rest closes; ${c.name} can ask again.`:"");
+ receipt("ul",`Gave ${c.name} ${listAnd(parts)}.${tail} ${ul4Avail([...new Set(ks)])}`,undo,`gave ${c.name} ${listAnd(parts)}`)}
+function rqcDeclDo(a,note){const c=byId[a.client], L=a.lines.map(x=>REQUESTS.find(y=>y.id===x.id)).filter(Boolean); if(!L.length) return; const before=REQUESTS.slice(), ans=[];
+ L.forEach(r=>{const part=r.given>0, A=Object.assign({},r,part?{state:"approved",amount:r.given,asked:r.asked0,to:RES[r.res].rows[r.client].cap}:{state:"declined"},{on:TODAY_D,dnote:note,dby:me_,g:0,req0:Object.assign({},r)});
+  delete A.given; delete A.asked0; ANSWERS.push(A); ans.push(A)});
+ REQUESTS=REQUESTS.filter(x=>L.indexOf(x)<0);
+ logAct(c.id,`Declined the request for ${moreText(L)}${askBy(L[0])}${note?" ("+note+")":""}`);
+ const one=L.length===1?L[0]:null;
+ receipt("ul",`Declined. ${c.name} keeps its ${one?`${UL4_LIM[one.res]} limit of ${f(RES[one.res].rows[one.client].cap)}`:"limits"}.${note?" Your note goes with it.":""}`,
+  ()=>{ans.forEach(A=>{const j=ANSWERS.indexOf(A); if(j>-1) ANSWERS.splice(j,1)}); const now=REQUESTS; REQUESTS=before.filter(r=>now.indexOf(r)>-1||L.indexOf(r)>-1).concat(now.filter(r=>before.indexOf(r)<0))},`declined ${c.name}'s ask`)}
+/* Undo on a line decided today: the limit goes back and the line waits again, as it was just before (a kept part stays given) */
+function rqcUndoAns(id){const a=ANSWERS.find(x=>x.id===id); if(!a) return; const c=byId[a.client], R=RES[a.res], row=R.rows[a.client]; if(!row) return;
+ const g=a.state==="approved"?(a.g!=null?a.g:a.amount):0, cap0=row.cap;
+ const q=a.req0?Object.assign({},a.req0):(()=>{const o=Object.assign({},a); ["state","on","to","dnote","dby","asked","g","req0","re"].forEach(p=>delete o[p]); o.amount=a.asked||a.amount; return o})();
+ const i=ANSWERS.indexOf(a); ANSWERS.splice(i,1); if(g){row.cap-=g; syncRes(a.res,row)} REQUESTS.push(q); delete RQC.exp[a.id];
+ logAct(c.id,`Reopened the ask for ${f(q.amount)} more ${R.short}${askBy(q)}; the ${limNow(a.res,row.cap)}`);
+ receipt("ul",`${c.name}'s ask for ${f(q.amount)} more ${rqcNoun(a.res)} is waiting again.${g?` ${f(compute(a.res).free)} available.`:""}`,
+  ()=>{const j=REQUESTS.indexOf(q); if(j>-1) REQUESTS.splice(j,1); row.cap=cap0; syncRes(a.res,row); ANSWERS.splice(Math.min(i,ANSWERS.length),0,a)},`reopened ${c.name}'s ask`)}
+/* ── Decided (N): newest ask first; a row opens in place ── */
+function rqcDecided(){const ids=new Set(myClientsForLimits().map(c=>c.id)); return ANSWERS.filter(a=>ids.has(a.client)&&RES[a.res]&&byId[a.client])}
+const rqcSt=a=>a.state==="declined"?["Declined",RQC_I.x]:ansPart(a)?["Partly given",RQC_I.half]:["Given",RQC_I.check];
+const rqcDecT=a=>a.state==="declined"?`Declined on ${a.on}`:ansPart(a)?`Gave ${f(a.amount)} of ${f(a.asked)} on ${a.on}`:`Gave ${f(a.amount)} on ${a.on}`;
+function rqcDecHTML(D,ro){const G=[]; D.forEach(a=>{const id=a.ask||a.id; let g=G.find(x=>x.id===id); if(!g){g={id,lines:[]}; G.unshift(g)} g.lines.push(a)});
+ const body=G.map(g=>g.lines.map((a,i)=>{const c=byId[a.client], open=!!RQC.exp[a.id], st=rqcSt(a);
+  const row=`<tr class="rqc-dr${i?" is-cont":""}${open?" is-open":""}" data-rqcdr="${a.id}" tabindex="0" aria-expanded="${open}">
+   <td>${i?"":rqcAsked(a.when)}</td><td>${i?`<span class="rqc-same">${RQC_I.elbow}Same request</span>`:`<span class="rqc-nm">${c.name}</span>${a.by?`<span class="rqc-s">${a.by}</span>`:""}`}</td>
+   <td><span class="rqc-amt">+${f(a.asked||a.amount)}</span></td><td>${UL4_POOL(a.res)}</td><td>${i||!a.note?"":`<span class="rqc-why" title="${rqcEsc(a.note)}">${rqcEsc(a.note)}</span>`}</td>
+   <td>${rqcDecT(a)}${a.dnote?'<span class="rqc-s">With a note</span>':""}</td><td><span class="rqc-st">${st[1]}${st[0]}</span></td></tr>`;
+  if(!open) return row;
+  const verb=a.state==="declined"?"Declined":ansPart(a)?`Gave ${f(a.amount)} of ${f(a.asked)}`:`Gave ${f(a.amount)}`, P=a.dby&&PEOPLE[a.dby];
+  return row+`<tr class="rqc-xr" data-rqcxr="${a.id}"><td colspan="7"><div class="rqc-xd">
+   <div><b>${verb}</b>${P?`, decided by ${P.name}${a.dby===me_?" (you)":""}`:""} on ${rqcLong(a.on)}</div>
+   ${a.dnote?`<div class="rqc-xn">${RQC_I.note}<span>${a.dby===me_?"Your note":"The note"}: &ldquo;${rqcEsc(a.dnote)}&rdquo;</span></div>`:`<div class="rqc-g">No note was sent.</div>`}
+   <div class="rqc-g">Asked by ${a.by||c.name} on ${rqcLong(rqcAsked(a.when))}${a.note?`: &ldquo;${rqcEsc(a.note)}&rdquo;`:""}</div>
+   ${a.on===TODAY_D&&!ro?`<div class="rqc-xu"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcundo="${a.id}">${RQC_I.undo}Undo</button><span class="rqc-g">Decided today</span></div>`:""}</div></td></tr>`}).join("")).join("");
+ return `<table class="rqc-dt"><colgroup><col style="width:100px"><col style="width:188px"><col style="width:96px"><col style="width:164px"><col><col style="width:228px"><col style="width:136px"></colgroup>
+  <thead><tr><th>Asked</th><th>Workspace</th><th>Amount</th><th>Resource</th><th>Reason</th><th>Decision</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`}
+/* Usage & limits: Requests, the short lines, one card per ask, then Decided */
+function rqcHTML(ro){const A=ulAsks(), n=A.length, D=rqcDecided();
+ return `<section class="ul3-ans ul5-ans rqc" aria-labelledby="ul3H"><div class="rqc-hd"><h2 class="ul3-h" id="ul3H">Requests</h2><span class="rqc-hs">${n?`${n} waiting for you`:"Nothing waiting for you"}</span></div>
+  ${rqcShortHTML(ro)}${A.map(a=>rqcCard(a,ro)).join("")}
+  ${D.length?`<button type="button" class="rqc-dtg" data-rqcdec aria-expanded="${!!UL.decided}">Decided (${D.length})${RQC_I.chev}</button>${UL.decided?`<div class="panel rqc-dw ul-decided">${rqcDecHTML(D,ro)}</div>`:""}`:""}</section>`}
+/* ── the pop-overs: Decline with a note, and a Give that gives less than asked ── */
+function rqcPopHTML(){const o=RQC.pop; if(!o) return ""; const a=rqcAskOf(o.id); if(!a){RQC.pop=null; return ""} const c=byId[a.client], by=askerOf(a.lines,c.id), nick=ul4First(c);
+ let h;
+ if(o.kind==="decl") h=`<div class="rqc-pt" id="rqcPopT">Decline the ask from ${c.name}</div><p class="rqc-pp">Declines ${listAnd(a.lines.map(r=>`${f(r.amount)} ${r.res==="sends"?"emails a month":RES[r.res].short}`))}. ${nick} can ask again.</p>
+  <label class="rqc-pl" for="rqcNote">Note to ${by} (optional)</label><textarea id="rqcNote" class="rqc-ta" data-rqcnote placeholder="Say why, or when to ask again">${rqcEsc(o.note)}</textarea>
+  <div class="rqc-pf"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcpx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rqcdeclok>Decline</button></div>`;
+ else{const G=rqcGive(a), part=a.lines.filter(r=>rqcG(r)>0&&rqcG(r)<r.amount), one=part.length===1?part[0]:null, rn=one?f(one.amount-rqcG(one)):"";
+  h=`<div class="rqc-pt" id="rqcPopT">${G.label}</div><p class="rqc-pp">What happens to the other ${listAnd(part.map(r=>`${f(r.amount-rqcG(r))} ${rqcNoun(r.res)}`))}?</p>
+  <label class="rqc-opt"><input type="radio" name="rqcm" data-rqcmode="keep"${o.keep?" checked":""}><span><b>Keep ${one?rn:"the rest"} waiting</b><span class="rqc-s">${nick} won't have to ask again. The rest fills in when capacity frees up or you buy more.</span></span></label>
+  <label class="rqc-opt"><input type="radio" name="rqcm" data-rqcmode="close"${o.keep?"":" checked"}><span><b>Close the rest</b><span class="rqc-s">${nick} sees a note and can ask again.</span></span></label>
+  ${o.keep?"":`<label class="rqc-pl" for="rqcNote">Note to ${by} (optional)</label><textarea id="rqcNote" class="rqc-ta" data-rqcnote>${rqcEsc(o.note)}</textarea>`}
+  <div class="rqc-pf"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcpx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rqcgiveok>${one?`Give ${f(rqcG(one))}, ${o.keep?`keep ${rn} waiting`:"close the rest"}`:o.keep?"Give, keep the rest waiting":"Give, close the rest"}</button></div>`}
+ return `<div class="rqc-pop" id="rqcPop" role="dialog" aria-labelledby="rqcPopT" data-for="${o.kind}|${o.id}">${h}</div>`}
+function rqcPlace(){const m=el("rqcPop"); if(!m||!RQC.pop) return; const [kind,id]=m.dataset.for.split("|"), b=document.querySelector(kind==="decl"?`[data-rqcdecl="${id}"]`:`[data-rqcgive="${id}"]`);
+ if(!b){m.style.left="50%"; m.style.top="120px"; return} const R=b.getBoundingClientRect(), W=m.offsetWidth; let x=Math.max(8,Math.min(R.left,innerWidth-W-8)), y=R.bottom+6;
+ if(y+m.offsetHeight>innerHeight-8) y=Math.max(8,R.top-m.offsetHeight-6); m.style.left=x+"px"; m.style.top=y+"px"}
+/* ── Adjust limits: one resource across every workspace (263's one-resource view as a pop-up), committed by ul3Commit ── */
+function rqcAdjOpen(k){const sp=c=>RES[k].rows[c.id].cap-RES[k].rows[c.id].used;
+ RQC.adj={k,D:{},order:ulRows().filter(c=>RES[k].rows[c.id]).sort((a,b)=>sp(b)-sp(a)||a.name.localeCompare(b.name)).map(c=>c.id)}; RQC.pop=null; RQC.edit=null}
+const rqcAdjV=(id)=>ul3Dv(RQC.adj.D,RQC.adj.k,id);
+const rqcLow=id=>{const r=RES[RQC.adj.k].rows[id], v=rqcAdjV(id); return v<r.used&&v<r.cap};   /* not below what it has used */
+const rqcPace=(k,u,c)=>!RQC_RENEW(k)?"":u===0?"Nothing used":u>=c?`Ran out by day ${CYCLE.day}`:(d=>d<=CYCLE.days?`Around day ${d}`:"Not this cycle")(Math.ceil(c*CYCLE.day/u));
+function rqcAdjFoot(){const A=RQC.adj, k=A.k, D=A.D, now=compute(k).free, after=ul3Free(D,k), ch=ul3Ch(D).filter(x=>x.k===k), low=A.order.some(rqcLow);
+ let left=after; const fits=ulReqs().filter(r=>r.res===k).sort((a,b)=>ulAge(b.when)-ulAge(a.when)).map(r=>{const ok=r.amount<=left; if(ok) left-=r.amount; return `<span class="rqc-af">${ul4First(byId[r.client])}'s ${f(r.amount)}: ${ok?"fits":rqcMk("short by "+f(r.amount-Math.max(0,left)),true)}</span>`}).join("");
+ return `<div class="rqc-afl"><div>Available now ${f(now)}. After your changes <b>${after<0?"&minus;"+f(-after):f(after)}</b>.${after<0?` ${rqcMk(`${f(-after)} more than your plan`,true)}`:""}</div>${fits?`<div class="rqc-afs">${fits}</div>`:""}</div>
+  <div class="rqc-afb"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcax>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rqcasave${!ch.length||after<0||low?" disabled":""}>${ch.length>1?`Save ${ch.length} changes`:"Save"}</button></div>`}
+const rqcAdjD=id=>{const d=rqcAdjV(id)-RES[RQC.adj.k].rows[id].cap; return d?`${d>0?"+":"&minus;"}${f(Math.abs(d))}`:""};
+const rqcAdjErr=id=>rqcLow(id)?`Can't go below what ${ul4First(byId[id])} has used: ${f(RES[RQC.adj.k].rows[id].used)}`:"";
+function rqcAdjHTML(){const A=RQC.adj; if(!A) return ""; const k=A.k, ren=RQC_RENEW(k), asks={}, W=Object.fromEntries(ulRows().map(c=>[c.id,c]));
+ ulReqs().filter(r=>r.res===k).forEach(r=>asks[r.client]=(asks[r.client]||0)+r.amount);
+ const rows=A.order.map(id=>{const c=W[id], r=RES[k].rows[id], n=rqcAdjV(id), pc=r.cap>0?Math.min(100,r.used/r.cap*100):0, low=rqcLow(id);
+  return `<tr data-rqcar="${id}"><td><div class="rqc-wsc">${ulAv(c)}<span><span class="rqc-nm">${c.name}</span>${c.own?' <span class="ul-tag">Yours</span>':""}${c.disabled?'<span class="rqc-s">Disabled</span>':""}${asks[id]?`<span class="rqc-s">Asks for ${f(asks[id])}</span>`:""}</span></div></td>
+   <td class="rqc-n" data-l="Given">${f(r.cap)}</td><td data-l="Used"><span class="rqc-hb">${pbar(pc,UL3_GREY)}<span>${f(r.used)}</span></span></td><td class="rqc-n" data-l="Unused">${f(Math.max(0,r.cap-r.used))}</td>
+   ${ren?`<td class="rqc-pc" data-l="Runs out" data-rqcap="${id}">${rqcPace(k,r.used,n)}</td>`:""}
+   <td data-l="New limit"><span class="rqc-ain"><input type="text" class="ul-in" inputmode="numeric" autocomplete="off" data-rqca="${id}" value="${f(n)}" aria-label="New ${UL4_POOL(k)} limit for ${rqcEsc(c.name)}" aria-invalid="${low}" aria-describedby="rqcae-${id}"><span class="rqc-ad" data-rqcad="${id}">${rqcAdjD(id)}</span></span><span class="rqc-aerr" id="rqcae-${id}" data-rqcae="${id}">${rqcAdjErr(id)}</span></td></tr>`}).join("");
+ return `<div class="ul-scrim rqc-scrim" data-rqcax></div><div class="rqc-mdl" role="dialog" aria-modal="true" aria-labelledby="rqcAdjT">
+  <div class="rqc-mh"><div><div class="rqc-mt" id="rqcAdjT">${UL4_POOL(k)} across workspaces</div><div class="rqc-ms">Day ${CYCLE.day} of ${CYCLE.days}. Lower a limit to free ${k==="sends"?"emails":k==="radar"?"tests":"credits"}, then give them.</div></div><button type="button" class="ubtn rqc-mx" data-rqcax aria-label="Close">${RQC_I.x}</button></div>
+  <div class="ul3-pool rqc-pool" data-rqcapool aria-live="polite">${ul3PoolHTML(k,A.D)}</div>
+  <div class="rqc-mb"><table class="rqc-at"><colgroup><col><col style="width:96px"><col style="width:132px"><col style="width:96px">${ren?'<col style="width:148px">':""}<col style="width:230px"></colgroup>
+   <thead><tr><th>Workspace</th><th class="rqc-n">Given</th><th>Used</th><th class="rqc-n">Unused</th>${ren?"<th>Runs out</th>":""}<th>New limit</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="rqc-mf" data-rqcafoot aria-live="polite">${rqcAdjFoot()}</div></div>`}
+function rqcAdjLive(){const A=RQC.adj; if(!A) return; const k=A.k, p=document.querySelector("[data-rqcapool]"), ft=document.querySelector("[data-rqcafoot]");
+ if(p) p.innerHTML=ul3PoolHTML(k,A.D); if(ft) ft.innerHTML=rqcAdjFoot();
+ A.order.forEach(id=>{const r=RES[k].rows[id], d=document.querySelector(`[data-rqcad="${id}"]`), pc=document.querySelector(`[data-rqcap="${id}"]`), e=document.querySelector(`[data-rqcae="${id}"]`), i=document.querySelector(`[data-rqca="${id}"]`);
+  if(d) d.innerHTML=rqcAdjD(id); if(pc) pc.textContent=rqcPace(k,r.used,rqcAdjV(id)); if(e) e.textContent=rqcAdjErr(id); if(i) i.setAttribute("aria-invalid",String(rqcLow(id)))})}
+function rqcAdjSave(){const A=RQC.adj; if(!A) return; const k=A.k, ch=ul3Ch(A.D); if(!ch.length||ul3Free(A.D,k)<0||A.order.some(rqcLow)) return;
+ if(ul3Commit(A.D,"Saved")&&RECEIPT){const one=ch.length===1?ch[0]:null, t=(one?`${one.v<one.was?"Lowered":"Raised"} ${byId[one.id].name} to ${f(one.v)}.`:`Changed ${ch.length} ${UL4_POOL(k)} limits.`)+` ${f(compute(k).free)} ${rqcNoun(k)} available.`;
+  RECEIPT.text=t; RECEIPT.short=t}
+ RQC.adj=null; render()}
+/* the layer outside the page: the pop-over and Adjust limits; painted after every render */
+function rqcLayer(){let L=el("rqcLayer"); if(!L){L=document.createElement("div"); L.id="rqcLayer"; document.body.appendChild(L)} return L}
+function rqcPaint(){const L=rqcLayer(); L.innerHTML=rqcPopHTML()+rqcAdjHTML(); rqcPlace()}
+function rqcWire(){const on=view.name==="limits"&&ctx==="agency"&&!!document.querySelector(".rqc");
+ if(!on){RQC.pop=null; RQC.adj=null; RQC.edit=null; const L=el("rqcLayer"); if(L) L.innerHTML=""; return}
+ const fo=RQC.focus; RQC.focus=null; rqcPaint();
+ if(RQC.edit){const i=document.querySelector(`[data-rqcin="${RQC.edit.id}"]`); if(i&&document.activeElement!==i){i.focus({preventScroll:true}); i.select()}}
+ else if(fo){const n=document.querySelector(fo); if(n) n.focus({preventScroll:true})}
+ else if(RQC.pop&&!el("rqcPop").contains(document.activeElement)){const i=document.querySelector("#rqcPop textarea,#rqcPop input:checked"); if(i) i.focus({preventScroll:true})}}
+/* one listener per event, so a partial repaint never needs rewiring */
+document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency"||!document.querySelector(".rqc")) return;
+ const t=e.target.closest("[data-rqcgive],[data-rqcdecl],[data-rqcamt],[data-rqcadj],[data-rqcbuy],[data-rqcpx],[data-rqcdeclok],[data-rqcgiveok],[data-rqcax],[data-rqcasave],[data-rqcundo],[data-rqcdec],[data-rqcdr]");
+ if(!t){if(RQC.pop&&!e.target.closest("#rqcPop")){RQC.pop=null; rqcPaint()} else if(RQC.edit&&!e.target.closest("[data-rqcwants]")){RQC.edit=null; render()} return}
+ if(t.disabled) return; const d=t.dataset; e.preventDefault();
+ if(RQC.edit&&d.rqcamt==null){RQC.edit=null}
+ if(d.rqcgive){const a=rqcAskOf(d.rqcgive); if(!a) return; if(RQC.pop&&RQC.pop.kind==="give"&&RQC.pop.id===a.id){RQC.pop=null; rqcPaint(); return}
+  if(a.lines.some(r=>rqcG(r)>0&&rqcG(r)<r.amount)){RQC.pop={kind:"give",id:a.id,keep:true,note:"We gave what was available today. Ask again next cycle if you still need it."}; render(); return}
+  rqcGiveDo(a,true,""); render(); return}
+ if(d.rqcdecl){if(RQC.pop&&RQC.pop.kind==="decl"&&RQC.pop.id===d.rqcdecl){RQC.pop=null; rqcPaint(); return} RQC.pop={kind:"decl",id:d.rqcdecl,note:""}; render(); return}
+ if(d.rqcpx!=null){const o=RQC.pop; RQC.pop=null; RQC.focus=o?(o.kind==="decl"?`[data-rqcdecl="${o.id}"]`:`[data-rqcgive="${o.id}"]`):null; render(); return}
+ if(d.rqcdeclok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcDeclDo(a,(o.note||"").trim()); render(); return}
+ if(d.rqcgiveok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcGiveDo(a,o.keep,o.keep?"":(o.note||"").trim()); render(); return}
+ if(d.rqcamt){const r=REQUESTS.find(x=>x.id===d.rqcamt); if(!r) return; RQC.pop=null; RQC.edit={id:r.id,val:rqcV(r)}; render(); return}
+ if(d.rqcadj){rqcAdjOpen(d.rqcadj); RQC.focus=`[data-rqca]`; render(); return}
+ if(d.rqcbuy){const [k,n]=d.rqcbuy.split("|"); rqcBuy(k,+n); return}
+ if(d.rqcax!=null){const k=RQC.adj&&RQC.adj.k; RQC.adj=null; RQC.focus=k?`[data-rqcshort="${k}"] [data-rqcadj]`:null; render(); return}
+ if(d.rqcasave!=null){rqcAdjSave(); return}
+ if(d.rqcundo){rqcUndoAns(d.rqcundo); render(); return}
+ if(d.rqcdec!=null){UL.decided=!UL.decided; RQC.focus="[data-rqcdec]"; render(); return}
+ if(d.rqcdr){RQC.exp[d.rqcdr]=!RQC.exp[d.rqcdr]; RQC.focus=`[data-rqcdr="${d.rqcdr}"]`; render(); return}});
+document.addEventListener("input",e=>{const t=e.target; if(!t.dataset||view.name!=="limits"||ctx!=="agency") return;
+ if(t.dataset.rqcin&&RQC.edit){RQC.edit.val=ulNum(t.value); rqcLive(t.dataset.rqcin); return}
+ if(t.dataset.rqcnote!=null&&RQC.pop){RQC.pop.note=t.value; return}
+ if(t.dataset.rqca&&RQC.adj){ul3Set(RQC.adj.D,RQC.adj.k,t.dataset.rqca,ulNum(t.value)); rqcAdjLive()}});
+document.addEventListener("change",e=>{const t=e.target; if(t.dataset&&t.dataset.rqcmode&&RQC.pop){RQC.pop.keep=t.dataset.rqcmode==="keep"; rqcPaint(); const i=document.querySelector(`#rqcPop [data-rqcmode="${t.dataset.rqcmode}"]`); if(i) i.focus()}});
+document.addEventListener("focusout",e=>{const t=e.target; if(t.dataset&&t.dataset.rqca&&RQC.adj&&t.isConnected) t.value=f(rqcAdjV(t.dataset.rqca))});
+document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
+ if(t.dataset&&t.dataset.rqcin&&RQC.edit){
+  if(e.key==="Enter"){e.preventDefault(); const r=REQUESTS.find(x=>x.id===RQC.edit.id), v=RQC.edit.val; if(r){if(v===r.amount) delete RQC.amt[r.id]; else RQC.amt[r.id]=v} RQC.focus=`[data-rqcamt="${RQC.edit.id}"]`; RQC.edit=null; render()}
+  if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); RQC.focus=`[data-rqcamt="${RQC.edit.id}"]`; RQC.edit=null; render()}
+  return}
+ if(t.dataset&&t.dataset.rqca&&e.key==="Enter"){e.preventDefault(); const all=[...document.querySelectorAll("[data-rqca]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-rqcasave]:not(:disabled)"); if(n) n.focus(); return}
+ if(e.key==="Escape"&&RQC.adj){e.preventDefault(); e.stopImmediatePropagation(); const k=RQC.adj.k; RQC.adj=null; RQC.focus=`[data-rqcshort="${k}"] [data-rqcadj]`; render(); return}
+ if(e.key==="Escape"&&RQC.pop){e.preventDefault(); e.stopImmediatePropagation(); const o=RQC.pop; RQC.pop=null; RQC.focus=o.kind==="decl"?`[data-rqcdecl="${o.id}"]`:`[data-rqcgive="${o.id}"]`; render(); return}
+ if((e.key==="Enter"||e.key===" ")&&t.dataset&&t.dataset.rqcdr){e.preventDefault(); RQC.exp[t.dataset.rqcdr]=!RQC.exp[t.dataset.rqcdr]; RQC.focus=`[data-rqcdr="${t.dataset.rqcdr}"]`; render()}},true);
+addEventListener("resize",rqcPlace); addEventListener("scroll",rqcPlace,true);
 
 function vLimits(){
  if(!canI("limits")) return denied("see usage and limits");
@@ -6831,7 +7184,7 @@ function vLimits(){
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
    <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the asks they send you. Add a workspace and give it limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
- return `<div class="wrap ul-wrap">${graceBanner()}${ul5LedgerHTML(ro)/* change 268 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
+ return `<div class="wrap ul-wrap">${graceBanner()}${rqcHTML(ro)/* change 282 */}${ul3PlanHTML(ro)}${ulLimitsHTML(!canI("limits"))/* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
@@ -6970,10 +7323,18 @@ window.addEventListener("resize",()=>{if(UL.cell) ulPlacePop()});
 function vBilling(){
  /* change 271: the gate stays (Account Owner only, doc 96); what it says names who can and where the
     reader can act instead. Not reachable from the rail; kept for a deep link. */
- if(!canI("billing")){const own=ulOwners();
-  return `<div class="wrap billwrap"><div class="panel bp-deny"><div class="panel-b"><h2 class="ul3-h">Billing is for Account Owners.</h2>
-   <p class="ul3-p">${own.length?listAnd(own)+" can":"An Account Owner can"} change the plan, buy credits and update the card.${canI("limits")?" You can change limits and answer asks in Usage &amp; limits.":""}</p>
-   ${canI("limits")?`<button class="shd-button shd-button--primary" data-ulgo>Open Usage &amp; limits</button>`:""}</div></div></div>`}
+ if(!canI("billing")){
+  /* change 285.4: fd's Account Admin page: the headline, who can, one action, then the Account Owners. In
+     payment failed it says so and who can fix it, with an email to them. */
+  const own=Object.values(PEOPLE).filter(p=>p.role==="Owner"&&!p.disabled&&!p.invited), bn=own.map(p=>`<b>${p.name}</b>`), g=grace();
+  const mail=`mailto:${own.map(p=>p.email).join(",")}?subject=${encodeURIComponent(`${AGENCY.name}: payment failed, please update the card`)}&body=${encodeURIComponent(`The ${CYCLE.month.split(" ")[0]} payment failed on ${GRACE.failedOn} and sending is paused in every workspace. Please update the card in Billing within ${GRACE.daysLeft} days.`)}`;
+  const h=g?`Payment failed on ${GRACE.failedOn}.`:"Billing is for Account Owners.";
+  const p=g?`Sending is paused in every workspace. Only an Account Owner can update the card${own.length?`: ${bn.length===2?bn[0]+" or "+bn[1]:listAnd(bn)}`:""}. The account pauses in ${GRACE.daysLeft} days if nobody does.`
+   :`${own.length?listAnd(bn)+" can":"An Account Owner can"} change the plan, buy credits and update the card.${canI("limits")?" You can change limits and answer asks in Usage &amp; limits.":""}`;
+  const act=g&&own.length?`<a class="shd-button shd-button--primary bp-mail" href="${mail}">Email ${listAnd(own.map(p=>p.name.split(" ")[0]))}</a>`
+   :canI("limits")?`<button class="shd-button shd-button--primary" data-ulgo>Open Usage &amp; limits</button>`:"";
+  return `<div class="wrap billwrap bp-deny"><section class="bp-ans" aria-labelledby="bpH"><h2 class="ul3-h" id="bpH">${h}</h2><p class="ul3-p">${p}</p>${act?`<div class="bp-deny-a">${act}</div>`:""}</section>
+   ${own.length?`<div class="panel bp-panel bp-owners"><div class="panel-h"><span class="panel-t">Account Owners</span></div><div class="bp-aos">${own.map(o=>`<div class="bp-ao"><span class="bp-ao-v">${o.name}</span><span class="bp-ao-k">${o.email}</span></div>`).join("")}</div></div>`:""}</div>`}
  /* there is nothing to cap across until a second workspace exists, so the
     group is absent rather than present and empty. */
  if(isNormal()&&billTab==="alloc") billTab="plan";
@@ -6998,7 +7359,7 @@ function vBilling(){
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
     Billing & Subscription does. Invoices live under Manage Billing on the Platform panel. */
  return `<div class="wrap billwrap">
-   ${graceBanner()/* change 271 */}<div class="setwrap bswrap">${nav}<div class="billpage">${page}</div></div></div>`;
+   ${billTab==="plan"?"":graceBanner()/* change 271; change 285: on Platform the headline and the Payment panel say it */}<div class="setwrap bswrap">${nav}<div class="billpage">${billTab!=="plan"?bpLinkHead():""}${page}</div></div></div>`;
 }
 
 function blReceipt(k,before,prev,cid){
@@ -10575,6 +10936,7 @@ function vClientSide(){
    <div class="cell-main">${av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">${c.name}</span>
      <span class="cs">Your workspace</span></span></div>
+   ${cView==="usage"?`<span class="c-a cx-tb">${urCtl("cu","Covers "+c.name+" only.")}${canC(c,"request")?`<button type="button" class="shd-button shd-button--primary cx-askbtn" data-askopen="">${CU_I.plus}Ask for more</button>`:""}</span>`:""}
  </div>
  <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"?"":atLimitBanner(c)))}${
    granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
@@ -12120,9 +12482,8 @@ function wire(){
    if(canI("billing")){ctx="agency"; if(REQUESTS.length){view={name:"record",id:REQUESTS[0].client};tab="limits"} else {view={name:"credits"};billTab="plan"}}
    else{ctx="agency";view=homeView()}
    render()}});
- q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;BILL.buy=null;BILL.amt=null;render()});
- /* change 271: open a row, open or close its buy panel, buy */
- q("[data-bprow]").forEach(b=>b.onclick=()=>{const k=b.dataset.bprow; BILL.open[k]=!BILL.open[k]; render(); const n=document.querySelector(`[data-bprow="${k}"]`); if(n) n.focus({preventScroll:true})});
+ q("[data-billtab]").forEach(b=>b.onclick=()=>{billTab=b.dataset.billtab;BL_WHY=null;BILL.buy=null;BILL.amt=null;BILL.from=null;BILL.bought=null;BILL.back=null;render()});
+ /* change 271: open or close a row's buy panel, buy (change 283: rows no longer open) */
  q("[data-bpbuy]").forEach(b=>b.onclick=()=>{const k=b.dataset.bpbuy; BILL.buy=BILL.buy===k?null:k; BILL.amt=null; BILL.focus=!!BILL.buy; render();
   if(!BILL.buy){const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})}});
  q("[data-bpbuyx]").forEach(b=>b.onclick=()=>{const k=BILL.buy; BILL.buy=null; BILL.amt=null; render(); const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})});
@@ -12132,11 +12493,32 @@ function wire(){
   i.onblur=()=>{if(BILL.amt!=null) i.value=f(BILL.amt)};
   i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const g=el("bpBuyGo"); if(g&&!g.disabled) g.click()}
    if(e.key==="Escape"){e.preventDefault(); e.stopPropagation(); const x=document.querySelector("[data-bpbuyx]"); if(x) x.click()}};
-  if(BILL.focus){BILL.focus=false; i.scrollIntoView({block:"center"}); i.focus({preventScroll:true}); i.select()}}}
+  if(BILL.focus){BILL.focus=false; const pg=el("page");
+   if(BILL.from==="link"&&pg){pg.scrollTop=0; const bx=i.closest(".bp-buy")||i; bx.scrollIntoView({block:"nearest"})} else i.scrollIntoView({block:"center"});
+   i.focus({preventScroll:true}); i.select()}}}
  q("[data-bpbuygo]").forEach(b=>b.onclick=()=>{const k=b.dataset.bpbuygo, a=BILL.amt!=null?BILL.amt:BP_DEF[k]; if(!a||grace()) return;
-  RES[k].pool+=a; CREDIT_SRC[k].buys.push([a,"today"]); BILL.charged+=a*BP_PRICE[k]; BILL.buy=null; BILL.amt=null;
+  RES[k].pool+=a; CREDIT_SRC[k].buys.push([a,"today"]); BILL.charged+=a*BP_PRICE[k]; BILL.buy=null; BILL.amt=null; if(BILL.from==="link") BILL.bought={k,a};
   receipt("bill",`Bought ${f(a)} ${RES[k].label} for ${usd(a*BP_PRICE[k])}. ${f(compute(k).free)} available to give.`,null,`bought ${f(a)} ${RES[k].label}`); render();
+  if(BILL.bought){const pg=el("page"), h=el("bpH"); if(pg) pg.scrollTop=0; if(h){h.focus({preventScroll:true}); return}}
   const n=document.querySelector(`[data-bpbuy="${k}"]`); if(n) n.focus({preventScroll:true})});
+ /* change 285: Back (buy link); the card form on the Payment panel */
+ q("[data-bpback]").forEach(b=>b.onclick=()=>{const B=BILL.back; BILL.from=null; BILL.bought=null; BILL.back=null; BILL.buy=null; BILL.amt=null;
+  if(B){ctx=B.ctx; view=B.view; if(B.tab!=null) tab=B.tab} render()});
+ q("[data-bpcard]").forEach(b=>b.onclick=()=>{BILL.card=true; BILL.ce={}; render(); const i=el("bpC-num"); if(i) i.focus()});
+ q("[data-bpcardx]").forEach(b=>b.onclick=()=>{BILL.card=false; BILL.ce={}; BILL.cv={num:"",exp:"",cvc:""}; render(); const u=document.querySelector("[data-bpcard]"); if(u) u.focus()});
+ q("[data-bpc]").forEach(i=>{i.oninput=()=>{const k=i.dataset.bpc; BILL.cv[k]=i.value; if(BILL.ce[k]) bpPaintErr(k,bpCardErr(k))};
+  i.onkeydown=e=>{if(e.key==="Escape"){e.preventDefault(); e.stopPropagation(); const x=document.querySelector("[data-bpcardx]"); if(x&&!x.disabled) x.click()}}});
+ {const F=el("bpCardF"); if(F) F.onsubmit=e=>{e.preventDefault(); if(BILL.paying) return; const ks=["num","exp","cvc"];
+  BILL.ce={}; ks.forEach(k=>{const m=bpCardErr(k); if(m) BILL.ce[k]=m});
+  if(Object.keys(BILL.ce).length){render(); const i=el("bpC-"+ks.find(k=>BILL.ce[k])); if(i) i.focus(); return}
+  BILL.paying=true; render();
+  setTimeout(()=>{const d=BILL.cv.num.replace(/\D/g,""), x=bpExp(BILL.cv.exp);
+   BILL_CARD=bpBrand(d)+" ending "+d.slice(-4); BILL_EXP=String(x.m).padStart(2,"0")+"/"+x.y;
+   GRACE.on=false; BILL.paying=false; BILL.card=false; BILL.ce={}; BILL.cv={num:"",exp:"",cvc:""};
+   receipt("bill",`Paid ${PLAN.amount} with ${BILL_CARD}. Sending has started again in every workspace.`,null,`paid the ${CYCLE.month.split(" ")[0]} bill`);
+   render(); renderToast(); const h=el("bpH"); if(h) h.focus({preventScroll:true})},700)}}
+ /* a view change paints a skeleton first, so focus waits for the bind that follows the real page */
+ if(BILL.focusCard){const i=el("bpC-num"); if(i){BILL.focusCard=false; i.scrollIntoView({block:"center"}); i.focus({preventScroll:true})}}
  q("[data-bsmb]").forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.parentNode.querySelector(".bs-mb-menu");m.hidden=!m.hidden;b.setAttribute("aria-expanded",String(!m.hidden))});
  /* 18 Sep, delight pass: Email Accounts charge expander and the limits receipt */
  q("[data-blwhy]").forEach(b=>b.onclick=()=>{BL_WHY=BL_WHY===b.dataset.blwhy?null:b.dataset.blwhy;render()});
@@ -12234,7 +12616,8 @@ function wire(){
    if(bk.fromtab){ctx="agency";view={name:"record",id:bk.id};tab=bk.fromtab}else view=bk; render()});
  /* change 271 (254 finding 1): Update payment on the payment-failed banner, wherever it shows, opens the
     card update in the billing portal directly; other data-gobill links ("add capacity") still open Billing */
- q("[data-gobill]").forEach(b=>b.onclick=b.closest(".grace")?e=>{e.stopPropagation();flash(b,"Opens the billing portal to update the card")}:()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
+ /* change 285: the card is updated on Billing now; Update payment opens its Payment panel with the card form open */
+ q("[data-gobill]").forEach(b=>b.onclick=b.closest(".grace")?e=>{e.stopPropagation(); ctx="agency"; asClient=false; view={name:"credits"}; billTab="plan"; BILL.card=true; BILL.ce={}; BILL.focusCard=true; render()}:()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
  q("input[data-cid]").forEach(i=>i.onchange=()=>{setLimit(activeRes,i.dataset.cid,num(i.value)); render()});
@@ -12315,7 +12698,7 @@ function wire(){
  q("[data-rcpx]").forEach(b=>b.onclick=()=>{clearReceipt(); render()});
  ulWire();   /* change 226 */
  ul4Wire();   /* change 262 */
- askLedgerWire(document);   /* change 268 */
+ rqcWire();   /* change 282 */
  /* the generic switch handler: flips a switch that is decorative in this
     prototype. It must not touch a switch that owns real state, because this
     binding runs last and `onclick` assignment overwrites rather than adds.
@@ -13951,13 +14334,25 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .bp-t .ul3-hb .pbw{width:72px}
 .bp-t td.bp-share .bp-sh-n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bp-t td.bp-share{max-width:0}
-.bp-nm{display:inline-flex;align-items:flex-start;gap:6px;padding:0;border:0;background:none;font:inherit;color:#1F2937;text-align:left;cursor:pointer}
-.bp-nm .bp-chev{display:inline-flex;flex:none;width:16px;height:20px;align-items:center;justify-content:center;color:#6B7280;transition:transform .15s}
-.bp-nm[aria-expanded=true] .bp-chev{transform:rotate(90deg)}
-.bp-nm:hover .ul3-rn{color:#1D4ED8}
-.bp-nm:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:2px}
-@media (prefers-reduced-motion:reduce){.bp-nm .bp-chev{transition:none}}
-.bp-t .ul3-sub.bp-ind{margin-left:22px}
+/* change 283: Download usage report */
+.ur{position:relative;display:inline-flex;align-items:center}
+.ur-t{display:inline-flex;align-items:center;gap:6px;font-size:14px;line-height:20px;font-weight:500;color:#1D4ED8;text-decoration:none;white-space:nowrap;text-align:left}
+.ur-t:focus,.ur-t[aria-expanded=true]{color:#1D4ED8;text-decoration:none}
+.ur-t:hover,.ur-t[aria-expanded=true]:hover{color:#1E40AF;text-decoration:underline}
+.c-a>.ur{margin-right:16px}
+.ur-t:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:2px}
+.ur-p{position:absolute;top:calc(100% + 8px);right:0;z-index:60;width:320px;box-sizing:border-box;padding:16px;background:#fff;border:1px solid #E5E7EB;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:left;font-weight:400;white-space:normal;display:flex;flex-direction:column;gap:8px}
+.ur-l{font-size:13px;line-height:18px;font-weight:500;color:#1F2937}
+.ur-p select{appearance:none;-webkit-appearance:none;padding:0 36px!important;background-color:#fff!important;background-repeat:no-repeat!important;background-position:12px center,right 12px center!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;cursor:pointer}
+.ur-p select,.ur-p input[type=date]{width:100%;box-sizing:border-box;height:32px;padding:0 12px;border:1px solid #D1D5DB;border-radius:4px;background-color:#fff;font:inherit;font-size:14px;line-height:20px;color:#1F2937}
+.ur-p select:focus,.ur-p input[type=date]:focus{outline:2px solid #1D4ED8;outline-offset:0;border-color:#D1D5DB;box-shadow:none}
+.ur-c{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ur-c[hidden],.ur-err[hidden]{display:none}
+.ur-c label{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:16px;color:#6B7280}
+.ur-err{margin:0;color:#B91C1C}
+.ur-sc{margin:0;color:#6B7280}
+.ur-f{display:flex;justify-content:flex-end;margin-top:8px}
+@media (max-width:600px){.c-a>.ur{margin-right:0}.c-a:has(.ur){margin-left:0;flex-wrap:wrap;gap:6px 20px}.ur{position:static}.panel-h:has(.ur),.toolbar:has(.ur){position:relative}.ur-p{left:16px;right:16px;width:auto}}
 .bp-t tr.bp-det>td,.bp-t tr.bp-buyrow>td{border-top:0;padding-top:0;padding-bottom:16px}
 .bp-det-in{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px 48px;margin-left:22px;padding:12px 16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:4px}
 .bp-det-in.is-single{margin-left:0}
@@ -13983,6 +14378,48 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .bp-ao-v .ul3-sub{font-weight:400}
 .bp-deny .panel-b{padding:32px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
 .bp-deny .ul3-p{margin:0}
+/* change 285: Billing takes fd/billing.html in Saleshandy's look */
+.bp-hl{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 24px}
+.bp-hl .ul3-h:focus{outline:none}
+.bp-back{font-size:14px;line-height:20px;font-weight:500}
+.bp-ans .ul3-p b{font-weight:600;color:#1F2937}
+.bs-prs{border-top:1px solid #E5E7EB}
+.bs-pr{display:grid;grid-template-columns:160px minmax(0,1fr);gap:2px 24px;align-items:baseline;padding:12px 0;border-top:1px solid #E5E7EB}
+.bs-pr:first-child{border-top:0}
+.bs-pr:last-child{padding-bottom:0}
+.bs-pr-k{font-size:14px;line-height:20px;color:#6B7280}
+.bs-pr-v{font-size:14px;line-height:20px;color:#1F2937;font-weight:500}
+.bs-pr-v .ul3-sub{display:block;font-weight:400}
+.bs-pr-v .ul3-chip{margin-top:2px}
+.bp-pay{display:grid;grid-template-columns:160px minmax(0,1fr) auto;gap:12px 24px;align-items:start;padding:20px 20px 20px 17px;border:1px solid #E5E7EB;border-left:4px solid #FBBF24;border-radius:4px;box-shadow:0 2px 4px 0 rgba(234,237,239,.65)}
+.bp-pay-t{display:block;font-size:14px;line-height:20px;font-weight:600;color:#1F2937}
+.bp-pay-l{margin:0;font-size:14px;line-height:20px;font-weight:500;color:#1F2937}
+.bp-pay-s{margin:2px 0 0;font-size:13px;line-height:20px;color:#6B7280}
+.bp-card{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid #E5E7EB}
+.bp-card .bp-pay-s{margin:0}
+.bp-card-g{display:grid;grid-template-columns:minmax(0,240px) 148px 148px;gap:12px}
+.bp-fl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bp-fl label{font-size:13px;line-height:18px;font-weight:500;color:#374151}
+.bp-fl .ul-in{width:100%}
+.bp-fe{font-size:12px;line-height:16px;color:#B91C1C}
+.bp-card .ul-in.is-err{border-color:#DC2626}
+.bp-card .ul-in.is-err:focus{border-color:#DC2626;box-shadow:0 0 0 2px #FEE2E2}
+.bp-deny-a{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.bp-mail{text-decoration:none}
+.bp-mail:hover{text-decoration:none}
+.bp-owners .bp-ao{grid-template-columns:200px minmax(0,1fr)}
+.bp-owners .bp-ao-v{font-weight:600}
+.billwrap.bp-deny{display:flex;flex-direction:column;gap:24px}
+@media (max-width:640px){
+ .bp-pay{grid-template-columns:minmax(0,1fr);gap:8px;padding:16px 16px 16px 13px}
+ .bp-pay-a{margin-top:4px}
+ .bp-card-g{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .bp-fl--num{grid-column:1/-1}
+ .bs-pr{grid-template-columns:minmax(0,1fr)}
+ .bs-pr-k{font-size:12px;line-height:16px}
+ .bp-owners .bp-ao{grid-template-columns:minmax(0,1fr)}
+ .bp-owners .bp-ao-k{grid-column:auto;font-size:13px;line-height:20px}
+}
 @media (max-width:1240px){.bp-t .bp-share{display:none}.bp-t th.bp-c1{width:32%}.bp-t th.bp-c2{width:32%}.bp-t th.bp-c3{width:20%}}
 @media (max-width:900px){
  .setwrap.bswrap{grid-template-columns:minmax(0,1fr);gap:16px}
@@ -14512,7 +14949,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="79f1d0d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
+(function(){var B="02a2af6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy \u00b7 version C")+" \u00b7 "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -14748,7 +15185,7 @@ input.ul4-qn.is-ch{border-color:#1F2937}
 /* change 268: the ask ledger (board 4 "Ledger"), Saleshandy's look and Your plan's table type, one block for
    every place it is used. Gray 800 / 500 / 200, Blue 700 links, Amber 100 / 800 only on a used-up stop and
    Short by N. Numbers left-aligned, tabular, in every numeric column. Stacks into cards under 720px of its
-   own width (container query) or always with .is-compact. */
+   own width (container query). Usage & limits no longer uses it (change 282); the record Limits tab does. */
 .askl{container:askl/inline-size;overflow:hidden;font-size:14px;line-height:20px;color:#1F2937}
 .askl.panel{margin:0}
 .askl-t{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -14758,16 +15195,126 @@ input.ul4-qn.is-ch{border-color:#1F2937}
 .askl-t tbody tr+tr td{border-top:1px solid #E5E7EB}.askl-t tbody tr.askl-dr td{border-top:0;padding-top:0}
 .askl-t tfoot tr td{border-top:1px solid #E5E7EB}.askl-t tfoot tr:first-child td{border-top:1px solid #D1D5DB}
 .askl-nm{display:block;font-weight:600;overflow-wrap:anywhere}
-.askl-sub{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280;font-weight:400}
-.askl-by{overflow-wrap:anywhere}
-.askl-n{font-variant-numeric:tabular-nums;white-space:nowrap}.askl-n b,.askl-fl b{font-weight:600}
-.askl-g{color:#6B7280;font-weight:400}
-.askl-mk{display:inline-block;margin-left:-6px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:600;font-size:14px;line-height:20px}   /* the chip's text starts on the column's left edge */
-.askl-l.linkbtn{font-size:14px;line-height:20px;font-weight:500;white-space:nowrap;text-align:left}.askl-f .askl-l.linkbtn{white-space:normal}   /* a long footer way out wraps inside its cell */
-.askl-acts{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px}.askl-acts>[data-askl-give],.askl-acts>.askl-g{min-width:88px}   /* Decline lines up row to row */
+.askl-acts{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px}
 .askl-decl{display:flex;align-items:center;gap:8px;width:520px;max-width:100%}.askl-decl .ul-note{flex:1 1 auto;min-width:0}
 .askl .linkbtn:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:4px}
 .ul5-ans{gap:16px}.ul5-ans>.ul3-hr{margin-bottom:0}.ul5-ans>.ul3-p{margin-top:-12px}
+/* change 282: Requests, one card per ask (experiments/c282-proto/requests-proto.html, B cards), in Saleshandy's
+   look: Gray 800 / 600 / 500, Blue 700 actions, the production buttons and inputs. Amber 100 / 800 only on
+   Short by, Partly given and the waiting marker; everything decided is grey. */
+.rqc.ul5-ans{gap:16px}
+.rqc-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.rqc-hs{font-size:14px;line-height:20px;color:#6B7280}
+.rqc-short{background:#fff;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:-4px}
+.rqc-ql{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 24px;padding:10px 16px;font-size:14px;line-height:20px;color:#374151}
+.rqc-ql+.rqc-ql{border-top:1px solid #F3F4F6}
+.rqc-ql b{font-weight:600;color:#1F2937}.rqc-ql .rqc-mk{margin-left:4px}
+.rqc-qa,.rqc-tl{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px}
+.rqc-mk{display:inline-block;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:20px;font-weight:600;white-space:nowrap}
+.rqc-mk.is-sm{font-size:12px;line-height:18px;font-weight:500}
+.linkbtn.rqc-lk{font-size:14px;line-height:20px;font-weight:500;white-space:nowrap;text-align:left}
+.rqc-tile .linkbtn.rqc-lk{display:inline-block;margin-top:2px;font-size:12px;line-height:16px}
+.rqc .linkbtn:focus-visible,.rqc-pop .linkbtn:focus-visible,.rqc-dt tr:focus-visible,.rqc-dtg:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.panel.rqc-card{margin:0;border:1px solid #F3F4F6;overflow:visible}
+.rqc-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px 24px;padding:20px 24px 16px}
+.rqc-t{margin:0;font-size:18px;line-height:28px;font-weight:600;color:#1F2937}
+.rqc-tg{display:inline-block;margin-top:4px;padding:0 6px;border-radius:4px;background:#F3F4F6;color:#4B5563;font-size:12px;line-height:20px;font-weight:500}
+.rqc-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}
+.rqc-acts .shd-button{height:auto;min-height:36px;min-width:112px;padding:6px 16px;gap:6px;font-size:14px;line-height:20px;white-space:normal;text-align:left}
+.rqc-acts .shd-button svg{width:16px;height:16px;flex:none}
+.rqc-acts .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF}
+.rqc-b{display:grid;grid-template-columns:300px minmax(0,1fr);gap:12px 16px;margin:0 24px 24px;padding:12px;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px}
+.rqc-who{display:flex;gap:12px;align-items:flex-start;padding:8px 4px;min-width:0;font-size:14px;line-height:20px;color:#1F2937}
+.rqc-who>span{min-width:0}.rqc-who b{font-weight:600;overflow-wrap:anywhere}
+.rqc-who p{margin:2px 0 0;font-size:13px;line-height:20px;color:#4B5563}
+.rqc-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1.1fr) minmax(0,1.3fr);gap:8px}
+.rqc-row+.rqc-row{margin-top:8px}
+.rqc-tile{min-width:0;padding:8px 12px;background:#fff;border:1px solid #E5E7EB;border-radius:6px}
+.rqc-l{display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
+.rqc-v{display:block;font-size:14px;line-height:20px;font-weight:500;color:#1F2937;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rqc-s{display:block;margin-top:2px;font-size:12px;line-height:16px;font-weight:400;color:#6B7280}
+.rqc-mkl{display:block;margin-top:2px}
+.ul-in.rqc-in{width:110px;height:28px}
+.rqc-st{display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-radius:999px;background:#F3F4F6;color:#4B5563;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap}
+.rqc-st.is-w{background:#FEF3C7;color:#92400E}.rqc-st svg{width:12px;height:12px;flex:none}
+.rqc-dtg{display:flex;align-items:center;gap:6px;align-self:flex-start;margin-top:8px;padding:0;border:0;background:none;font:inherit;font-size:16px;line-height:24px;font-weight:600;color:#1F2937;cursor:pointer}
+.rqc-dtg svg{width:16px;height:16px;color:#6B7280;transition:transform .15s}.rqc-dtg[aria-expanded="true"] svg{transform:rotate(180deg)}
+.panel.rqc-dw{margin:-4px 0 0;overflow:hidden}
+.rqc-dt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:20px;color:#1F2937}
+.rqc-dt th{padding:10px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;text-align:left;font-size:12px;line-height:16px;font-weight:500;color:#6B7280;white-space:nowrap}
+.rqc-dt td{padding:12px;border-top:1px solid #E5E7EB;vertical-align:top;color:#6B7280;min-width:0;overflow-wrap:anywhere}
+.rqc-dt th:first-child,.rqc-dt td:first-child{padding-left:24px}.rqc-dt th:last-child,.rqc-dt td:last-child{padding-right:24px}
+.rqc-dt tbody tr:first-child td{border-top:0}.rqc-dt tr.is-cont td{border-top-color:#F3F4F6}
+.rqc-dt tr.rqc-dr{cursor:pointer}.rqc-dt tr.rqc-dr:hover td,.rqc-dt tr.rqc-dr.is-open td{background:#F9FAFB}
+.rqc-nm{display:block;font-weight:500;color:#6B7280;overflow-wrap:anywhere}
+.rqc-amt{display:inline-block;padding:0 6px;border-radius:4px;background:#F9FAFB;color:#9CA3AF;font-size:13px;line-height:20px;font-weight:600;white-space:nowrap}
+.rqc-why{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#9CA3AF}
+.rqc-same{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:20px;color:#9CA3AF}.rqc-same svg{width:14px;height:14px;flex:none}
+.rqc-dt tr.rqc-xr td{border-top:0;padding-top:0;padding-bottom:14px;background:#F9FAFB;cursor:default}
+.rqc-xd{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:19px;color:#374151}.rqc-xd b{font-weight:600;color:#1F2937}
+.rqc-xn{display:flex;gap:8px;align-items:flex-start}.rqc-xn svg{width:16px;height:16px;flex:none;margin-top:1px;color:#6B7280}
+.rqc-g{color:#6B7280}.rqc-xd .shd-button svg{width:14px;height:14px}
+.rqc-xu{display:flex;align-items:center;gap:8px;margin-top:2px}
+.rqc-dt .rqc-s{color:#9CA3AF}
+.rqc-at td.rqc-pc{white-space:nowrap}
+.rqc-pop{position:fixed;z-index:1002;width:360px;max-width:calc(100vw - 16px);padding:14px 16px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 24px rgba(17,24,39,.14);box-sizing:border-box;font-size:14px;line-height:20px;color:#1F2937}
+.rqc-pt{font-size:15px;line-height:22px;font-weight:600}
+.rqc-pp{margin:4px 0 10px;font-size:13px;line-height:19px;color:#4B5563}
+.rqc-pl{display:block;margin:6px 0;font-size:12px;line-height:16px;font-weight:500;color:#374151}
+.rqc-ta{display:block;width:100%;min-height:64px;padding:8px 10px;border:1px solid #D1D5DB;border-radius:4px;font:inherit;font-size:13px;line-height:19px;color:#1F2937;resize:vertical;box-sizing:border-box}
+.rqc-ta:focus{outline:none;border-color:#1D4ED8;box-shadow:0 0 0 2px #DBEAFE}
+.rqc-opt{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:6px;cursor:pointer}
+.rqc-opt:has(input:checked){border-color:#1D4ED8;background:#EFF6FF}
+.rqc-opt input{margin:3px 0 0;accent-color:#1D4ED8}.rqc-opt b{font-weight:500}
+.rqc-pf{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.rqc-scrim.ul-scrim{background:rgba(17,24,39,.32)}
+.rqc-mdl{position:fixed;z-index:1001;top:40px;left:50%;transform:translateX(-50%);width:min(1000px,calc(100% - 32px));max-height:calc(100vh - 80px);display:flex;flex-direction:column;background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.2);overflow:hidden;font-size:14px;line-height:20px;color:#1F2937}
+.rqc-mh{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 16px 14px 24px}
+.rqc-mt{font-size:18px;line-height:28px;font-weight:600}.rqc-ms{margin-top:2px;color:#6B7280}
+.rqc-mx{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:4px;background:none;color:#6B7280;cursor:pointer}.rqc-mx:hover{background:#F3F4F6;color:#1F2937}.rqc-mx svg{width:18px;height:18px}
+.ul3-pool.rqc-pool{border-top:1px solid #E5E7EB;padding:14px 24px}
+.rqc-mb{flex:1 1 auto;min-height:0;overflow-y:auto}
+.rqc-at{width:100%;border-collapse:collapse;table-layout:fixed}
+.rqc-at th{position:sticky;top:0;z-index:1;padding:10px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;text-align:left;font-size:12px;line-height:16px;font-weight:500;color:#6B7280}
+.rqc-at td{padding:10px 12px;border-top:1px solid #E5E7EB;vertical-align:middle;font-variant-numeric:tabular-nums}
+.rqc-at tbody tr:first-child td{border-top:0}
+.rqc-at th:first-child,.rqc-at td:first-child{padding-left:24px}.rqc-at th:last-child,.rqc-at td:last-child{padding-right:24px}
+.rqc-at .rqc-n{text-align:right;padding-right:24px}
+.rqc-wsc{display:flex;gap:10px;align-items:center;min-width:0}.rqc-wsc>span{min-width:0}
+.rqc-wsc .rqc-nm{display:inline;font-weight:500;color:#1F2937}.rqc-wsc .ul-tag{margin:0 0 0 8px;vertical-align:middle}
+.rqc-hb{display:flex;align-items:center;gap:8px}.rqc-hb .pbw{flex:none;width:40px}
+.rqc-ain{display:flex;align-items:center;gap:10px}.rqc-ain .ul-in{width:120px}
+.rqc-ain .ul-in[aria-invalid="true"]{border-color:#B91C1C}
+.rqc-ad{color:#6B7280;font-variant-numeric:tabular-nums}
+.rqc-aerr{display:block;margin-top:4px;font-size:12px;line-height:16px;color:#B91C1C}.rqc-aerr:empty{display:none}
+.rqc-mf{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:12px 24px;border-top:1px solid #E5E7EB;box-shadow:0 -4px 12px rgba(17,24,39,.06)}
+.rqc-afl{display:flex;flex-direction:column;gap:4px;min-width:0}.rqc-afl b{font-weight:600}
+.rqc-afs{display:flex;flex-wrap:wrap;gap:2px 20px;font-size:13px;color:#374151}
+.rqc-afb{display:flex;gap:8px;margin-left:auto}
+@media (max-width:1180px){.rqc-b{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+ .rqc-ql{padding:10px 12px}
+ .rqc-h{padding:16px}
+ .rqc-acts{width:100%;flex-direction:column;align-items:stretch;gap:8px}.rqc-acts .shd-button{justify-content:center;text-align:center}
+ .rqc-b{margin:0 16px 16px;padding:8px}
+ .rqc-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .rqc-dt,.rqc-dt tbody{display:block}.rqc-dt thead,.rqc-dt colgroup{display:none}
+ .rqc-dt tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .rqc-dt tbody tr:first-child{border-top:0}
+ .rqc-dt td{display:block;padding:0!important;border:0!important;background:none!important}
+ .rqc-dt td:empty{display:none}.rqc-dt td:nth-child(2),.rqc-dt td:nth-child(5),.rqc-dt td:nth-child(6){grid-column:1/-1}
+ .rqc-dt tr.rqc-xr{display:block;padding:0 16px 12px;background:#F9FAFB}.rqc-dt tr.rqc-xr td{display:block}
+ .rqc-mdl{top:0;left:0;transform:none;width:100%;height:100vh;max-height:100vh;border-radius:0}
+ .rqc-mh{padding:14px 12px 10px 16px}
+ .ul3-pool.rqc-pool{padding:10px 16px;gap:6px 24px}
+ .rqc-at,.rqc-at tbody{display:block}.rqc-at thead,.rqc-at colgroup{display:none}
+ .rqc-at tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .rqc-at tbody tr:first-child{border-top:0}
+ .rqc-at td{display:block;padding:0!important;border:0!important;text-align:left!important}
+ .rqc-at td:first-child{grid-column:1/-1}
+ .rqc-at td[data-l]::before{content:attr(data-l);display:block;font-size:12px;line-height:16px;color:#6B7280}
+ .rqc-at td[data-l="New limit"]{grid-column:1/-1}
+ .rqc-mf{padding:10px 16px}.rqc-afb{width:100%}.rqc-afb .shd-button{flex:1}}
 @container askl (max-width:720px){
  .askl-t,.askl-t tbody,.askl-t tfoot{display:block;width:100%}.askl-t colgroup,.askl-t thead{display:none}
  .askl-t tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:12px;padding:16px;border-top:1px solid #E5E7EB}
@@ -14776,13 +15323,6 @@ input.ul4-qn.is-ch{border-color:#1F2937}
  .askl-t td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
  .askl-t td.askl-w,.askl-t td.askl-by,.askl-t td.askl-a,.askl-t td.askl-fl,.askl-t .askl-dr td{grid-column:1/-1}
  .askl-t td.askl-a:empty{display:none}.askl-decl{width:auto;flex-wrap:wrap}}
- .askl.is-compact .askl-t,.askl.is-compact .askl-t tbody,.askl.is-compact .askl-t tfoot{display:block;width:100%}.askl.is-compact .askl-t colgroup,.askl.is-compact .askl-t thead{display:none}
- .askl.is-compact .askl-t tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:12px;padding:16px;border-top:1px solid #E5E7EB}
- .askl.is-compact .askl-t tbody tr:first-child{border-top:0}.askl.is-compact .askl-t tfoot tr:first-child{border-top:1px solid #D1D5DB}.askl.is-compact .askl-t tr.askl-dr{border-top:0;padding-top:0}
- .askl.is-compact .askl-t td,.askl.is-compact .askl-t td:first-child,.askl.is-compact .askl-t td:last-child{display:block;padding:0!important;border:0!important;min-width:0}
- .askl.is-compact .askl-t td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
- .askl.is-compact .askl-t td.askl-w,.askl.is-compact .askl-t td.askl-by,.askl.is-compact .askl-t td.askl-a,.askl.is-compact .askl-t td.askl-fl,.askl.is-compact .askl-t .askl-dr td{grid-column:1/-1}
- .askl.is-compact .askl-t td.askl-a:empty{display:none}.askl.is-compact .askl-decl{width:auto;flex-wrap:wrap}
 @container ulg (max-width:1199px){.ul3-xg{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* change 263: edit in place in the roster, and Edit limits one resource at a time */
 .ul3-ra{display:inline-flex;align-items:center;justify-content:flex-end;gap:16px}
@@ -14914,6 +15454,174 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ul-sheet .ul-badge.is-ok,.ul-sheet .ul-badge.is-info,.ul-sheet .ul-badge.is-warn{background:#F3F4F6;color:#374151}
 .ul-sheet .ul-rv-open{background:#FEF3C7;border-bottom-color:#E5E7EB}.ul-rv-foot svg{flex:none;width:14px;height:14px;margin-top:1px;color:var(--gray-15)}
 @media (max-width:1400px){.ul-t td,.ul-t th{padding-left:10px;padding-right:10px}.ul-t td:first-child,.ul-t th:first-child{padding-left:20px}.ul-t td:last-child,.ul-t th:last-child{padding-right:20px}}
+/* change 284: the client's Usage page, its ask sheet and Ask details (cx-) */
+.cx-tb{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:flex-end}
+.cx-askbtn{display:inline-flex;align-items:center;gap:6px}.cx-askbtn svg{width:16px;height:16px;flex:none}
+.cx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.panel.cx-pn{padding:0;overflow:hidden}
+.cx-ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:18px 24px 14px}
+.cx-hsub{font-size:14px;line-height:20px;color:#6B7280}
+.cx-ut,.cx-rt{width:100%;border-collapse:collapse;table-layout:fixed}
+.cx-ut th,.cx-rt th{font-size:12px;line-height:16px;font-weight:500;color:#6B7280;text-align:left;padding:10px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;white-space:nowrap}
+.cx-ut th{border-top:1px solid #E5E7EB}
+.cx-ut td,.cx-rt td{padding:12px;border-top:1px solid #E5E7EB;vertical-align:top;font-size:14px;line-height:20px;color:#1F2937;text-align:left}
+.cx-ut tbody tr:first-child td,.cx-rt tbody tr:first-child td{border-top:0}
+.cx-ut th:first-child,.cx-ut td:first-child,.cx-rt th:first-child,.cx-rt td:first-child{padding-left:24px}
+.cx-ut th:last-child,.cx-ut td:last-child{padding-right:24px;text-align:right}
+.cx-rt th:last-child,.cx-rt td:last-child{padding-right:16px}
+.cx-rn{display:block;font-weight:500;color:#1F2937}
+.cx-s{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280;font-weight:400}
+.cx-s.cx-in{display:inline;margin:0 0 0 2px}
+.cx-bar{display:flex;align-items:center;gap:10px}
+.cx-bw{flex:1;max-width:160px;height:8px;border-radius:30px;background:#E5E7EB;overflow:hidden}
+.cx-bw i{display:block;height:100%;background:#9CA3AF;border-radius:30px}
+.cx-bw.is-hot i{background:#F59E0B}
+.cx-av{font-weight:500}
+.cx-ul{display:block}.cx-ul+.cx-ul{margin-top:4px}
+.cx-g{color:#6B7280}
+.cx-mk{display:inline-block;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:500;font-size:12px;line-height:20px;white-space:nowrap}
+.cx-lk{background:none;border:0;padding:0;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#1D4ED8;cursor:pointer;text-align:left}
+.cx-lk:hover{text-decoration:underline;text-underline-offset:3px}
+.cx-lk.is-ans{color:#374151;font-weight:400}
+.cx-foot{padding:12px 24px;border-top:1px solid #E5E7EB;font-size:13px;line-height:20px;color:#6B7280}
+.cx-sec{margin-top:8px}
+.ub-tabs:has(+ .cx-pn){margin-bottom:0}
+.cx-sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:0 0 12px}
+.cx-sh h2{margin:0;font-size:20px;line-height:28px;font-weight:600;color:#1F2937;outline:0}
+.cx-hs{font-size:14px;line-height:20px;color:#6B7280}
+.cx-flt{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 12px}
+.cx-sel{appearance:none;-webkit-appearance:none;width:auto;height:32px;min-width:168px;padding:0 32px 0 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%236B7280'%3E%3Cpath d='M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z'/%3E%3C/svg%3E") no-repeat right 10px center;font:inherit;font-size:14px;line-height:20px;color:#1F2937;cursor:pointer}
+.cx-sel:hover{border-color:#9CA3AF}.cx-sel.is-on{border-color:#1D4ED8}
+.cx-cnt{margin-left:auto;font-size:14px;line-height:20px;color:#6B7280}
+.cx-rt tbody tr{cursor:pointer}
+.cx-rt tbody tr:hover td,.cx-rt tbody tr.is-cur td{background:#EFF6FF}
+.cx-rt tbody tr.is-cur td:first-child{box-shadow:inset 3px 0 0 #1D4ED8}
+.cx-rt tbody tr.is-new td{animation:cuFlash 1.6s ease-out}
+@keyframes cuFlash{from{background:#DBEAFE}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.cx-rt tbody tr.is-new td{animation:none}}
+.cx-rt td{overflow-wrap:anywhere}
+.cx-wl{display:block;color:#1F2937;font-weight:500}.cx-wl+.cx-wl{margin-top:4px}
+.cx-wl .cx-s{display:inline;margin:0 0 0 2px}
+.cx-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#374151}
+.cx-rt tr.is-dec td{color:#6B7280}.cx-rt tr.is-dec .cx-wl{color:#374151;font-weight:400}.cx-rt tr.is-dec .cx-clamp{color:#6B7280}
+.cx-none{color:#9CA3AF}
+.cx-chev{color:#9CA3AF;display:grid;place-items:center;height:20px}.cx-chev svg{width:16px;height:16px}
+.cx-st{display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-radius:999px;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap;background:#F3F4F6;color:#4B5563}
+.cx-st.is-w{background:#FEF3C7;color:#92400E}
+.cx-st svg{width:12px;height:12px;flex:none}
+.cx-empty{padding:40px 24px;text-align:center}
+.cx-empty p{margin:0 auto 16px;max-width:52ch;color:#6B7280;font-size:14px;line-height:20px}
+.cx-empty b{display:block;color:#1F2937;font-size:16px;line-height:24px;margin-bottom:4px;font-weight:600}
+.cx-empty .shd-button{margin-top:0}
+.cx-ml{display:none}
+.cx-lk:focus-visible,.cx-sel:focus-visible,.cx-x:focus-visible,.cx-amt:focus-visible,.cx-ta:focus-visible,.cx-pk input:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.cx-rt tbody tr:focus-visible{outline:2px solid #1D4ED8;outline-offset:-2px}
+/* Ask details */
+.cx-scrim{position:fixed;inset:0;background:rgba(17,24,39,.32);z-index:1150}
+.cx-dw{position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:#fff;box-shadow:-6px 0 18px rgba(0,0,0,.14);z-index:1151;display:flex;flex-direction:column;font-size:14px;line-height:20px;color:#1F2937}
+.cx-dtop{padding:18px 20px 16px 24px;border-bottom:1px solid #E5E7EB;flex:none}
+.cx-dh{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.cx-dt{margin:0;font-size:18px;line-height:28px;font-weight:600;color:#1F2937}
+.cx-x{width:32px;height:32px;border:0;background:none;border-radius:4px;display:grid;place-items:center;color:#6B7280;cursor:pointer;padding:0;flex:none}
+.cx-x:hover{background:#F3F4F6;color:#1F2937}.cx-x svg{width:18px;height:18px}
+.cx-who{display:flex;align-items:center;gap:12px;margin-top:14px}
+.cx-who b{font-weight:500}
+.cx-strip{display:grid;grid-template-columns:1fr 1.4fr 1.1fr;margin-top:16px;border:1px solid #E5E7EB;border-radius:8px}
+.cx-strip>div{padding:10px 12px;min-width:0}.cx-strip>div+div{border-left:1px solid #E5E7EB}
+.cx-l{display:block;font-size:12px;line-height:16px;color:#6B7280;margin-bottom:2px;font-weight:400}
+.cx-v{display:block;font-weight:500;color:#1F2937}
+.cx-dbody{flex:1;overflow-y:auto;background:#F9FAFB;padding:16px 20px 20px 24px}
+.cx-ctx{display:flex;justify-content:space-between;align-items:baseline;gap:12px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.cx-ctx b{font-weight:600}
+.cx-rc{background:#fff;border:1px solid #E5E7EB;border-left:3px solid #F59E0B;border-radius:6px}
+.cx-rc.is-dec{border-left-color:#D1D5DB}.cx-rc+.cx-rc{margin-top:12px}
+.cx-rch{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #F3F4F6}
+.cx-rch b{font-weight:600}
+.cx-rcc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 16px;padding:12px 14px}
+.cx-big{display:block;font-size:16px;line-height:24px;font-weight:600;color:#1F2937}
+.cx-big.is-g{color:#6B7280;font-weight:500}
+.cx-rcu{display:flex;gap:8px;align-items:flex-start;padding:0 14px 12px;font-size:13px;line-height:18px;color:#374151}
+.cx-rcu svg{width:16px;height:16px;flex:none;color:#6B7280;margin-top:1px}
+.cx-why{display:flex;gap:8px;align-items:flex-start;margin:16px 0 0;color:#374151}
+.cx-why svg{width:16px;height:16px;flex:none;margin-top:2px;color:#6B7280}
+.cx-ans{margin-top:16px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:12px 14px}
+.cx-ans .cx-l{margin-bottom:4px}
+.cx-ans p{margin:0;color:#1F2937}
+.cx-by{margin-top:8px;font-size:13px;line-height:18px;color:#6B7280}
+.cx-dfoot{flex:none;border-top:1px solid #E5E7EB;background:#fff;padding:12px 20px 14px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px}
+.cx-dfoot .shd-button{margin-top:0;min-width:0}
+.cx-from{margin-right:auto;font-size:12px;line-height:16px;color:#9CA3AF}
+.cx-only{margin-right:auto;font-size:13px;line-height:18px;color:#6B7280}
+/* the ask sheet */
+.modal.cx-askm{width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 48px);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.2)}
+.cx-mh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:20px 20px 12px 24px;flex:none}
+.cx-mt{margin:0;font-size:18px;line-height:28px;font-weight:600;color:#1F2937}
+.cx-mh p{margin:2px 0 0;font-size:14px;line-height:20px;color:#6B7280}
+.cx-mx{flex:none}
+.cx-mb{flex:1;min-height:0;overflow-y:auto;padding:4px 24px 20px}
+.cx-mf{flex:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px;padding:14px 24px;border-top:1px solid #E5E7EB}
+.cx-mf .shd-button{margin-top:0}
+.cx-to{margin-right:auto;font-size:13px;line-height:18px;color:#6B7280}
+.cx-flab{display:block;font-size:14px;line-height:20px;font-weight:500;color:#1F2937;margin:16px 0 8px}
+.cx-mb>.cx-flab:first-child{margin-top:4px}
+.cx-req{color:#DC2626;margin-left:2px}
+.cx-picks{border:1px solid #E5E7EB;border-radius:8px}
+.cx-pick{padding:12px 14px}.cx-pick+.cx-pick{border-top:1px solid #E5E7EB}
+.cx-pick.is-on{background:#F9FAFB}
+.cx-pk{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:14px;line-height:20px;color:#1F2937}
+.cx-pk input{width:16px;height:16px;margin:2px 0 0;accent-color:#1D4ED8;cursor:pointer;flex:none}
+.cx-pk .cx-nm{flex:1;min-width:0}.cx-pk b{font-weight:500}
+.cx-pick.is-dis .cx-pk{cursor:default}.cx-pick.is-dis .cx-pk b{color:#6B7280}.cx-pick.is-dis input{opacity:.5;cursor:default}
+.cx-pamt{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 16px;margin:10px 0 0 28px}
+.cx-pamt .cx-amt{width:150px;flex:none;margin:0;height:32px;padding:0 10px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;color:#1F2937;font:inherit;font-size:14px;font-variant-numeric:tabular-nums;box-sizing:border-box}
+.cx-amt:hover{border-color:#9CA3AF}.cx-amt[aria-invalid="true"]{border-color:#DC2626}
+.cx-hint{font-size:13px;line-height:18px;color:#6B7280;padding-top:7px;min-width:0;flex:1}
+.cx-hint b{font-weight:500;color:#374151}
+.cx-hl{display:block}
+.cx-ta{display:block;width:100%;min-height:76px;padding:8px 10px;border:1px solid #D1D5DB;border-radius:4px;font:inherit;font-size:14px;line-height:20px;resize:vertical;background:#fff;color:#1F2937;box-sizing:border-box}
+.cx-ta[aria-invalid="true"]{border-color:#DC2626}.cx-ta::placeholder{color:#9CA3AF}
+.cx-whyh{margin-top:6px}
+.cx-ferr{display:block;margin-top:6px;font-size:13px;line-height:18px;color:#B91C1C}
+.cx-doneic{width:40px;height:40px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:grid;place-items:center;margin:4px 0 12px}
+.cx-doneic svg{width:22px;height:22px}
+.cx-done{margin:0 0 12px;padding:0;list-style:none}
+.cx-done li{padding:6px 0;border-top:1px solid #F3F4F6;font-weight:500;font-size:14px;line-height:20px;color:#1F2937}
+.cx-done li:last-child{border-bottom:1px solid #F3F4F6}
+.cx-donep{margin:0;font-size:14px;line-height:20px;color:#374151}
+@media (max-width:1180px){.cx-rt .cx-c-note{display:none}}
+@media (max-width:760px){
+ .cx-tb{width:100%;justify-content:space-between}.cx-askbtn{flex:1 1 100%;justify-content:center}
+ .cx-ph{padding:14px 16px 12px}
+ .cx-ut thead{display:none}
+ .cx-ut,.cx-ut tbody{display:block}
+ .cx-ut tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rn av" "us us" "pc pc" "ac ac";gap:6px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
+ .cx-ut tbody tr:first-child{border-top:0}
+ .cx-ut td{display:block;padding:0!important;border:0!important;text-align:left!important}
+ .cx-ut td.cx-c-rn{grid-area:rn}.cx-ut td.cx-c-us{grid-area:us}.cx-ut td.cx-c-av{grid-area:av;text-align:right!important}.cx-ut td.cx-c-pc{grid-area:pc}.cx-ut td.cx-c-ac{grid-area:ac}
+ .cx-ut td:empty{display:none}
+ .cx-bw{max-width:none}
+ .cx-foot{padding:12px 16px}
+ .cx-sel{min-width:0;flex:1 1 calc(50% - 6px)}
+ .cx-cnt{width:100%;margin-left:0}
+ .cx-rt thead,.cx-rt colgroup{display:none}
+ .cx-rt,.cx-rt tbody{display:block}
+ .cx-rt tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"ask st" "by by" "wh wh" "why why" "nt nt" "an an";gap:6px 12px;padding:14px 16px;border-top:1px solid #E5E7EB}
+ .cx-rt tbody tr:first-child{border-top:0}
+ .cx-rt td{display:block;padding:0!important;border:0!important;background:none!important;box-shadow:none!important}
+ .cx-rt tbody tr:hover,.cx-rt tbody tr.is-cur{background:#EFF6FF}
+ .cx-rt td.cx-c-ask{grid-area:ask}.cx-rt td.cx-c-by{grid-area:by;margin-top:-4px;font-size:13px;color:#6B7280}.cx-rt td.cx-c-wh{grid-area:wh}.cx-rt td.cx-c-why{grid-area:why}.cx-rt td.cx-c-st{grid-area:st}.cx-rt td.cx-c-an{grid-area:an}.cx-rt .cx-c-note{display:block;grid-area:nt}.cx-rt td.cx-c-ch{display:none}
+ .cx-rt td.cx-c-ask .cx-s{display:inline;margin-left:6px}
+ .cx-rt td.cx-c-an.is-wt,.cx-rt td.cx-c-note.is-e{display:none}
+ .cx-ml{display:inline;color:#6B7280;font-size:12px}
+ .cx-ut td.cx-c-av .cx-ml{font-size:14px;color:#1F2937;font-weight:500}
+ .mscrim .modal.cx-askm{top:auto;bottom:0;left:0;transform:none;width:100%;max-height:92vh;border-radius:12px 12px 0 0}
+ .cx-mh{padding:16px 12px 8px 16px}.cx-mb{padding:4px 16px 16px}.cx-mf{padding:12px 16px}
+ .cx-to{width:100%}.cx-mf .shd-button{flex:1}
+ .cx-pamt .cx-amt{width:100%;flex:1 1 100%}.cx-pamt .cx-hint{flex-basis:100%;padding-top:0}
+ .cx-dtop{padding:14px 12px 14px 16px}
+ .cx-strip{grid-template-columns:1fr 1fr}.cx-strip>div:nth-child(3){grid-column:1/-1;border-left:0;border-top:1px solid #E5E7EB}
+ .cx-dbody{padding:14px 16px 16px}.cx-dfoot{padding:10px 16px 12px}
+}
 </style>
 </body>
 </html>
