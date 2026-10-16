@@ -3552,9 +3552,9 @@ const openMePop=()=>{if(el("meBtn").classList.contains("me-static"))return;
  P.hidden=false;el("meBtn").setAttribute("aria-expanded","true");(asClient?renderClientMePop:renderMePop)()};
 /* change 292 (audit P1-33): the client user's account menu: the agency's, without Replay the product tour */
 function renderClientMePop(){const c=byId[ctx], u=c&&actingClientUser(c), email=u?u[0]:"";
- el("mePopL").innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--gray-16)">
+ el("mePopL").innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 10px;min-height:67px;box-sizing:border-box;border-bottom:1px solid var(--gray-16)">
    <span class="avatar av-tint" style="--c:var(--blue-11);width:32px;height:32px;font-size:12px">${email.slice(0,2).toUpperCase()}</span>
-   <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ppName(email)}</span><span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</span></span></div>
+   <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ppName(email,u)}</span>${u&&u[2]?`<span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</span>`:""}</span></div>
   <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
  el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop(); cView="settings"; openProspect=null; openSeq=null; openReply=null; render()});
@@ -3967,7 +3967,7 @@ const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:
 let REC_EDIT=null, REC_COL=null;   /* the client whose Details card is being edited in place, and the colour picked while editing */
 function recAccessRows(c){
  const rows=[];
- (c.users||[]).forEach(u=>rows.push({ini:initials(u[0].split("@")[0]),col:c.colour,name:ppName(u[0]),sub:u[0],role:u[1],kind:"client"}));
+ (c.users||[]).forEach(u=>rows.push({ini:initials(u[0].split("@")[0]),col:c.colour,name:ppName(u[0],u),sub:u[2]?u[0]:"",role:u[1],kind:"client"}));
  Object.keys(PEOPLE).forEach(k=>{const P=PEOPLE[k]; if(P.role==="Member"&&!(P.ws&&P.ws.indexOf(c.id)>-1)) return;
   rows.push({ini:P.initials||initials(P.name),col:AGENCY.colour,name:P.name,sub:roleName(P.role),role:P.role==="Member"?ppWsRole(P,c.id):"Workspace Admin",kind:"team"})});
  return rows;
@@ -3980,7 +3980,7 @@ let REC_ACCESS_MAX=4;
 function recAccessCard(c,ro){
  const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU, more=rows.length-REC_ACCESS_MAX;
  const line=c.own?"Your team only":nU?`${nU} client user${nU===1?"":"s"}, ${nT} from ${AGENCY.name}`:`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
- const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span>${r.name}</span><span class="cs">${r.sub}</span></span><span class="rc-prole">${r.role}</span></div>`;
+ const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span${r.sub?"":' class="rc-addr"'}>${r.name}</span>${r.sub?`<span class="cs">${r.sub}</span>`:""}</span><span class="rc-prole">${r.role}</span></div>`;
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members</button></span></div>
   <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.slice(0,REC_ACCESS_MAX).map(row).join("")}${more>0?`<button class="rc-more" data-tab="members">+${more} more</button>`:""}</div></div>`;
 }
@@ -5568,7 +5568,7 @@ function peopleRows(){
   const seen=AGE(LASTSEEN[P.name]||"unknown"), status=(P.disabled||DISABLED["t:"+k])?"Disabled":seen==="never"?"Invited":"Active";
   return {key:"t:"+k,kind:"team",name:P.name,email:P.email||"",initials:P.initials,role:P.role,ws:P.ws?P.ws.filter(id=>byId[id]):null,seen,status,colour:"var(--blue-11)"}});
  const w=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0], seen=AGE(LASTSEEN[email]||"unknown"), key="w:"+c.id+"|"+email;
-  w.push({key,kind:"wsuser",name:email.split("@")[0].replace(/^./,x=>x.toUpperCase()),email,initials:initials(email.split("@")[0]),role:u[1],ws:[c.id],seen,status:DISABLED[key]?"Disabled":seen==="never"?"Invited":"Active",colour:c.colour,c})}));
+  w.push({key,kind:"wsuser",name:ppName(email,u),email,initials:ppIni(u[2],email),role:u[1],ws:[c.id],seen,status:DISABLED[key]?"Disabled":seen==="never"?"Invited":"Active",colour:c.colour,c})}));
  const order={Owner:0,Admin:1,Member:2};
  t.sort((a,b)=>order[a.role]-order[b.role]||a.name.localeCompare(b.name));
  w.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
@@ -5638,7 +5638,10 @@ let PP={q:"",ws:"all",role:"all",tab:"all",menu:null,addws:false,removeConfirm:f
 const PP_WS_ROLES=["Workspace Admin","Workspace Collaborator","Workspace Viewer"];
 /* change 223: no short form any more; ppShort keeps its callers and says the full name */
 const ppShort=r=>roleName(r);
-const ppName=email=>email.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase());
+/* change 309: a name only when one is stored (a third entry on c.users); otherwise the address itself, never one made from it */
+const ppName=(email,u)=>(u&&u[2])||email;
+const ppIni=(nm,email)=>initials(nm||email.split("@")[0].replace(/[._-]+/g," "));
+const PP_AV="#F3F4F6";   /* change 309: the neutral People avatar, Gray 100 fill, Gray 700 initials (CSS) */
 const ppAv=(ini,col,size,dashed)=>`<span class="pp-av" style="--c:${col};width:${size}px;height:${size}px;font-size:${Math.round(size*.37)}px${dashed?";background:#fff;border:1.5px dashed var(--gray-11);color:var(--gray-15)":""}">${ini}</span>`;
 const ppWsRole=(p,id)=>(p.roles&&p.roles[id])||"Workspace Collaborator";
 function ppTeam(){
@@ -5649,7 +5652,7 @@ function ppTeam(){
 }
 function ppClients(){
  const out=[]; CLIENTS.filter(c=>!c.deletedOn).forEach(c=>(c.users||[]).forEach(u=>{const email=u[0],seen=AGE(LASTSEEN[email]||"unknown");
-  out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email),initials:initials(ppName(email)),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
+  out.push({key:"w:"+c.id+"|"+email,c,email,name:ppName(email,u),named:!!u[2],initials:ppIni(u[2],email),role:u[1],seen,invited:seen==="never"?INVITED["w:"+c.id+"|"+email]||"never":null})}));
  return out.sort((a,b)=>a.c.name.localeCompare(b.c.name)||a.email.localeCompare(b.email));
 }
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
@@ -5679,19 +5682,19 @@ function vPeople(){
  const all=tab==="all";
  const rows=all?team.concat(cl):tab==="team"?team:tab==="clients"?cl:inv, total=all?teamAll.length+clAll.length:tab==="team"?teamAll.length:tab==="clients"?clAll.length:invAll.length;
  /* All users carries one more column, Type (Your team or Client user); its Role column then holds the account role for the team and the workspace role for a client user */
- const cols=all?'grid-template-columns:minmax(210px,1fr) 90px 160px minmax(0,2.5fr) 100px 180px 44px':'grid-template-columns:minmax(210px,1fr) 120px minmax(0,2.5fr) 100px 180px 44px';
+ const cols=all?'grid-template-columns:minmax(250px,1fr) 78px 152px minmax(0,2.5fr) 88px 176px 44px':'grid-template-columns:minmax(250px,1fr) 120px minmax(0,2.5fr) 88px 176px 44px';
  const typeCell=t=>all?`<span class="pp-type">${t}</span>`:"";
  const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Account role</span>"}<span>Workspace access</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  const teamRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="t:${r.k}">
-   <span class="pp-person">${ppAv(r.initials,r.role==="Owner"?"#1D4ED8":"#DBEAFE",32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
+   <span class="pp-person">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
    ${typeCell("Your team")}<span class="pp-roletxt">${roleName(isATM()?atmRoleOf(r.k):r.role)}</span>
    <span class="pp-access">${ppAccess(r)}</span>
    <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
-   <span class="pp-person">${ppAv(r.initials,r.c.colour,32,!!r.invited)}<span><b>${r.name}</b><i>${r.email}</i></span></span>
+   <span class="pp-person${r.named?"":" is-addr"}">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}</b>${r.named?`<i>${r.email}</i>`:""}</span></span>
    ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?roleName(r.role):"Client user"}</span>
    <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}<span class="pp-chip-n">${r.c.name}</span><span class="pp-chip-r">${ppShort(r.role)}</span></span></span>
    <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":r.seen}</span>
@@ -5837,7 +5840,7 @@ function personOf(key){
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
   return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,disabled:r.disabled,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
  if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
-  return {kind:"client",key,c:r.c,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
+  return {kind:"client",key,c:r.c,name:r.name,named:r.named,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
  return null;
 }
 /* the invite row this person would have had: one shape before and after Send */
@@ -5950,7 +5953,7 @@ function vPerson(){
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
    <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
-   ${ppAv(p.initials,p.colour,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.email}, ${sub}. ${status}${signsAt}.</span></span></div>
+   ${ppAv(p.initials,PP_AV,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.kind==="client"&&!p.named?"":p.email+", "}${sub}. ${status}${signsAt}.</span></span></div>
   <div class="tools">${reset}${ownerBtn}${dis}${rm}</div></div>
  ${receiptBar("people")}${tr}
  <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
@@ -11546,7 +11549,7 @@ function cSettings(c){
  return `${cWorkspaceSection(c)}<div class="grid" style="margin-top:16px">
   <div class="panel"><div class="panel-h"><span class="panel-t">Profile</span></div><div class="panel-b">
    ${noUser?`<p class="sub" style="margin:0 0 12px">No one invited yet.</p>`:""}
-   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":u.split("@")[0].replace(/^./,x=>x.toUpperCase())}" placeholder="${noUser?"No one invited yet":""}" ${ro?"disabled":""}></div>
+   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":(c.users&&c.users[0]&&c.users[0][2])||""}" placeholder="${noUser?"No one invited yet":"Not set"}" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" placeholder="${noUser?"No one invited yet":""}" disabled>
     <p class="sub" style="margin-top:6px">${noUser?"Invite the workspace's first user from People to fill this in.":`Your sign-in. ${AGENCY.name} invited this address; ask them to invite another to change it.`}</p></div>
    <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
@@ -13397,8 +13400,8 @@ function wire(){
  q("[data-ppresend]").forEach(b=>b.onclick=()=>{const k=b.dataset.ppresend;INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now";ppToast(`Invite resent${PEOPLE[k]&&PEOPLE[k].email?" to "+PEOPLE[k].email:""}.`,null);render()});
  q("[data-pproles]").forEach(b=>{if(!b.onclick)b.onclick=()=>{modal={kind:"pproles"};renderModal()}});
  q("[data-ppcl]").forEach(b=>b.onclick=e=>{e.stopPropagation();PP.menu=PP.menu===b.dataset.ppcl?null:b.dataset.ppcl;render()});
- q("[data-ppclrole]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [key,role]=b.dataset.ppclrole.split("|");const [id,email]=key.slice(2).split("|");const c=byId[id];const u=c.users.find(x=>x[0]===email);const was=u[1];u[1]=role;PP.menu=null;ppToast(`${ppName(email)} is now ${ppShort(role)} in ${c.name}.`,()=>{u[1]=was;render()});render()});
- q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
+ q("[data-ppclrole]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [key,role]=b.dataset.ppclrole.split("|");const [id,email]=key.slice(2).split("|");const c=byId[id];const u=c.users.find(x=>x[0]===email);const was=u[1];u[1]=role;PP.menu=null;ppToast(`${ppName(email,u)} is now ${ppShort(role)} in ${c.name}.`,()=>{u[1]=was;render()});render()});
+ q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email,u)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
  {const i=el("ppQ");if(i){i.oninput=()=>{PP.q=i.value;const v=i.value;render();const n=el("ppQ");if(n){n.focus();n.setSelectionRange(v.length,v.length)}}}}
  q("[data-ppclear]").forEach(b=>b.onclick=()=>{PP.q="";render()});   /* change 297 (audit P2-8) */
  wireDD(document,"ppWs",v=>{PP.ws=v;render()});
@@ -14081,6 +14084,10 @@ demoSync();
 .pp-person i{font-style:normal;font-size:11px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pp-av{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--c);color:#fff;font-weight:600;flex:none;box-sizing:border-box}
 .pp-av[style*="#DBEAFE"]{color:var(--blue-20)}
+/* change 309: the neutral People avatar (Gray 100 fill, Gray 700 initials); a row with no stored name shows the address as one line */
+.pp-av[style*="#F3F4F6"]{color:#374151}
+.rc-prow{min-height:54px;box-sizing:border-box}
+.rc-pname>span.rc-addr:first-child{white-space:normal;overflow-wrap:anywhere}
 .pp-role{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:4px;background:var(--blue-13);color:var(--blue-20);font-size:12px;font-weight:500}
 .pp-role--mute{background:var(--gray-16);color:var(--blue-16)}
 .pp-access{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}
@@ -15897,7 +15904,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b7a6311";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="e71a9aa";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
