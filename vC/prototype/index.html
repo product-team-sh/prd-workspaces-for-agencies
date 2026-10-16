@@ -4720,6 +4720,8 @@ const RM_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const RM_TICK='<svg class="rmt-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
 const RM_KEBAB='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
 const RM_X='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+/* change 308: one neutral avatar for everyone on the tab (Gray 100 fill, Gray 700 initials); Type says the kind */
+const RM_AV="#F3F4F6";
 /* an address on another client's domain (never this workspace's own domain) */
 function rmCross(c,email){const d=rmDom(email); if(!d||d===rmDom(c.email)) return null;
  const o=CLIENTS.find(x=>x!==c&&!x.own&&!x.deletedOn&&rmDom(x.email)===d); return o?{d,ws:o.name}:null}
@@ -4727,9 +4729,11 @@ function rmCross(c,email){const d=rmDom(email); if(!d||d===rmDom(c.email)) retur
 const rmCreated=c=>c.created?String(c.created).replace(/^0/,"").replace(/,.*$/,""):null;
 function rmClients(c){const R=CLIENT_ROLES;
  return (c.users||[]).map(u=>{const email=u[0], key="w:"+c.id+"|"+email, seen=AGE(LASTSEEN[email]||"unknown"), inv=seen==="never";
-  return {key,email,label:email,name:ppName(email),ini:initials(ppName(email)),col:c.colour,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],x:rmCross(c,email),client:true}})
+  /* change 308: a name only when the person set one (u[2]); otherwise the address is the name line */
+  const nm=u[2]||null;
+  return {key,email,label:email,name:nm,ini:initials(nm||email.split("@")[0].replace(/[._-]+/g," ")),col:RM_AV,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],x:rmCross(c,email),client:true}})
   .sort((a,b)=>(!!b.x-!!a.x)||R.indexOf(a.role)-R.indexOf(b.role)||a.email.localeCompare(b.email))}
-function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,email:r.email,ini:r.initials,col:r.role==="Owner"?"#1D4ED8":"#DBEAFE",
+function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,email:r.email,ini:r.initials,col:RM_AV,
  acct:roleName(r.role),fixed:r.ws===null,role:r.ws===null?"Workspace Admin":ppWsRole(r.P,c.id),seen:r.seen,isInv:r.seen==="never",sent:r.invited,off:r.disabled,me:r.me}))}
 /* Last sign-in: the status folds in here (no Status column, no green dot) */
 function rmSeen(c,r){
@@ -4745,35 +4749,43 @@ function rmSeen(c,r){
    without the box, lined up with the select's text, and says why under it. */
 const RM_DDCHEV='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
 const RM_DDCHK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+/* change 308: one role style. Every role is plain 14px text on the column's x; one the viewer may change is a button
+   with a small chevron after it, the field outline on hover and focus, and the role menu on click. */
 function rmRoleCell(c,r,can){
  if(!can) return `<span class="rmt-role">${r.role}</span>${r.fixed?`<span class="sub rmt-fixed">${r.acct}, in every workspace</span>`:""}`;
  const open=RM.pop==="r:"+r.key;
- return `<div class="dd rmt-dd${open?" is-open":""}"><button type="button" class="dd-trig rmt-rbtn" data-rmrole="${rmEsc(r.key)}" aria-haspopup="listbox" aria-expanded="${open}" aria-label="Role: ${r.role}. Change role"><span class="dd-val">${r.role}</span>${RM_DDCHEV}</button>${open?`<div class="dd-menu rmt-pop" role="listbox" aria-label="Role in ${rmEsc(c.name)}">${CLIENT_ROLES.map(x=>`<button type="button" role="option" class="dd-opt rmt-opt${x===r.role?" is-sel":""}" aria-selected="${x===r.role}" data-rmpick="${rmEsc(r.key)}|${x}"><span class="dd-lbl"><span class="dd-l">${x}</span><span class="dd-desc">${roleLine(x)}</span></span>${x===r.role?RM_DDCHK:""}</button>`).join("")}</div>`:""}</div>`;
+ return `<div class="dd rmt-dd${open?" is-open":""}"><button type="button" class="rmt-rbtn" data-rmrole="${rmEsc(r.key)}" aria-haspopup="listbox" aria-expanded="${open}" aria-label="Role for ${rmEsc(r.label)}: ${r.role}"><span class="rmt-role">${r.role}</span>${RM_DDCHEV}</button>${open?`<div class="dd-menu rmt-pop" role="listbox" aria-label="Role in ${rmEsc(c.name)}">${CLIENT_ROLES.map(x=>`<button type="button" role="option" class="dd-opt rmt-opt${x===r.role?" is-sel":""}" aria-selected="${x===r.role}" data-rmpick="${rmEsc(r.key)}|${x}"><span class="dd-lbl"><span class="dd-l">${x}</span><span class="dd-desc">${roleLine(x)}</span></span>${x===r.role?RM_DDCHK:""}</button>`).join("")}</div>`:""}</div>`;
 }
 function rmMenuCell(r,items){
  if(!items.length) return `<td class="rmt-act"></td>`;
  const open=RM.pop==="m:"+r.key;
  return `<td class="rmt-act"><div class="rmt-cell rmt-cell--m"><button type="button" class="ubtn rmt-kebab" data-rmmenu="${rmEsc(r.key)}" aria-haspopup="menu" aria-expanded="${open}" aria-label="Actions for ${rmEsc(r.label)}">${RM_KEBAB}</button>${open?`<div class="menu rmt-menu" role="menu">${items.map(([k,l,why])=>`<button type="button" role="menuitem" class="menu-i${k==="remove"?" is-rm":""}" ${why?`disabled title="${rmEsc(why)}"`:`data-rmdo="${k}|${rmEsc(r.key)}"`}><span class="menu-l">${rmEsc(l)}</span>${why?`<span class="menu-d">${rmEsc(why)}</span>`:""}</button>`).join("")}</div>`:""}</div></td>`;
 }
-function rmWho(r,link,inner){return link?`<button type="button" class="rmt-who" data-rmperson="${rmEsc(r.key)}">${inner}</button>`:`<span class="rmt-who">${inner}</span>`}
+function rmWho(r,link,inner,tip){const t=tip?` title="${rmEsc(tip)}"`:""; return link?`<button type="button" class="rmt-who" data-rmperson="${rmEsc(r.key)}"${t}>${inner}</button>`:`<span class="rmt-who"${t}>${inner}</span>`}
 /* change 304: People's person cell: 32px avatar (dashed while invited), the name, the address under it. A client
    user's name is People's, made from the address. An address on another client's domain keeps one line: the amber
    underline on the address and the reason after it, the full sentence on hover; Remove is in the row menu. */
-function rmPerson(r,link,sub,tip){return `<span class="pp-person rmt-person">${ppAv(r.ini,r.col,32,r.isInv)}<span>${rmWho(r,link,rmEsc(r.name)+(r.me?' <span class="sub">(you)</span>':""))}<i${tip?` title="${rmEsc(tip)}"`:""}>${sub}</i></span></span>`}
+/* change 308: a name only when the person set one, the address under it; with no name the address is the one line.
+   An address may end in an ellipsis, with the full address as its title. */
+function rmPerson(r,link){const em=rmEsc(r.email);
+ const main=r.name?rmWho(r,link,rmEsc(r.name)+(r.me?' <span class="sub">(you)</span>':""))+`<i class="rmt-em" title="${em}">${em}</i>`:rmWho(r,link,em,r.email);
+ return `<span class="pp-person rmt-person${r.name?"":" is-addr"}">${ppAv(r.ini,r.col,32,r.isInv)}<span>${main}</span></span>`}
 /* People's Type column ("Your team", "Client user") in place of the group rows */
-const rmTypeCell=(ty,t)=>ty?`<td><span class="rmt-type">${t}</span></td>`:"";
+/* change 308: an address on another client's domain is flagged here, change 307's amber chip, the sentence its title */
+const rmTypeCell=(ty,t,flag)=>ty?`<td><span class="rmt-type">${t}</span>${flag||""}</td>`:"";
+const rmFlag=(r,ed)=>{const why=`On ${rmPoss(r.x.ws)} domain, another of your clients.`;
+ return `<span class="rmt-flag${ed?"":" is-quiet"}" title="${rmEsc(why)}">Other client's domain<span class="rmt-sr"> ${rmEsc(why)}</span></span>`};
 function rmClientRow(c,r,ed,link,ty){
  const only=(c.users||[]).length===1;
- const sub=r.x?`${ed?`<span class="rmt-mku">${rmEsc(r.email)}</span>`:rmEsc(r.email)}, on ${rmEsc(rmPoss(r.x.ws))} domain`:rmEsc(r.email);
  const items=ed?[["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
   ["remove","Remove from "+c.name,only?`The only sign-in for ${c.name}; disable the workspace instead`:""]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link,sub,r.x?`On ${rmPoss(r.x.ws)} domain, another of your clients.`:"")}</td>${rmTypeCell(ty,"Client user")}
+ return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user",r.x?rmFlag(r,ed):"")}
   <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
  const items=can?[r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link,rmEsc(r.email),"")}</td>${rmTypeCell(ty,"Your team")}
+ return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
   <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 const rmN=(n,one,many)=>`${n} ${n===1?one:many}`;
@@ -4852,7 +4864,7 @@ function rMembers(c){
  const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
  return `<div class="rmt"><div class="rmt-head"><div class="rmt-h"><h2 class="rmt-title">${hd.h}</h2>${side}</div>${hd.p?`<p class="rmt-p">${rmEsc(hd.p)}</p>`:""}</div>
   ${lead}${rmInviteHTML(c)}
-  <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
+  <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
    <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role in this workspace</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
    <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite people</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`No Account Member works on ${rmEsc(c.name)} yet, so nobody is assigned to its outreach.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
   </table><div class="rmt-foot">Account Owners and Account Admins are Workspace Admin in every workspace.${can?` Their account role changes in <button type="button" class="linkbtn" data-topeople>People</button>.`:""}</div></div></div>`;
@@ -14660,7 +14672,10 @@ td>.cs:only-child{display:block}
    centred; 20px outer edges and 12px between columns; avatar 32px, 10px to the name (14/20 600 Gray 900), the address
    11px Gray 500; Type 13px Gray 500; Last sign-in 13px; kebab 28px on the right edge. */
 .rmt-t{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
-.rmt-t col.rmt-c1{width:372px}.rmt-t col.rmt-c2{width:102px}.rmt-t col.rmt-c3{width:242px}.rmt-t col.rmt-c5{width:64px}
+/* change 308: the columns spread over the whole table (Person 35.5%, Type 13%, 152px at 1280, the chip's width, Role
+   32%, Last sign-in the rest, the 64px menu column on the right edge); the own workspace has no Type column */
+.rmt-t col.rmt-c1{width:35.5%}.rmt-t col.rmt-c2{width:13%}.rmt-t col.rmt-c3{width:32%}.rmt-t col.rmt-c5{width:64px}
+.rmt-t--own col.rmt-c1{width:44%}.rmt-t--own col.rmt-c3{width:34%}
 .rmt-t th{text-align:left;vertical-align:top;height:40px;box-sizing:border-box;font-size:12px;font-weight:500;line-height:16px;color:#6B7280;background:#F9FAFB;padding:12px 12px 11px 0;border-bottom:1px solid #E5E7EB;white-space:nowrap}
 .rmt-t th:first-child{border-top-left-radius:7px}.rmt-t th:last-child{border-top-right-radius:7px}
 .rmt-t td{text-align:left;vertical-align:middle;height:56px;box-sizing:border-box;padding:6px 12px 6px 0;font-size:13px;line-height:20px;color:#111827;border-bottom:1px solid #F3F4F6}
@@ -14680,17 +14695,28 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rmt-opt:focus-visible{outline-offset:-2px;border-radius:0}
 .rmt-mku{text-decoration:underline 3px #FCD34D;text-underline-offset:4px;text-decoration-skip-ink:none}
 .rmt-person .rmt-mku{text-decoration-thickness:2px;text-underline-offset:3px}
-.rmt-type{font-size:13px;color:#6B7280}
+.rmt-type{display:block;font-size:13px;line-height:20px;color:#6B7280;white-space:nowrap}
+/* change 308: change 307's flag chip (Amber 100 / Amber 800, 20px, 4px corners, 12/16 500), 2px under the type */
+.rmt-flag{position:relative;display:inline-flex;align-items:center;height:20px;margin-top:2px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;cursor:default}
+.rmt-flag.is-quiet{background:#F3F4F6;color:#374151}
+/* change 308: the neutral avatar, Gray 100 fill and Gray 700 initials, for everyone on the tab */
+.rmt-person .pp-av{color:#374151}
+.rmt-person i.rmt-em{display:block}
 .rmt-seen{display:block;color:#4B5563}.rmt-seen.is-quiet{color:#6B7280}
 .rmt-r.is-off .rmt-who,.rmt-r.is-off .rmt-role{color:#6B7280}
 .rmt-lbl{display:none}
 .rmt-cell{position:relative}
 .rmt-cell--m{display:flex;justify-content:flex-end;width:44px}
-.rmt-dd{width:230px;max-width:100%}
-.rmt-role,.rmt-t td .rmt-fixed{display:block;padding-left:13px}
+/* change 308: one role style. The text sits on the column's x in every row; the button's 1px border and 8px padding
+   sit outside it (margin -9px), so hover and focus draw the field round the same text */
+.rmt-dd{display:inline-block;max-width:100%;vertical-align:middle}
+.rmt-role,.rmt-t td .rmt-fixed{display:block;padding-left:0;white-space:nowrap}
 .rmt-role{font-size:14px;line-height:20px;color:#111827}
-.rmt-t--plain .rmt-role,.rmt-t--plain td .rmt-fixed{padding-left:0}
-.rmt-pop{z-index:30;right:auto;width:340px;max-width:calc(100vw - 32px);max-height:none}
+.rmt-rbtn{display:inline-flex;align-items:center;gap:4px;height:32px;margin:0 0 0 -9px;padding:0 6px 0 8px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;color:#111827;cursor:pointer;text-align:left;transition:border-color .14s,box-shadow .14s}
+.rmt-rbtn svg{width:14px;height:14px;flex:none;color:#6B7280}
+.rmt-rbtn:hover{border-color:#D1D5DB;background:#fff}
+.rmt-rbtn:focus-visible,.rmt-dd.is-open .rmt-rbtn{outline:none;border-color:#1D4ED8;background:#fff;box-shadow:0 0 0 3px #DBEAFE}
+.rmt-pop{z-index:30;left:-9px;right:auto;width:340px;max-width:calc(100vw - 32px);max-height:none}
 .rmt-opt{width:100%;margin:0;border:0;background:none;font:inherit;text-align:left}
 .rmt-kebab{width:28px;height:28px;margin:0;color:#6B7280}.rmt-kebab svg{width:16px;height:16px}
 .rmt-kebab[aria-expanded="true"]{background:#F3F4F6;color:#1F2937}
@@ -14701,7 +14727,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rmt-foot .linkbtn{font-size:12px;line-height:16px}
 
 /* between phone and 1200px the Person column takes what is left and Last sign-in keeps 140px; the address line may wrap */
-@media (max-width:1199px){.rmt-t col.rmt-c1{width:auto}.rmt-t col.rmt-c4{width:152px}.rmt-person i{white-space:normal;overflow-wrap:anywhere}}
+/* change 308: below 1280 Type and Last sign-in hold 152px, Role 232px, Person the rest; an address ends in an ellipsis */
+@media (max-width:1279px){.rmt-t col.rmt-c1{width:auto}.rmt-t col.rmt-c2,.rmt-t col.rmt-c4{width:152px}.rmt-t col.rmt-c3{width:232px}
+ .rmt-t--own col.rmt-c1{width:auto}.rmt-t--own col.rmt-c3{width:280px}.rmt-t--own col.rmt-c4{width:200px}}
 /* up to 920px the rows stack (person, type, role, last sign-in, the menu on the right), from the old phone block */
 @media (max-width:920px){
  .rmt-t,.rmt-t tbody,.rmt-t tr,.rmt-t td{display:block}
@@ -14712,10 +14740,10 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .rmt-r td{grid-column:1;margin-left:42px}.rmt-r td:first-child{margin-left:0}
  .rmt-r td.rmt-act{grid-column:2;grid-row:1;margin-left:0}
  .rmt-t tr.rmt-none{padding:14px 16px;border-bottom:1px solid #F3F4F6}
- .rmt-person i{white-space:normal;overflow-wrap:anywhere}
  .rmt-lbl{display:inline;color:#6B7280}
  .rmt-menu{width:232px}
  .rmt-t tr.rmt-r{position:relative}.rmt-dd{position:static}.rmt-pop{top:auto;left:16px;right:16px;width:auto;margin-top:4px}
+ .rmt-rbtn{height:28px}
  .rmt-foot{padding:12px 16px}
 }
 /* Invite people opens in place under the heading: label column 160px, controls from 184px, as the design */
@@ -15869,7 +15897,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="966ed70";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="b7a6311";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
