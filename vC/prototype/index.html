@@ -3009,8 +3009,7 @@ function cuItem(k,R,used,cap,o){
  const ask=o.ask?'<div class="cu-st"><span class="cu-chip">'+o.ask+'</span>'+(o.act||'')+'</div>':'';
  return apuItem(k==="sends"?"Emails":R.label.replace(/ \/ month$/,""),used,cap,{cls:"cu-i is-"+o.tone,attr:' data-cu="'+k+'"',aside:o.sub,note:st+ask+(o.line?'<div class="cu-ln">'+o.line+'</div>':'')})}
 const USE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--green-16)",info:"var(--green-16)"};
-function usageHomeCell(c){const u=usageOf(c); if(!u.length) return usageNone(c);
- if(u.every(y=>y.used===0)) return '<span class="u-quiet">'+(c.disabled?"Disabled":"Nothing used yet")+'</span>';
+function usageHomeCell(c){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return '<span class="is-none">&ndash;</span>';   /* change 311 (Hitesh: "we don't have data about it then show dash"): no usage data is the same dash as the metric cells; Status already says New or Disabled */
  /* change 196, 11 Oct 2026 (Hitesh): "show overall usage percentage not any single even if it's
     near limit ... change color if any one of the limit is near". The number is the average of
     every limited resource's share used; the colour is the worst resource's state (usageOf
@@ -3065,10 +3064,10 @@ function uwShow(ic,by){if(!ic||!ic.isConnected)return;
  if(!uwTipEl){uwTipEl=document.createElement("div");uwTipEl.className="dq-fore uw-tip";uwTipEl.id="uwTip";uwTipEl.setAttribute("role","tooltip");uwTipEl.setAttribute("aria-hidden","true");document.body.appendChild(uwTipEl)}
  uwTipEl.textContent=ic.getAttribute("data-uwtip"); uwTipEl.hidden=false; uwTipAt=ic; uwTipBy=by;
  const r=ic.getBoundingClientRect(), w=uwTipEl.offsetWidth, h=uwTipEl.offsetHeight, vw=document.documentElement.clientWidth, vh=window.innerHeight;
- const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), y=r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6;
+ const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), up=ic.classList.contains("wsp-grp"), y=up?(r.top-6-h<8?r.bottom+6:r.top-6-h):(r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6);
  uwTipEl.style.left=Math.round(x)+"px"; uwTipEl.style.top=Math.round(y)+"px"}
-document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
-document.addEventListener("focusin",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip]"); if(ic&&ic.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
+document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip],.wsp-grp[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
+document.addEventListener("focusin",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip],.wsp-grp[data-uwtip]"); if(ic&&ic.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
 document.addEventListener("focusout",()=>{if(uwTipBy==="focus")uwHide()});
 document.addEventListener("click",()=>{if(uwTipAt)uwHide()},true);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uwTipAt)uwHide()},true);
@@ -3614,7 +3613,7 @@ function homeRow(c,mode){
    +(c.disabled?'':'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>')
    +'</span></div></td>'
-   +(mode==="ws"?wsStatusCell(c):dnStatusCell(c))   /* change 300 (doc 68 #2): the Dashboard's flags link to their fix */
+   +wsStatusCell(c)   /* change 311: the real state only, on both tables */
    /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
    /* change 203, 12 Oct 2026 (Hitesh): Emails sent and Reply rate leave the Workspaces page; the Dashboard has them */
    +(mode==="ws"?'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>':homeCells(c).map(num).join(""))
@@ -3629,9 +3628,9 @@ function homeRow(c,mode){
    reach every workspace, so they are said once above the table, not on ten rows.
    Each cell is faces plus one line that names what needs doing, with the fix. */
 function wsPeopleOf(c){
- const client=ppClients().filter(u=>u.c.id===c.id).map(u=>({key:u.key,name:u.email,ini:u.initials,role:u.role,seen:u.seen,
+ const client=ppClients().filter(u=>u.c.id===c.id).map(u=>({key:u.key,name:u.email,label:u.name,ini:u.initials,role:u.role,seen:u.seen,
    invited:!!u.invited,expired:!!u.invited&&invExpired(u.invited),disabled:false,side:"Client"}));
- const team=ppTeam().filter(t=>t.role==="Member"&&t.ws&&t.ws.includes(c.id)).map(t=>({key:t.k,name:t.name,first:t.name.split(" ")[0],ini:t.initials,
+ const team=ppTeam().filter(t=>t.role==="Member"&&t.ws&&t.ws.includes(c.id)).map(t=>({key:t.k,name:t.name,label:t.name,first:t.name.split(" ")[0],ini:t.initials,
    role:ppWsRole(t.P,c.id),seen:t.seen,invited:!!t.invited,expired:!!t.invited&&invExpired(t.invited),disabled:t.disabled,side:"Your team"}));
  return {client,team};
 }
@@ -3659,9 +3658,11 @@ function wsPeopleCell(c,side){
   const names=on.length===2?on.join(" and "):on.slice(0,2).join(", ")+(on.length>2?" +"+(on.length-2):"");
   line='<span class="cs">'+[names].concat(extra).filter(Boolean).join("; ")+'</span>';
  }
- const tip=L.map(x=>x.name+", "+ppShort(x.role)+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", invited":"")).join(". ");
- return '<button type="button" class="hp-cell wsp" data-hpop="'+c.id+'|people" aria-haspopup="dialog" aria-expanded="false" aria-label="'+(side==="client"?"Client users":"Your team")+' in '+c.name+': '+tip+'. Show everyone" title="'+tip+'">'
-   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</button><span class="wsp-l">'+line+fix+'</span>';
+ /* change 314: names only (a stored name, else the email), one per line, up to 8; state (invited, disabled), never role */
+ const nmx=L.map(x=>x.label+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", invited":"")), shown=nmx.slice(0,8).concat(nmx.length>8?["and "+(nmx.length-8)+" more"]:[]);
+ const tip=shown.join("\n"), esc=t=>t.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+ return '<span class="wsp-grp" tabindex="0" role="group" data-uwtip="'+esc(tip)+'" aria-label="'+esc((side==="client"?"Client users":"Your team")+" in "+c.name+": "+shown.join("; "))+'">'
+   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</span><span class="wsp-l">'+line+fix+'</span>';
 }
 function wsOANote(){const O=wsOA(); if(!O.length) return "";
  const names=O.map(x=>x.name.split(" ")[0]), list=names.length>1?names.slice(0,-1).join(", ")+" and "+names[names.length-1]:names[0];
@@ -3894,7 +3895,7 @@ function vRecord(id){
     "Your workspace · email" on the own one. One chip only when something
     waits: a request, or Disabled. Disabled swaps Open workspace for Enable;
     deleted shows a bar with Restore and nothing else to act on. */
- const T=[["overview","Overview"],["members",`Members <span class="rmt-n">${rmCount(c)}</span>`]/* change 293 */,["limits","Limits"],["activity","Activity"]];
+ const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  if(tab!=="limits"&&RL) RL=null;   /* change 269 */
  const dead=!!c.deletedOn, off=!!c.disabled;
@@ -8387,17 +8388,9 @@ function dnHTML(){
  if(A.length){const ws=[...new Set(A.map(a=>byId[a.client].name))], from=ws.length>2?`${ws.slice(0,2).join(", ")} and ${ws.length-2} more`:listAnd(ws), n=A.length;
   r=`<div class="msg dn-req" role="status">${warnI}<span class="dn-req-t"><strong>${n} request${n===1?"":"s"} waiting</strong> from ${from}.</span><button type="button" class="linkbtn dn-req-go" data-dngo="req|${A[0].id}">Review request${n===1?"":"s"}</button></div>`}
  return g||r?`<div class="dn-w">${g}${r}</div>`:""}
-/* 300.2 (doc 68 #2): the Dashboard table's Status cell links each flag to where it is fixed. A flag replaces the
-   default "Active"; at most two short lines, so every row keeps the table's height. New, Disabled and 291's
-   "Paused, payment failed" keep their cell (while payment has failed the banner and the bell carry the items). */
-function dnStatusCell(c){
- const td=wsStatusCell(c); if(c.disabled||wsShownState(c)!=="Active") return td;
- const A=dnAsks().filter(a=>a.client===c.id), D=dnDisc(c), lim=canI("limits"), F=[];
- if(dnUp("sends",c)) F.push(lim?`<button type="button" class="ws-stat dn-stop dn-tag" data-dngo="lim|sends|${c.id}" title="Raise the Emails sent / month limit">Stopped sending</button>`:`<span class="ws-stat dn-stop dn-tag">Stopped sending</span>`);
- if(A.length) F.push(`<button type="button" class="dn-tag" data-dngo="req|${A[0].id}">${A.length} request${A.length===1?"":"s"}</button>`);
- if(D.length){const full=D.length===1?`${D[0][0]} is disconnected, so nothing sends from it. Reconnect it in ${c.name}'s Email accounts.`:`${D.length} email accounts are disconnected in ${c.name}. Reconnect them in its Email accounts.`;
-  F.push(`<button type="button" class="dn-flag dn-tag" data-dngo="mbx|${c.id}|${D[0][0]}" title="${full}" aria-label="${full}">${D.length} disconnected</button>`)}
- return F.length?`<td><span class="dn-flags">${F.slice(0,2).join("")}</span></td>`:td}
+/* change 311: the Dashboard Status column shows only the workspace's real state (wsStatusCell: Active, New, Disabled,
+   Paused). The flags of change 300 (Stopped sending, N requests, N disconnected) left the cell; the request banner and the
+   header bell list the same items. */
 /* 300.3 (doc 68 #3): the header bell lists the same items, each landing where the table's links land */
 function bellItems(){return asClient?[]:dnItems()}
 function bellHTML(){const I=bellItems();
@@ -8454,46 +8447,40 @@ function heroCards(mine,tch,rep,items){
  const wsScope=ME().ws, gone=CLIENTS.filter(c=>c.deletedOn&&(!wsScope||wsScope.indexOf(c.id)>-1)).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
  /* change 291 (audit P0-1): while payment has failed nothing runs; the sequences that would are held */
- const held=mine.reduce((t,c)=>t+activeSeqs(c),0), active=grace()?0:held, sysPaused=mine.reduce((t,c)=>t+hm(c).sysPaused,0);
+ const held=mine.reduce((t,c)=>t+activeSeqs(c),0), active=grace()?0:held;
  /* a pill only when there is a real comparison: growth in workspaces, and a
     cycle with sends behind it. A fresh account shows the numbers alone. */
  /* change 167, 9 Oct 2026 (Hitesh): "Outreach this cycle" read vague. The card
     now counts people, not steps: prospects contacted this cycle, the same
     figure Analytics calls Contacted (each sequence's contacted, summed). The
     steps that reached them stay underneath, by channel. */
- const reached=mine.reduce((t,c)=>t+(c.sequences||[]).reduce((x,q)=>x+(q.contacted||0),0),0);
  /* change 180, 11 Oct 2026 (Hitesh): "full page should indicate same window". The
     cards read the table's clock: workspaces added in the last 7 days, prospects
     contacted in the last 7 days against the 7 before (the cycle figures scaled
     the same way as the table). Active sequences is a count of now. */
- const inW7=c=>{const d=c.created?new Date(c.created.replace(",","")):null;if(!d||isNaN(d))return false;const R=winRange();return d>=new Date(R.start.toDateString())&&d<=R.end};
- const added7=mine.filter(inW7).length;
- const dClients=added7||null, dTouch=reached?pctDelta(reached,LAST.contacted):null, dRep=rep?pctDelta(rep,LAST.replies):null;
- /* change 221 (item 18): the change is vD's chip; the period it is against stays as words */
- const pill=(v,num,words)=>v==null?"":`<span class="hero-dlt">${psChip(v,(v>0?"+":v<0?"-":"")+num,"flat")/* change 298 (audit P2-6): grey */} <span class="hero-dlt-t">${words}</span></span>`;
  const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
  const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the period is in full blue">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-Math.min(14,win().days)?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  /* change 231: the card is the sum of the workspaces' Contacted for the period (wk7), so it
     always adds up; its change is that sum against the same sum for the period before */
  const cW=mine.map(wk7).reduce((a,w)=>({now:a.now+w.cont,prev:a.prev+(w.prev.cont||0)}),{now:0,prev:0});
- cW.d=cW.prev?Math.round((cW.now-cW.prev)/cW.prev*100):null;
+ cW.d=cW.prev?Math.round((cW.now-cW.prev)/cW.prev*100):null;   /* change 310: no change chip on the tiles; cW.d still scales the channel counts */
  const rate=cW.now?(mine.reduce((t,c)=>t+wk7(c).rep,0)/cW.now*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
  const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+(perDay()?pdDay(winTot(x[0],cW.d)):f(Math.round(winTot(x[0],cW.d))))+" "+x[1]+'</span>'); const chanT=listAnd(chan);   /* change 298 (audit P2-15): a day keeps one decimal under 10 (181) */   /* change 297 (audit P2-3) */
- const card=(nav,icon,title,pillHTML,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span>${pillHTML}</span>${value}<span class="hero-f">${foot}</span></button>`;
+ const card=(nav,icon,title,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span></span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
-  ${card("clients",svg("clients"),"Workspaces",pill(dClients,f(Math.abs(dClients||0)),win().added),
+  ${card("clients",svg("clients"),"Workspaces",
     `<span class="hero-v">${f(mine.length)}</span>`,
     (byState.length?byState.map(([s,n])=>`<span class="hero-dot${s==="Paused"?" hero-need":""}" style="--c:${wsStateDot(s)}">${f(n)} ${s.toLowerCase()}</span>`).join(""):"<span>No workspaces yet</span>")
     +(gone?`<span class="hero-dot hero-dot--gone" title="Not counted in the ${f(mine.length)}. A deleted workspace is kept for 30 days, then removed.">${f(gone)} deleted</span>`:""))}
   ${/* change 298 (audit P2-15): this card no longer opens Workspaces (no sequence column there); the paused count is the link */
-    card("",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences","",
+    card("",I('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),"Active sequences",
     `<span class="hero-v">${f(active)}</span>`,
     grace()?`<span class="hero-need">${f(held)} paused until payment is fixed</span>`
-    :`<span>across ${mine.length} workspaces</span>${sysPaused?`<button type="button" class="linkbtn hero-lk" data-heropaused>${sysPaused} paused by the system</button>`:""}`).replace('<button type="button" class="hero-card" data-nav="">','<div class="hero-card hero-card--still">').replace(/<\/button>$/,"</div>")}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",pill(cW.d,Math.abs(cW.d||0)+"%","vs previous "+win().days+" days"),
+    :`<span>across ${mine.length} workspaces</span>`).replace('<button type="button" class="hero-card" data-nav="">','<div class="hero-card hero-card--still">').replace(/<\/button>$/,"</div>")}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",
     `<span class="hero-vrow"><span class="hero-v">${pd(cW.now)}<span class="hero-u">${perDay()?" a day":(HOME_WIN==="mtd"?" this month":" in "+win().days+" days")}</span></span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`)}
  </div>`;
 }
@@ -9623,7 +9610,7 @@ function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
 function wsStatusCell(c){
  const t=wsShownState(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
  return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
-const HP_TITLE={people:"People",usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
+const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
 const HP_RANK={bad:0,warn:1,info:2,ok:3,mute:4};
@@ -9650,9 +9637,9 @@ function hpSeqStates(c){
    its days, leaning the longer windows toward the earlier pace by the metric's
    own change; the changes shrink for longer windows. Illustrative, like the seed. */
 let HOME_WIN="7d";
-const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",added:"in last 7 days",days:7,f:d=>1,dd:d=>d},
- "30d":{label:"Last 30 days",lower:"the last 30 days",added:"in last 30 days",days:30,f:d=>d==null?1:1/(1+d/200),dd:d=>d==null?null:Math.round(d*0.6)},
- "mtd":{label:"This month",lower:"this month",added:"this month",days:CYCLE.day,f:d=>d==null?1:1-d/600,dd:d=>d==null?null:Math.round(d*0.8)}};
+const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",days:7,f:d=>1,dd:d=>d},
+ "30d":{label:"Last 30 days",lower:"the last 30 days",days:30,f:d=>d==null?1:1/(1+d/200),dd:d=>d==null?null:Math.round(d*0.6)},
+ "mtd":{label:"This month",lower:"this month",days:CYCLE.day,f:d=>d==null?1:1-d/600,dd:d=>d==null?null:Math.round(d*0.8)}};
 const win=()=>WINS[HOME_WIN]||WINS["7d"];
 const winTot=(cycle,d)=>Math.round((cycle||0)/CYCLE.day*win().days*win().f(d));
 const winD=d=>win().dd(d);
@@ -9686,7 +9673,7 @@ function contSplit(c,sentW){const R=(c.sequences||[]).filter(q=>q.state!=="Draft
  return {R,SW,CW,RW,cont:CW.reduce((a,b)=>a+b,0),rep:RW.reduce((a,b)=>a+b,0)}}
 const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
 /* change 265: the quiet change, signed text then the production trend glyph (PS_I) */
-const w7Delta=d=>'<span class="w7-d" title="'+(d>0?"Up ":"Down ")+Math.abs(d)+'%">'+(d>0?'+':'')+d+'%'+PS_I[d>0?"up":"down"]+'</span>';
+const w7Delta=(d,noIcon)=>'<span class="w7-d" title="'+(d>0?"Up ":"Down ")+Math.abs(d)+'%">'+(d>0?'+':'')+d+'%'+(noIcon?'':PS_I[d>0?"up":"down"])+'</span>';   /* change 311: the Dashboard passes noIcon (no arrows) */
 /* change 181, 11 Oct 2026 (Hitesh: "per day version gives better idea"; "Go"): every
    count on Home is the daily average of the last 7 days (the 7-day total over 7).
    The window, the changes and the red rule (on the 7-day totals) are unchanged.
@@ -9704,8 +9691,8 @@ function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
  /* change 265: an ordinary change is quiet grey text with the trend glyph (fd/dashboard.html's look);
     only W7_RED (replies down 25% or more on 10+) keeps change 221's red chip */
- const D=(d,prev)=>d==null||d===0?"":W7_RED(d,prev)?psChip(d,(d>0?'+':'')+d+'%',"bad"):w7Delta(d);
- const Dq=d=>d==null||d===0?"":w7Delta(d);
+ const D=(d,prev)=>d==null||d===0?"":W7_RED(d,prev)?psChip(d,(d>0?'+':'')+d+'%',"bad",true):w7Delta(d,true);   /* change 311 (Hitesh: "we want to remove them"): no arrows in the table */
+ const Dq=d=>d==null||d===0?"":w7Delta(d,true);
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
  if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"]].map(([k,l])=>cell(null,l,dash));
@@ -9741,16 +9728,11 @@ function hpData(c,k){
    return {name:m[0],cells:[m[1]==="Disconnected"?"&ndash;":Math.min(100,m[2])+"%"],st,tone,go:live?"acc|"+c.id+"|"+m[0]:""}});
   return {cols:["Email account","Status","Health"],rows}}
  if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return {cols:[],rows:[]};
-  return {cols:["Resource","Status","Used of limit","%"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
+  return {cols:["Resource","Status","Used of limit"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
    /* change 298 (audit P1-2, P1-20): "Used up" in red; "Near limit" on the one 90% line the triangle uses (UW_NEAR) */
    const nr=Math.round(y.pct*100)>=UW_NEAR;
    return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"Used up"):y.draw===0?"Pool empty":nr?"Near limit":"Fine",tone:y.tone==="bad"?"bad":nr?"warn":"ok",out:y.room===0,
-    cells:[f(y.used)+" of "+f(y.cap),pc+"%"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&uwTrigKeys(u).includes(y.k)}})}}
- if(k==="people"){const P=wsPeopleOf(c), L=P.client.concat(P.team);
-  return {cols:["Person","Status","Side","Role","Last sign-in"],left:true,rows:L.map(x=>({name:x.name,
-   st:x.disabled?"Disabled":x.expired?"Invite expired":x.invited?"Invited":"Active",tone:x.disabled?"mute":x.expired?"warn":"ok",   /* change 298 (audit P2-6) */
-   cells:[x.side,ppShort(x.role),x.invited||x.disabled||/unknown/.test(x.seen)?"&ndash;":x.seen.charAt(0).toUpperCase()+x.seen.slice(1)],
-   go:"per|"+c.id+"|"+(x.side==="Client"?x.key:"t:"+x.key)}))}}
+    cells:[f(y.used)+" of "+f(y.cap)+" ("+pc+"%)"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&uwTrigKeys(u).includes(y.k)}})}}
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
@@ -9800,7 +9782,7 @@ function hpFit(L){const T=L.querySelector(".hp-t"); if(!T) return; const B=T.par
  /* change 218: headers always on one line; names truncate first (full name on hover),
     and a pop-up too narrow even for that stacks */
  let W=[...Array(n).keys()].map(i=>i===0?0:natural(i,true)), rest=W.reduce((a,b)=>a+b,0);
- if(avail-rest>=96){W[0]=avail-rest}
+ if(avail-rest>=(L.classList.contains("hpop--usage")?natural(0,true):96)){W[0]=avail-rest}   /* change 315: the Usage pop-up never truncates a resource name; a phone stacks it instead */
  else {T.classList.add("hp-stack"); return}
  W.forEach(w=>{const c=document.createElement("col"); c.style.width=w+"px"; cg.appendChild(c)}); T.prepend(cg); T.style.tableLayout="fixed"}
 function hpClose(){const L=el("hpop"); if(L){L.hidden=true;L.innerHTML=""} if(HPOP&&HPOP.btn){HPOP.btn.setAttribute("aria-expanded","false")} HPOP=null}
@@ -9811,24 +9793,22 @@ function hpOpen(btn){
  let L=el("hpop"); if(!L){L=document.createElement("div");L.id="hpop";L.className="hpop";L.setAttribute("role","dialog");document.body.appendChild(L)}
  const D=hpData(c,k), rows=[...D.rows].sort((a,b)=>(b.hl?1:0)-(a.hl?1:0)||HP_RANK[a.tone]-HP_RANK[b.tone]);
  const st=r=>r.st?'<span class="hp-st'+(r.out?" is-out":r.tone==="bad"?" is-bad":r.tone==="warn"?" is-warn":"")+'">'+r.st+'</span>':"";
- const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+(k==="people"?r.name.replace("@","<wbr>@"):r.name)+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
+ const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
- L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b><span class="gapx">'+c.name+(["pa","sent","bounce","rep","leads"].includes(k)?', '+(perDay()?'a day, ':'')+win().lower:k==="usage"?', this billing cycle':'')+'</span></span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:k==="people"?rows.length+(rows.length===1?' person':' people'):rows.length)+(bad?', '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
+ L.innerHTML='<div class="hp-h"><span><b>'+HP_TITLE[k]+'</b><span class="gapx">'+c.name+(["pa","sent","bounce","rep","leads"].includes(k)?', '+(perDay()?'a day, ':'')+win().lower:k==="usage"?', this billing cycle':'')+'</span></span><span class="hp-c">'+(k==="seq"?activeSeqs(c)+' active of '+rows.length:rows.length)+(bad?', '+bad+' need'+(bad===1?'s':'')+' attention':'')+'</span>'
   +'<button type="button" class="ubtn hp-x" data-hpx aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map(h=>'<th>'+h+'</th>').join("")+'</tr></thead><tbody>'
-  +rows.map(r=>'<tr'+(r.hl?' class="hp-hl is-'+r.tone+'"':'')+'><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
+  +rows.map(r=>'<tr'+(r.hl?' class="hp-hl is-'+r.tone+'"':k==="usage"&&(r.tone==="bad"||r.tone==="warn")?' class="is-'+r.tone+'"':'')+'><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
   /* change 200: the header no longer says what a rate is of, so its pop-up does */
   +(k==="rep"?'<p class="hp-note">Reply rate: prospects who replied, as a share of prospects contacted.</p>':k==="bounce"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':'')
-  +'<div class="hp-f">'+(k==="people"?'<button type="button" class="linkbtn" data-hpgo="mem|'+c.id+'|">Manage members of '+c.name+'</button>':c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
+  +'<div class="hp-f">'+(c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
     :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+'</button>'+(k==="usage"&&canI("limits")?ulPopLink(c):''))+'</div>';
- L.classList.toggle("hpop--wide",k==="people"); L.classList.toggle("hpop--usage",k==="usage"); L.classList.toggle("hpop--rep",k==="rep"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
+ L.classList.toggle("hpop--usage",k==="usage"); L.classList.toggle("hpop--rep",k==="rep"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
  hpFit(L); hpPlace();
  L.querySelector("[data-hpx]").onclick=()=>{hpClose();btn.focus()};
  L.querySelectorAll("[data-hpgo]").forEach(b=>b.onclick=()=>{const [kind,wid,...rest]=b.dataset.hpgo.split("|"), arg=rest.join("|");hpClose();qFrom=null;
    if(kind==="ul"){ORIGIN=null;ctx="agency";asClient=false;view={name:"limits"};render();return}   /* change 226 */
-   if(kind==="mem"){ORIGIN=null;ctx="agency";view={name:"record",id:wid};tab="members";render();return}
-   if(kind==="per"){ctx="agency";view={name:"person",id:arg};PERSON_TAB="access";render();return}
    if(kind==="seq"){ctx=wid;asClient=false;inMod="sequences";openProspect=null;openReply=null;focusMb=null;openSeq=wid+"|"+arg;seqTab="steps";render();return}
    if(kind==="acc"){gotoClient(wid,"accounts",arg);return}
    if(kind==="lim"){ORIGIN=null;ctx="agency";view={name:"record",id:wid};tab="limits";FOCUS_LIM=arg;render();const row=el("rlim-"+arg);if(row)row.scrollIntoView({block:"center"});return}
@@ -9914,11 +9894,11 @@ const PS_I={up:'<svg class="performance-stats__icon" viewBox="0 0 8 8" fill="non
  down:'<svg class="performance-stats__icon" viewBox="0 0 8 8" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M0.764623 2.10007C0.894798 1.9699 1.10585 1.9699 1.23603 2.10007L3.00033 3.86437L4.09796 2.76674C4.22813 2.63656 4.43919 2.63656 4.56936 2.76674L7.23603 5.4334C7.3662 5.56358 7.3662 5.77463 7.23603 5.90481C7.10585 6.03498 6.8948 6.03498 6.76462 5.90481L4.33366 3.47385L3.23603 4.57148C3.10585 4.70165 2.8948 4.70165 2.76462 4.57148L0.764623 2.57148C0.634448 2.4413 0.634448 2.23025 0.764623 2.10007Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.99967 3.00244C7.18377 3.00244 7.33301 3.15168 7.33301 3.33577V5.66911C7.33301 5.8532 7.18377 6.00244 6.99967 6.00244H4.66634C4.48225 6.00244 4.33301 5.8532 4.33301 5.66911C4.33301 5.48501 4.48225 5.33577 4.66634 5.33577H6.66634V3.33577C6.66634 3.15168 6.81558 3.00244 6.99967 3.00244Z" fill="currentColor"/></svg>'};
 /* d: the signed change (its sign picks the arrow); label: what the chip reads, signed;
    tone: "good", "bad" or "flat" (neutral). 0 is always flat and has no arrow. */
-function psChip(d,label,tone){
+function psChip(d,label,tone,noIcon){
  if(d==null||!isFinite(d)) return "";
  const dir=d>0?"up":d<0?"down":"", v=!dir||tone==="flat"?"neutral":tone==="bad"?"decrement":"increment";
  return '<span class="performance-stats performance-stats--'+v+'" title="'+(dir?(dir==="up"?"Up ":"Down ")+String(label).replace(/^[+-]/,""):"No change")+'">'
-  +'<span class="performance-stats__label">'+label+'</span>'+(dir?PS_I[dir]:"")+'</span>'}
+  +'<span class="performance-stats__label">'+label+'</span>'+(dir&&!noIcon?PS_I[dir]:"")+'</span>'}
 const psTone=(d,invert)=>!d?"flat":(d>0)!==!!invert?"good":"bad";
 function deltaChip(d,invert,abs){
  if(d===null||!isFinite(d)) return "";
@@ -12798,7 +12778,6 @@ function wire(){
  /* ═══ agency Analytics: tab, workspace filter, sort, export ═══ */
  q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
  q(".hero-card[data-nav]").forEach(b=>b.onclick=()=>{const n=b.dataset.nav;ctx="agency";asClient=false;view={name:n==="analytics"?"analytics":"clients"};render()});
- q("[data-heropaused]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;anTab="seq";view={name:"analytics"};render()});   /* change 298 (audit P2-15) */
  q("[data-csnotify]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csnotify];receipt("soon",`You will get one email at ${ME().email||"your address"} when ${t?t.title:"this"} is ready. Nothing else.`,null,`asked to be told when ${t?t.title:"it"} is ready`);render()});
  q("[data-csgo]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csgo];if(!t)return;ctx="agency";view={name:t.go==="queue"?"queue":t.go==="dash"?"dash":"clients"};render()});
  q("[data-anview]").forEach(b=>b.onclick=()=>{anView=b.dataset.anview;render()});
@@ -14151,9 +14130,8 @@ demoSync();
 .hero-card:hover{border-color:var(--gray-23);box-shadow:var(--shadow-xs)}
 .hero-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .hero-t{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--gray-15)}.hero-t svg{width:16px;height:16px;color:var(--gray-15);flex:none}
-.hero-dlt{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:18px;color:var(--gray-15)}
 .hero-v{font-size:28px;line-height:32px;font-weight:600;color:var(--gray-17);font-variant-numeric:tabular-nums}
-.hero-vrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.hero-vrow{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}.hero-u{white-space:nowrap}   /* change 310: the period label stays whole; where the chart does not fit beside the number it drops under it, same left edge */
 .hero-rate{font-size:14px;font-weight:500;color:var(--gray-12)}
 .hero-spark{display:flex;align-items:flex-end;gap:2px;height:28px}.hero-spark i{width:6px;background:var(--blue-12);border-radius:2px 2px 0 0;display:block}
 .hero-f{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}.hero-f>span{white-space:nowrap}
@@ -14426,13 +14404,11 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* change 170, 9 Oct 2026 (Hitesh): below 960px the three cards stack, and the
    Prospects contacted footer may wrap instead of running out of its card */
 @media (max-width:959px){.hero{grid-template-columns:minmax(0,1fr)}}
-.hero-h{flex-wrap:wrap;row-gap:4px}
 .hero-f>span.hero-f-wrap{white-space:normal}
 .hp-cell{display:block;width:calc(100% + 12px);margin:-6px -6px;padding:6px;background:none;border:0;border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .hp-cell:hover,.hp-cell[aria-expanded="true"]{background:#f3f4f6}.hp-cell:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
-.hpop.hpop--wide{width:640px}
 /* change 218: the Usage pop-up names each resource in full, as the Limits tab does */
-.hpop.hpop--usage{width:520px}
+.hpop.hpop--usage{width:480px}
 /* change 231: the Reply rate pop-up adds Contacted, so it is as wide as it needs for five
    columns on one line (change 218) with the sequence name still readable */
 .hpop.hpop--rep{width:580px}
@@ -14494,14 +14470,8 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .msg.dn-req{align-items:center;gap:12px;min-height:50px;box-sizing:border-box;padding:10px 16px;font-size:13px;line-height:20px;font-weight:400;color:#92400E;background:#FEF3C7;border:1px solid #FDE68A}
 .msg.dn-req svg{color:#B45309}.dn-req-t{flex:1;min-width:0}.dn-req strong{font-weight:600}.dn-req-go{flex:none;margin:0;font-size:13px;line-height:20px;font-weight:600}
 @media (max-width:640px){.msg.dn-req{flex-wrap:wrap;align-items:flex-start}.msg.dn-req>svg{margin-top:2px}.dn-req-t{flex:1 1 calc(100% - 28px)}.dn-req-go{margin-left:28px}}
-/* change 300.2: the Status cell's flags, Amber 800 text or Amber 100/800 tag; each one a link to its fix */
-.ws-stat.dn-stop{gap:0;font-size:12px;line-height:16px;color:#92400E}
-/* change 307: Active and New recede to the secondary cell grey (Gray 600); flags are all the one amber chip */
+/* change 307: Active and New recede to the secondary cell grey (Gray 600); change 311 removed the flag chips */
 .ws-stat.is-calm{color:var(--gray-12)}
-.dn-flags{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
-.dn-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:0;border-radius:4px;background:#FEF3C7;color:#92400E;font:inherit;font-size:12px;line-height:16px;font-weight:500;cursor:pointer;white-space:nowrap}
-.dn-flag{text-align:left}
-.ws-stat.dn-stop:hover,.dn-flag:hover,.dn-tag:hover{text-decoration:underline}
 /* change 300.3: the bell's dropdown, the account menu's .pop */
 .bell-pop{max-width:calc(100vw - 16px);box-sizing:border-box}
 .bell-h{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--gray-16)}
@@ -14551,7 +14521,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 /* change 197: people on the Workspaces page */
 .ws-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 8px}.ws-meta .ws-win{margin:0}
 .ws-oa{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-15)}.ws-oa .wsp-faces{margin:0;flex:none}
-.ws-tbl .hp-cell.wsp{display:inline-block;width:auto;margin:-4px -6px 0;padding:4px 6px}
+.ws-tbl .wsp-grp{display:inline-block;margin:-4px -6px 0;padding:4px 6px;border-radius:4px;cursor:default}.wsp-grp:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
 .wsp-faces{display:flex;align-items:center}.wsp-f{display:inline-flex;flex:none;border:2px solid var(--gray-1);border-radius:999px}.wsp-f+.wsp-f{margin-left:-7px}.wsp-f.is-off{opacity:.45;filter:grayscale(1)}
 .wsp-f .pp-av{font-size:9px!important}.wsp-more{font-size:11px;color:var(--gray-15);margin-left:4px}
 .wsp-l{display:flex;align-items:baseline;gap:6px;min-width:0;margin-top:2px}.wsp-l .cs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.wsp-l .cs.is-warn{color:var(--orange-14)}.wsp-l .linkbtn{flex:none}
@@ -15904,7 +15874,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e71a9aa";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="b7a16ff";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16054,8 +16024,6 @@ body:has(#demoPill:not([hidden])) .ul3-e2s .ul3-e2d{padding-right:108px}   /* 29
 .pp-chip-n{font-weight:500}.pp-chip-r{margin-left:2px;color:#6B7280;font-weight:400}.gapw{display:flex;flex-wrap:wrap;column-gap:12px;min-width:0}
 /* change 298 (audit P2-15) */
 .hero-card--still{cursor:default}.hero-card--still:hover{border-color:var(--gray-13);box-shadow:none}
-.hero-f .hero-lk{font-size:inherit;line-height:inherit;padding:0}
-.hpop--wide .hp-go,.hpop--wide .hp-nm{white-space:normal;overflow-wrap:break-word}
 .flash-tip{position:fixed;z-index:1100;transform:translateY(-50%);padding:6px 8px;border-radius:4px;background:#1F2937;color:#fff;font-size:12px;line-height:16px;white-space:nowrap;box-shadow:var(--shadow-xs);pointer-events:none}
 body:has(#demoPill:not([hidden])) .page::after{content:"";display:block;height:32px}
 .ul3-g{color:#6B7280;font-weight:400}
