@@ -3321,24 +3321,8 @@ function agencyUsage(c){
   const tone=st.room===0?"paused":(st.pct>=R.warn||(pc&&pc.hits))?"close":"fine";
   if(tone!=="fine"&&(!worst||st.pct>worst.pct)) worst={k,pct:st.pct,tone,pc};
   return {k,R,r,st,pc,tone}}).filter(Boolean);
- const pendFor=k=>own?null:REQUESTS.find(x=>x.client===c.id&&x.res===k);
- const ansFor=k=>answered.filter(a=>a.res===k).slice(-1)[0];
- const rows=info.map(({k,R,r,st,pc,tone})=>{
-  const pend=pendFor(k), ans=ansFor(k);
-  const word=tone==="paused"?(own?"Paused until you raise it":`Paused until you raise it`):tone==="close"?(own?"Close to your limit":"Close to its limit"):"Fine";
-  const pl=paceLine(k,r), pace=pl&&tone==="close"?`, ${pl.charAt(0).toLowerCase()+pl.slice(1)}`:"";
-  const sub=R.kind==="balance"?"Topped up by you":"Renews 1 Oct";
-  const used=r.used, cap=r.cap, pct=Math.min(100,cap?used/cap*100:100);
-  const ext=pend?`<span class="cu-ext" style="left:${(cap/(cap+pend.amount)*100).toFixed(1)}%"></span>`:"";
-  const fill=pend?(cap/(cap+pend.amount))*pct:pct;
-  const line=pend?`<span class="cu-ans sub">${pend.by||first} requested ${f(pend.amount)} more</span>`
-   :ansPart(ans)?`<span class="cu-ans is-ok"><span><i></i>You approved ${f(ans.amount)} of the ${f(ans.asked)} ${ans.by||first} requested${ans.on?", "+ans.on:""}</span></span>`
-   :ans&&ans.state==="approved"?`<span class="cu-ans is-ok"><span><i></i>You raised this to ${f(ans.to||cap)}${ans.on?", "+ans.on:""}</span></span>`
-   :ans?`<span class="cu-ans is-no"><span><i></i>You declined${ans.on?" on "+ans.on:""}${ans.dnote?`: &ldquo;${ans.dnote}&rdquo;`:""}</span></span>`:"";
-  const act=pend?goBtn("Decide","linkbtn cu-go"):goBtn(tone==="fine"?"Change limit":"Raise limit","linkbtn cu-go");
-  return cuItem(k,R,used,cap,{tone,word:word+pace,sub,ask:pend?(pend.by||first)+" requested "+f(pend.amount)+" more":"",line:pend?"":line,act})}).join("");
  let top;
- if(ask) top=askGroups(ask.lines).map(g=>`<div class="cu-status is-pend"><span><i></i><b>${askerOf(g.lines,c.id)} requested ${linesText(g.lines)}</b>, ${AGE(g.when).toLowerCase()}${g.note?`: &ldquo;${g.note}&rdquo;`:""} ${goBtn("Decide on the Limits tab","linkbtn")}</span></div>`).join("");
+ if(ask) top=askGroups(ask.lines).map(g=>`<div class="cu-status is-pend"><span><i></i><b>${askerOf(g.lines,c.id)} requested ${linesText(g.lines)}</b>, ${AGE(g.when).toLowerCase()}${g.note?`: &ldquo;${g.note}&rdquo;`:""} ${(canI("limits")?`<button class="linkbtn" data-rqcgo="${g.id}">Answer request</button>`:goBtn("Decide on the Limits tab","linkbtn"))}</span></div>`).join("");
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
    ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it","linkbtn")}</span></div>`
@@ -3346,13 +3330,26 @@ function agencyUsage(c){
  else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
- return `${top}${tabs}<div class="panel">
-  <div class="panel-h"><span class="panel-t">${own?"Your own allowance":"What you allocated to "+c.name}</span>
-   <span class="sub">${CYCLE.month}, ${own?"on "+AGENCY.name+"'s pool, under your own cap":"from "+AGENCY.name+"'s pool"}</span>
-   <span class="c-a">${goBtn("Change limits","linkbtn")}</span></div>
-  <div class="panel-b" style="padding-top:0;padding-bottom:0"><div class="apu-grid">${rows}</div></div>
-  <div class="panel-b cu-foot"><span class="sub">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them shows on Workspaces and on this workspace's Limits tab."}</span></div></div>`;
+ /* change 303, 16 Oct 2026 (Hitesh: "make tables same in both view ... match it with what we have in client view"):
+    the card grid is gone; the agency reads the client's Allowance table (cuRows, same columns and cells) with a
+    "Change limits" link in the head and one trailing action cell: Change limit on every row (the record's Limits
+    tab in edit, that row's field focused; the own workspace goes to Billing's allocation row) and, on a row with
+    a waiting request, the way to answer it on Usage & limits, on the request line's own line. */
+ const act=(k,wq)=>`<span class="cx-ul"><button type="button" class="cx-lk" ${own?`data-goalloc="${k}"`:`data-culim="${c.id}|${k}"`}>Change limit</button></span>${wq&&canI("limits")?`<span class="cx-ul"><button type="button" class="cx-lk" data-rqcgo="${wq.ask||wq.id}">Answer request</button></span>`:""}`;
+ return `${top}${tabs}<div class="panel cx-pn cx-ag" data-auallow>
+  <div class="cx-ph"><span class="panel-t">Allowance</span><span class="cx-hsub">${CYCLE.month}, from ${AGENCY.name}'s plan${own?", under your own cap":""}</span><span class="cx-pa">${goBtn("Change limits","linkbtn")}</span></div>
+  <table class="cx-ut is-ag"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col><col class="cx-acw"></colgroup>
+   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>This cycle</th><th><span class="cx-sr">Actions</span></th></tr></thead><tbody>${cuRows(c,"",false,{own,act})}</tbody></table>
+  <div class="cx-foot">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them shows on Workspaces and on this workspace's Limits tab."}</div></div>`;
 }
+/* change 303: Change limit opens the record's Limits tab in edit with that row's field focused (read only when
+   the workspace is off or the role cannot change limits) */
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-culim]"); if(!b) return;
+ if(b.dataset.culim){const [id,k]=b.dataset.culim.split("|"), c=byId[id]; if(!c) return;
+  ORIGIN=null; ctx="agency"; asClient=false; view={name:"record",id}; tab="limits"; FOCUS_LIM=null; LM_DECL=null;
+  RL=canI("limits")&&!(c.disabled||c.deletedOn)?{id,D:{}}:null; render();
+  let n=0; const go=()=>{const i=el("rlin-"+k); if(!i){if(++n<75) setTimeout(go,40); return} i.focus({preventScroll:true}); i.select(); i.scrollIntoView({block:"center"})}; go(); return}   /* after the page skeleton */
+});
 /* the workspace-switcher trigger's own markup, captured once so renderShell
    can remove it from the DOM for a client-role session and re-insert the
    exact same node when leaving one. See the fix note in renderShell below. */
@@ -4033,8 +4030,7 @@ const limNow=(k,cap)=>RES[k].label+" limit is now "+f(cap);
    to one line. Sign-ins is a view of each client user's latest sign-in. Rows come from ACTIVITY (rewritten in
    active voice here; the stored text is untouched), REQUESTS and ANSWERS (one row per ask, one per decision).
    Times are paStamp's, so a row reads the same time here and on the person's page. */
-let RA={id:null,kind:"all",by:"any",earlier:false};
-const RA_K={limits:"Limits and requests",people:"People and access",accounts:"Email accounts",workspace:"Workspace"};
+let RA={id:null,by:"any",earlier:false};
 const RA_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], RA_DAYN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const RA_WIN=30, raNow=()=>new Date(2026,8,CYCLE.day);
 const raCap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s, raDot=s=>/[.!?]$/.test(s)?s:s+".", raNum=s=>+String(s).replace(/,/g,"");
@@ -4136,15 +4132,15 @@ function raGroups(list,cls){const g=[]; list.forEach(r=>{const l=g[g.length-1]; 
  return g.map(x=>{const a=raAgo(x.d), lab=a===0?"Today":a===1?"Yesterday":RA_DAYN[x.d.getDay()], ds=a<200?raDM(x.d):raDMY(x.d);
   return `<section class="ra-day${cls?" "+cls:""}" aria-label="${lab} ${ds}"><h3 tabindex="-1">${lab}<span>${ds}</span></h3><ol class="ra-ents">${x.items.map(raEnt).join("")}</ol></section>`}).join("")}
 function raLog(c,rows){
- const list=rows.filter(r=>(RA.kind==="all"||r.k===RA.kind)&&(RA.by==="any"||r.who===RA.by));
- if(!list.length){const what={all:"changes",limits:"limit changes or requests",people:"people or access changes",accounts:"email account changes",workspace:"workspace changes"}[RA.kind]||"changes";
+ const list=rows.filter(r=>RA.by==="any"||r.who===RA.by);
+ if(!list.length){const what="changes";
   return `<div class="panel ra-sheet"><p class="ra-empty"><span>No ${what}${RA.by!=="any"?" by "+RA.by:""} in ${c.name}.</span><button type="button" class="linkbtn" data-rareset>Show all changes</button></p></div>`}
  const recent=list.filter(r=>raAgo(r.d)<=RA_WIN), old=list.filter(r=>raAgo(r.d)>RA_WIN);
  let h=raGroups(recent);
  if(old.length){
   if(RA.earlier) h+=raGroups(old,"ra-old");
   else {let sum="";
-   if(RA.kind==="all"&&RA.by==="any"){const b=old.filter(r=>r.born), rest=old.length-b.length, cr=b.find(r=>/^created the workspace/.test(r.tx)), ni=b.filter(r=>r.inv).length;
+   if(RA.by==="any"){const b=old.filter(r=>r.born), rest=old.length-b.length, cr=b.find(r=>/^created the workspace/.test(r.tx)), ni=b.filter(r=>r.inv).length;
     if(cr) sum=`${cr.who} ${listAnd(["created the workspace",ni?`invited ${ni} client user${ni>1?"s":""}`:"",b.some(r=>/starting limits/.test(r.tx))?"confirmed the starting limits":""].filter(Boolean))}.`;
     if(rest) sum+=(sum?" ":"")+`${rest} more ${rest===1?"change":"changes"} up to ${raDM(old[0].d)}.`}
    else sum=`${old.length} ${old.length===1?"change":"changes"} older than ${RA_WIN} days.`;
@@ -4152,39 +4148,32 @@ function raLog(c,rows){
    if(nn) sum+=nn===1?" One of them needs you.":` ${nn} of them need you.`; else if(nl) sum+=nl===1?" One of them is worth a look.":` ${nl} of them are worth a look.`;
    h+=`<div class="ra-earlier"><h3>Earlier<span>${raDMY(old[old.length-1].d)}</span></h3><p><span>${sum}</span><button type="button" class="linkbtn" data-raearlier>Show ${old.length} earlier ${old.length===1?"change":"changes"}</button></p></div>`}}
  return `<div class="panel ra-sheet" id="raLog">${h}</div>`}
-function raShort(c,rows){const U=c.users||[], never=U.filter(u=>AGE(LASTSEEN[u[0]]||"unknown")==="never").length;
- return `<div class="panel ra-sheet" id="raLog">${raGroups(rows)}<div class="ra-foot">${!U.length?"Your own workspace has no client users. Your team's sign-ins are on each person's page in People."
-  :never===U.length?`No client user has signed in yet. Activity fills in as people work in ${c.name}.`:`Client sign-ins are on the <button type="button" class="linkbtn" data-rakind="signins">Sign-ins</button> view.`}</div></div>`}
-function raSignins(c,short){const U=c.users||[];
- const seen=e=>{const v=LASTSEEN[e]; if(v==null||v==="unknown") return '<span class="ra-mute">Not recorded</span>'; if(AGE(v)==="never") return '<span class="ra-mute">Not signed in yet</span>';
-  const d=raNow(); d.setDate(d.getDate()-Math.round(AGO_DAYS(v))); const a=raAgo(d); return a===0?"Today, "+raDM(d):a===1?"Yesterday, "+raDM(d):raDM(d)};
- return `<p class="ra-note">Each client user's latest sign-in. Only the latest is kept.${short?` <button type="button" class="linkbtn" data-rakind="all">Show changes</button>`:""}</p><div class="panel ra-sheet"><table class="ra-si"><thead><tr><th scope="col">Client user</th><th scope="col">Role</th><th scope="col">Latest sign-in</th></tr></thead>
-  <tbody>${U.map(u=>`<tr><td class="ra-si-u">${u[0]}</td><td class="ra-si-r">${u[1]}</td><td class="ra-si-w">${seen(u[0])}</td></tr>`).join("")}</tbody></table><div class="ra-foot">Your team's sign-ins are on each person's page in People.</div></div>`}
+function raShort(c,rows){const U=c.users||[], never=U.filter(u=>AGE(LASTSEEN[u[0]]||"unknown")==="never").length,
+  foot=!U.length?"Your own workspace has no client users. Your team's sign-ins are on each person's page in People.":never===U.length?`No client user has signed in yet. Activity fills in as people work in ${c.name}.`:"";
+ return `<div class="panel ra-sheet" id="raLog">${raGroups(rows)}${foot?`<div class="ra-foot">${foot}</div>`:""}</div>`}
+/* change 305: sign-ins are entries in the one list, not a view. One per client user (only the latest is kept),
+   stamped like the person's page, so a row reads the same time in both places, never later than a few minutes ago. Never-signed-in users have none. */
+function raSignRows(c){return (c.users||[]).filter(u=>{const v=LASTSEEN[u[0]]; return v!=null&&v!=="unknown"&&AGE(v)!=="never"})
+ .map((u,i)=>{const w=new Date(), cap=raNow(); cap.setHours(w.getHours(),w.getMinutes()-5,0,0); let d=raWhen({when:LASTSEEN[u[0]],text:"signin"}); if(d>cap) d=cap;
+  return {who:u[0],when:LASTSEEN[u[0]],d,k:"signin",tx:"signed in.",id:"ra-si-"+c.id+"-"+i}})}
 function rActivity(c){
- if(RA.id!==c.id) RA={id:c.id,kind:"all",by:"any",earlier:false};
- const rows=raRows(c), cnt={all:rows.length}, hasSI=(c.users||[]).length>0, short=rows.length<5;
- Object.keys(RA_K).forEach(k=>{cnt[k]=rows.filter(r=>r.k===k).length});
- if(RA.kind==="signins"?!hasSI:RA.kind!=="all"&&!cnt[RA.kind]) RA.kind="all";
+ if(RA.id!==c.id) RA={id:c.id,by:"any",earlier:false};
+ const chg=raRows(c), rows=chg.concat(raSignRows(c)).sort((x,y)=>y.d-x.d), short=rows.length<5;
  const people=[...new Set(rows.map(r=>r.who))]; if(RA.by!=="any"&&people.indexOf(RA.by)<0) RA.by="any";
- const kinds=Object.keys(RA_K).filter(k=>cnt[k]), nBy=p=>rows.filter(r=>r.who===p&&(RA.kind==="all"||RA.kind==="signins"||r.k===RA.kind)).length;
- const seg=(k,l,n)=>`<button type="button" data-rakind="${k}" aria-pressed="${RA.kind===k}">${l}${n!=null?`<span class="ra-c">${n}</span>`:""}</button>`;
+ const nBy=p=>rows.filter(r=>r.who===p).length;
  const filters=short?"":`<div class="ra-filters">
-   <div class="segc ra-seg" role="group" aria-label="Show">${seg("all","All changes",cnt.all)}${kinds.map(k=>seg(k,RA_K[k],cnt[k])).join("")}${hasSI?`<span class="ra-split" aria-hidden="true"></span>${seg("signins","Sign-ins")}`:""}</div>
-   <div class="ra-by ra-show"><span class="ra-byl">Show</span>${ddHTML("raShow",RA.kind,[{items:[{value:"all",label:`All changes (${cnt.all})`}].concat(kinds.map(k=>({value:k,label:`${RA_K[k]} (${cnt[k]})`})),hasSI?[{value:"signins",label:"Sign-ins"}]:[])}],{})}</div>
-   ${RA.kind==="signins"?"":`<div class="ra-by"><span class="ra-byl">By</span>${ddHTML("raBy",RA.by,[{items:[{value:"any",label:"Anyone"}].concat(people.map(p=>({value:p,label:`${p} (${nBy(p)})`})))}],{})}</div>`}</div>`;
+   <div class="ra-by"><span class="ra-byl">By</span>${ddHTML("raBy",RA.by,[{items:[{value:"any",label:"Anyone"}].concat(people.map(p=>({value:p,label:`${p} (${nBy(p)})`})))}],{})}</div></div>`;
  return `<div class="ra">
   <div class="ra-head"><h2 class="ra-title">Activity</h2><p class="ra-desc">Who changed what in this workspace, newest first. Sending and replies are in <button type="button" class="linkbtn" data-goanalytics="${c.id}">Analytics</button>.</p></div>
-  <p class="ra-sum">${raSum(c,rows)}</p>${filters}${RA.kind==="signins"?raSignins(c,short):short?raShort(c,rows):raLog(c,rows)}</div>`;
+  <p class="ra-sum">${raSum(c,chg)}</p>${filters}${short?raShort(c,rows):raLog(c,rows)}</div>`;
 }
-function raJump(id){RA.kind="all";RA.by="any";render(); if(!el(id)){RA.earlier=true;render()}
+function raJump(id){RA.by="any";render(); if(!el(id)){RA.earlier=true;render()}
  const r=el(id); if(!r) return; r.scrollIntoView({block:"center",behavior:REDUCED()?"auto":"smooth"});
  r.classList.remove("is-flash"); void r.offsetWidth; r.classList.add("is-flash");
  const a=r.querySelector(".ra-open button"); if(a) a.focus({preventScroll:true})}
 function raBind(){
- document.querySelectorAll("[data-rakind]").forEach(b=>b.onclick=()=>{RA.kind=b.dataset.rakind;render();const n=document.querySelector(`.ra-seg [data-rakind="${RA.kind}"]`);if(n&&n.offsetParent)n.focus()});
- wireDD(document,"raShow",v=>{if(v){RA.kind=v;render()}});
  wireDD(document,"raBy",v=>{if(v){RA.by=v;render()}});
- document.querySelectorAll("[data-rareset]").forEach(b=>b.onclick=()=>{RA.kind="all";RA.by="any";render()});
+ document.querySelectorAll("[data-rareset]").forEach(b=>b.onclick=()=>{RA.by="any";render()});
  document.querySelectorAll("[data-raearlier]").forEach(b=>b.onclick=()=>{RA.earlier=true;render();const h=document.querySelector(".ra-old h3");if(h)h.focus()});
  document.querySelectorAll("[data-rajump]").forEach(b=>b.onclick=e=>{e.preventDefault();raJump(b.dataset.rajump)});
  document.querySelectorAll("[data-raaccts]").forEach(b=>b.onclick=()=>{ctx=b.dataset.raaccts;asClient=false;inMod="accounts";openProspect=null;openSeq=null;openReply=null;render()});
@@ -4738,9 +4727,9 @@ function rmCross(c,email){const d=rmDom(email); if(!d||d===rmDom(c.email)) retur
 const rmCreated=c=>c.created?String(c.created).replace(/^0/,"").replace(/,.*$/,""):null;
 function rmClients(c){const R=CLIENT_ROLES;
  return (c.users||[]).map(u=>{const email=u[0], key="w:"+c.id+"|"+email, seen=AGE(LASTSEEN[email]||"unknown"), inv=seen==="never";
-  return {key,email,label:email,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],x:rmCross(c,email),client:true}})
+  return {key,email,label:email,name:ppName(email),ini:initials(ppName(email)),col:c.colour,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],x:rmCross(c,email),client:true}})
   .sort((a,b)=>(!!b.x-!!a.x)||R.indexOf(a.role)-R.indexOf(b.role)||a.email.localeCompare(b.email))}
-function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,
+function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,email:r.email,ini:r.initials,col:r.role==="Owner"?"#1D4ED8":"#DBEAFE",
  acct:roleName(r.role),fixed:r.ws===null,role:r.ws===null?"Workspace Admin":ppWsRole(r.P,c.id),seen:r.seen,isInv:r.seen==="never",sent:r.invited,off:r.disabled,me:r.me}))}
 /* Last sign-in: the status folds in here (no Status column, no green dot) */
 function rmSeen(c,r){
@@ -4751,10 +4740,15 @@ function rmSeen(c,r){
   return `<span class="rmt-seen is-quiet">${s?"Invited "+(/ago|now|today|yesterday/i.test(s)?AGE(s):s):"Invited, not accepted yet"}</span>`}
  return last?`<span class="rmt-seen">${lbl}${rmCap(last)}</span>`:`<span class="rmt-seen is-quiet">${lbl}Never</span>`;
 }
+/* change 304, 16 Oct 2026 (Hitesh: the Members tab "looks off"): the table takes People's numbers and parts.
+   The role is People's select (the person page's 230px dropdown); a row that can't change it shows the same text
+   without the box, lined up with the select's text, and says why under it. */
+const RM_DDCHEV='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+const RM_DDCHK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
 function rmRoleCell(c,r,can){
- if(!can) return `<span class="rmt-role">${r.role}</span>${r.fixed?'<span class="sub rmt-fixed">In every workspace</span>':""}`;
+ if(!can) return `<span class="rmt-role">${r.role}</span>${r.fixed?`<span class="sub rmt-fixed">${r.acct}, in every workspace</span>`:""}`;
  const open=RM.pop==="r:"+r.key;
- return `<div class="rmt-cell"><button type="button" class="rmt-rbtn" data-rmrole="${rmEsc(r.key)}" aria-haspopup="listbox" aria-expanded="${open}" aria-label="Role: ${r.role}. Change role">${r.role}${RM_CHEV}</button>${open?`<div class="rmt-pop" role="listbox" aria-label="Role in ${rmEsc(c.name)}">${CLIENT_ROLES.map(x=>`<button type="button" role="option" class="rmt-opt" aria-selected="${x===r.role}" data-rmpick="${rmEsc(r.key)}|${x}"><b>${x}</b>${x===r.role?RM_TICK:""}<small>${roleLine(x)}</small></button>`).join("")}</div>`:""}</div>`;
+ return `<div class="dd rmt-dd${open?" is-open":""}"><button type="button" class="dd-trig rmt-rbtn" data-rmrole="${rmEsc(r.key)}" aria-haspopup="listbox" aria-expanded="${open}" aria-label="Role: ${r.role}. Change role"><span class="dd-val">${r.role}</span>${RM_DDCHEV}</button>${open?`<div class="dd-menu rmt-pop" role="listbox" aria-label="Role in ${rmEsc(c.name)}">${CLIENT_ROLES.map(x=>`<button type="button" role="option" class="dd-opt rmt-opt${x===r.role?" is-sel":""}" aria-selected="${x===r.role}" data-rmpick="${rmEsc(r.key)}|${x}"><span class="dd-lbl"><span class="dd-l">${x}</span><span class="dd-desc">${roleLine(x)}</span></span>${x===r.role?RM_DDCHK:""}</button>`).join("")}</div>`:""}</div>`;
 }
 function rmMenuCell(r,items){
  if(!items.length) return `<td class="rmt-act"></td>`;
@@ -4762,18 +4756,24 @@ function rmMenuCell(r,items){
  return `<td class="rmt-act"><div class="rmt-cell rmt-cell--m"><button type="button" class="ubtn rmt-kebab" data-rmmenu="${rmEsc(r.key)}" aria-haspopup="menu" aria-expanded="${open}" aria-label="Actions for ${rmEsc(r.label)}">${RM_KEBAB}</button>${open?`<div class="menu rmt-menu" role="menu">${items.map(([k,l,why])=>`<button type="button" role="menuitem" class="menu-i${k==="remove"?" is-rm":""}" ${why?`disabled title="${rmEsc(why)}"`:`data-rmdo="${k}|${rmEsc(r.key)}"`}><span class="menu-l">${rmEsc(l)}</span>${why?`<span class="menu-d">${rmEsc(why)}</span>`:""}</button>`).join("")}</div>`:""}</div></td>`;
 }
 function rmWho(r,link,inner){return link?`<button type="button" class="rmt-who" data-rmperson="${rmEsc(r.key)}">${inner}</button>`:`<span class="rmt-who">${inner}</span>`}
-function rmClientRow(c,r,ed,link){
+/* change 304: People's person cell: 32px avatar (dashed while invited), the name, the address under it. A client
+   user's name is People's, made from the address. An address on another client's domain keeps one line: the amber
+   underline on the address and the reason after it, the full sentence on hover; Remove is in the row menu. */
+function rmPerson(r,link,sub,tip){return `<span class="pp-person rmt-person">${ppAv(r.ini,r.col,32,r.isInv)}<span>${rmWho(r,link,rmEsc(r.name)+(r.me?' <span class="sub">(you)</span>':""))}<i${tip?` title="${rmEsc(tip)}"`:""}>${sub}</i></span></span>`}
+/* People's Type column ("Your team", "Client user") in place of the group rows */
+const rmTypeCell=(ty,t)=>ty?`<td><span class="rmt-type">${t}</span></td>`:"";
+function rmClientRow(c,r,ed,link,ty){
  const only=(c.users||[]).length===1;
- const flag=r.x?`<span class="rmt-flag">On ${rmEsc(rmPoss(r.x.ws))} domain, another of your clients.${ed&&!only?`<button type="button" class="linkbtn rmt-flagbtn" data-rmdo="remove|${rmEsc(r.key)}">Remove from workspace</button>`:""}</span>`:"";
+ const sub=r.x?`${ed?`<span class="rmt-mku">${rmEsc(r.email)}</span>`:rmEsc(r.email)}, on ${rmEsc(rmPoss(r.x.ws))} domain`:rmEsc(r.email);
  const items=ed?[["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
   ["remove","Remove from "+c.name,only?`The only sign-in for ${c.name}; disable the workspace instead`:""]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmWho(r,link,r.x&&ed?`<span class="rmt-mku">${rmEsc(r.email)}</span>`:rmEsc(r.email))}${flag}</td>
+ return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link,sub,r.x?`On ${rmPoss(r.x.ws)} domain, another of your clients.`:"")}</td>${rmTypeCell(ty,"Client user")}
   <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
-function rmTeamRow(c,r,ed,link){
+function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
  const items=can?[r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmWho(r,link,rmEsc(r.name))}${r.me?' <span class="rmt-you">(you)</span>':""}<span class="sub">${r.acct}</span></td>
+ return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link,rmEsc(r.email),"")}</td>${rmTypeCell(ty,"Your team")}
   <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 const rmN=(n,one,many)=>`${n} ${n===1?one:many}`;
@@ -4792,7 +4792,7 @@ function rmHeading(c,cl,tm,ed){
   :`Only your team so far. ${pc.length} client invites are not accepted yet.`;
  else if(pend) p+=` ${rmN(pend,"invite is","invites are")} not accepted yet.`;
  if(off) p+=` ${rmN(off,"person is","people are")} disabled.`;
- if(xc&&ed) p+=xc===1?" 1 address is on another client's domain.":` ${xc} addresses are on other clients' domains.`;
+ if(xc&&ed) p+=xc===1?" 1 is on another client's domain.":` ${xc} are on other clients' domains.`;
  return {h:`${rmN(n,"person has","people have")} access`,p};
 }
 /* the invite form: Client users (addresses, then one role) or Your team (Account Members, then one role) */
@@ -4844,15 +4844,17 @@ function rMembers(c){
  const admins=ppTeam().filter(r=>r.role!=="Member"&&!r.disabled).map(r=>r.name);
  const lead=can?"":`<p class="rmt-ro">You can see who has access. To invite people or change roles, ask ${listAnd(admins).replace(/ and ([^,]*)$/," or $1")}.</p>`;
  const side=ro?(can?`<span class="rmt-side">${c.deletedOn?"Restore":"Enable"} the workspace to invite people or change roles.</span>`:"")
-  :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary" data-rminvite aria-controls="rmInvite" aria-expanded="false">Invite people</button>`:"";
- const grp=(t,s)=>`<tr class="rmt-grp"><td colspan="4"><b>${t}</b> <span>${s}</span></td></tr>`;
+  :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary rmt-invbtn" data-rminvite aria-controls="rmInvite" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button>`:"";
+ /* change 304: one list as People's, client users first; the Type column says which kind (not on the own workspace, which has one kind) */
+ const ty=!c.own, nc=ty?5:4, none=t=>`<tr class="rmt-none"><td colspan="${nc}">${t}</td></tr>`;
  const noMember=ed&&!c.own&&!tm.some(r=>!r.fixed);
- return `<div class="rmt"><div class="rmt-head"><div><h2 class="rmt-title">${hd.h}</h2>${hd.p?`<p class="rmt-p">${rmEsc(hd.p)}</p>`:""}</div>${side}</div>
+ /* with no select in the table, a role sits on its header; next to selects it lines up with their text */
+ const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
+ return `<div class="rmt"><div class="rmt-head"><div class="rmt-h"><h2 class="rmt-title">${hd.h}</h2>${side}</div>${hd.p?`<p class="rmt-p">${rmEsc(hd.p)}</p>`:""}</div>
   ${lead}${rmInviteHTML(c)}
-  <div class="panel rmt-sheet"><table class="rmt-t"><colgroup><col class="rmt-c1"><col class="rmt-c2"><col class="rmt-c3"><col class="rmt-c4"></colgroup>
-   <thead><tr><th scope="col">Person</th><th scope="col">Role in this workspace</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
-   ${c.own?"":`<tbody>${grp("Client users",`${cl.length}, ${ro?"no access while the workspace is disabled":"this workspace only"}`)}${cl.length?cl.map(r=>rmClientRow(c,r,ed,can)).join(""):`<tr class="rmt-none"><td colspan="4">No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite people</button>`:""}</td></tr>`}</tbody>`}
-   <tbody>${grp("Your team",`${tm.length} from ${AGENCY.name}`)}${tm.map(r=>rmTeamRow(c,r,ed,can)).join("")}${noMember?`<tr class="rmt-none"><td colspan="4">No Account Member works on ${rmEsc(c.name)} yet, so nobody is assigned to its outreach.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}</td></tr>`:""}</tbody>
+  <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
+   <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role in this workspace</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
+   <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite people</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`No Account Member works on ${rmEsc(c.name)} yet, so nobody is assigned to its outreach.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
   </table><div class="rmt-foot">Account Owners and Account Admins are Workspace Admin in every workspace.${can?` Their account role changes in <button type="button" class="linkbtn" data-topeople>People</button>.`:""}</div></div></div>`;
 }
 /* change 293: one listener per event, as the Limits tab does, so every repaint keeps working */
@@ -5027,22 +5029,26 @@ const CU_I={clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'};
 const cuChip=(t,w)=>`<span class="cx-st${w?" is-w":""}">${w?CU_I.clock:""}${t}</span>`;
 /* the allowance table: each row says how this cycle is going and, when there is one, the ask on it */
-function cuRows(c,me,canReq){const AG=AGENCY.name;
+/* change 303: the agency's view of a workspace's Usage draws these same rows (ag set, agencyUsage): its own words
+   ("its limit", "Topped up by you", "waiting on you"), the request line as text, and a trailing action cell */
+function cuRows(c,me,canReq,ag){const AG=AGENCY.name, yr=ag&&!ag.own?"its":"your";
  return RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return "";
   const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=stop?"":paceLine(k,r), hot=stop||p>=R.warn||!!ro;   /* change 292: paceLine */
   const wq=REQUESTS.find(x=>x.client===c.id&&x.res===k), pc=[];
   pc.push(stop?`<span class="cx-ul"><span class="cx-mk is-out">Used up</span></span>`
    :ro?`<span class="cx-ul"><span class="cx-mk">${ro}</span></span>`
-   :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to your limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`);
+   :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to ${yr} limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`);
   if(wq){const l=cuLine(wq,true);
-   pc.push(`<span class="cx-ul"><button type="button" class="cx-lk" data-cuopen="${wq.ask||wq.id}">${wq.by&&wq.by!==me?wq.by:"You"} requested ${f(l.amt)} more</button>. <span class="cx-s cx-in">${l.given?`${f(l.given)} given; ${f(l.wait)} waiting on ${AG}.`:`Waiting on ${AG}.`}</span></span>`)}
+   pc.push(ag?`<span class="cx-ul"><span class="cx-rq">${wq.by||c.name.split(" ")[0]} requested ${f(l.amt)} more</span>. <span class="cx-s cx-in">${l.given?`${f(l.given)} given; ${f(l.wait)} waiting on you.`:`Waiting on you.`}</span></span>`
+    :`<span class="cx-ul"><button type="button" class="cx-lk" data-cuopen="${wq.ask||wq.id}">${wq.by&&wq.by!==me?wq.by:"You"} requested ${f(l.amt)} more</button>. <span class="cx-s cx-in">${l.given?`${f(l.given)} given; ${f(l.wait)} waiting on ${AG}.`:`Waiting on ${AG}.`}</span></span>`)}
   else{const an=ANSWERS.filter(a=>a.client===c.id&&a.res===k&&ansLive(a)&&a.on&&cuDate(a.on).ago<CYCLE.day).slice(-1)[0];
    if(an){const l=cuLine(an,false), on=an.on===TODAY_D?"today":"on "+an.on;
-    pc.push(`<span class="cx-ul"><button type="button" class="cx-lk is-ans" data-cuopen="${an.ask||an.id}">${l.given>=l.amt?`${AG} gave ${f(l.given)} ${on}`:l.given?`${AG} gave ${f(l.given)} of ${f(l.amt)} ${on}`:`${AG} declined your request ${on}`}</button></span>`)}}
-  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Topped up by "+AG}</span></td>
+    pc.push(ag?`<span class="cx-ul"><span class="cx-rq is-ans">${l.given>=l.amt?`You gave ${f(l.given)} ${on}`:l.given?`You gave ${f(l.given)} of ${f(l.amt)} ${on}`:`You declined the request ${on}`}</span></span>`
+     :`<span class="cx-ul"><button type="button" class="cx-lk is-ans" data-cuopen="${an.ask||an.id}">${l.given>=l.amt?`${AG} gave ${f(l.given)} ${on}`:l.given?`${AG} gave ${f(l.given)} of ${f(l.amt)} ${on}`:`${AG} declined your request ${on}`}</button></span>`)}}
+  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Topped up by "+(ag?"you":AG)}</span></td>
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> left</span></td>
-   <td class="cx-c-pc">${pc.join("")}</td></tr>`}).join("")}
+   <td class="cx-c-pc">${pc.join("")}</td>${ag?`<td class="cx-c-ac">${ag.act(k,wq)}</td>`:""}</tr>`}).join("")}
 /* Requests: every ask from this workspace, whoever made it, with what came of it */
 function cuReqHTML(c,me,canReq){const AG=AGENCY.name, A=cuAsks(c), mon=cuToday().getUTCMonth();
  const per={cycle:a=>a.dt.ago<CYCLE.day,"3m":a=>(mon-a.dt.m+12)%12<=2,all:()=>true}[CU.per]||(()=>true);
@@ -8372,10 +8378,10 @@ function dnHTML(){
 function dnStatusCell(c){
  const td=wsStatusCell(c); if(c.disabled||wsShownState(c)!=="Active") return td;
  const A=dnAsks().filter(a=>a.client===c.id), D=dnDisc(c), lim=canI("limits"), F=[];
- if(dnUp("sends",c)) F.push(lim?`<button type="button" class="ws-stat dn-stop" data-dngo="lim|sends|${c.id}" title="Raise the Emails sent / month limit">Stopped sending</button>`:`<span class="ws-stat dn-stop">Stopped sending</span>`);
+ if(dnUp("sends",c)) F.push(lim?`<button type="button" class="ws-stat dn-stop dn-tag" data-dngo="lim|sends|${c.id}" title="Raise the Emails sent / month limit">Stopped sending</button>`:`<span class="ws-stat dn-stop dn-tag">Stopped sending</span>`);
  if(A.length) F.push(`<button type="button" class="dn-tag" data-dngo="req|${A[0].id}">${A.length} request${A.length===1?"":"s"}</button>`);
  if(D.length){const full=D.length===1?`${D[0][0]} is disconnected, so nothing sends from it. Reconnect it in ${c.name}'s Email accounts.`:`${D.length} email accounts are disconnected in ${c.name}. Reconnect them in its Email accounts.`;
-  F.push(`<button type="button" class="dn-flag" data-dngo="mbx|${c.id}|${D[0][0]}" title="${full}" aria-label="${full}">${D.length} disconnected</button>`)}
+  F.push(`<button type="button" class="dn-flag dn-tag" data-dngo="mbx|${c.id}|${D[0][0]}" title="${full}" aria-label="${full}">${D.length} disconnected</button>`)}
  return F.length?`<td><span class="dn-flags">${F.slice(0,2).join("")}</span></td>`:td}
 /* 300.3 (doc 68 #3): the header bell lists the same items, each landing where the table's links land */
 function bellItems(){return asClient?[]:dnItems()}
@@ -9601,7 +9607,7 @@ const wsShownState=c=>{const s=wsState(c); return s==="Active"&&grace()?"Paused"
 function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
 function wsStatusCell(c){
  const t=wsShownState(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
- return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':'')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
+ return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_TITLE={people:"People",usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
@@ -14470,10 +14476,12 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .msg.dn-req svg{color:#B45309}.dn-req-t{flex:1;min-width:0}.dn-req strong{font-weight:600}.dn-req-go{flex:none;margin:0;font-size:13px;line-height:20px;font-weight:600}
 @media (max-width:640px){.msg.dn-req{flex-wrap:wrap;align-items:flex-start}.msg.dn-req>svg{margin-top:2px}.dn-req-t{flex:1 1 calc(100% - 28px)}.dn-req-go{margin-left:28px}}
 /* change 300.2: the Status cell's flags, Amber 800 text or Amber 100/800 tag; each one a link to its fix */
-.ws-stat.dn-stop{background:none;border:0;padding:0;font:inherit;font-size:13px;line-height:20px;font-weight:500;color:#92400E;cursor:pointer}
+.ws-stat.dn-stop{gap:0;font-size:12px;line-height:16px;color:#92400E}
+/* change 307: Active and New recede to the secondary cell grey (Gray 600); flags are all the one amber chip */
+.ws-stat.is-calm{color:var(--gray-12)}
 .dn-flags{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 .dn-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:0;border-radius:4px;background:#FEF3C7;color:#92400E;font:inherit;font-size:12px;line-height:16px;font-weight:500;cursor:pointer;white-space:nowrap}
-.dn-flag{background:none;border:0;padding:0;font:inherit;font-size:12px;line-height:16px;font-weight:500;color:#92400E;cursor:pointer;text-align:left}
+.dn-flag{text-align:left}
 .ws-stat.dn-stop:hover,.dn-flag:hover,.dn-tag:hover{text-decoration:underline}
 /* change 300.3: the bell's dropdown, the account menu's .pop */
 .bell-pop{max-width:calc(100vw - 16px);box-sizing:border-box}
@@ -14636,59 +14644,80 @@ td>.cs:only-child{display:block}
    (20/28 600 Gray 800, 14/20 Gray 500 line); one table, Gray 50 header 12/16 500 Gray 500, cells 14px 16px with
    24px outer edges, columns 44% / 30% / rest / 76px as the design; groups as a bold row with a grey count. */
 .rmt{display:flex;flex-direction:column;gap:16px}
-.rmt-head{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;padding-top:4px}
-.rmt-head>div{flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:4px}
+/* change 304: the header is the Limits tab's (20/28 title with its action on the title row, 4px to one 14/20 line) */
+.rmt-head{display:flex;flex-direction:column;gap:4px;padding-top:4px}
+.rmt-h{display:flex;align-items:center;flex-wrap:wrap;gap:4px 16px;min-height:28px}
+.rmt-h .rmt-side,.rmt-h .rmt-invbtn{margin:-2px 0 -2px auto}
+.rmt-invbtn svg{width:16px;height:16px;margin-right:6px;flex:none}
+@media (max-width:760px){.rmt-h{display:contents}.rmt-h .rmt-side,.rmt-h .rmt-invbtn{order:3;align-self:flex-start;margin:8px 0 0}}
 .rmt-title{margin:0;font-size:20px;line-height:28px;font-weight:600;color:#1F2937}
 .rmt-p{margin:0;max-width:100ch;font-size:14px;line-height:20px;color:#6B7280}
 .rmt-side{font-size:14px;line-height:20px;color:#6B7280}
 .rmt-ro{margin:0;font-size:14px;line-height:20px;color:#6B7280}
 .rmt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .panel.rmt-sheet,.panel.rmt-inv{overflow:visible}
+/* change 304: People's table (vPeople): header 40px, 12/16 500 Gray 500 on Gray 50; rows 56px with the content
+   centred; 20px outer edges and 12px between columns; avatar 32px, 10px to the name (14/20 600 Gray 900), the address
+   11px Gray 500; Type 13px Gray 500; Last sign-in 13px; kebab 28px on the right edge. */
 .rmt-t{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
-.rmt-t col.rmt-c1{width:44%}.rmt-t col.rmt-c2{width:30%}.rmt-t col.rmt-c4{width:76px}
-.rmt-t th{text-align:left;font-size:12px;font-weight:500;line-height:16px;color:#6B7280;background:#F9FAFB;padding:12px 16px;border-bottom:1px solid #E5E7EB;white-space:nowrap}
+.rmt-t col.rmt-c1{width:372px}.rmt-t col.rmt-c2{width:102px}.rmt-t col.rmt-c3{width:242px}.rmt-t col.rmt-c5{width:64px}
+.rmt-t th{text-align:left;vertical-align:top;height:40px;box-sizing:border-box;font-size:12px;font-weight:500;line-height:16px;color:#6B7280;background:#F9FAFB;padding:12px 12px 11px 0;border-bottom:1px solid #E5E7EB;white-space:nowrap}
 .rmt-t th:first-child{border-top-left-radius:7px}.rmt-t th:last-child{border-top-right-radius:7px}
-.rmt-t td{text-align:left;padding:14px 16px;vertical-align:top;font-size:14px;line-height:20px;color:#1F2937;border-top:1px solid #F3F4F6}
-.rmt-t th:first-child,.rmt-t td:first-child{padding-left:24px}
-.rmt-t th:last-child,.rmt-t td:last-child{padding-right:24px}
+.rmt-t td{text-align:left;vertical-align:middle;height:56px;box-sizing:border-box;padding:6px 12px 6px 0;font-size:13px;line-height:20px;color:#111827;border-bottom:1px solid #F3F4F6}
+.rmt-t th:first-child,.rmt-t td:first-child{padding-left:20px}
+.rmt-t th:last-child,.rmt-t td:last-child{padding-right:20px}
+.rmt-t tbody tr:last-child td{border-bottom:0}
 .rmt-t td .sub{display:block;font-size:12px;line-height:16px;color:#6B7280;margin-top:2px;font-weight:400}
-.rmt-t .rmt-grp td{padding:20px 24px 8px;border-top:1px solid #E5E7EB}
-.rmt-t tbody:first-of-type .rmt-grp td{border-top:0;padding-top:16px}
-.rmt-grp b{font-weight:600;color:#1F2937}
-.rmt-grp span{color:#6B7280;margin-left:6px}
-.rmt-t .rmt-none td{color:#6B7280}
+.rmt-t .rmt-none td{height:auto;padding-top:18px;padding-bottom:18px;color:#6B7280}
 .rmt-none .linkbtn{margin-left:4px}
-.rmt-who{display:inline;padding:0;border:0;background:none;font:inherit;font-weight:600;color:#1F2937;text-align:left;overflow-wrap:anywhere;cursor:pointer}
+.rmt-person>span:last-child{min-width:0}
+.rmt-person i{line-height:22px}
+.rmt-who{display:block;align-self:flex-start;max-width:100%;padding:0;border:0;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:600;color:#111827;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.rmt-t .rmt-who .sub{display:inline;margin:0;font-size:12px;line-height:16px;font-weight:400;color:#6B7280}
 span.rmt-who{cursor:default}
 button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offset:3px}
-.rmt-who:focus-visible,.rmt-rbtn:focus-visible,.rmt-opt:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
-.rmt-you{color:#6B7280}
+.rmt-who:focus-visible,.rmt-opt:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.rmt-opt:focus-visible{outline-offset:-2px;border-radius:0}
 .rmt-mku{text-decoration:underline 3px #FCD34D;text-underline-offset:4px;text-decoration-skip-ink:none}
-.rmt-flag{display:block;margin-top:4px;max-width:56ch;color:#6B7280}
-.rmt-flag .rmt-flagbtn{display:table;margin-top:6px;line-height:20px}
-.rmt-seen{color:#1F2937}.rmt-seen.is-quiet{color:#6B7280}
+.rmt-person .rmt-mku{text-decoration-thickness:2px;text-underline-offset:3px}
+.rmt-type{font-size:13px;color:#6B7280}
+.rmt-seen{display:block;color:#4B5563}.rmt-seen.is-quiet{color:#6B7280}
 .rmt-r.is-off .rmt-who,.rmt-r.is-off .rmt-role{color:#6B7280}
 .rmt-lbl{display:none}
 .rmt-cell{position:relative}
-.rmt-cell--m{display:block;width:32px}
-.rmt-rbtn{display:inline-flex;align-items:center;gap:6px;max-width:calc(100% + 16px);padding:4px 8px;margin:-4px -8px;border:0;border-radius:4px;background:none;font:inherit;font-size:14px;line-height:20px;color:#1F2937;cursor:pointer;text-align:left}
-.rmt-rbtn svg{width:16px;height:16px;flex:none;color:#D1D5DB;transition:color .12s}
-.rmt-rbtn:hover,.rmt-rbtn[aria-expanded="true"]{background:#F3F4F6}
-.rmt-rbtn:hover svg,.rmt-rbtn:focus-visible svg,.rmt-rbtn[aria-expanded="true"] svg{color:#6B7280}
-.rmt-pop{position:absolute;z-index:30;top:calc(100% + 8px);left:-8px;width:340px;max-width:calc(100vw - 32px);background:#fff;border:1px solid #E5E7EB;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:4px 0;display:flex;flex-direction:column}
-.rmt-opt{display:grid;grid-template-columns:minmax(0,1fr) 16px;gap:2px 12px;padding:10px 16px;border:0;background:none;font:inherit;text-align:left;cursor:pointer}
-.rmt-opt:hover,.rmt-opt:focus-visible{background:#F3F4F6}
-.rmt-opt:focus-visible{outline-offset:-2px;border-radius:0}
-.rmt-opt b{font-size:13px;line-height:18px;font-weight:500;color:#111827}
-.rmt-opt small{grid-column:1;font-size:12px;line-height:16px;color:#6B7280}
-.rmt-opt .rmt-tick{grid-column:2;grid-row:1;width:16px;height:16px;color:#1D4ED8;align-self:center}
-.rmt-kebab{margin:-6px 0;color:#6B7280}
+.rmt-cell--m{display:flex;justify-content:flex-end;width:44px}
+.rmt-dd{width:230px;max-width:100%}
+.rmt-role,.rmt-t td .rmt-fixed{display:block;padding-left:13px}
+.rmt-role{font-size:14px;line-height:20px;color:#111827}
+.rmt-t--plain .rmt-role,.rmt-t--plain td .rmt-fixed{padding-left:0}
+.rmt-pop{z-index:30;right:auto;width:340px;max-width:calc(100vw - 32px);max-height:none}
+.rmt-opt{width:100%;margin:0;border:0;background:none;font:inherit;text-align:left}
+.rmt-kebab{width:28px;height:28px;margin:0;color:#6B7280}.rmt-kebab svg{width:16px;height:16px}
 .rmt-kebab[aria-expanded="true"]{background:#F3F4F6;color:#1F2937}
 .rmt-menu{width:260px;right:0;left:auto;top:calc(100% + 4px);z-index:30}
 .rmt-menu .menu-i.is-rm .menu-l{color:var(--red-12)}
 .rmt-menu .menu-i:disabled{cursor:default}.rmt-menu .menu-i:disabled .menu-l{color:#9CA3AF}.rmt-menu .menu-i:disabled:hover{background:none}
-.rmt-foot{padding:12px 24px;border-top:1px solid #E5E7EB;font-size:12px;line-height:16px;color:#6B7280}
+.rmt-foot{padding:12px 20px;border-top:1px solid #E5E7EB;font-size:12px;line-height:16px;color:#6B7280}
 .rmt-foot .linkbtn{font-size:12px;line-height:16px}
+
+/* between phone and 1200px the Person column takes what is left and Last sign-in keeps 140px; the address line may wrap */
+@media (max-width:1199px){.rmt-t col.rmt-c1{width:auto}.rmt-t col.rmt-c4{width:152px}.rmt-person i{white-space:normal;overflow-wrap:anywhere}}
+/* up to 920px the rows stack (person, type, role, last sign-in, the menu on the right), from the old phone block */
+@media (max-width:920px){
+ .rmt-t,.rmt-t tbody,.rmt-t tr,.rmt-t td{display:block}
+ .rmt-t thead,.rmt-t colgroup{display:none}
+ .rmt-t tr.rmt-r{display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:6px 12px;padding:12px 16px;border-bottom:1px solid #F3F4F6}
+ .rmt-t tbody tr:last-child{border-bottom:0}
+ .rmt-t td{height:auto;padding:0!important;border:0!important}
+ .rmt-r td{grid-column:1;margin-left:42px}.rmt-r td:first-child{margin-left:0}
+ .rmt-r td.rmt-act{grid-column:2;grid-row:1;margin-left:0}
+ .rmt-t tr.rmt-none{padding:14px 16px;border-bottom:1px solid #F3F4F6}
+ .rmt-person i{white-space:normal;overflow-wrap:anywhere}
+ .rmt-lbl{display:inline;color:#6B7280}
+ .rmt-menu{width:232px}
+ .rmt-t tr.rmt-r{position:relative}.rmt-dd{position:static}.rmt-pop{top:auto;left:16px;right:16px;width:auto;margin-top:4px}
+ .rmt-foot{padding:12px 16px}
+}
 /* Invite people opens in place under the heading: label column 160px, controls from 184px, as the design */
 .rmt-inv{display:flex;flex-direction:column;gap:20px;padding:20px 24px 24px}
 .rmt-inv h3{margin:0;font-size:16px;line-height:24px;font-weight:600;color:#111827}
@@ -14715,23 +14744,7 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rmt-go{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding-left:184px}
 .rmt-why{font-size:14px;line-height:20px;color:#6B7280;margin-left:4px}
 @media (max-width:760px){
- .rmt-head{flex-direction:column;align-items:flex-start}.rmt-head>div{flex:none;width:100%}
- .rmt-t,.rmt-t tbody,.rmt-t tr,.rmt-t td{display:block}
- .rmt-t thead,.rmt-t colgroup{display:none}
- .rmt-t tr.rmt-r{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:6px 12px;padding:14px 16px;border-top:1px solid #F3F4F6}
- .rmt-t td{padding:0!important;border:0!important}
- .rmt-r td:nth-child(1){grid-column:1;grid-row:1}.rmt-r td:nth-child(2){grid-column:1;grid-row:2}.rmt-r td:nth-child(3){grid-column:1;grid-row:3}
- .rmt-r td.rmt-act{grid-column:2;grid-row:1}
- .rmt-t tr.rmt-grp{padding:20px 16px 8px;border-top:1px solid #E5E7EB}
- .rmt-t tbody:first-of-type tr.rmt-grp{border-top:0;padding-top:14px}
- .rmt-t tr.rmt-none{padding:14px 16px;border-top:1px solid #F3F4F6}
- .rmt-grp span{display:block;margin:2px 0 0}
- .rmt-lbl{display:inline;color:#6B7280}
- .rmt-fixed{display:none}
- .rmt-kebab{margin:-4px 0 0}
- .rmt-pop{width:272px}
- .rmt-menu{width:232px}
- .rmt-foot{padding:12px 16px}
+ /* change 304: the stacked rows moved to the 920px block after the table rules */
  .rmt-inv{padding:16px}
  .rmt-irow{grid-template-columns:minmax(0,1fr)}
  .rmt-k{padding-top:0}
@@ -14850,16 +14863,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .ra .ra-sum .ra-jump{font-size:16px;line-height:24px;font-weight:600;text-decoration:none}
 .ra .ra-sum .ra-jump:hover{text-decoration:underline;text-underline-offset:3px}
 .ra-filters{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;margin:24px 0 12px}
-.ra-sum+.ra-sheet,.ra-sum+.ra-note{margin-top:20px}
-.ra-seg{max-width:100%;overflow-x:auto;scrollbar-width:none;align-items:center}
-.ra-seg::-webkit-scrollbar{display:none}
-.ra-seg button{flex:none;white-space:nowrap}
-.ra-seg button:focus-visible{outline:2px solid #1D4ED8;outline-offset:-2px}
-.ra-c{margin-left:6px;font-size:12px;font-weight:400;color:#6B7280}
-.ra-split{flex:none;align-self:stretch;width:1px;margin:4px;background:#D1D5DB}
+.ra-sum+.ra-sheet{margin-top:20px}
 .ra-by{display:flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:#6B7280}
 .ra-by .dd{width:200px}
-.ra-show{display:none}
 .ra-sheet{padding:0;overflow:hidden}
 .ra-day,.ra-earlier{display:grid;grid-template-columns:176px minmax(0,1fr);padding:6px 0;border-top:1px solid #F3F4F6}
 .ra-sheet>:first-child{border-top:0}
@@ -14883,20 +14889,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .ra-earlier p span{max-width:76ch}
 .ra-empty{margin:0;padding:28px 24px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .ra-empty span{color:#6B7280}
-.ra-note{margin:0 0 12px;font-size:14px;line-height:20px;color:#6B7280}
-.ra-si{width:100%;border-collapse:collapse;text-align:left}
-.ra-si th{padding:12px 16px;border-bottom:1px solid #F3F4F6;font-size:12px;line-height:16px;font-weight:500;color:#6B7280;text-align:left;white-space:nowrap}
-.ra-si td{padding:14px 16px;border-top:1px solid #F3F4F6;font-size:14px;line-height:20px;color:#1F2937;text-align:left;vertical-align:top}
-.ra-si tbody tr:first-child td{border-top:0}
-.ra-si th:first-child,.ra-si td:first-child{padding-left:24px}
-.ra-si th:last-child,.ra-si td:last-child{padding-right:24px}
-.ra-mute{color:#6B7280}
 .ra-foot{padding:12px 24px;border-top:1px solid #F3F4F6;font-size:12px;line-height:16px;color:#6B7280}
-.ra .ra-foot .linkbtn{font-size:12px;line-height:16px}
 @media (max-width:760px){
- .ra-filters{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px;margin-top:20px}
- .ra-seg{display:none}
- .ra-show{display:flex}
+ .ra-filters{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:20px}
  .ra-by{flex-direction:column;align-items:stretch;gap:4px;min-width:0;font-size:12px;line-height:16px}
  .ra-by .dd{width:100%}
  .ra-day,.ra-earlier{display:block;padding:4px 0 6px}
@@ -14904,14 +14899,6 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .ra-ent{grid-template-columns:44px minmax(0,1fr);gap:12px;padding:8px 16px}
  .ra-earlier p{padding:6px 16px 8px 72px}
  .ra-empty{padding:20px 16px}
- .ra-si thead{display:none}
- .ra-si,.ra-si tbody,.ra-si tr,.ra-si td{display:block}
- .ra-si tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 16px;border-top:1px solid #F3F4F6}
- .ra-si tbody tr:first-child{border-top:0}
- .ra-si td{padding:0!important;border:0}
- .ra-si td.ra-si-u{grid-column:1/-1;grid-row:1;overflow-wrap:anywhere}
- .ra-si td.ra-si-r{grid-column:1;grid-row:2;color:#6B7280}
- .ra-si td.ra-si-w{grid-column:2;grid-row:2;text-align:right}
  .ra-foot{padding:12px 16px}
 }
 .modal--450{width:450px}
@@ -15882,7 +15869,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="123c217";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="966ed70";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16511,6 +16498,13 @@ body:has([data-ul3e2dock]) #toastLayer{bottom:88px}   /* the Undo toast sits abo
 .cx-foot{padding:12px 24px;border-top:1px solid #E5E7EB;font-size:13px;line-height:20px;color:#6B7280}
 .cx-sec{margin-top:8px}
 .ub-tabs:has(+ .cx-pn){margin-bottom:0}
+/* change 303: the agency's Allowance is this table plus the head link and a trailing action cell */
+.cx-ph .cx-pa{margin-left:auto}
+.cx-ut col.cx-acw{width:142px}
+.cx-rq{font-weight:500;color:#1F2937}.cx-rq.is-ans{font-weight:400;color:#374151}
+.cx-ut td.cx-c-ac .cx-lk,.cx-ut.is-ag .cx-s.cx-in{white-space:nowrap}
+@media (max-width:760px){.cx-ut.is-ag tr{grid-template-areas:"rn av" "us us" "pc pc" "ac ac"}
+ .cx-ut.is-ag td.cx-c-ac{display:flex;flex-wrap:wrap;gap:4px 20px}.cx-ut.is-ag td.cx-c-ac .cx-ul+.cx-ul{margin-top:0}}
 .cx-sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:0 0 12px}
 .cx-sh h2{margin:0;font-size:20px;line-height:28px;font-weight:600;color:#1F2937;outline:0}
 .cx-hs{font-size:14px;line-height:20px;color:#6B7280}
