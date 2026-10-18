@@ -2884,12 +2884,10 @@ function setLimit(k,id,v,why){
    from today. Exported (window.paceLine, window.paceDays) for change 290's Usage & limits. */
 const PACE_RENEW=k=>k==="sends"||k==="lead_finder";
 function paceDays(k,r){if(!r||!r.used||!(r.cap>0)) return null; const left=r.cap-r.used; return left<=0?0:left/(r.used/CYCLE.day)}
+/* change 320: one pace wording for every resource, days from today; a renewing one says nothing when it lasts the cycle */
 function paceLine(k,r,all){if(!r||!(r.cap>0||r.used)) return ""; const left=r.cap-r.used, pd=r.used/CYCLE.day;   /* all: a balance's days even past the cycle */
- if(PACE_RENEW(k)){if(!r.used) return ""; const d=Math.round(r.cap/pd);
-  if(left<=0) return `Ran out on day ${Math.min(CYCLE.day,Math.max(1,d))}`;
-  return d>=CYCLE.days?"":`Runs out around day ${Math.max(CYCLE.day,d)} of ${CYCLE.days}`}
  if(left<=0) return "None left"; if(!r.used) return "";
- const n=left/pd; if(!all&&n>=CYCLE.days-CYCLE.day) return ""; const m=Math.max(1,Math.round(n)); return `Runs out in about ${m} day${m===1?"":"s"}`}
+ const n=left/pd; if((PACE_RENEW(k)||!all)&&n>=CYCLE.days-CYCLE.day) return ""; const m=Math.max(1,Math.round(n)); return `Runs out in about ${m} day${m===1?"":"s"}`}
 window.paceLine=paceLine; window.paceDays=paceDays;
 /* 2 Oct 2026 (doc 66 §7): pace = used ÷ day of cycle × days in cycle; the run-out
    day follows. Nothing is projected before day 3 of a cycle. */
@@ -3178,8 +3176,8 @@ function renderRail(){
     Without this branch no rail item was ever current in a client workspace. */
  const cur=k=>ctx==="agency"
    ?((k==="dash"&&view.name==="dash")||(k==="queue"&&view.name==="queue")
-     ||(k==="clients"&&(view.name==="clients"||view.name==="record"))||(k==="billing"&&view.name==="credits")||(k==="limits"&&view.name==="limits")
-     ||(k==="people"&&(view.name==="people"||view.name==="person"||view.name==="addmember"))
+     ||(k==="clients"&&(view.name==="clients"||view.name==="record"||(view.name==="person"&&view.from)))||(k==="billing"&&view.name==="credits")||(k==="limits"&&view.name==="limits")
+     ||(k==="people"&&(view.name==="people"||(view.name==="person"&&!view.from)||view.name==="addmember"))
      ||(k==="apiint"&&view.name==="apiint")||(k==="whitelabel"&&view.name==="whitelabel")
      ||(AGY_MOD[k]&&view.name===k))
    :(asClient?RAIL2CVIEW[k]===cView:(RAIL2MOD[k]||k)===inMod);
@@ -3324,10 +3322,10 @@ function agencyUsage(c){
  if(ask) top=askGroups(ask.lines).map(g=>`<div class="cu-status is-pend"><span><i></i><b>${askerOf(g.lines,c.id)} requested ${linesText(g.lines)}</b>, ${AGE(g.when).toLowerCase()}${g.note?`: &ldquo;${g.note}&rdquo;`:""} ${(canI("limits")?`<button class="linkbtn" data-rqcgo="${g.id}">Answer request</button>`:goBtn("Decide on the Limits tab","linkbtn"))}</span></div>`).join("");
  else if(worst){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
-   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${own?"You have":first+" has"} used the ${f(R.rows[c.id].cap)} you set for this month; sending for this stops until you raise it. ${goBtn("Raise it","linkbtn")}</span></div>`
-   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${paceLine(worst.k,R.rows[c.id])?`${paceLine(worst.k,R.rows[c.id])} at this pace, and ${own?"your":first+"'s"} sending for this pauses until you raise the limit.`:`${whose} outreach keeps running if the pace holds.`} ${goBtn("Raise it","linkbtn")}</span></div>`}
- else top=`<p class="cu-line">${own?"Your":first+"'s"} outreach is running. Nothing is close to its limit.</p>`;
- const tabs=`<div class="tabbar ub-tabs">${[["allow","Allowance"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
+   ?`<div class="cu-status is-bad"><span><b>${nm} ${pl?"are":"is"} paused.</b> ${goBtn("Raise it","linkbtn")}</span></div>`
+   :`<div class="cu-status is-warn"><span><b>${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.</b> ${goBtn("Raise it","linkbtn")}</span></div>`}
+ else top="";   /* change 320: the rows say how each limit is going; the line speaks only when one needs you */
+ const tabs=`<div class="tabbar ub-tabs">${[["allow","Limits"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
  /* change 303, 16 Oct 2026 (Hitesh: "make tables same in both view ... match it with what we have in client view"):
     the card grid is gone; the agency reads the client's Allowance table (cuRows, same columns and cells) with a
@@ -3336,10 +3334,9 @@ function agencyUsage(c){
     a waiting request, the way to answer it on Usage & limits, on the request line's own line. */
  const act=(k,wq)=>`<span class="cx-ul"><button type="button" class="cx-lk" ${own?`data-goalloc="${k}"`:`data-culim="${c.id}|${k}"`}>Change limit</button></span>${wq&&canI("limits")?`<span class="cx-ul"><button type="button" class="cx-lk" data-rqcgo="${wq.ask||wq.id}">Answer request</button></span>`:""}`;
  return `${top}${tabs}<div class="panel cx-pn cx-ag" data-auallow>
-  <div class="cx-ph"><span class="panel-t">Allowance</span><span class="cx-hsub">${CYCLE.month}, from ${AGENCY.name}'s plan${own?", under your own cap":""}</span><span class="cx-pa">${goBtn("Change limits","linkbtn")}</span></div>
+  <div class="cx-ph"><span class="panel-t">Limits</span><span class="sub cx-hsub">Day ${CYCLE.day} of ${CYCLE.days}</span><span class="cx-pa">${goBtn("Change limits","linkbtn")}</span></div>
   <table class="cx-ut is-ag"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col><col class="cx-acw"></colgroup>
-   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>This cycle</th><th><span class="cx-sr">Actions</span></th></tr></thead><tbody>${cuRows(c,"",false,{own,act})}</tbody></table>
-  <div class="cx-foot">${own?"These are the same numbers Billing's Workspace allocation shows for your own workspace.":c.name+" sees these same rows on its own Usage screen. A request from them shows on Workspaces and on this workspace's Limits tab."}</div></div>`;
+   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>Status</th><th><span class="cx-sr">Actions</span></th></tr></thead><tbody>${cuRows(c,"",false,{own,act})}</tbody></table></div>`;
 }
 /* change 303: Change limit opens the record's Limits tab in edit with that row's field focused (read only when
    the workspace is off or the role cannot change limits) */
@@ -3455,7 +3452,7 @@ function renderShell(){
    :view.name==="dash"?"Dashboard":view.name==="credits"?"Billing & Subscription":view.name==="limits"?"Usage & limits"
    :view.name==="addmember"?"People / Add a person"
    :view.name==="people"?"People"
-   :view.name==="person"?("People / "+((personOf(view.id)||{}).name||""))
+   :view.name==="person"?((view.from&&byId[view.from]?byId[view.from].name:"People")+" / "+((personOf(view.id)||{}).name||""))
    :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
@@ -3616,7 +3613,7 @@ function homeRow(c,mode){
    +wsStatusCell(c)   /* change 311: the real state only, on both tables */
    /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
    /* change 203, 12 Oct 2026 (Hitesh): Emails sent and Reply rate leave the Workspaces page; the Dashboard has them */
-   +(mode==="ws"?'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>':homeCells(c).map(num).join(""))
+   +(mode==="ws"?'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>':homeCells(c).filter(x=>hcOn(x.col)).map(num).join(""))
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'}
 /* ═══ change 197, 11 Oct 2026: people on the Workspaces page ═══
@@ -3664,7 +3661,9 @@ function wsPeopleCell(c,side){
  return '<span class="wsp-grp" tabindex="0" role="group" data-uwtip="'+esc(tip)+'" aria-label="'+esc((side==="client"?"Client users":"Your team")+" in "+c.name+": "+shown.join("; "))+'">'
    +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</span><span class="wsp-l">'+line+fix+'</span>';
 }
-function wsOANote(){const O=wsOA(); if(!O.length) return "";
+function wsOANote(){return "";   /* change 320: the Account Owners line went */
+}
+function wsOANote0(){const O=wsOA(); if(!O.length) return "";
  const names=O.map(x=>x.name.split(" ")[0]), list=names.length>1?names.slice(0,-1).join(", ")+" and "+names[names.length-1]:names[0];
  return '<span class="ws-oa">'+wsFaces(O,AGENCY.colour)+'<span>'+list+' (Account Owners and Account Admins) reach every workspace. Your team lists the teammates added to each.</span></span>'}
 const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-tbl" style="min-width:880px;width:100%;table-layout:fixed">';
@@ -3673,14 +3672,70 @@ const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-t
 const wsHeadHTML=()=>hsHead("ws");
 const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
 const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
-const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:1130px;width:100%;table-layout:fixed">';
+const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:'+hcMinW()+'px;width:100%;table-layout:fixed">';   /* change 322 */
 /* change 200, 12 Oct 2026 (Hitesh: "fix workspace column header man! it looks so bad";
    doc 91, H1 "let's go with what you reccomend"): one line per header at one height,
    no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
    Bounce rate, and what each rate is of is said in its pop-up. */
 /* change 267: the same nine headers, each a sort button (hsHead) */
 const homeHeadHTML=()=>hsHead("home");
-const homeWinLine=()=>win().label+(perDay()?", a day on average":"")+". Usage is for this billing cycle.";
+/* ═══ change 322, 16 Oct 2026 (Hitesh, on c313's columns exploration: "let's go with option 3") ═══
+   A labelled Columns button over four live checkboxes. HC_DEF is what is hidden by default. The set is
+   saved per person (localStorage here, the account in the product) and rides in the hash as cols= (the
+   optional columns shown, or none) only when it differs from the default. A link's cols= shows that set
+   and leaves the receiver's saved one alone (H1.4) until they tick something. */
+const HC_OPT=["bounce","rep","conn","li"], HC_DEF=["li"], HC_CELLS=["pa","sent","bounce","rep","calls","conn","li"];
+const HC_SLUG={bounce:"bounce-rate",rep:"reply-rate",conn:"calls-connected",li:"linkedin-steps"}, HC_KEY="vc.homeCols.v1";
+let HC_HIDE=HC_DEF.slice(), HC_FOR=null, HC_OPEN=false, HC_LI=null, HC_LIK="";
+const hcSame=(a,b)=>a.slice().sort().join()===b.slice().sort().join();
+function hcFromHash(){const m=location.hash.match(/(?:^#|&)cols=([^&]*)/); if(!m) return null; const v=decodeURIComponent(m[1]);
+ if(v==="none") return HC_OPT.slice();
+ const on=v.split(",").map(s=>HC_OPT.find(k=>HC_SLUG[k]===s)).filter(Boolean); return on.length?HC_OPT.filter(k=>on.indexOf(k)<0):null}
+function hcStore(){try{return JSON.parse(localStorage.getItem(HC_KEY)||"{}")||{}}catch(e){return {}}}
+function hcSaved(){const s=hcStore()[me_]; return Array.isArray(s)?s.filter(k=>HC_OPT.indexOf(k)>-1):null}
+function hcSave(){const s=hcStore(); s[me_]=HC_HIDE.slice(); try{localStorage.setItem(HC_KEY,JSON.stringify(s))}catch(e){}}
+function hcHide(){if(HC_FOR!==me_){HC_FOR=me_; HC_HIDE=hcFromHash()||hcSaved()||HC_DEF.slice()} return HC_HIDE}
+const hcOn=k=>HC_OPT.indexOf(k)<0||hcHide().indexOf(k)<0;
+const hcHiddenN=()=>hcHide().filter(k=>HC_DEF.indexOf(k)<0).length;
+const hcLabel=k=>HS_COLS.home.find(x=>x[0]===k)[1];
+/* the shown columns; with LinkedIn steps on, Workspace is 250px so names and emails stay whole at 1,440 */
+const hcCols=()=>HS_COLS.home.filter(x=>hcOn(x[0])).map(x=>x[0]==="name"&&hcOn("li")?[x[0],x[1],"width:250px",x[3]]:x);
+/* the table's floor: the shown widths; with LinkedIn steps on, 3.4% more so "Bounce rate" (69px of text in
+   90px less 24px of padding) never runs into its padding. Below the floor the table scrolls in its card. */
+const hcMinW=()=>{const s=hcCols().reduce((a,x)=>a+parseInt(x[2].replace(/\D/g,""),10),0); return hcOn("li")?Math.ceil(s*1.034):s};
+function hcParam(){const h=hcHide(); if(hcSame(h,HC_DEF)) return ""; const on=HC_OPT.filter(k=>h.indexOf(k)<0);
+ return "cols="+(on.length?on.map(k=>HC_SLUG[k]).join(","):"none")}
+function hcUrlSync(){const cur=location.hash.replace(/^#/,""), segs=cur.split("&").filter(s=>s&&!/^cols=/.test(s)), p=hcParam(); if(p) segs.push(p);
+ const h=segs.join("&"); if(h!==cur) history.replaceState(null,"",location.pathname+location.search+(h?"#"+h:""))}
+/* LinkedIn steps in the period: the Prospects contacted tile's own scaling (heroCards: winTot with the
+   contacted change over myWorkspaces), the client rows rounded by largest remainder to the tile's total */
+function hcLi(c){const key=HOME_WIN+"|"+me_;
+ if(!HC_LI||HC_LIK!==key){const ws=myWorkspaces(), cl=myClients();
+  const cW=ws.map(wk7).reduce((a,w)=>({now:a.now+w.cont,prev:a.prev+(w.prev.cont||0)}),{now:0,prev:0}), d=cW.prev?Math.round((cW.now-cW.prev)/cW.prev*100):null;
+  const ex=x=>(chanOf(x).li||0)/CYCLE.day*win().days*win().f(d), raw=cl.map(ex), fl=raw.map(Math.floor);
+  let left=winTot(touches().li,d)-fl.reduce((a,b)=>a+b,0);
+  raw.map((v,i)=>[v-fl[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{if(left>0){fl[i]++;left--}});
+  HC_LI={}; cl.forEach((x,i)=>HC_LI[x.id]=fl[i]); ws.forEach(x=>{if(!(x.id in HC_LI)) HC_LI[x.id]=Math.round(ex(x))}); HC_LIK=key;
+  setTimeout(()=>{HC_LI=null},0)}
+ return HC_LI[c.id]||0}
+const HC_I='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>';
+function hcBtnHTML(){const h=hcHide(), n=hcHiddenN();
+ return '<span class="hc-w"><button type="button" class="hc-b'+(HC_OPEN?' on':'')+'" id="hcBtn" aria-haspopup="dialog" aria-expanded="'+HC_OPEN+'" aria-controls="hcPop"'+(n?' aria-label="Columns, '+n+' hidden"':'')+'>'
+  +HC_I+'<span>Columns</span>'+(n?'<span class="hc-n">'+n+' hidden</span>':'')+'</button>'
+  +(HC_OPEN?'<div class="hc-p" id="hcPop" role="dialog" aria-label="Columns"><div class="hc-l">'
+    +HC_OPT.map(k=>'<label class="cbx"><input type="checkbox" data-hcol="'+k+'"'+(h.indexOf(k)<0?' checked':'')+'><span>'+hcLabel(k)+'</span></label>').join("")+'</div>'
+    +(hcSame(h,HC_DEF)?'':'<div class="hc-f"><button type="button" class="linkbtn" data-hcreset>Reset to default</button></div>')+'</div>':'')+'</span>'}
+/* the pop-over hangs from the button's right edge; where that would leave the card (a phone) it takes the
+   button's left edge instead, and failing that stays 8px inside the card (c313's place()) */
+function hcPlace(){const p=el("hcPop"), t=el("hcBtn"); if(!p||!t) return; const c=p.closest(".card"); if(!c) return; p.style.right="0px";
+ const r=p.getBoundingClientRect(), b=c.getBoundingClientRect(), n=t.getBoundingClientRect(); if(r.left>=b.left+8) return;
+ const left=n.left+r.width<=b.right-8?n.left:b.left+8; p.style.right=(r.left-left)+"px"}
+function hcClose(){HC_OPEN=false; const p=el("hcPop"); if(p) p.remove(); const b=el("hcBtn"); if(b){b.classList.remove("on"); b.setAttribute("aria-expanded","false")}}
+/* an outside click closes it before that click's own handler runs (capture), so a redraw cannot reopen it */
+document.addEventListener("click",e=>{if(!HC_OPEN) return; const p=el("hcPop"), b=el("hcBtn"); if((p&&p.contains(e.target))||(b&&b.contains(e.target))) return;
+ hcClose(); setTimeout(()=>{const a=document.activeElement; if(!a||a===document.body){const b2=el("hcBtn"); if(b2) b2.focus({preventScroll:true})}},0)},true);
+document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!HC_OPEN) return; e.stopPropagation(); hcClose(); const b=el("hcBtn"); if(b) b.focus({preventScroll:true})},true);
+const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* change 320: Usage's header tooltip says "this billing cycle" */
 /* ═══ change 267, 14 Oct 2026 (Hitesh: "Also add ability sort based by clicking on column header") ═══
    One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
@@ -3689,7 +3744,8 @@ const HS_TIP_U="Average share used across every limited resource, this billing c
 const HS_COLS={
  home:[["name","Workspace","width:216px"],["status","Status","width:124px"],["pa","Prospects added","width:116px"],["sent","Emails sent","width:124px"],
   ["bounce","Bounce rate","width:90px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
-  ["calls","Calls made","width:106px"],["conn","Calls connected","width:112px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],["usage","Usage","width:134px",HS_TIP_U]],
+  ["calls","Calls made","width:106px"],["conn","Calls connected","width:112px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],
+  ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Usage","width:134px",HS_TIP_U]],   /* change 322 */
  ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Usage","width:200px",HS_TIP_U]]};
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};
@@ -3698,7 +3754,7 @@ const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hi
  +'<path class="hs-up" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 -2.44)" d="M11.293 8.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414L12 10.414l-5.293 5.293a1 1 0 0 1-1.414-1.414l6-6Z"/>'
  +'<path class="hs-dn" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 4.46)" d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>';
 function hsHead(t){const S=HSORT[t];
- return '<thead><tr class="th-one">'+HS_COLS[t].map(([k,l,w,tip])=>{const on=!!S&&S.col===k, up=on&&S.dir>0;
+ return '<thead><tr class="th-one">'+(t==="home"?hcCols():HS_COLS[t]).map(([k,l,w,tip])=>{const on=!!S&&S.col===k, up=on&&S.dir>0;
   return '<th style="'+w+'" class="th-s'+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(tip?' title="'+tip+'"':'')
    +(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="'+t+'|'+k+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'}).join("")
   +'</tr></thead>'}
@@ -3710,6 +3766,7 @@ function hsVal(k,c){
   const lim=u.filter(y=>y.cap>0); return lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0}
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
  if(c.disabled||c.sent===0) return null;
+ if(k==="li") return hcLi(c)||null;   /* change 322 */
  const w=wk7(c), N=v=>+String(pd(v)).replace(/,/g,"");
  return k==="pa"?N(w.pa):k==="sent"?N(w.sent):k==="bounce"?+w.bounce.toFixed(1):k==="rep"?+w.rate.toFixed(1):!w.calls?null:k==="calls"?N(w.calls):N(w.conn)}
 /* change 292 (audit P1-32): the default order of both tables: your own first, then used up, then 90% or more,
@@ -3722,7 +3779,7 @@ function hsApply(list,t,get){const S=HSORT[t]; if(!S) return list;
  rows.sort((a,b)=>{const ea=a.v==null,eb=b.v==null; if(ea||eb) return ea&&eb?a.i-b.i:ea?1:-1;
   const d=typeof a.v==="string"?a.v.localeCompare(b.v,undefined,{sensitivity:"base"}):a.v-b.v; return d*S.dir||a.i-b.i});
  return rows.map(r=>r.x)}
-const hsSaid=t=>{const S=HSORT[t], c=S&&HS_COLS[t].find(x=>x[0]===S.col); return !c?"":S.col==="name"?"name":c[1].toLowerCase()};
+const hsSaid=t=>{const S=HSORT[t], c=S&&HS_COLS[t].find(x=>x[0]===S.col); return !c?"":S.col==="name"?"name":S.col==="li"?c[1]:c[1].toLowerCase()};
 function vClients(){
  /* A1 carries more than the eight columns the live screen has, because the two
     outcome columns are the point of the redesign (01 §2). Eleven columns
@@ -3838,9 +3895,11 @@ function vClients(){
    /* change 297 (audit P1-3): who asked, for what, and when, for every waiting ask */
    const nA=new Set(REQUESTS.filter(r=>mine.includes(r.client)).map(r=>r.ask||r.id)).size;
    const one=id=>`${askerOf(askLines(id),id)} (<button class="linkbtn linkbtn--sm" data-reqws="${id}">${byId[id].name}</button>), ${linesText(askLines(id))}, ${AGE(askLines(id)[0].when).toLowerCase()}`;
-   return mine.length?`<div class="msg m-info">${infoI}<span>${nA===1?"1 request waits":nA+" requests wait"} for you: ${mine.map(one).join("; ")}. <button class="linkbtn linkbtn--sm" data-ulgo>See all requests</button></span></div>`:""})()}
+   /* change 320: the Dashboard's banner, word for word: one look for one thing */
+   const ws=mine.map(id=>byId[id].name), from=ws.length>2?`${ws.slice(0,2).join(", ")} and ${ws.length-2} more`:listAnd(ws);
+   return mine.length?`<div class="msg dn-req" role="status">${warnI}<span class="dn-req-t"><strong>${nA} request${nA===1?"":"s"} waiting</strong> from ${from}.</span><button type="button" class="linkbtn dn-req-go" data-ulgo>Review request${nA===1?"":"s"}</button></div>`:""})()}
   ${seqAskBanner()}
-  <div class="ws-meta">${wsOANote()}</div>
+  ${wsOANote()?`<div class="ws-meta">${wsOANote()}</div>`:""}
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
    <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="5"><span class="sub">No workspace matches "${cliQ}". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
  </div>`;
@@ -3903,8 +3962,7 @@ function vRecord(id){
  <div class="toolbar${off||dead?" rc-off":""}"${dead?" data-keeptitle":""}>
   <div class="cell-main">
    <button class="linkbtn" id="backList">Workspaces</button><span class="sep">/</span>
-   ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
-   <span class="cs">${c.own?"Your workspace":c.company}${c.email&&c.email!=="–"?", "+c.email:""}</span></span></div>
+   ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span></span></div>
   <div class="tools">${clientNav(c)}
    ${off?`<span class="chip c-mute">Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}</span>`:dead?"":rcHdrChip(c)}
    ${dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
@@ -3955,9 +4013,9 @@ function rcSetup(c,S,done){
    Home row as a strip (wsCells, so the two never disagree); three cards. */
 function recStrip(c){
  const fresh=c.sent===0, cells=wsCells(c);
- const head=c.disabled?`1 to ${c.disabledOn||TODAY_D}, before it was disabled. Nothing has sent since.`:fresh?"Numbers start with the first send.":periodText();
+ const head=c.disabled?`1 to ${c.disabledOn||TODAY_D}`:fresh?"Numbers start with the first send.":periodText();
  const cell=x=>`<div class="rs-cell"><span class="rs-l">${x.l}</span><span class="rs-v tnum">${x.v==null?'<span class="is-none">&ndash;</span>':f(x.v)+(x.d||"")}</span><span class="rs-s${x.cls?" "+x.cls:""}">${x.line||"&nbsp;"}</span></div>`;
- return `<div class="panel rec-strip"><div class="rs-head"><span>${head}</span><button class="linkbtn linkbtn--sm" data-goanalytics="${c.id}">See in Analytics</button></div>
+ return `<div class="panel rec-strip"><div class="rs-head"><span${c.disabled||fresh?"":` title="${periodCmp()}"`}>${head}</span><button class="linkbtn linkbtn--sm" data-goanalytics="${c.id}">See in Analytics</button></div>
   <div class="rs-row">${cells.map(cell).join("")}</div></div>`;
 }
 const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#4B5563":"Gray","#1D4ED8":"Blue","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber","#9333EA":"Purple","#047857":"Green"};
@@ -3968,9 +4026,9 @@ const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:
 let REC_EDIT=null, REC_COL=null;   /* the client whose Details card is being edited in place, and the colour picked while editing */
 function recAccessRows(c){
  const rows=[];
- (c.users||[]).forEach(u=>rows.push({ini:initials(u[0].split("@")[0]),col:c.colour,name:ppName(u[0],u),sub:u[2]?u[0]:"",role:u[1],kind:"client"}));
+ (c.users||[]).forEach(u=>rows.push({ini:ppIni(u[2],u[0]),col:PP_AV,name:ppName(u[0],u),sub:u[2]?u[0]:"",role:u[1],kind:"client"}));
  Object.keys(PEOPLE).forEach(k=>{const P=PEOPLE[k]; if(P.role==="Member"&&!(P.ws&&P.ws.indexOf(c.id)>-1)) return;
-  rows.push({ini:P.initials||initials(P.name),col:AGENCY.colour,name:P.name,sub:roleName(P.role),role:P.role==="Member"?ppWsRole(P,c.id):"Workspace Admin",kind:"team"})});
+  rows.push({ini:P.initials||initials(P.name),col:PP_AV,name:P.name,sub:roleName(P.role),role:P.role==="Member"?ppWsRole(P,c.id):"Workspace Admin",kind:"team"})});
  return rows;
 }
 /* change 245 (Hitesh, 13 Oct 2026: "access panel it streches beyond limits and usage"):
@@ -3979,11 +4037,11 @@ function recAccessRows(c){
    the line sits in the last row's own bottom padding, no divider above it. */
 let REC_ACCESS_MAX=4;
 function recAccessCard(c,ro){
- const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU, more=rows.length-REC_ACCESS_MAX;
- const line=c.own?"Your team only":nU?`${nU} client user${nU===1?"":"s"}, ${nT} from ${AGENCY.name}`:`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
+ const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU;   /* change 316: everyone is listed, no "+N more" */
+ const line=c.own||nU?"":`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
  const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:28px;height:28px;font-size:10px">${r.ini}</span><span class="rc-pname"><span${r.sub?"":' class="rc-addr"'}>${r.name}</span>${r.sub?`<span class="cs">${r.sub}</span>`:""}</span><span class="rc-prole">${r.role}</span></div>`;
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">Manage members</button></span></div>
-  <div class="panel-b"><div class="sub" style="margin-bottom:4px">${line}</div>${rows.slice(0,REC_ACCESS_MAX).map(row).join("")}${more>0?`<button class="rc-more" data-tab="members">+${more} more</button>`:""}</div></div>`;
+  <div class="panel-b rc-abody">${line?`<div class="sub" style="margin-bottom:4px">${line}</div>`:""}<div class="rc-alist" style="--rcn:${Math.min(rows.length,3)}"><div class="rc-ascroll" tabindex="0" role="region" aria-label="People with access to ${c.name}">${rows.map(row).join("")}</div></div></div></div>`;
 }
 function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
@@ -3992,8 +4050,8 @@ function recLimitsCard(c,ro){
   const out=r.cap>0&&r.used>=r.cap, pw=r.cap>0?(out?100:Math.min(99,Math.round(r.used/r.cap*100))):0;
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu",whole:pw,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,out?PB_COL[2]:pw>=UW_NEAR?PB_COL[1]:UL3_GREY),rem:f(Math.max(0,r.cap-r.used))+" left ("+(100-pw)+"%)"})   /* change 297 (audit P1-9) */}).join("");
  const ask=askOf(c.id);
- const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review</button></span></div>`:"";
- return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits and usage</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
+ const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review request</button></span></div>`:"";
+ return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
  const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
@@ -4093,7 +4151,7 @@ function raRows(c){
   L.forEach(x=>{const o=x.asked||x.asked0||(x.amount+(x.given||0)); want[x.res]=Math.max(want[x.res]||0,o)});
   const pend=L.filter(x=>REQUESTS.indexOf(x)>-1), ask={who,when:q0.when,d:raWhen({when:q0.when,text:q0.note||q0.res}),k:"limits",isAsk:1,
    tx:`requested ${listAnd(Object.keys(want).map(r=>askShort({res:r,amount:want[r]})))}.`,q:q0.note||null};
-  if(pend.length){ask.open={mk:pend.some(x=>x.given)?"Part given, the rest waiting":"Not decided yet",act:canI("limits")?`<button type="button" class="linkbtn" data-tab="limits">Review request</button>`:""}; ask.need=`${who}'s request`}
+  if(pend.length){ask.open={mk:pend.some(x=>x.given)?"Partly given":"Waiting",act:canI("limits")?`<button type="button" class="linkbtn" data-tab="limits">Review request</button>`:""}; ask.need=`${who}'s request`}
   rows.push(ask);
   const R=L.filter(x=>x.re&&x.state); if(!R.length) return;
   const gave=R.filter(x=>x.state==="approved"), no=R.filter(x=>x.state==="declined"), P=PEOPLE[R[0].dby]||PEOPLE.owner||{name:"Alex Meridian"};
@@ -4120,9 +4178,10 @@ function raRel(r){const a=raAgo(r.d), w=String(r.when||"").toLowerCase();
  return a===0?(/min|hour|just now/.test(w)?AGE(r.when):"today"):a===1?"yesterday":a<7?a+" days ago":"on "+raDM(r.d)}
 function raSum(c,rows){const last=rows[0]; if(!last) return "Nothing has changed in this workspace yet.";
  const need=rows.filter(r=>r.need), look=rows.filter(r=>r.look), jump=r=>`<a class="linkbtn ra-jump" href="#${r.id}" role="button" data-rajump="${r.id}">${r.need||r.look}</a>`;
- const lead=`Last change ${raRel(last)}, by ${last.who}.`;
- if(need.length) return `${need.length===1?"One still needs you":need.length+" still need you"}: ${listAnd(need.map(jump))}. ${lead}`;
- if(look.length) return `Nothing open needs you. Worth a look: ${listAnd(look.map(jump))}. ${lead}`;
+ /* change 320: the line speaks only when something needs you or is worth a look */
+ if(need.length) return `${need.length===1?"One still needs you":need.length+" still need you"}: ${listAnd(need.map(jump))}.`;
+ if(look.length) return `Worth a look: ${listAnd(look.map(jump))}.`;
+ return "";
  if(c.disabled&&last.off) return `Nothing has changed since ${last.who} disabled it on ${raDM(last.d)}.`;
  if(rows.every(r=>r.born)){const cr=rows.find(r=>/^created the workspace/.test(r.tx))||last, n=rows.filter(r=>r.inv).length, W=["no","one","two","three","four","five"];
   return `Nothing open needs you. ${cr.who} added it ${raRel(cr)}${n?` and invited ${W[n]||n} client user${n>1?"s":""}`:""}; nothing has changed since.`}
@@ -4150,7 +4209,7 @@ function raLog(c,rows){
    h+=`<div class="ra-earlier"><h3>Earlier<span>${raDMY(old[old.length-1].d)}</span></h3><p><span>${sum}</span><button type="button" class="linkbtn" data-raearlier>Show ${old.length} earlier ${old.length===1?"change":"changes"}</button></p></div>`}}
  return `<div class="panel ra-sheet" id="raLog">${h}</div>`}
 function raShort(c,rows){const U=c.users||[], never=U.filter(u=>AGE(LASTSEEN[u[0]]||"unknown")==="never").length,
-  foot=!U.length?"Your own workspace has no client users. Your team's sign-ins are on each person's page in People.":never===U.length?`No client user has signed in yet. Activity fills in as people work in ${c.name}.`:"";
+  foot="";   /* change 320: the explanatory footers went */
  return `<div class="panel ra-sheet" id="raLog">${raGroups(rows)}${foot?`<div class="ra-foot">${foot}</div>`:""}</div>`}
 /* change 305: sign-ins are entries in the one list, not a view. One per client user (only the latest is kept),
    stamped like the person's page, so a row reads the same time in both places, never later than a few minutes ago. Never-signed-in users have none. */
@@ -4165,8 +4224,8 @@ function rActivity(c){
  const filters=short?"":`<div class="ra-filters">
    <div class="ra-by"><span class="ra-byl">By</span>${ddHTML("raBy",RA.by,[{items:[{value:"any",label:"Anyone"}].concat(people.map(p=>({value:p,label:`${p} (${nBy(p)})`})))}],{})}</div></div>`;
  return `<div class="ra">
-  <div class="ra-head"><h2 class="ra-title">Activity</h2><p class="ra-desc">Who changed what in this workspace, newest first. Sending and replies are in <button type="button" class="linkbtn" data-goanalytics="${c.id}">Analytics</button>.</p></div>
-  <p class="ra-sum">${raSum(c,chg)}</p>${filters}${short?raShort(c,rows):raLog(c,rows)}</div>`;
+  <div class="ra-head"><h2 class="ra-title">Activity</h2></div>
+  ${(s=>s?`<p class="ra-sum">${s}</p>`:"")(raSum(c,chg))}${filters}${short?raShort(c,rows):raLog(c,rows)}</div>`;
 }
 function raJump(id){RA.by="any";render(); if(!el(id)){RA.earlier=true;render()}
  const r=el(id); if(!r) return; r.scrollIntoView({block:"center",behavior:REDUCED()?"auto":"smooth"});
@@ -4350,9 +4409,9 @@ const roleSet=role=>CLIENT_ROLE_DEFS[role]||CLIENT_ROLE_DEFS["Workspace Viewer"]
    in the dropdown (a role in a row), written from CLIENT_ROLE_DEFS and §8.5. */
 const WS_ROLE_LINE={
  /* change 215: the two lines say where the line between the roles now falls */
- "Workspace Admin":"Runs the workspace: everything a Workspace Collaborator does, plus export, settings and buying email accounts.",
- "Workspace Collaborator":"Does the outreach: adds prospects, reveals leads, writes, launches and pauses sequences, replies.",
- "Workspace Viewer":"Views only: sees every screen and the limits, changes nothing.",
+ "Workspace Admin":"Runs the workspace",
+ "Workspace Collaborator":"Does the outreach",
+ "Workspace Viewer":"View only",
 };
 const roleLine=r=>WS_ROLE_LINE[r]||"";
 const roleItems=()=>CLIENT_ROLES.map(x=>({value:x,label:x,desc:roleLine(x)}));
@@ -4752,10 +4811,11 @@ const RM_DDCHEV='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stro
 const RM_DDCHK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
 /* change 308: one role style. Every role is plain 14px text on the column's x; one the viewer may change is a button
    with a small chevron after it, the field outline on hover and focus, and the role menu on click. */
+/* change 321, 16 Oct 2026 (Hitesh: "we don't want user to change user role so easily so remove ability to change role
+   directly from list view"): the role is read-only text on every row; Edit access in the row menu opens the person's
+   Access card on this workspace's role. */
 function rmRoleCell(c,r,can){
- if(!can) return `<span class="rmt-role">${r.role}</span>${r.fixed?`<span class="sub rmt-fixed">${r.acct}, in every workspace</span>`:""}`;
- const open=RM.pop==="r:"+r.key;
- return `<div class="dd rmt-dd${open?" is-open":""}"><button type="button" class="rmt-rbtn" data-rmrole="${rmEsc(r.key)}" aria-haspopup="listbox" aria-expanded="${open}" aria-label="Role for ${rmEsc(r.label)}: ${r.role}"><span class="rmt-role">${r.role}</span>${RM_DDCHEV}</button>${open?`<div class="dd-menu rmt-pop" role="listbox" aria-label="Role in ${rmEsc(c.name)}">${CLIENT_ROLES.map(x=>`<button type="button" role="option" class="dd-opt rmt-opt${x===r.role?" is-sel":""}" aria-selected="${x===r.role}" data-rmpick="${rmEsc(r.key)}|${x}"><span class="dd-lbl"><span class="dd-l">${x}</span><span class="dd-desc">${roleLine(x)}</span></span>${x===r.role?RM_DDCHK:""}</button>`).join("")}</div>`:""}</div>`;
+ return `<span class="rmt-role">${r.role}</span>`;
 }
 function rmMenuCell(r,items){
  if(!items.length) return `<td class="rmt-act"></td>`;
@@ -4778,14 +4838,14 @@ const rmFlag=(r,ed)=>{const why=`On ${rmPoss(r.x.ws)} domain, another of your cl
  return `<span class="rmt-flag${ed?"":" is-quiet"}" title="${rmEsc(why)}">Other client's domain<span class="rmt-sr"> ${rmEsc(why)}</span></span>`};
 function rmClientRow(c,r,ed,link,ty){
  const only=(c.users||[]).length===1;
- const items=ed?[["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
+ const items=ed?[r.off?null:["access","Edit access"],["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
   ["remove","Remove from "+c.name,only?`The only sign-in for ${c.name}; disable the workspace instead`:""]].filter(Boolean):[];
  return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user",r.x?rmFlag(r,ed):"")}
   <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
- const items=can?[r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[];
+ const items=can?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[];
  return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
   <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
@@ -4834,17 +4894,17 @@ function rmInviteHTML(c){
  const I=RM.inv; if(!I) return "";
  const team=I.kind==="team";
  const seg=c.own?"":`<div class="rmt-irow"><span class="rmt-k rmt-k--seg" id="rmWho">Who</span><div><div class="segc rmt-seg" role="group" aria-labelledby="rmWho"><button type="button" aria-pressed="${!team}" data-rmkind="client">Client users</button><button type="button" aria-pressed="${team}" data-rmkind="team">Your team</button></div>
-   <p class="rmt-help">${team?`Account Members from ${AGENCY.name}. They keep their other workspaces.`:`People at ${rmEsc(c.name)}. They see this workspace and nothing else.`}</p></div></div>`;
+   </div></div>`;
  let body;
  if(!team){const st=I.chips.map(v=>[v,rmChipSt(c,v)]), seenD={};
   const hints=st.filter(x=>x[1].msg&&!(x[1].x&&(seenD[x[1].x.d]=(seenD[x[1].x.d]||0)+1)>1)).map(x=>`<li>${x[1].msg}</li>`);
   body=`<div class="rmt-irow"><label class="rmt-k" for="rmEmail">Email addresses</label><div>
     <div class="pp-emails rmt-chips">${st.map(([v,s],i)=>`<span class="rmt-chip${s.bad?" is-bad":""}"><span class="cv" data-rmeditchip="${i}" title="Click to edit">${rmEsc(v)}</span><button type="button" data-rmunchip="${i}" aria-label="Remove ${rmEsc(v)}">${RM_X}</button></span>`).join("")}<input type="text" id="rmEmail" inputmode="email" autocomplete="off" value="${rmEsc(I.draft)}" placeholder="${I.chips.length?"":"name@"+rmEsc(rmDom(c.email)||"company.com")+", separate with commas"}" aria-describedby="rmHints"></div>
-    <ul class="rmt-hints" id="rmHints">${hints.join("")}<li>They sign in to ${rmEsc(c.name)} only and set their own password.</li></ul></div></div>
+    ${hints.length?`<ul class="rmt-hints" id="rmHints">${hints.join("")}</ul>`:'<ul class="rmt-hints" id="rmHints" hidden></ul>'}</div></div>
    <div class="rmt-irow"><span class="rmt-k rmt-k--top">Role</span>${rmRadios("rmRole",I.role)}</div>`}
  else {const m=rmMates(c);
   body=`<div class="rmt-irow"><span class="rmt-k rmt-k--top" id="rmMl">Teammates</span><div>${m.length?`<div class="rmt-roles" role="group" aria-labelledby="rmMl">${m.map(r=>`<label class="rmt-ropt"><input type="checkbox" value="${r.k}"${I.mates.indexOf(r.k)>-1?" checked":""} data-rmmate><span>${rmEsc(r.name)}<small>${r.seen==="never"&&r.invited?`Invited to ${AGENCY.name} ${AGE(r.invited)}, not accepted yet`:(r.ws||[]).length?`Account Member, in ${listAnd(r.ws.map(id=>byId[id].name))}`:"Account Member, in no workspace yet"}</small></span></label>`).join("")}</div>`:`<p class="rmt-help rmt-help--0">Every Account Member works on ${rmEsc(c.name)} already.</p>`}
-    <ul class="rmt-hints"><li>Account Owners and Account Admins are here already. Someone new to ${AGENCY.name}? <button type="button" class="linkbtn" data-addteam="${c.id}">Invite them</button>.</li></ul></div></div>
+    <ul class="rmt-hints"><li>Someone new? <button type="button" class="linkbtn" data-addteam="${c.id}">Invite them</button>.</li></ul></div></div>
    <div class="rmt-irow"><span class="rmt-k rmt-k--top">Role</span>${rmRadios("rmTRole",I.trole)}</div>`}
  return `<section class="panel rmt-inv" id="rmInvite" aria-labelledby="rmInvH"><h3 id="rmInvH">${c.own?"Add teammates to":"Invite people to"} ${rmEsc(c.name)}</h3>${seg}${body}<div class="rmt-go">${rmGoHTML(c)}</div></section>`;
 }
@@ -4855,7 +4915,7 @@ function rMembers(c){
  if(!ed) RM.inv=null;
  const cl=c.own?[]:rmClients(c), tm=rmTeam(c), hd=rmHeading(c,cl,tm,ed);
  const admins=ppTeam().filter(r=>r.role!=="Member"&&!r.disabled).map(r=>r.name);
- const lead=can?"":`<p class="rmt-ro">You can see who has access. To invite people or change roles, ask ${listAnd(admins).replace(/ and ([^,]*)$/," or $1")}.</p>`;
+ const lead="";   /* change 320: the read-only line went; nothing to change shows no control to change it */
  const side=ro?(can?`<span class="rmt-side">${c.deletedOn?"Restore":"Enable"} the workspace to invite people or change roles.</span>`:"")
   :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary rmt-invbtn" data-rminvite aria-controls="rmInvite" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button>`:"";
  /* change 304: one list as People's, client users first; the Type column says which kind (not on the own workspace, which has one kind) */
@@ -4863,12 +4923,12 @@ function rMembers(c){
  const noMember=ed&&!c.own&&!tm.some(r=>!r.fixed);
  /* with no select in the table, a role sits on its header; next to selects it lines up with their text */
  const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
- return `<div class="rmt"><div class="rmt-head"><div class="rmt-h"><h2 class="rmt-title">${hd.h}</h2>${side}</div>${hd.p?`<p class="rmt-p">${rmEsc(hd.p)}</p>`:""}</div>
+ return `<div class="rmt"><div class="rmt-head"><div class="rmt-h"><h2 class="rmt-title">${hd.h}</h2>${side}</div></div>
   ${lead}${rmInviteHTML(c)}
   <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
-   <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role in this workspace</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
+   <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
    <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite people</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`No Account Member works on ${rmEsc(c.name)} yet, so nobody is assigned to its outreach.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
-  </table><div class="rmt-foot">Account Owners and Account Admins are Workspace Admin in every workspace.${can?` Their account role changes in <button type="button" class="linkbtn" data-topeople>People</button>.`:""}</div></div></div>`;
+  </table></div></div>`;
 }
 /* change 293: one listener per event, as the Limits tab does, so every repaint keeps working */
 const rmOn=()=>view.name==="record"&&tab==="members"&&ctx==="agency"&&!asClient&&byId[view.id];
@@ -4884,6 +4944,9 @@ function rmSetRole(c,key,v){
  rmToast(c,`${email} is now ${roleA(v)} in ${c.name}.`,()=>{u[1]=was},`changed ${email}'s role`); logAct(c.id,`${email} changed to ${v}`);
 }
 function rmAct(c,act,key){
+ if(act==="access"){PP.menu=null; shOpenPerson(key,c.id); PA_ED={key,draft:{},ask:false}; render();
+  const open=n=>{if(!view||view.id!==key) return; const t=document.querySelector("#pplvl_"+c.id+" [data-ddtrig]");
+   if(t&&t.onclick){t.focus(); t.click()} else if(n<20) setTimeout(()=>open(n+1),50); else personEdit(key)}; open(0); return}
  if(act==="move"){render(); peopleAct("assignws",key); return}
  if(key.indexOf("w:")===0){const email=key.slice(key.indexOf("|")+1), L=c.users, i=L.findIndex(u=>u[0]===email), u=L[i]; if(!u) return;
   if(act==="remove"){if(L.length===1) return; L.splice(i,1); rmToast(c,`Removed ${email} from ${c.name}. They are signed out.`,()=>{L.splice(i,0,u)},`removed ${email}`); logAct(c.id,`${email} removed`)}
@@ -4898,14 +4961,12 @@ function rmAct(c,act,key){
 }
 function rmPaintGo(c){const g=document.querySelector(".rmt-go"); if(g&&RM.inv) g.innerHTML=rmGoHTML(c)}
 document.addEventListener("click",e=>{if(!rmOn()) return; const c=byId[view.id];
- const t=e.target.closest("[data-rmrole],[data-rmpick],[data-rmmenu],[data-rmdo],[data-rmperson],[data-rminvite],[data-rminviteteam],[data-rmkind],[data-rmunchip],[data-rmeditchip],[data-rmsend],[data-rmaddmates],[data-rmcancel],.rmt-chips");
- if(RM.pop&&!e.target.closest(".rmt-pop,.rmt-menu,[data-rmrole],[data-rmmenu]")){RM.pop=null; if(!t){render(); return}}
+ const t=e.target.closest("[data-rmmenu],[data-rmdo],[data-rmperson],[data-rminvite],[data-rminviteteam],[data-rmkind],[data-rmunchip],[data-rmeditchip],[data-rmsend],[data-rmaddmates],[data-rmcancel],.rmt-chips");
+ if(RM.pop&&!e.target.closest(".rmt-menu,[data-rmmenu]")){RM.pop=null; if(!t){render(); return}}
  if(!t||t.disabled) return; const d=t.dataset;
- if(d.rmrole){const k="r:"+d.rmrole; RM.pop=RM.pop===k?null:k; render(); if(RM.pop) rmFocus('.rmt-pop [aria-selected="true"]'); else rmFocus(rmKeySel("data-rmrole",d.rmrole)); return}
  if(d.rmmenu){const k="m:"+d.rmmenu; RM.pop=RM.pop===k?null:k; render(); if(RM.pop) rmFocus(".rmt-menu .menu-i:not(:disabled)"); else rmFocus(rmKeySel("data-rmmenu",d.rmmenu)); return}
- if(d.rmpick){const i=d.rmpick.lastIndexOf("|"), key=d.rmpick.slice(0,i); RM.pop=null; rmSetRole(c,key,d.rmpick.slice(i+1)); render(); rmFocus(rmKeySel("data-rmrole",key)); return}
  if(d.rmdo){const i=d.rmdo.indexOf("|"); RM.pop=null; rmAct(c,d.rmdo.slice(0,i),d.rmdo.slice(i+1)); return}
- if(d.rmperson){const key=d.rmperson; RM.pop=null; if(typeof PP!=="undefined") PP.menu=null; PERSON_TAB="access"; PA_KIND="all"; PA_WS="all"; view={name:"person",id:key}; render(); return}
+ if(d.rmperson){const key=d.rmperson; RM.pop=null; if(typeof PP!=="undefined") PP.menu=null; shOpenPerson(key,c.id); render(); return}
  if(d.rminvite!=null||d.rminviteteam!=null){RM.pop=null; RM.inv={kind:c.own||d.rminviteteam!=null?"team":"client",chips:[],draft:"",role:INV_LEVEL_DEFAULT,mates:[],trole:DEFAULT_CLIENT_ROLE};
   render(); rmFocus(RM.inv.kind==="team"?"[data-rmmate]":"#rmEmail"); return}
  if(!RM.inv) return;
@@ -5058,7 +5119,7 @@ function cuRows(c,me,canReq,ag){const AG=AGENCY.name, yr=ag&&!ag.own?"its":"your
    if(an){const l=cuLine(an,false), on=an.on===TODAY_D?"today":"on "+an.on;
     pc.push(ag?`<span class="cx-ul"><span class="cx-rq is-ans">${l.given>=l.amt?`You gave ${f(l.given)} ${on}`:l.given?`You gave ${f(l.given)} of ${f(l.amt)} ${on}`:`You declined the request ${on}`}</span></span>`
      :`<span class="cx-ul"><button type="button" class="cx-lk is-ans" data-cuopen="${an.ask||an.id}">${l.given>=l.amt?`${AG} gave ${f(l.given)} ${on}`:l.given?`${AG} gave ${f(l.given)} of ${f(l.amt)} ${on}`:`${AG} declined your request ${on}`}</button></span>`)}}
-  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Topped up by "+(ag?"you":AG)}</span></td>
+  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Does not renew"}</span></td>
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> left</span></td>
    <td class="cx-c-pc">${pc.join("")}</td>${ag?`<td class="cx-c-ac">${ag.act(k,wq)}</td>`:""}</tr>`}).join("")}
@@ -5068,7 +5129,7 @@ function cuReqHTML(c,me,canReq){const AG=AGENCY.name, A=cuAsks(c), mon=cuToday()
  const st={all:()=>true,wait:a=>!!a.s.w,given:a=>a.s.f==="given",part:a=>a.s.f==="part",declined:a=>a.s.f==="declined"}[CU.st]||(()=>true);
  const L=A.filter(a=>st(a)&&per(a)&&(CU.by==="any"||a.by===me)), nW=A.filter(a=>a.s.w).length;
  const opt=(v,l,cur)=>`<option value="${v}"${cur===v?" selected":""}>${l}</option>`;
- const head=`<div class="cx-sh"><h2 id="cuReqH">Requests</h2><span class="cx-hs" data-cuwait>${nW?`${nW} waiting for ${AG}`:A.length?`Nothing waiting for ${AG}`:""}</span></div>`;
+ const head=`<div class="cx-sh"><h2 id="cuReqH">Requests</h2></div>`;   /* change 320: the Status column says what waits */
  if(!A.length) return `<section class="cx-sec" aria-labelledby="cuReqH">${head}<div class="panel cx-pn"><div class="cx-empty"><b>No requests yet</b><p>When you need more than ${AG} set for this workspace, send a request here. Their answer and note show up in this list, and you get an email.</p>${canReq?`<button type="button" class="shd-button shd-button--secondary" data-askopen="">Request more</button>`:""}</div></div></section>`;
  const flt=`<div class="cx-flt"><select class="cx-sel${CU.st!=="all"?" is-on":""}" data-cuf="st" aria-label="Status">${opt("all","All statuses",CU.st)}${opt("wait","Waiting",CU.st)}${opt("given","Given",CU.st)}${opt("part","Partly given",CU.st)}${opt("declined","Declined",CU.st)}</select>
   <select class="cx-sel${CU.by!=="any"?" is-on":""}" data-cuf="by" aria-label="Requested by">${opt("any","Anyone",CU.by)}${opt("me","Requested by me",CU.by)}</select>
@@ -5096,7 +5157,7 @@ function cuDrawerHTML(c,me,canReq){if(!CU.open) return ""; const a=cuAsks(c).fin
   const given=l.wait>0&&!l.given?`<span class="cx-big is-g">Not yet</span><span class="cx-s">${AG} has not answered yet</span>`
    :!l.given?`<span class="cx-big is-g">None</span><span class="cx-s">The limit stays ${f(l.from)}</span>`
    :`<span class="cx-big">${f(l.given)}</span><span class="cx-s">${f(l.from)} to ${f(l.from+l.given)}${l.wait>0?`; ${f(l.wait)} still waiting`:""}</span>`;
-  const use=cur?`<div class="cx-rcu">${CU_I.gauge}<span>${f(r.used)} of ${f(r.cap)} used${CU_RENEW(l.k)?(r.used>=r.cap?"; at your limit":ro?`; runs out around day ${ro} of ${CYCLE.days}`:"; lasts the cycle at this pace"):""}</span></div>`:"";
+  const use=cur?`<div class="cx-rcu">${CU_I.gauge}<span>${f(r.used)} of ${f(r.cap)} used${CU_RENEW(l.k)?(r.used>=r.cap?"; at your limit":ro?`; ${paceLine(l.k,r).replace(/^R/,"r")}`:"; lasts the cycle at this pace"):""}</span></div>`:"";
   return `<div class="cx-rc${l.wait>0?"":" is-dec"}"><div class="cx-rch"><b>${cuName(l.k)}</b>${cuChip(cuLineSt(l),l.wait>0)}</div>
    <div class="cx-rcc"><div><span class="cx-l">Requested</span><span class="cx-big">+${f(l.amt)}</span><span class="cx-s">${f(l.from)} to ${f(l.from+l.amt)}</span></div><div><span class="cx-l">Given</span>${given}</div></div>${use}</div>`}).join("");
  const third=a.s.w&&a.on?`<span class="cx-l">Partly answered</span><span class="cx-v">${a.on}${a.on===TODAY_D?", today":""}</span>`
@@ -5145,10 +5206,9 @@ function cUsage(c){
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Limits"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${AG} yet.</span></div></div>`}`;
  return `${tabs}<div class="panel cx-pn" data-cuallow>
-  <div class="cx-ph"><span class="panel-t">Limits from ${AG}</span><span class="cx-hsub">Day ${CYCLE.day} of ${CYCLE.days}. ${renewLine(cuNext())}</span></div>
+  <div class="cx-ph"><span class="panel-t">Limits</span><span class="sub cx-hsub">Day ${CYCLE.day} of ${CYCLE.days}</span></div>
   <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col></colgroup>
-   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>This cycle</th></tr></thead><tbody>${cuRows(c,me,canReq)}</tbody></table>
-  <div class="cx-foot">${AG} sets these for your workspace. Requesting more goes to them, not to Saleshandy.</div></div>
+   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>Status</th></tr></thead><tbody>${cuRows(c,me,canReq)}</tbody></table></div>
   ${canReq?cuReqHTML(c,me,canReq):""}${cuDrawerHTML(c,me,canReq)}`;
 }
 /* the ask: one sheet, every allowance, pre-filled with what the pace needs */
@@ -5177,7 +5237,7 @@ function askHTML(){
    ${on?`<div class="cx-pamt"><input type="text" class="cx-amt" inputmode="numeric" autocomplete="off" data-cuamt="${k}" value="${v>0?f(v):""}" placeholder="How many more" aria-label="How many more ${cuPh(k)}" aria-describedby="cuH-${k}"${bad?' aria-invalid="true"':""}><span class="cx-hint" id="cuH-${k}" aria-live="polite">${cuHint(k,r,v)}</span></div>`:""}</div>`}).join("");
  const ks=Object.keys(modal.pick), errPick=modal.err&&!ks.length, errAmt=modal.err&&ks.some(k=>!(modal.pick[k]>0)), errWhy=modal.err&&!(modal.why||"").trim();
  return `<div class="mscrim" id="mscrim"><div class="modal cx-askm" role="dialog" aria-modal="true" aria-labelledby="cuAskT">
-  ${head(`Request more from ${AG}`,`Pick what you need. ${AG} answers each one.`)}
+  ${head(`Request more from ${AG}`,"")}
   <div class="cx-mb"><span class="cx-flab" id="cuNeedL">What do you need?</span><div class="cx-picks" role="group" aria-labelledby="cuNeedL">${rows}</div>
    ${errPick?`<span class="cx-ferr" role="alert">Pick at least one resource.</span>`:errAmt?`<span class="cx-ferr" role="alert">Say how many more for each resource you picked.</span>`:""}
    <label class="cx-flab" for="cuWhy">Why do you need it?<span class="cx-req" aria-hidden="true">*</span></label>
@@ -5287,31 +5347,31 @@ function recAskLedger(c,ro){
   if(can&&n.type==="ask"&&LM_DECL==="askl-"+n.r.id)
    act=`<div class="askl-decl"><input type="text" class="ul-in askl-note" data-nonote="${n.r.id}" placeholder="Why (optional)" aria-label="Note ${n.r.by||c.name} reads with the decline"><span class="askl-acts"><button type="button" class="linkbtn askl-q" data-askldx>Cancel</button><button type="button" class="linkbtn askl-go" data-no="${n.r.id}">Decline</button></span></div>`;
   else if(can&&n.type==="ask")
-   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-rlpart="${n.r.id}" aria-haspopup="dialog"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
+   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-rlpart="${n.r.id}" aria-haspopup="dialog"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Change limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
   else if(can)
-   act=`<span class="askl-acts">${g>0?go(`data-rlraise="${n.k}|${r.cap+g}"`,`Raise to ${f(r.cap+g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Edit limits on ${RES[n.k].label}"`,"Rebalance")}</span>${g>0?"":rlBuy(n.k,n.amt)}`;
+   act=`<span class="askl-acts">${g>0?go(`data-rlraise="${n.k}|${r.cap+g}"`,`Raise to ${f(r.cap+g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Change limits on ${RES[n.k].label}"`,"Rebalance")}</span>${g>0?"":rlBuy(n.k,n.amt)}`;
   const rid=mine.filter(m=>m.k===n.k).indexOf(n)?`askl-${n.k}-${mine.filter(m=>m.k===n.k).indexOf(n)+1}`:`askl-${n.k}`;   /* a second ask on one resource gets its own id */
   return `<tr class="askl-r" id="${rid}" data-askl="${n.type==="ask"?n.r.id:"stop"}"><td data-l="Requested by">${who}</td><td data-l="Resource">${rlRes(n.k)}</td>
-   <td data-l="Has used">${out?`<span class="ul3-mk is-out">${f(r.used)} of ${f(r.cap)}</span>`:`${f(r.used)} of ${f(r.cap)}`}</td>
+   <td data-l="Used">${out?`<span class="ul3-mk is-out">${f(r.used)} of ${f(r.cap)}</span>`:`${f(r.used)} of ${f(r.cap)}`}</td>
    <td data-l="Wants"><span class="askl-w">+${f(n.amt)}</span>${n.type==="stop"?'<span class="sub">To restart, no request</span>':""}</td>
    <td data-l="Available after">${n.after>=0?f(n.after):`<span class="ul3-mk">Short by ${f(-n.after)}</span>`}</td>${can?`<td class="askl-a">${act}</td>`:""}</tr>`};
  const ks=[...new Set(mine.map(m=>m.k))];
  const foot=ks.map(k=>{const M=mine.filter(m=>m.k===k), last=M[M.length-1], want=M.reduce((t,m)=>t+m.amt,0);
   return `<tr class="askl-f" data-asklf="${k}"><td colspan="3" data-l=""><span class="askl-fn"><b>${rlRes(k)}</b>, ${f(compute(k).free)} available</span></td><td data-l="Wants"><b class="askl-w">+${f(want)}</b></td><td data-l="After">${last.after>=0?`<b>${f(last.after)}</b>`:`<span class="ul3-mk">Short by ${f(-last.after)}</span>`}</td>${can?"<td></td>":""}</tr>`}).join("");
  return `<div class="panel askl" id="recAskl"><table class="askl-t"><colgroup><col style="width:21%"><col style="width:16%"><col style="width:15%"><col style="width:10%"><col style="width:17%">${can?"<col>":""}</colgroup>
-  <thead><tr><th>Requested by</th><th>Resource</th><th>Has used</th><th>Wants</th><th>Available after you give</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
+  <thead><tr><th>Requested by</th><th>Resource</th><th>Used</th><th>Wants</th><th>Available after</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
   <tbody>${mine.map(row).join("")}</tbody><tfoot>${foot}</tfoot></table></div>`}
 /* emails renew monthly, so a pace is known (used so far / day of cycle); credits are a balance: no pace */
 /* change 292: the one pace line (paceLine); "None left" is already the cell's own text */
 function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
 function rlSheetHTML(c){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
-  return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span>${k==="sends"?'<span class="sub">Renews 1 Oct</span>':""}</td>
+  return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":"Does not renew"}</span></td>
    <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${pbar(p,UL3_GREY)}</span><span class="rlt-uv">${ul3Mk(ul3Lv(r),`<b>${f(r.used)}</b> of ${f(r.cap)}`)}</span></span></td>
-   <td class="rlt-c3">${left>0?`${f(left)} left`:"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
+   <td class="rlt-c3">${left>0?f(left):"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
  return `<div class="panel rlt-sheet"><table class="rlt-t"><colgroup><col style="width:30%"><col style="width:28%"><col style="width:22%"><col></colgroup>
-  <thead><tr><th>Resource</th><th>Used of limit</th><th>Left</th><th>Available on your plan</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+  <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>Available</th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
 function rlFxLine(D,k,id){const e=ul3EdFx(D,k,id), r=RES[k].rows[id], d=ul3Dv(D,k,id)-r.cap, q=ul3Ask(id,k);
  if(e.bad) return e.html.replace(/ available\.$/," available on your plan.")+` <button type="button" class="linkbtn rlt-l" data-rlmove="${k}">Move more in Usage &amp; limits</button>`;
@@ -5327,7 +5387,7 @@ function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[
   return `<div class="ul3-el rlt-el" data-rlel="${k}"><label class="ul3-elab" for="rlin-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
    <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" id="rlin-${k}" data-rlin="${k}" value="${f(v)}" aria-invalid="${bad}" aria-describedby="rlfx-${k}">
    <div class="ul3-efx" id="rlfx-${k}" data-rlfx="${k}">${rlFxLine(D,k,id)}</div></div>`}).join("");
- return `<div class="panel rlt-edp"><div class="panel-h rlt-edh"><span class="panel-t" id="rlEdT">Change limits</span><span class="sub">Type any of ${ks.length===6?"the six":"them"}. Nothing changes until you save.</span></div>
+ return `<div class="panel rlt-edp"><div class="panel-h rlt-edh"><span class="panel-t" id="rlEdT">Change limits</span></div>
   <div class="ul3-ed rlt-ed" data-rledbox="${id}" role="group" aria-labelledby="rlEdT">${lines}<div class="ul3-dock rlt-dock" data-rldock>${rlDockHTML(c)}</div></div></div>`}
 /* typing repaints the lines and the dock, not the page, so the caret stays */
 function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledbox="${RL.id}"]`); if(!box) return; const D=RL.D, id=RL.id;
@@ -5335,7 +5395,9 @@ function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledb
  box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad))});
  box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id]);
  const dirty=rlDirty(); document.querySelectorAll("#recAskl .askl-acts button").forEach(b=>{b.disabled=dirty; b.title=dirty?"Save or cancel your limit changes first":""})}
-function rlHeadLine(c,ro,busy){
+/* change 320: the sub-line is the day of the cycle; what needs you is on the rows (amber marks, the request table) */
+function rlHeadLine(c,ro){return ro?`${c.deletedOn?"Deleted":"Disabled"}, still counts against the plan`:`Day ${CYCLE.day} of ${CYCLE.days}`}
+function rlHeadLine0(c,ro,busy){
  const cyc=`Day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}`;
  const R=RK.filter(k=>RES[k].rows[c.id]&&RES[k].rows[c.id].cap>0), lv=k=>ul3Lv(RES[k].rows[c.id]), out=R.filter(k=>lv(k)===2).length, near=R.filter(k=>lv(k)===1).length;
  /* change 292 (audit P0-11): a run-out within 2 days leads; a used-up limit is counted apart from the 90%+ ones */
@@ -5364,8 +5426,8 @@ function rLimits(c){
  const ansLine=answered.length?`<p class="rlt-p rlt-ans lm-answered">${ask?"":`Last request, answered ${answered[0].on||TODAY_D}. `}${[answered.filter(a=>a.state==="approved"),answered.filter(a=>a.state!=="approved")].map((L,i)=>!L.length?"":i?`Declined: ${listAnd(L.map(a=>`${f(a.amount)} ${RES[a.res].short}${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.`:`Gave${ask?" so far":""}: ${listAnd(L.map(a=>ansPart(a)?`${f(a.amount)} of ${f(a.asked)} ${RES[a.res].short}`:`${f(a.amount)} ${RES[a.res].short}, limit now ${f(a.to||RES[a.res].rows[c.id].cap)}`))}.`).filter(Boolean).join(" ")}</p>`:"";
  const led=recAskLedger(c,ro), ed=!!RL&&can;
  return `<div class="rlt">${grace()?rlGraceHTML():""}
-  <div class="rlt-head"><div class="rlt-h"><h2 class="rlt-title">Limits for ${CYCLE.month.split(" ")[0]}</h2>${can&&!ed?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>
-   <p class="rlt-p">${rlHeadLine(c,ro,!!led||grace())}</p>${can?"":`<p class="rlt-p rlt-ro">${rlRoLine()}</p>`}${ansLine}</div>
+  <div class="rlt-head"><div class="rlt-h"><h2 class="rlt-title">Limits</h2>${can&&!ed?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>
+   <p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>${ansLine}</div>
   ${led}${ed?rlEditorHTML(c):rlSheetHTML(c)}
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}</div>`;
 }
@@ -5685,26 +5747,26 @@ function vPeople(){
  /* All users carries one more column, Type (Your team or Client user); its Role column then holds the account role for the team and the workspace role for a client user */
  const cols=all?'grid-template-columns:minmax(250px,1fr) 78px 152px minmax(0,2.5fr) 88px 176px 44px':'grid-template-columns:minmax(250px,1fr) 120px minmax(0,2.5fr) 88px 176px 44px';
  const typeCell=t=>all?`<span class="pp-type">${t}</span>`:"";
- const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Account role</span>"}<span>Workspace access</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
+ const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Role</span>"}<span>Access</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
  const teamRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="t:${r.k}">
    <span class="pp-person">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i></span></span>
    ${typeCell("Your team")}<span class="pp-roletxt">${roleName(isATM()?atmRoleOf(r.k):r.role)}</span>
    <span class="pp-access">${ppAccess(r)}</span>
-   <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":r.seen}</span>
+   <span class="pp-seen${r.invited?" is-never":""}">${r.invited?"Never":rmCap(r.seen)}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person${r.named?"":" is-addr"}">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}</b>${r.named?`<i>${r.email}</i>`:""}</span></span>
-   ${typeCell("Client user")}<span class="pp-roletxt${all?"":" sub"}">${all?roleName(r.role):"Client user"}</span>
+   ${typeCell("Client user")}<span class="pp-roletxt">${roleName(r.role)}</span>
    <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}<span class="pp-chip-n">${r.c.name}</span><span class="pp-chip-r">${ppShort(r.role)}</span></span></span>
-   <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":r.seen}</span>
+   <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":rmCap(r.seen)}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key&&rowByKey(r.key)?peopleMenuHTML(rowByKey(r.key)):""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
  const ph=all?"Search all users":tab==="team"?"Search your team":tab==="clients"?"Search client users":tab==="teams"?"Search teams":"Search invites";
- const hint=all?""
+ const hint="", hint0=all?""
    :tab==="team"?"Account Owners and Account Admins reach every workspace; Account Members, only where they are added."
    :tab==="clients"?"Client users sign in only to the workspaces they're invited to and never see "+AGENCY.name+"."
    :tab==="teams"?"A Team Manager sees the records of everyone in the teams they manage, inside the workspaces they share. A plain member gains nothing."
@@ -5712,7 +5774,7 @@ function vPeople(){
  const empty=all?"No one matches.":tab==="team"?"No one on your team matches.":tab==="clients"?"No client user matches.":(invAll.length?"No invite matches.":"No invites waiting. Everyone has signed in.");
  const tabBtn=(k,label,n,tone)=>`<button type="button" role="tab" aria-selected="${tab===k}" data-pptab="${k}">${label} <span class="pp-cnt pp-cnt--${tone}">${n}</span></button>`;
  return `<div class="wrap pp-wrap">${receiptBar("people")}
-  <div class="pp-top"><span class="sub">Who can open which workspace, and as what<button class="linkbtn gapx" data-pproles>What each role can do</button></span>
+  <div class="pp-top"><span class="sub"><button class="linkbtn" data-pproles>What each role can do</button></span>
    <span class="tools"><button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button></span></div>
   <div class="pp-tabs" role="tablist">${tabBtn("all","All users",teamAll.length+clAll.length,"blue")}${tabBtn("team","Your team",teamAll.length,"gray")}${tabBtn("clients","Client users",clAll.length,"gray")}${isATM()?tabBtn("teams","Teams",Object.keys(TEAMS).length,"gray"):""}${tabBtn("invites","Invites waiting",invAll.length,invAll.length?"amber":"gray")}</div>
   <div class="pp-bar"><span class="pp-filters">
@@ -5815,17 +5877,17 @@ function ppRolesHTML(){
   ["Transfer ownership, close the account",[0,0,1]]];
  const AC=[["Open workspaces",['<span class="rl2-t">The ones you add them to</span>',1,1]],["Add workspaces, set limits, give or decline requests",[0,1,1]],["Invite people, set roles",[0,1,1]],["See Analytics across workspaces",[0,1,1]],["Billing; delete a workspace",[0,0,1]],["Transfer ownership, close the account",[0,0,1]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
-  <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span><span class="rl2-sub">Account role: which workspaces. Workspace role: what they can do inside.</span></div>
+  <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
   <div class="rl2-b">
-   <div><div class="rl2-cap"><b>Workspace roles</b><span>One per workspace. A client user has one of these in each workspace they're on. An Account Member sees their own other workspaces from the Admin Panel.</span></div>
+   <div><div class="rl2-cap"><b>Workspace roles</b><span>One per workspace</span></div>
     <table class="rl2 rl2--ws"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Workspace Viewer","Views only")}${th("Workspace Collaborator","Does the outreach")}${th("Workspace Admin","Runs it")}</tr></thead>
     <tbody>${wsRolesBody(Y,N,sec,row)}</tbody></table></div>
-   <div><div class="rl2-cap"><b>Account roles</b><span>your team; Account Owners and Account Admins run every workspace; an Account Member gets a role per workspace</span></div>
+   <div><div class="rl2-cap"><b>Account roles</b><span>Your team</span></div>
     <table class="rl2 rl2--acct"><thead><tr><th class="rl2-can">Can they&hellip;</th>${th("Account Member","Works where added")}${th("Account Admin","Runs the account")}${th("Account Owner","Owns the account")}</tr></thead>
     <tbody>${AC2.map(x=>typeof x==="string"?sec(x,4):row(x[0],x[1])).join("")}</tbody></table></div>
   </div>
-  <div class="rl2-f"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span></span><span>Account Owners and Account Admins are Workspace Admins everywhere, automatically.</span></div>
+  <div class="rl2-f"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span></span></div>
   </div></div>`;
 }
 /* ══ change 114, 5 Oct 2026 (canvas rows 20b, 20c; doc 75): a person is a page.
@@ -5836,6 +5898,32 @@ function ppRolesHTML(){
    row on People opens it: teammates, client users and the Owner. The drawer
    (ppPanelHTML) is no longer opened from anywhere. */
 let PERSON_TAB="access", PA_KIND="all", PA_WS="all";
+/* change 321: the Access card is read-only text until Edit; PA_ED={key,draft:{wsId:role},ask,open} while it is being edited */
+let PA_ED=null, SH_SKIP=false, SH_PUSHED=false;
+const paEditing=p=>!!PA_ED&&PA_ED.key===p.key;
+const paCur=(p,id)=>p.kind==="team"?ppWsRole(p.P,id):((((byId[id]||{}).users||[]).find(u=>u[0]===p.email))||[])[1];
+const paDirty=p=>paEditing(p)&&Object.keys(PA_ED.draft).some(id=>PA_ED.draft[id]!==paCur(p,id));
+function paCtl(p,editBtn,inline){
+ if(!inline) return editBtn?`<span class="c-a tools">${editBtn}</span>`:"";
+ if(!paEditing(p)) return `<span class="c-a tools"><button class="shd-button shd-button--tertiary shd-button--sm" data-paedit="${p.key}">Edit</button></span>`;
+ if(PA_ED.ask) return `<span class="c-a tools"><span class="sub">Discard changes?</span><button class="shd-button shd-button--secondary shd-button--sm" data-pakeep>Keep editing</button><button class="shd-button shd-button--primary shd-button--sm" data-padiscard>Discard</button></span>`;
+ return `<span class="c-a tools"><button class="shd-button shd-button--secondary shd-button--sm" data-pacancel>Cancel</button><button class="shd-button shd-button--primary shd-button--sm" data-pasave ${paDirty(p)?"":"disabled"}>Save changes</button></span>`}
+function paSave(){const E=PA_ED; if(!E) return; const p=personOf(E.key); if(!p){PA_ED=null; render(); return}
+ const ch=Object.keys(E.draft).filter(id=>byId[id]&&E.draft[id]!==paCur(p,id)); if(!ch.length){PA_ED=null; render(); return}
+ const undo=[]; ch.forEach(id=>{const c=byId[id], level=E.draft[id];
+  if(p.kind==="team"){const P=p.P, was=P.roles&&P.roles[id]; P.roles=P.roles||{}; P.roles[id]=level; undo.push(()=>{if(was)P.roles[id]=was; else delete P.roles[id]}); logAct(id,`${p.name}'s role set to ${ppShort(level)}`)}
+  else {const u=(c.users||[]).find(x=>x[0]===p.email); if(!u) return; const was=u[1]; u[1]=level; undo.push(()=>{u[1]=was}); logAct(id,`${p.email}'s role set to ${ppShort(level)}`)}});
+ const one=ch.length===1?byId[ch[0]]:null; PA_ED=null;
+ ppToast(one?`${p.name} is now ${roleA(E.draft[ch[0]])} in ${one.name}.`:`${p.name}'s roles changed in ${ch.length} workspaces.`,()=>undo.forEach(f=>f()),"role changed"); render()}
+function paCancel(){const p=PA_ED&&personOf(PA_ED.key); if(p&&paDirty(p)){PA_ED.ask=true; render(); return} PA_ED=null; render()}
+/* opening a person from a workspace keeps that workspace as the way back: the breadcrumb names it and browser Back returns to its Members tab */
+function shOpenPerson(key,from){view={name:"person",id:key}; if(from) view.from=from; PERSON_TAB="access"; PA_KIND="all"; PA_WS="all";
+ if(from){try{const h=demoHash(["person="+key,"from="+from,HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam()]); (history.state&&history.state.sh==="person"?history.replaceState:history.pushState).call(history,{sh:"person",id:key,from},"",location.pathname+location.search+"#"+h); SH_PUSHED=true}catch(e){}}}
+window.addEventListener("popstate",e=>{const st=e.state; SH_SKIP=true; setTimeout(()=>{SH_SKIP=false},80);
+ if(st&&st.sh==="person"&&personOf(st.id)){PA_ED=null; view={name:"person",id:st.id,from:st.from}; PERSON_TAB="access"; SH_PUSHED=true; render(); return}
+ if(view.name==="person"&&view.from&&byId[view.from]){const w=view.from; PA_ED=null; view={name:"record",id:w}; tab="members"; render(); return}
+ SH_SKIP=false});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!PA_ED||view.name!=="person"||modal||document.querySelector(".dd.is-open")) return; e.preventDefault(); paCancel()});
 function personOf(key){
  if(!key) return null;
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
@@ -5872,19 +5960,19 @@ function personAccessHTML(p){
     (change 156, in place, Undo on the toast), plain text where it cannot (disabled, or ATM, where an
     Account Member has no role per workspace, change 157). Owners and Admins are in every workspace. */
  const atm=isATM(), aRole=p.kind==="team"?(atm?atmRoleOf(p.k):p.role):null, allWs=aRole==="Owner"||aRole==="Admin";
- const ROLE_SAYS={Owner:"Everything, including Billing. Another Account Owner can remove this role; the last one can&rsquo;t be removed.",
-  Admin:"Every workspace and People; no Billing.",Member:atm?"Their own records, in the workspaces below.":"Only the workspaces below, with a role in each.",
+ const ROLE_SAYS={Owner:"Everything, including Billing.",
+  Admin:"Every workspace and People; no Billing.",Member:atm?"Their own records, in the workspaces below.":"Only the workspaces below.",
   "Team Manager":"Their own and their team&rsquo;s records, in the workspaces below."};
  const canLvl=canI("members")&&!p.disabled&&!atm, noLvl=atm&&p.kind==="team";
  const row=(k,v,cls)=>`<div class="pacc-r${cls?" "+cls:""}"><span class="pacc-k">${k}</span><div class="pacc-v">${v}</div></div>`;
- const wsLine=([c,lv])=>`<div class="pacc-ws"><span class="pacc-wn" title="${c.name}">${c.name}</span>${noLvl?"":canLvl?`<span class="pacc-dd">${ddHTML("pplvl_"+c.id,lv,[{items:roleItems()}],{})}</span>`:`<span class="pacc-ro">${roleName(lv)}</span>`}</div>`;
- const wsVal=allWs?(atm?`<b>All workspaces</b>`:`<b>Workspace Admin in every workspace</b><span class="pacc-s">Including workspaces added later.</span>`)
+ const wsLine=([c,lv])=>`<div class="pacc-ws"><span class="pacc-wn" title="${c.name}">${c.name}</span>${noLvl?"":canLvl&&paEditing(p)?`<span class="pacc-dd">${ddHTML("pplvl_"+c.id,PA_ED.draft[c.id]||lv,[{items:roleItems()}],{})}</span>`:`<span class="pacc-ro">${roleName(lv)}</span>`}</div>`;
+ const wsVal=allWs?(atm?`<b>All workspaces</b>`:`<b>Workspace Admin in every workspace</b>`)
    :lvlRows.length?lvlRows.map(wsLine).join(""):`<b>Not in any workspace yet</b>`;
  const teams=noLvl?teamsOf(p.k):[];
  const rows=(aRole?row("Account role",`<b>${roleName(aRole)}</b><span class="pacc-s">${ROLE_SAYS[aRole]||""}</span>`):"")
-   +row(noLvl||allWs?"Workspaces":lvlRows.length>1?"Workspace roles":"Workspace role",wsVal,!allWs&&lvlRows.length&&canLvl?"pacc-r--dd":"")
+   +row(noLvl||allWs?"Workspaces":lvlRows.length>1?"Workspace roles":"Workspace role",wsVal,!allWs&&lvlRows.length&&canLvl&&paEditing(p)?"pacc-r--dd":"")
    +(noLvl&&!allWs?row("Teams",`<b>${teams.length?listAnd(teams.map(t=>t.name+(t.manager===p.k?" (manager)":""))):"Not in a team"}</b>`):"");
- const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span><span class="sub">${since}</span>${editBtn?`<span class="c-a tools">${editBtn}</span>`:""}</div>
+ const html0=`<div class="panel"><div class="panel-h"><span class="panel-t">Access</span>${paCtl(p,editBtn,canLvl&&!allWs&&lvlRows.length>0&&personCanEdit(p))}</div>
    <div class="panel-b pacc">${rows}</div></div>`;
  return html0+`
   ${/* change 119, 5 Oct 2026: the Sign-in card is gone. The header carries the
@@ -5953,8 +6041,8 @@ function vPerson(){
  const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
  return `
  <div class="toolbar" data-keeptitle><div class="cell-main">
-   <button class="linkbtn" data-topeople>People</button><span class="sep">/</span>
-   ${ppAv(p.initials,PP_AV,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.kind==="client"&&!p.named?"":p.email+", "}${sub}. ${status}${signsAt}.</span></span></div>
+   ${view.from&&byId[view.from]?`<button class="linkbtn" data-tows="${view.from}">${byId[view.from].name}</button>`:`<button class="linkbtn" data-topeople>People</button>`}<span class="sep">/</span>
+   ${ppAv(p.initials,PP_AV,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.kind==="client"&&!p.named?"":p.email+", "}${status}${signsAt}</span></span></div>
   <div class="tools">${reset}${ownerBtn}${dis}${rm}</div></div>
  ${receiptBar("people")}${tr}
  <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
@@ -6087,7 +6175,7 @@ function invPropose(addr){
 const invSettled=r=>!r.blocked&&(r.kind==="admin"||(r.kind==="client"&&!!r.ws&&!(r.existing&&r.existing.indexOf(r.ws)>-1))||(r.kind==="team"&&r.wsList.length>0));
 const INV_SHORT={"Workspace Admin":["Run them","Run it"],"Workspace Collaborator":["Do the outreach","Do the outreach"],"Workspace Viewer":["View only","View only"]};
 /* change 215 */
-const INV_WHY={"Workspace Admin":"Everything a Workspace Collaborator does, plus export, workspace settings and buying email accounts.","Workspace Collaborator":"Adds prospects, reveals leads against the limit, writes, launches and pauses sequences, replies.","Workspace Viewer":"Sees every screen and the limits, changes nothing."};
+const INV_WHY={"Workspace Admin":WS_ROLE_LINE["Workspace Admin"],"Workspace Collaborator":WS_ROLE_LINE["Workspace Collaborator"],"Workspace Viewer":WS_ROLE_LINE["Workspace Viewer"]};
 const INV_PURPOSE=[["team","Work on my clients&rsquo; outreach","A teammate. Sees only the workspaces you pick."],["client","Use their own client workspace","A client user. One workspace, nothing of your agency."],["admin","Run the agency with me","An Account Admin. All workspaces and People; no Billing."]];
 const INV_TINTS=["#b91c1c","#1d4ed8","#0f766e","#6d28d9","#c2410c","#0e7490"];
 const invFirst=e=>{const n=e.split("@")[0].split(/[._-]/)[0];return n?n.charAt(0).toUpperCase()+n.slice(1):"They"};
@@ -6137,7 +6225,7 @@ function wireDD(L,id,onPick){
    says what to do while typing, the footer says why Send waits, and a typed address
    commits on Enter, Tab, space, comma, click-away or Send itself. */
 const INV_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-function invHintText(d){d=(d||"").trim(); if(!d) return "Each person sets their own password."; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
+function invHintText(d){d=(d||"").trim(); if(!d) return ""; return INV_OK.test(d)?"Press Enter to add this address.":"Finish the address, then press Enter."}
 function invFootText(d){const I=INV; d=(d||"").trim(); if(INV_OK.test(d)) return "";
  if(I.f&&!I.edit) return invFormFoot();
  if(!I.emails.length) return "Add at least one email address.";
@@ -6201,7 +6289,7 @@ function inviteFormHTML(){
   if(f.kind==="admin"&&ME().role==="Owner") body+=`<div class="field"><span class="flabel">As what?</span>${cards("invfown",[["admin","As an Account Admin","All workspaces and People; no Billing."],["owner","As an Account Owner","Everything, including billing, Whitelabel and other Account Owners."]],f.asOwner?"owner":"admin","data-invfown")}</div>`;
   if(f.kind==="team"){const left=wsList.filter(x=>f.wsList.indexOf(x.id)<0), atm=isATM();
    const rowH=id=>{const c=byId[id]; return `<div class="invl-r">${av(c,24)}<span class="invl-n">${c.name}</span>${atm?"":ddHTML("invlv_"+id,f.lv[id]||f.level,[{items:invLvItems()}])}<button type="button" class="ubtn invl-x" data-invfrm="${id}" aria-label="Remove ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`};
-   body+=`<div class="field">${head(atm?"Workspaces":"Workspaces and what they can do in each",!atm)}<div class="invl">`
+   body+=`<div class="field">${head(atm?"Workspaces":"Workspaces and roles",!atm)}<div class="invl">`
     +(f.wsList.length>1&&!atm?`<div class="invl-h"><span>${f.wsList.length} clients</span><span class="invl-sa">Set all to</span>${ddHTML("invlvall","",[{items:invLvItems()}],{placeholder:"Choose"})}</div>`:"")
     +f.wsList.map(rowH).join("")
     +(left.length?`<div class="invl-add">${ddHTML("invfadd","",[{items:left.map(x=>({value:x.id,label:x.name,avatar:av(x,22)}))}],{placeholder:f.wsList.length?"Pick another workspace":"Pick a workspace"})}</div>`:"")
@@ -6555,9 +6643,9 @@ const BILL={open:{},buy:null,amt:null,focus:false,charged:0,
  from:null,bought:null,back:null,card:false,cv:{num:"",exp:"",cvc:""},ce:{},paying:false,focusCard:false};
 const bpUnit=k=>RES[k].unit==="tests"?"tests":"credits";
 const bpPriceTxt=k=>CREDIT_PRICE[k].replace(" / "," a ");
-const bpRenew=k=>k==="sends"?"Renews on "+PLAN.next.split(",")[0]:k==="lead_finder"?"Renews with the plan on "+PLAN.next.split(",")[0]:"Does not renew";
+const bpRenew=k=>k==="sends"||k==="lead_finder"?"Renews "+PLAN.next.split(",")[0]:"Does not renew";   /* change 320: one wording on every screen */
 const bpNum=s=>{const n=parseInt(String(s).replace(/[^\d]/g,""),10);return isNaN(n)?0:n};
-const CREDIT_RENEW={lead_finder:"Renews with the plan on "+"1 Oct",verification:"A balance; does not renew",ai:"A balance; does not renew",dialer:"A balance; does not renew",radar:"A balance; does not renew"};
+const CREDIT_RENEW={lead_finder:"Renews 1 Oct",verification:"Does not renew",ai:"Does not renew",dialer:"Does not renew",radar:"Does not renew"};
 function billLine(){
  const sent=planNextLine();
  return `<div class="bill-line"><span class="bill-amt">${sent}</span><span class="bill-sub"><span class="gapx">${PLAN.name.replace(" (Monthly)",", monthly")}</span><button class="linkbtn gapx" data-flash="Opens the billing portal">Invoices</button></span></div>`}
@@ -6613,19 +6701,19 @@ const bpWs=id=>id==="own"?OWN_WS:byId[id];
 /* change 285: the headline names the state: payment failed first (with the Payment panel under it), then a
    buy link (buy, then bought), then the next bill */
 const bpBack=()=>BILL.from==="link"&&BILL.back?`<button type="button" class="linkbtn bp-back" data-bpback>Back to ${BILL.back.label.replace(/&/g,"&amp;")}</button>`:"";
-const bpHl=(h,p)=>`<section class="bp-ans" aria-labelledby="bpH"><div class="bp-hl"><h2 class="ul3-h" id="bpH" tabindex="-1">${h}</h2>${bpBack()}</div><p class="ul3-p">${p}</p></section>`;
+const bpHl=(h,p)=>`<section class="bp-ans" aria-labelledby="bpH"><div class="bp-hl"><h2 class="ul3-h" id="bpH" tabindex="-1">${h}</h2>${bpBack()}</div>${p?`<p class="ul3-p">${p}</p>`:""}</section>`;
 function bpLinkHead(){if(BILL.from!=="link") return ""; const k=BILL.bought?BILL.bought.k:BILL.buy; if(!k||!RES[k]) return "";
  const lab=RES[k].label, free=`<b>${f(compute(k).free)}</b>`;
- return BILL.bought?bpHl(`Bought ${f(BILL.bought.a)} ${lab}.`,`Your plan now has ${free} to give. Give them to a workspace in Usage &amp; limits.`)
-  :bpHl(`Buy ${lab}.`,`Your plan has ${free} to give. Check the amount below and buy.`)}
+ return BILL.bought?bpHl(`Bought ${f(BILL.bought.a)} ${lab}.`,`Your plan now has ${free} available. Give them to a workspace in Usage &amp; limits.`)
+  :bpHl(`Buy ${lab}.`,"")}
 function bpHead(){
  if(grace()) return bpHl(`Payment failed on ${GRACE.failedOn}.`,`Sending is paused in every workspace. Update the card within ${GRACE.daysLeft} days, or the account pauses.`)+bpPayHTML();
  const L=bpLinkHead(); if(L) return L;
  /* change 299 (audit P2-12): right after a failed payment is paid, the headline says so */
- if(BILL.paidOn) return bpHl(`Paid on ${BILL.paidOn}.`,`Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}, charged to ${BILL_CARD}.`);
+ if(BILL.paidOn) return bpHl(`Paid on ${BILL.paidOn}.`,"");
  const n=s=>parseFloat(String(s).replace(/[^0-9.]/g,"")), a=n(PLAN.amount), b=n(PLAN.lastAmount||PLAN.amount);
  const cmp=a===b?"Same as last month":a>b?`Up from ${PLAN.lastAmount} last month`:`Down from ${PLAN.lastAmount} last month`;
- return bpHl(`Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}.`,`${cmp}, charged to ${BILL_CARD}.${BILL.charged?` ${usd(BILL.charged)} for credits was charged today, separately.`:""}`)}
+ return bpHl(`Next bill ${PLAN.amount} on ${PLAN.next.split(",")[0]}.`,"")}   /* change 320: the Plan Details rows say the rest */
 /* change 285.1: fd's rows folded into production's Plan Details, in place of its three-column strip */
 function bpPlanRows(){const g=grace(), nx=PLAN.next.split(",")[0], mon=CYCLE.month.split(" ")[0];
  const n=s=>parseFloat(String(s).replace(/[^0-9.]/g,"")), a=n(PLAN.amount), b=n(PLAN.lastAmount||PLAN.amount);
@@ -6665,12 +6753,12 @@ function vPlatform(){
     Next Billing Amount ("DD MMM, yyyy", "$0.00"). The agency's "Covers ..." stays under the name. */
  const dd=s=>s.replace(/^(\d) /,"0$1 ");
  return `${bpHead()}<div class="panel plancard bs-plan">
-   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3><span class="bs-plan-d">${isNormal()?"":`Covers ${AGENCY.name} and ${CLIENTS.length} workspaces. `}15 team seats, ${seats} used.${AGENCY.whitelabel?" Whitelabel included.":""}</span></div>
+   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3><span class="bs-plan-d">15 team seats, ${seats} used.${AGENCY.whitelabel?" Whitelabel included.":""}</span></div>
     <div class="bs-plan-act"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button><span class="bs-mb"><button class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false">Manage Billing</button><div class="bs-mb-menu" role="menu" hidden><button role="menuitem" data-flash="Opens the billing portal">Update Card / Invoices</button><button role="menuitem" data-flash="Not in this prototype">Cancel Subscription</button></div></span></div></div>
    ${bpPlanRows()/* change 285.1 */}
   </div>
   ${isNormal()?"":`<div class="panel bp-panel" id="bpGoes">
-   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub bp-hsub">${CYCLE.month.split(" ")[0]}, day ${CYCLE.day} of ${CYCLE.days}</span><span class="c-a">${urCtl("bill","")}<button class="linkbtn ul3-l" data-ulgo>Open Usage &amp; limits</button></span></div>
+   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="sub bp-hsub">Day ${CYCLE.day} of ${CYCLE.days}</span><span class="c-a">${urCtl("bill","")}<button class="linkbtn ul3-l" data-ulgo>Open Usage &amp; limits</button></span></div>
    ${bpTable(RK.filter(k=>RES[k].pool>0))}</div>`}
   ${bpAddons()}`;
 }
@@ -6692,12 +6780,12 @@ function bpTable(ks,single){
   return `<tr class="bp-r${open?" is-open":""}" data-pg="${k}">
    <td><span class="ul3-rn">${R.label}</span><span class="ul3-sub">${bpRenew(k)}</span></td>
    <td data-l="Used"><span class="ul3-hb">${pbar(P>0?m.used/P*100:0,UL3_GREY)}<span class="ul3-num">${f(m.used)} <span class="ul3-g">of ${f(P)}</span></span></span></td>
-   <td data-l="Available to give" class="ul3-num"><b>${f(m.free)}</b><span class="ul3-sub">${f(P-m.free)} given to workspaces</span>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
+   <td data-l="Available" class="ul3-num"><b>${f(m.free)}</b><span class="ul3-sub">${f(P-m.free)} given to workspaces</span>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
    <td class="bp-share">${share}</td><td class="bp-act">${act}</td></tr>${det}${buy?`<tr class="bp-buyrow"><td colspan="5">${bpBuyHTML(k)}</td></tr>`:""}`}).join("");
- return `<table class="ul-t bp-t${single?" is-single":""}"><thead><tr><th class="bp-c1">Resource</th><th class="bp-c2">Used</th><th class="bp-c3">Available to give</th><th class="bp-share">Largest limit</th><th class="bp-c5" aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table>`}
+ return `<table class="ul-t bp-t${single?" is-single":""}"><thead><tr><th class="bp-c1">Resource</th><th class="bp-c2">Used</th><th class="bp-c3">Available</th><th class="bp-share">Largest limit</th><th class="bp-c5" aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table>`}
 /* the buy panel: the amount, its effect on what the plan can give, the charge in a sentence; the
    button names count and price. Blocked while the card is declined, with the reason above it. */
-const bpBuyFx=(k,a)=>a?`Available to give goes from ${f(compute(k).free)} to ${f(compute(k).free+a)}.`:`Enter how many ${bpUnit(k)} to buy, for example 1,000.`;
+const bpBuyFx=(k,a)=>a?`Available goes from ${f(compute(k).free)} to ${f(compute(k).free+a)}.`:`Enter how many ${bpUnit(k)} to buy, for example 1,000.`;
 /* change 299 (audit P2-12): more than ten times the plan's monthly amount in one click gets a second look */
 const bpBig=(k,a)=>a*BP_PRICE[k]>10*parseFloat(String(PLAN.amount).replace(/[^0-9.]/g,""))?`That is ${usd(a*BP_PRICE[k])}. Check the amount.`:"";
 const bpCost=(k,a)=>a?`${usd(a*BP_PRICE[k])} at ${bpPriceTxt(k)}, charged now to ${BILL_CARD}.`:"";
@@ -6709,8 +6797,8 @@ function bpBuyHTML(k){const g=grace(), a=BILL.amt!=null?BILL.amt:BP_DEF[k], U=bp
   <p class="ul4-cs bp-big" id="bpBuyBig" role="status"${bpBig(k,a)?"":" hidden"}>${bpBig(k,a)}</p>
   <div class="bp-buy-f"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-bpbuyx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" id="bpBuyGo" data-bpbuygo="${k}"${g||!a?" disabled":""}>${bpBuyLabel(k,a)}</button></div></div>`}
 /* add-ons: what is on, its price and one action, which opens that add-on's own page */
-function bpAddons(){const row=(tab,name,val,blurb,act)=>`<div class="bp-ao"><span class="bp-ao-k">${name}</span><span class="bp-ao-v">${val}<span class="ul3-sub">${blurb}</span></span><button type="button" class="linkbtn ul3-l" data-billtab="${tab}">${act}</button></div>`;
- return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">Add-ons</span>${isNormal()?"":`<span class="sub bp-hsub">Added once for the account, then available in every workspace</span>`}</div><div class="bp-aos">
+function bpAddons(){const row=(tab,name,val,blurb,act)=>`<div class="bp-ao"><span class="bp-ao-k">${name}</span><span class="bp-ao-v">${val}</span><button type="button" class="linkbtn ul3-l" data-billtab="${tab}">${act}</button></div>`;
+ return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">Add-ons</span></div><div class="bp-aos">
   ${row("dialer","Dialer","Active, $29 / month","Call prospects from a sequence step, with recordings and call logs.","Manage")}
   ${row("radar","Inbox Radar","Active, $49 / month","Deliverability tests for every email account, with alerts when placement drops.","Manage")}
   ${row("crm","CRM","Not on this plan, $29 / user / month","Pipelines, deals and activity on top of the prospects you already have.","Add CRM")}</div></div>`}
@@ -6719,7 +6807,7 @@ function bpAddons(){const row=(tab,name,val,blurb,act)=>`<div class="bp-ao"><spa
 function vCreditsBuy(only){
  const ks=(only?[only]:["lead_finder","verification","ai"].concat(RES.dialer&&RES.dialer.pool>0?["dialer"]:[])).filter(k=>RES[k]);
  if(!ks.length) return "";
- return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">${only?RES[only].label.replace(/ \/ month$/,""):"Credits"}</span><span class="sub bp-hsub">${only==="radar"?"Tests":"Credits"} are shared by every workspace</span></div>${bpTable(ks,!!only)}</div>`}
+ return `<div class="panel bp-panel"><div class="panel-h"><span class="panel-t">${only?RES[only].label.replace(/ \/ month$/,""):"Credits"}</span></div>${bpTable(ks,!!only)}</div>`}
 /* change 142, 6 Oct 2026 (Hitesh): email accounts are bought inside a workspace, so their
    purchase history lives on that workspace's Email accounts page, for agency staff only.
    Columns and the renewal warning follow production's Email Account Infrastructure page;
@@ -6743,22 +6831,22 @@ function mailPurchasesHTML(c,forClient){
    <td class="tnum">${r.renew}${r.due&&!forClient?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
    ${forClient?"":`<td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn linkbtn--sm" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td>`}</tr>`).join("");
  return `<div class="panel">
-  <div class="panel-h"><span class="panel-t">Purchase History</span><span class="sub">Domains, email accounts and IPs this workspace sends from, with their renewal dates</span></div>
+  <div class="panel-h"><span class="panel-t">Purchase History</span></div>
   ${forClient?"":`<div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>`}
   <div class="tscroll"><table class="organism inf-table" style="min-width:900px">
    <thead><tr><th>Purchase date</th><th>Domains</th><th>Email accounts</th><th>IPs / Azure tenants</th><th>Renewal date</th><th>Plan type</th>${forClient?"":'<th class="colact"></th>'}</tr></thead>
    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="padding:12px 16px;margin:0;border-top:1px solid var(--gray-13)">${forClient?`${AGENCY.name} renews these for you.`:`Billed to ${AGENCY.name}'s plan.`}</p></div>`;
+  </div>`;
 }
 function vAddons(only){
  const row=(name,...a)=>!only||only===name?row0(name,...a):"";
  const row0=(name,blurb,state,price,on)=>`<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span>${on?`<span class="chip c-ok">Active</span>`:`<span class="chip c-warn">Not on this plan</span>`}</div>
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
-    <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
+    <span class="sub" style="max-width:560px">${blurb}</span>
     <span class="tools"><span class="tnum" style="font-weight:600">${price}</span>${on?`<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Not in this prototype">Manage</button>`:`<button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add ${name}</button>`}</span></div></div>`;
- return row("Dialer","Call prospects from a sequence step, with recordings and call logs.","","$29 / month",true)
-  +row("Inbox Radar","Deliverability tests for every email account, with alerts when placement drops.","","$49 / month",true)
-  +row("CRM","Pipelines, deals and activity on top of the prospects you already have.","","$29 / user / month",false)}
+ return row("Dialer","Calls from sequence steps","","$29 / month",true)
+  +row("Inbox Radar","Inbox placement tests and alerts","","$49 / month",true)
+  +row("CRM","Pipelines and deals","","$29 / user / month",false)}
 /* an email account bought through Saleshandy sits on a secondary sending
    domain; the client's own domain carries the accounts they connected. */
 const mbxBought=c=>{const d=(SEND_DOMAINS[c.id]||[])[0];return (c.mailboxes||[]).filter(m=>d&&String(m[0]).split("@")[1]!==d).length};
@@ -6809,7 +6897,7 @@ function vEmailBilling(){
 function vAddon(name,blurb,price){
  return `<div class="panel"><div class="panel-h"><span class="panel-t">${name}</span><span class="chip c-warn">Not on this plan</span></div>
    <div class="panel-b" style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
-    <span class="sub" style="max-width:560px">${blurb}${isNormal()?"":" Added once for the account, then available in every workspace."}</span>
+    <span class="sub" style="max-width:560px">${blurb}</span>
     <span class="tools"><span class="tnum" style="font-weight:600">${price}</span><button class="shd-button shd-button--secondary shd-button--sm" data-flash="Not in this prototype">Add to plan</button></span></div></div>`;
 }
 const refreshI='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:4px"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>';
@@ -7189,7 +7277,7 @@ const ul3E2Lows=()=>ulChanges().filter(x=>ul3E2Low(x.k,x.id));
 /* short: what the waiting asks on this resource want is more than the plan has available (rqcShortHTML's test) */
 const ul3E2Short=k=>{const a=ulReqs().filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0); return a>0&&a>compute(k).free};
 /* Billing's own wording (bpRenew): Emails and Lead Finder renew on the plan date; the credits do not */
-const ul3E2Renew=k=>/^Renews/.test(bpRenew(k))?`Renews on ${PLAN.next.split(",")[0]}`:"Doesn't renew";
+const ul3E2Renew=k=>bpRenew(k);
 const ul3E2Lab=k=>RES[k].short;   /* change 297 (audit P1-5): mid-sentence, "80,000 emails available" */
 /* the last column: % used and who asked, in grey; deciding stays on the Request card, so no Give here */
 function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=ul3Ask(c.id,k), U=r.used; let s;
@@ -7209,7 +7297,7 @@ function ul3PaHTML(k){const gap=Math.max(0,ulReqs().filter(r=>r.res===k).reduce(
  return `<div class="ul3-pa"><span class="ul3-rn" data-ul3renew="${k}">${ul3E2Renew(k)}</span>${act}</div>`}
 const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
 function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), low=ul3E2Lows(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
- const msg=!n?`No changes yet. The plan has ${f(compute(k).free)} ${ul3E2Lab(k)} available.`
+ const msg=!n?"No changes yet."
   :over.length?`<span class="ul3-mk">Above your plan: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}.</span> Lower a limit to review.`
   :low.length?`<span class="ul3-mk">Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}.</span> Raise it to review.`
   :`${ul3N(n,"change")} across ${ul3N(nW,"workspace")}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}`;
@@ -7243,7 +7331,7 @@ function ul3E2ReviewHTML(){const ch=ulChanges(), n=ch.length, ks=UL_K().filter(k
    place of Your plan and the roster. Tabs, the pool strip, one row per workspace; editing is 263's draft,
    Review and Apply through ul3Commit. ═══ */
 function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRows().length;
- const head=`<div class="rqc-hd"><h2 class="ul3-h" id="ul3E2H">Limits</h2><span class="rqc-hs">${nW===1?"1 workspace":`${nW} workspaces`}</span></div>`;
+ const head=`<div class="rqc-hd"><h2 class="ul3-h" id="ul3E2H">Limits</h2></div>`;
  if(!ro&&UL.rv2&&n&&!ul3E2Over().length&&!ul3E2Lows().length) return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div></section>`;
  UL.rv2=false;
  const W=ul3E2Rows(k);
@@ -7551,11 +7639,11 @@ function rqcGive(a){const ov=a.lines.filter(rqcOver), gl=a.lines.map(r=>({r,g:rq
  const stays=a.lines.filter(r=>rqcG(r)<r.amount).map(r=>`${f(r.amount-rqcG(r))} ${rqcNoun(r.res)}`);
  /* change 299 (audit P2-1): why Give is off, said under the buttons, not only in a tooltip */
  const none=[...new Set(a.lines.filter(r=>compute(r.res).free<=0).map(r=>r.res))];
- const why=ov.length?"":gl.length?"":none.length===new Set(a.lines.map(r=>r.res)).size?`No ${listAnd(none.map(rqcNoun))} available. ${none.includes("sends")&&none.length===1?`Adjust limits or ${EMAILS_MORE.say}.`:"Adjust limits or buy more."}`:"Enter an amount above 0 to give.";
+ const why=ov.length?"":gl.length?"":none.length===new Set(a.lines.map(r=>r.res)).size?`No ${listAnd(none.map(rqcNoun))} available. ${none.includes("sends")&&none.length===1?`Change limits or ${EMAILS_MORE.say}.`:"Change limits or buy more."}`:"Enter an amount above 0 to give.";
  if(ov.length) return {label,can:false,why:"",tip:rqcOverT(ov[0])};
  return {label,can:gl.length>0,why,tip:(gl.length?label+".":why||"Nothing is available to give.")+(stays.length?` ${rqcCap1(listAnd(stays))} ${stays.length===1?"stays":"stay"} waiting.`:"")}}
 /* the two ways out of a short resource */
-const rqcAdjB=k=>`<button type="button" class="linkbtn rqc-lk" data-rqcadj="${k}">Adjust limits</button>`;
+const rqcAdjB=k=>`<button type="button" class="linkbtn rqc-lk" data-rqcadj="${k}">Change limits</button>`;
 /* change 299 (C6): how more emails are got, said once; flip both words here if emails become buyable */
 const EMAILS_MORE={label:"Change plan",say:"change the plan"};
 const rqcBuyB=(k,n)=>`<button type="button" class="linkbtn rqc-lk" data-rqcbuy="${k}|${n}">${!canI("billing")?"Ask the Account Owner":k==="sends"?EMAILS_MORE.label:"Buy more"}</button>`;
@@ -7572,7 +7660,7 @@ function rqcShortHTML(ro){const R=ulReqs();
 const rqcWait=r=>`<span class="rqc-st is-w">${RQC_I.half}${f(r.amount)} waiting</span>`;
 function rqcUsed(r){const x=RES[r.res].rows[r.client], u=x.used, c=x.cap;
  const main=c>0&&u>=c?`All ${f(c)} used`:u===0?`Nothing used of ${f(c)}`:`${f(u)} of ${f(c)} used`;
- let sub=""; if(RQC_RENEW(r.res)&&u>0){if(u>=c) sub=`Ran out by day ${CYCLE.day} of ${CYCLE.days}`; else {const d=Math.ceil(c*CYCLE.day/u); sub=d<=CYCLE.days?`Runs out around day ${d} of ${CYCLE.days}`:"Within its limit at this pace"}}
+ let sub=""; if(RQC_RENEW(r.res)&&u>0&&u<c) sub=paceLine(r.res,{used:u,cap:c})||"Within its limit at this pace";   /* change 320: one pace wording; a used-up tile already reads "All N used" */
  return `<div class="rqc-tile"><span class="rqc-l">Used</span><span class="rqc-v">${main}</span>${sub?`<span class="rqc-s">${sub}</span>`:""}</div>`}
 /* change 299: the line under the field: the hint, or what is wrong with the amount */
 const rqcHintHTML=r=>rqcOver(r)?`<span class="rqc-s rqc-err" id="rqcH-${r.id}" role="alert">${rqcOverT(r)}</span>`:`<span class="rqc-s" id="rqcH-${r.id}">Esc cancels</span>`;
@@ -7584,7 +7672,7 @@ function rqcWants(r,ro){const ed=RQC.edit&&RQC.edit.id===r.id, ov=RQC.amt[r.id]!
 function rqcAvail(r,ro){const k=r.res, free=compute(k).free, v=rqcOver(r)?rqcVa(r):rqcV(r)/* change 299 (P0-9): an over draft is said at the field only */, gap=v-free, links=n=>ro?"":`<span class="rqc-tl">${rqcAdjB(k)}${rqcBuyB(k,n)}</span>`;
  const short=gap>0?`<span class="rqc-mkl">${rqcMk("Short by "+f(gap),true)}</span>`:"";
  const body=v!==r.amount?(gap>0?short+links(gap):`<span class="rqc-s">Giving ${f(v)} leaves ${f(free-v)}</span>`)
-  :short+`<span class="rqc-s">of ${f(RES[k].pool)} in your plan</span>`+(gap>0?links(gap):"");
+  :short+(gap>0?links(gap):"");
  return `<div class="rqc-tile" data-rqcavail="${r.id}"><span class="rqc-l">Available</span><span class="rqc-v">${f(free)} ${rqcNoun(k)}</span>${body}</div>`}
 /* change 299: under a card's buttons, what Give does while the payment has failed (P1-16), or why it is off (P2-1) */
 const rqcNoteT=(a,G)=>grace()?"Sending is paused until the card is updated. What you give applies once it is.":G.can?"":G.why;
@@ -7657,7 +7745,7 @@ function rqcDecHTML(D,ro){const G=[]; D.forEach(a=>{const id=a.ask||a.id; let g=
   <thead><tr><th>Requested</th><th>Workspace</th><th>Amount</th><th>Resource</th><th>Reason</th><th>Decision</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`}
 /* Usage & limits: Requests, the short lines, one card per ask, then Decided */
 function rqcHTML(ro){const A=ulAsks(), n=A.length, D=rqcDecided();
- return `<section class="ul3-ans ul5-ans rqc" aria-labelledby="ul3H"><div class="rqc-hd"><h2 class="ul3-h" id="ul3H">Requests</h2><span class="rqc-hs">${n?`${n} waiting for you`:"Nothing waiting for you"}</span></div>
+ return `<section class="ul3-ans ul5-ans rqc" aria-labelledby="ul3H"><div class="rqc-hd"><h2 class="ul3-h" id="ul3H">Requests</h2>${n?"":`<span class="rqc-hs">Nothing waiting for you</span>`}</div>
   ${rqcShortHTML(ro)}${A.map(a=>rqcCard(a,ro)).join("")}
   ${D.length?`<button type="button" class="rqc-dtg" data-rqcdec aria-expanded="${!!UL.decided}">Decided (${D.length})${RQC_I.chev}</button>${UL.decided?`<div class="panel rqc-dw ul-decided">${rqcDecHTML(D,ro)}</div>`:""}`:""}</section>`}
 /* ── the pop-overs: Decline with a note, and a Give that gives less than asked ── */
@@ -7969,10 +8057,10 @@ function vCredits(){
     <div class="stat"><span class="stat-l">In your plan</span><span class="stat-v">${f(R.pool)}</span></div>
     <div class="stat"><span class="stat-l">Given to workspaces</span><span class="stat-v">${f(alloc)}</span></div>
     <div class="stat"><span class="stat-l">Used so far</span><span class="stat-v">${f(m.used)}</span></div>
-    <div class="stat"><span class="stat-l">Available to give</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
+    <div class="stat"><span class="stat-l">Available</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
    </div>
    <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:10px">
-    ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Available to give"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Available to give"})}
+    ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Available"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Available"})}
     ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill>add capacity</button>.</span></div>`:""}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
@@ -8244,7 +8332,7 @@ function vDash(){
    /* change 212, 12 Oct 2026 (Hitesh, on "View all 10 \u2192": "Change this, even arrow is not proper"). The text
       arrow sat below the line and "View all 10" promised more than the 10 rows already on screen. It names where
       it goes, with a drawn arrow centred on the text; the pager under the table still counts when rows are cut. */
-   +'<span class="c-a"><button class="linkbtn ws-all" data-nav2="clients">Go to Workspaces<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></span></div>'
+   +'<span class="c-a">'+hcBtnHTML()+'<button class="linkbtn ws-all" data-nav2="clients">Go to Workspaces<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></span></div>'
   +homeTableOpen()
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
@@ -8317,7 +8405,7 @@ function vDash(){
   +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Dashboard</span>'
   +(norm?'':(()=>{const M=["January","February","March","April","May","June","July","August","September","October","November","December"],mi=M.indexOf(CYCLE.month.split(" ")[0]),cur=M[mi].slice(0,3),prev=M[(mi+11)%12].slice(0,3);
      /* change 184 (Hitesh: "too long - keep it short but clear"): the picker names the period and the headers carry "a day" and "this cycle", so the line is the dates alone */
-     const R=winRange(); return '<span class="sub dash-arrival">'+R.cur+', compared with '+R.prev+'</span>'})())
+     const R=winRange(); return '<span class="sub dash-arrival" title="Compared with '+R.prev+'">'+R.cur+'</span>'})())
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
@@ -9366,17 +9454,14 @@ function clientSetupBlock(c){
   +'<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
    +'<span class="semibold-3">'+c.name+'\u2019s workspace is ready. Here is how to fill it.</span>'
    +'<button class="linkbtn" data-skipclientsetup>Skip for now</button></div>'
-  +'<p class="sub" style="margin:6px 0 14px;max-width:64ch">Everything you add from here belongs to '
-   +c.name+' and appears in no other workspace, including your own.</p>'
-  +'<div style="display:flex;flex-direction:column;gap:8px;max-width:640px">'
+  +'<div style="display:flex;flex-direction:column;gap:8px;max-width:640px;margin-top:12px">'
   +CLIENT_STEPS.map(function(x,i){
     var label=x[0], go=x[1], why=x[2], next=i===done;
-    return '<div class="list-row" style="border:1px solid var(--gray-13);border-radius:6px;padding:10px 12px;align-items:flex-start'
+    return '<div class="list-row" style="border:1px solid var(--gray-13);border-radius:6px;padding:10px 12px;align-items:center'
       +(next?';border-color:var(--blue-11)':'')+'">'
       +'<span style="display:flex;align-items:flex-start;gap:9px;min-width:0">'
-       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="9"/></svg>'
-       +'<span style="min-width:0"><span style="font-size:14px;font-weight:500;color:var(--gray-17);display:block">'+label+'</span>'
-       +'<span class="cs">'+why+'</span></span></span>'
+       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"/></svg>'
+       +'<span style="min-width:0"><span style="font-size:14px;line-height:20px;font-weight:500;color:var(--gray-17);display:block">'+label+'</span></span></span>'
       +'<button class="linkbtn" data-cstep="'+go+'">'+["Connect","Import","Create","Launch","Invite"][i]+'</button></div>'}).join("")   /* change 298 (audit P2-4) */
   +'</div></div></div>';
 }
@@ -9695,7 +9780,7 @@ function homeCells(c){
  const Dq=d=>d==null||d===0?"":w7Delta(d,true);
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
- if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"]].map(([k,l])=>cell(null,l,dash));
+ if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"],[null,"LinkedIn steps"]].map(([k,l],i)=>Object.assign(cell(null,l,dash),{col:HC_CELLS[i]}));   /* change 322 */
  const n=(v,d,prev)=>'<span class="tnum stackv">'+pd(v)+Dq(d)+'</span>';
  return [
   cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
@@ -9704,7 +9789,9 @@ function homeCells(c){
   cell(w.sent?"bounce":null,"Bounce rate",'<span class="tnum stackv">'+(w.bounce>=3?'<span class="w7-hot performance-stats--decrement" title="Bounce rate 3% or more">'+w.bounce.toFixed(1)+'%</span>':w.bounce.toFixed(1)+'%')+'</span>'),
   cell(w.sent?"rep":null,"Reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
   cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
-  cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash)]}
+  cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash),
+  /* change 322: LinkedIn steps in the period, no change (vC has no last-period LinkedIn per workspace) */
+  cell(null,"LinkedIn steps",hcLi(c)?n(hcLi(c),null):dash)].map((x,i)=>Object.assign(x,{col:HC_CELLS[i]}))}
 /* change 177, 11 Oct 2026 (Hitesh): "we are saying active sequence but we
    showing all sequence". Active means running: Active, not paused by the
    system, in a workspace that is not disabled. Home's column, its card and the
@@ -9728,7 +9815,7 @@ function hpData(c,k){
    return {name:m[0],cells:[m[1]==="Disconnected"?"&ndash;":Math.min(100,m[2])+"%"],st,tone,go:live?"acc|"+c.id+"|"+m[0]:""}});
   return {cols:["Email account","Status","Health"],rows}}
  if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return {cols:[],rows:[]};
-  return {cols:["Resource","Status","Used of limit"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
+  return {cols:["Resource","Status","Used"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
    /* change 298 (audit P1-2, P1-20): "Used up" in red; "Near limit" on the one 90% line the triangle uses (UW_NEAR) */
    const nr=Math.round(y.pct*100)>=UW_NEAR;
    return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"Used up"):y.draw===0?"Pool empty":nr?"Near limit":"Fine",tone:y.tone==="bad"?"bad":nr?"warn":"ok",out:y.room===0,
@@ -9850,8 +9937,10 @@ function wsCells(c){
   {l:"Leads revealed",v:fresh?null:M.leads,d:D(M.ld),line:fresh?"":f(M.leads)+" credits",cls:""}];
 }
 const MONTHS_L=["January","February","March","April","May","June","July","August","September","October","November","December"];
+/* change 320: the strip names the period; what it is compared with is the line's tooltip */
+const periodCmp=()=>{const mi=MONTHS_L.indexOf(CYCLE.month.split(" ")[0]); return `Changes are compared with 1 to ${CYCLE.day} ${MONTHS_L[(mi+11)%12].slice(0,3)}`};
 const periodText=()=>{const mi=MONTHS_L.indexOf(CYCLE.month.split(" ")[0]),cur=MONTHS_L[mi].slice(0,3),prev=MONTHS_L[(mi+11)%12].slice(0,3);
- return MONTHS_L[mi]+' so far, 1 to '+CYCLE.day+' '+cur+'. Changes are compared with 1 to '+CYCLE.day+' '+prev+'.'};
+ return '1 to '+CYCLE.day+' '+cur};
 const TODAY_D=CYCLE.day+" "+CYCLE.month.slice(0,3);
 /* cumulative daily sends, days 1..9 of the cycle, summing to the 124,600 in RES */
 const DAILY=[4200,6800,9500,12800,15600,17200,18400,19100,21000];
@@ -10139,7 +10228,7 @@ function vSettings(){
    <!-- item 17, 28 Sep 2026: own is not a client to jump back to a list of; "Back to account" in the rail is the way up from there. -->
   </div>
   <div class="wrap">
-   ${agency?"":`<div class="msg m-info">${infoI}<span>${asC
+   ${agency||1?"":`<div class="msg m-info">${infoI}<span>${asC
      ?`<strong>${nHere} of ${nCompany}</strong> administration items are here. Whitelabel and Billing are the account&rsquo;s${apiN?"; "+apiN:"."}`
      :"Whitelabel and Billing are on the Admin Panel."+(apiN?" "+apiN:"")}</span></div>`}
    <div class="setwrap">
@@ -10149,9 +10238,7 @@ function vSettings(){
       <span class="chip c-info">${where}</span></div>
      <div class="inh">
       ${wsR?(a=>`<div class="k">Your access</div><div data-setaccess><b>${a[0]}</b>, as a ${wsR}.${a[1]?" "+a[1]:""}</div>`)(setAccess(sel[0],wsR)):""}
-      <div class="k">Where it is set</div><div>${where}</div>
       <div class="k">${isNormal()?"What you can do":agency?"What the account can do":"What this workspace can do"}</div><div>${cando}</div>
-      ${isNormal()?"":`<div class="k">The rule</div><div>${sel[4]}</div>`}
       ${sel[0]==="admin"&&isATM()&&!asC?`<div class="k">Prospect sharing</div><div><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span>Allow team members to see prospects of each other</span><button type="button" class="sw" role="switch" aria-checked="${ACCOUNT_SETTINGS.prospectSharing}" data-pshare onclick="pshareToggle()" aria-label="Allow team members to see prospects of each other"></button></div><p class="sub" style="margin:6px 0 0">On: every Account Member sees every prospect in each workspace. Off: Account Members see their own prospects and colleagues&rsquo; prospects in their own sequences. One switch for the account, as in production (doc 81 §6a).</p></div>`:""}
      </div>
     </div>
@@ -10771,8 +10858,7 @@ function drawerHTML(){
   <div class="nc-limhead nc-limhead--264" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16)"><h3 class="nc-limtitle" id="ncLimTitle">Limits</h3></div>${ncUsageHTML()}`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
-  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span>
-    <p class="sub" style="margin:4px 0 0">A separate space for one client. You can add more anytime.</p></div>
+  <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span></div>
    <button class="ubtn" id="drX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="dr-b">${b1}</div>
   <div class="dr-f"><div class="sub nc-addwhy" id="ncAddWhy" role="status"></div>
@@ -11501,7 +11587,6 @@ function cReports(c){
    ${kpi("Meetings booked",f(mt),null,pos?("From "+f(pos)+" positive replies"):"None yet")}
   </div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Last 14 days</span>
-    <span class="sub">Emails sent and prospects who replied, per day</span>
     ${chartLegend()}</div>
    <div class="panel-b" style="padding-top:4px">${c.sent?reportChart(c):'<p class="sub" style="margin:8px 0">Nothing has been sent from this workspace yet.</p>'}</div></div>`;
 }
@@ -11537,13 +11622,13 @@ function cSettings(c){
    <div class="field"><label class="flabel" for="cpOld">Current password</label><input type="password" id="cpOld" autocomplete="current-password" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpNew">New password</label><input type="password" id="cpNew" placeholder="At least 8 characters" autocomplete="new-password" ${ro?"disabled":""}></div>
    <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Password changed">Change password</button>
-   <p class="sub" style="margin-top:10px">${AGENCY.name} never sees or holds your password.</p></div></div>
+   </div></div>
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
-   <p class="sub" style="margin-top:10px">Only about this workspace. Nothing about ${AGENCY.name}'s other workspaces reaches you.</p></div></div>
+   </div></div>
   ${seesC(c,"sequences")?`<div class="panel"><div class="panel-h"><span class="panel-t">Workspace settings</span></div><div class="panel-b" style="padding-top:4px">
    ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Account default, add your own"}</span></div>`).join("")}
-   <p class="sub" style="margin-top:10px">Only what the sequences you run need. Everything else about this workspace is ${AGENCY.name}'s to administer.</p></div></div>`:""}
+   </div></div>`:""}
  </div>`;
 }
 /* the nav a client actually has, and the correction that keeps cView inside
@@ -11568,8 +11653,7 @@ function vClientSide(){
  const rb=receiptBar("client:"+c.id);
  return `<div class="toolbar">
    <div class="cell-main">${av(c)}<span style="min-width:0">
-     <span class="semibold-3" style="display:block">${c.name}</span>
-     <span class="cs">Your workspace</span></span></div>
+     <span class="semibold-3" style="display:block">${c.name}</span></span></div>
    ${cView==="usage"?`<span class="c-a cx-tb">${urCtl("cu","Covers "+c.name+" only.")}${canC(c,"request")?`<button type="button" class="shd-button shd-button--primary cx-askbtn" data-askopen="">${CU_I.plus}Request more</button>`:""}</span>`:""}
  </div>
  <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"||grace()?"":atLimitBanner(c)))}${
@@ -11611,16 +11695,15 @@ function cWorkspaceSection(c){
     own until 25 Sep 2026 (a leftover of the connect path). */
  const P=clientContact()||{name:AGENCY.name,email:""};
  const row=(k,v)=>`<div style="display:flex;gap:16px;padding:11px 0;border-top:1px solid var(--gray-13)">
-   <span class="sub" style="flex:0 0 150px">${k}</span><span style="flex:1 1 auto;font-size:14px;line-height:20px">${v}</span></div>`;
+   <span class="sub" style="flex:0 0 150px">${k}</span><span style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:20px">${v}</span></div>`;   /* change 320: the contact's address wraps at 390 instead of running past the edge */
  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">Workspace</span><span class="sub">${c.company}</span></div>
+   <div class="panel-h"><span class="panel-t">Workspace</span></div>
    <div class="panel-b" style="padding-top:0">
     ${row("Managed by",`<span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:600;background:${AGENCY.colour}1a;color:${AGENCY.colour}">${AGENCY.initials}</span><strong>${AGENCY.name}</strong></span>`)}
     ${row("Your contact",`${P.name}${P.email?` <span class="sub">(${P.email})</span>`:""}`)}
     ${row("Workspace since",hsDate(c.created))}
     ${row("Email accounts",`${c.mbx} connected here`)}
     ${row("Limits",`Set by ${AGENCY.name}. <button class="linkbtn" data-cview="usage">See your usage</button>`)}
-    <p class="sub" style="margin:14px 0 0;font-size:13px;line-height:19px">Need something changed, a higher limit or another person from your side with access? Ask ${P.name.split(" ")[0]}; ${AGENCY.name} manages both from their side.</p>
    </div></div>`;
 }
 const SEQ_TONE=st=>st==="Active"?"ok":st==="Paused"?"warn":"mute";
@@ -12422,6 +12505,8 @@ function skeletonFor(){
  return `<div class="sk-page">${toolbar(sk("240px",22),"")}<div class="sk-card" style="height:120px">${sk("70%",14)}${sk("50%",14,"margin-top:10px")}${sk("60%",14,"margin-top:10px")}</div>${table(5,["30%","20%","20%","20%"])}</div>`;
 }
 function render(){
+ if(PA_ED&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
+ if(view.name!=="person") SH_PUSHED=false;
  /* the handover's toolbar line is for this landing only; leaving the
     workspace it named, for any reason, spends it for the rest of the session */
  if(justCreatedWs&&ctx!==justCreatedWs) justCreatedWs=null;
@@ -12683,6 +12768,13 @@ function wire(){
  const q=s=>document.querySelectorAll(s);
  if(document.getElementById("homeWin")) wireDD(document,"homeWin",v=>{HOME_WIN=v;render()});
  q("[data-homeunit]").forEach(b=>b.onclick=()=>{HOME_UNIT=b.dataset.homeunit;render()});
+ /* change 322: a keyboard open puts focus on the first checkbox; a tick redraws and keeps focus on it */
+ if(el("hcBtn")){
+  el("hcBtn").onclick=e=>{HC_OPEN=!HC_OPEN; const kb=e.detail===0; render(); const t=HC_OPEN&&kb?document.querySelector("[data-hcol]"):el("hcBtn"); if(t) t.focus({preventScroll:true})};
+  q("[data-hcol]").forEach(i=>i.onchange=()=>{const k=i.dataset.hcol; hcHide(); HC_HIDE=i.checked?HC_HIDE.filter(x=>x!==k):HC_HIDE.concat([k]);
+   if(!i.checked&&HSORT.home&&HSORT.home.col===k) HSORT.home=null; hcSave(); render(); const n=document.querySelector('[data-hcol="'+k+'"]'); if(n) n.focus({preventScroll:true})});
+  q("[data-hcreset]").forEach(b=>b.onclick=()=>{HC_HIDE=HC_DEF.slice(); if(HSORT.home&&HC_DEF.indexOf(HSORT.home.col)>-1) HSORT.home=null; hcSave(); render(); const n=document.querySelector("[data-hcol]"); if(n) n.focus({preventScroll:true})});
+  hcUrlSync(); hcPlace()}
  /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
     puts focus back on the redrawn header; a mouse click leaves no ring behind) */
  q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
@@ -13370,7 +13462,13 @@ function wire(){
  q("[data-rmowner]").forEach(b=>b.onclick=()=>{modal={kind:"rmowner",key:b.dataset.rmowner};renderModal()});
  q("[data-trcancel]").forEach(b=>b.onclick=transferCancel);
  q("[data-trconfirm]").forEach(b=>b.onclick=()=>transferConfirm(b.dataset.trconfirm));
- document.querySelectorAll(".dd[id^=pplvl_]").forEach(d=>wireDD(document,d.id,v=>{if(v&&view.name==="person")levelInPlace(view.id,d.id.slice(6),v)}));
+ document.querySelectorAll(".dd[id^=pplvl_]").forEach(d=>wireDD(document,d.id,v=>{if(v&&view.name==="person"&&PA_ED){PA_ED.draft[d.id.slice(6)]=v; render()}}));
+ q("[data-paedit]").forEach(b=>b.onclick=()=>{PA_ED={key:b.dataset.paedit,draft:{},ask:false}; render()});
+ q("[data-pasave]").forEach(b=>b.onclick=paSave);
+ q("[data-pacancel]").forEach(b=>b.onclick=paCancel);
+ q("[data-pakeep]").forEach(b=>b.onclick=()=>{PA_ED.ask=false; render()});
+ q("[data-padiscard]").forEach(b=>b.onclick=()=>{PA_ED=null; render()});
+ q("[data-tows]").forEach(b=>b.onclick=()=>{const w=b.dataset.tows; if(SH_PUSHED&&history.state&&history.state.sh==="person"){history.back(); return} view={name:"record",id:w}; tab="members"; render()});
  q("[data-prmc]").forEach(b=>b.onclick=()=>{modal={kind:"prmc",key:b.dataset.prmc};renderModal()});
  q("[data-openrec]").forEach(b=>b.onclick=()=>{view={name:"record",id:b.dataset.openrec};render()});
  wireDD(document,"paKind",v=>{PA_KIND=v;render()});
@@ -13465,7 +13563,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="chrome"||k==="model"){p[k]=v;return} if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"){p[k]=v;return} if(!route) route=seg});
  return {route,p}})();
 /* change 154, 8 Oct 2026, Hitesh: "one switch: normal role management as built,
    and ATM-based role management". `model=atm` in the hash applies production's
@@ -13704,7 +13802,7 @@ function demoApplyAs(){const r=demoRoute(); demoGo(demoHash([r||"demo=busy",demo
 function demoToggleGuide(){GUIDE_ON=!GUIDE_ON;
  /* no reload needed: the flag is read at the end of the sequence. The URL is
     rewritten so the next panel navigation, and a browser reload, keep it. */
- const h=demoHash([demoRoute(),HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam()]);
+ const h=demoHash([demoRoute(),HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam(),hcParam()]);   /* change 322: keeps cols= */
  history.replaceState(null,"",location.pathname+(h?"#"+h:"")); HASHX.p.guide=GUIDE_ON?undefined:"off"; demoSync()}
 function demoNowLine(){const cur=demoCurrent(),scn=demoScn();
  const who=cur.mode==="client"?cur.name+", "+(cur.email||"no user yet")+" ("+cur.role+")":"Agency, "+cur.name+" ("+roleName(cur.role)+")";
@@ -13756,7 +13854,7 @@ if(H0==="#solo-plain"){const c=byId.solo;
 if(H0==="#migration"){MIG.deferred=false;MIG.reviewed=false;view={name:"m1"}}
 /* change 131: the hash is read at boot only, so a hash typed into an open page did
    nothing until a reload. The app never writes the hash itself. */
-window.addEventListener("hashchange",()=>location.reload());
+window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()});
 {const h=HASHX.route;
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
@@ -13801,7 +13899,7 @@ window.addEventListener("hashchange",()=>location.reload());
  /* People, a person (agency key, or a client user's "c:<clientId>|<email>"),
     and a cold Add a person: defect D4, none of the three worked from a hash. */
  if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
- if(k==="person"&&v){const key=v.indexOf("t:")===0||v.indexOf("w:")===0?v:"t:"+v; view=personOf(key)?{name:"person",id:key}:{name:"people"}; PERSON_TAB="access"}
+ if(k==="person"&&v){const key=v.indexOf("t:")===0||v.indexOf("w:")===0?v:"t:"+v; view=personOf(key)?{name:"person",id:key,from:HASHX.p.from&&byId[HASHX.p.from]?HASHX.p.from:undefined}:{name:"people"}; PERSON_TAB="access"}
  if(k==="addmember"){view={name:"people"};setTimeout(()=>openInvite({}),60)}
  if(k==="client"&&byId[v]) view={name:"record",id:v};
  /* the client's own side, and the create modal, are otherwise several clicks
@@ -14457,7 +14555,20 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .c-t .w7-sub{display:block;font-size:12px;font-weight:400;line-height:18px;color:var(--gray-12);margin-top:2px}
 .home-tbl thead th{white-space:nowrap;vertical-align:top;padding-top:10px!important;padding-bottom:10px!important;line-height:16px}
 .home-tbl .th-u{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--gray-12);margin-top:1px}
-.home-tbl th:nth-child(n+3):nth-child(-n+9),.home-tbl td:nth-child(n+3):nth-child(-n+9){padding-left:12px;padding-right:12px}
+.home-tbl th:nth-child(n+3),.home-tbl td:nth-child(n+3){padding-left:12px;padding-right:12px}   /* change 322: the column count varies */
+/* change 322: the Columns button and its pop-over (c313 option 3's numbers) */
+.hc-w{position:relative;display:inline-flex}
+.hc-b{display:inline-flex;align-items:center;gap:6px;height:32px;margin:-3px 0;padding:0 10px;border:0;border-radius:4px;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:var(--gray-12);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
+.hc-b svg{width:16px;height:16px;flex:none}
+.hc-b:hover{background:var(--gray-16)}
+.hc-b.on{color:var(--blue-11);background:var(--blue-13)}
+.hc-b:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.hc-n{font-weight:400;color:var(--gray-15)}
+.hc-b.on .hc-n{color:var(--blue-11)}
+.hc-p{position:absolute;top:calc(100% + 9px);right:0;z-index:60;width:264px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:4px;box-shadow:var(--shadow-dropdown);overflow:hidden;text-align:left}
+.hc-l{padding:4px 0}
+.hc-f{padding:10px 12px;border-top:1px solid var(--gray-13)}
+.hc-f .linkbtn{display:block;line-height:20px}
 .hero-u{font-size:14px;font-weight:500;color:var(--gray-12);margin-left:4px}
 #homeWin{width:160px;flex:none;margin-right:4px}.home-unit{flex:none;margin-right:8px}#homeWin .dd-ic{width:16px;height:16px;flex:none;color:var(--gray-12)}
 .grace-bar{align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:13px;line-height:20px;font-weight:400;color:var(--gray-17)}.grace-bar .grace-t{flex:1;min-width:0}.grace-bar strong{font-weight:600}
@@ -14611,12 +14722,24 @@ td>.cs:only-child{display:block}
 .rc-more{display:block;background:none;border:0;padding:0;font:inherit;font-size:12px;line-height:16px;font-weight:500;color:var(--gray-15);cursor:pointer}
 .rc-more:hover{color:var(--blue-11)}.rc-more:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px;border-radius:2px}
 @media (max-width:1180px){.rc-cards{grid-template-columns:1fr}}
+/* change 316: both halves end on one line; Access takes what is left of the left half and its list scrolls */
+.rc-cards{align-items:stretch!important}
+.rc-stack>.panel:last-child{flex:1 1 auto!important;display:flex;flex-direction:column;min-height:0}
+.rc-abody{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.rc-alist{position:relative;flex:1 1 auto;min-height:calc(var(--rcn,3)*54px)}
+.rc-ascroll{position:absolute;top:0;bottom:0;left:0;right:-10px;padding-right:10px;overflow-y:auto;overflow-x:hidden;border-radius:4px}   /* the thin scrollbar sits in the card's own right padding, so the roles stay on the card's right edge */
+.rc-ascroll:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.rc-ascroll::-webkit-scrollbar{width:7px}.rc-ascroll::-webkit-scrollbar-thumb{border-radius:4px;background-color:var(--gray-13)}.rc-ascroll::-webkit-scrollbar-track{background:transparent}
+.rc-ascroll{scrollbar-width:thin;scrollbar-color:var(--gray-13) transparent}
+.rc-ascroll .rc-prow:last-child{border-bottom:0}
+@media (max-width:1180px){.rc-alist{min-height:0}.rc-ascroll{position:static;overflow:visible;right:auto;padding-right:0}}
 .rc-card .panel-h{display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .rc-card .panel-b{padding:8px 20px 16px}
 .rc-prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
 .rc-prow:last-child{border-bottom:0}
 .rc-pname{flex:1 1 0;min-width:0}.rc-pname>span:first-child{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rc-prole{font-size:12px;color:var(--gray-15);white-space:nowrap}
+@media (max-width:640px){.rc-pname>span:first-child{white-space:normal;overflow-wrap:anywhere}}   /* change 320 check: at 390 a name wraps instead of ending in "Sam Do..." (present on c325m) */
 .rc-lrow{padding:8px 0;border-bottom:1px solid #f3f4f6}.rc-lrow:last-of-type{border-bottom:0}
 .rc-lhead{display:flex;justify-content:space-between;font-size:13px;line-height:18px}.rc-lhead>span:first-child{font-weight:500}
 .rc-lhead .sub.is-bad{color:var(--red-18)}
@@ -14684,17 +14807,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rmt-lbl{display:none}
 .rmt-cell{position:relative}
 .rmt-cell--m{display:flex;justify-content:flex-end;width:44px}
-/* change 308: one role style. The text sits on the column's x in every row; the button's 1px border and 8px padding
-   sit outside it (margin -9px), so hover and focus draw the field round the same text */
-.rmt-dd{display:inline-block;max-width:100%;vertical-align:middle}
+/* change 308: one role style. The text sits on the column's x in every row; change 321: it is only text */
 .rmt-role,.rmt-t td .rmt-fixed{display:block;padding-left:0;white-space:nowrap}
 .rmt-role{font-size:14px;line-height:20px;color:#111827}
-.rmt-rbtn{display:inline-flex;align-items:center;gap:4px;height:32px;margin:0 0 0 -9px;padding:0 6px 0 8px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;color:#111827;cursor:pointer;text-align:left;transition:border-color .14s,box-shadow .14s}
-.rmt-rbtn svg{width:14px;height:14px;flex:none;color:#6B7280}
-.rmt-rbtn:hover{border-color:#D1D5DB;background:#fff}
-.rmt-rbtn:focus-visible,.rmt-dd.is-open .rmt-rbtn{outline:none;border-color:#1D4ED8;background:#fff;box-shadow:0 0 0 3px #DBEAFE}
-.rmt-pop{z-index:30;left:-9px;right:auto;width:340px;max-width:calc(100vw - 32px);max-height:none}
-.rmt-opt{width:100%;margin:0;border:0;background:none;font:inherit;text-align:left}
 .rmt-kebab{width:28px;height:28px;margin:0;color:#6B7280}.rmt-kebab svg{width:16px;height:16px}
 .rmt-kebab[aria-expanded="true"]{background:#F3F4F6;color:#1F2937}
 .rmt-menu{width:260px;right:0;left:auto;top:calc(100% + 4px);z-index:30}
@@ -14719,8 +14834,7 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .rmt-t tr.rmt-none{padding:14px 16px;border-bottom:1px solid #F3F4F6}
  .rmt-lbl{display:inline;color:#6B7280}
  .rmt-menu{width:232px}
- .rmt-t tr.rmt-r{position:relative}.rmt-dd{position:static}.rmt-pop{top:auto;left:16px;right:16px;width:auto;margin-top:4px}
- .rmt-rbtn{height:28px}
+ .rmt-t tr.rmt-r{position:relative}
  .rmt-foot{padding:12px 16px}
 }
 /* Invite people opens in place under the heading: label column 160px, controls from 184px, as the design */
@@ -14768,6 +14882,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rlt-chg{margin-left:auto}
 .rlt-p{margin:0;max-width:100ch;font-size:14px;line-height:20px;color:#6B7280;font-variant-numeric:tabular-nums}
 .rlt-p b{font-weight:600;color:#1F2937}
+/* change 320: a kept sub-line is the product's secondary text (.sub, 12px/18px Gray 500), 4px under its heading */
+.rlt-head .rlt-sub{margin:0}
+.ra-head+.ra-filters,.ra-head+.ra-sheet{margin-top:16px}   /* change 320: no summary line, so the heading's normal 16px gap */
 .rlt-ro{max-width:none}
 .rlt .grace-bar{margin:0}
 .rlt .linkbtn:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px;text-decoration:none}
@@ -15030,7 +15147,11 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .pacc-s{display:block;margin-top:2px;font-size:12px;line-height:16px;color:#6B7280}
 .pacc-r--dd{align-items:start}.pacc-r--dd .pacc-k{padding-top:6px}
 .pacc-ws{display:flex;align-items:center;gap:16px;max-width:560px}.pacc-ws+.pacc-ws{margin-top:8px}.pacc-wn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pacc-dd{width:230px;flex:none}.pacc-dd .dd{width:100%}.pacc-ro{flex:none;width:230px;color:#1F2937}
+/* change 321: the role menu opened from Edit access is not cut off by the Access card */
+.panel:has(.pacc-dd .dd.is-open){overflow:visible}
+.pacc-dd .dd-menu{max-height:none}
+.pacc-dd{width:230px;flex:none}
+.pacc-ro{box-sizing:border-box;height:32px;padding:7px 13px;font-size:14px;line-height:18px}   /* the plain role starts where the dropdown's text starts */.pacc-dd .dd{width:100%}.pacc-ro{flex:none;width:230px;color:#1F2937}
 @media (max-width:640px){.pacc-r{grid-template-columns:minmax(0,1fr);row-gap:4px}.pacc-r--dd .pacc-k{padding-top:0}.pacc-ws{gap:4px 16px}.pacc-ws:has(.pacc-dd){flex-wrap:wrap}.pacc-ws:has(.pacc-dd)+.pacc-ws{margin-top:12px}.pacc-dd{width:100%}.pacc-ro{width:auto}}
 .prm-list{border:1px solid var(--gray-16);border-radius:4px}.prm-row{display:grid;grid-template-columns:1fr 230px;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--gray-16)}.prm-row:first-child{border-top:0}
 .prm-ws{display:flex;align-items:center;gap:8px;font-size:14px}.prm-ws b{font-weight:500;color:var(--gray-17)}.prm-ws i{display:block;font-style:normal;font-size:12px;color:var(--gray-15)}.prm-to{display:flex;align-items:center;gap:8px}.prm-to .dd{flex:1}
@@ -15193,7 +15314,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .bp-ans{display:flex;flex-direction:column;padding:0 0 4px}
 .bp-ans .ul3-p{margin-top:4px}
 .billpage .panel.bp-panel>.panel-h{padding:16px 24px;border-bottom:1px solid var(--gray-13);flex-wrap:wrap;row-gap:4px;column-gap:12px;align-items:baseline}
-.bp-panel .bp-hsub{font-size:14px;line-height:20px;color:#6B7280}
+.bp-panel .bp-hsub{font-size:12px;line-height:18px;color:#6B7280}   /* change 320: a kept sub-line is .sub */
 .bp-panel .c-a .linkbtn{font-size:14px;line-height:20px}
 .ul-t.bp-t{table-layout:auto}
 .bp-t th.bp-c1{width:28%}.bp-t th.bp-c2{width:26%}.bp-t th.bp-c3{width:14%}.bp-t th.bp-share{width:20%}.bp-t th.bp-c5{width:12%}
@@ -15874,7 +15995,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b7a16ff";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3f908e7";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16475,7 +16596,7 @@ body:has([data-ul3e2dock]) #toastLayer{bottom:88px}   /* the Undo toast sits abo
 .cx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .panel.cx-pn{padding:0;overflow:hidden}
 .cx-ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:18px 24px 14px}
-.cx-hsub{font-size:14px;line-height:20px;color:#6B7280}
+.cx-hsub{font-size:12px;line-height:18px;color:#6B7280}   /* change 320: a kept sub-line is .sub */
 .cx-ut,.cx-rt{width:100%;border-collapse:collapse;table-layout:fixed}
 .cx-ut th,.cx-rt th{font-size:12px;line-height:16px;font-weight:500;color:#6B7280;text-align:left;padding:10px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;white-space:nowrap}
 .cx-ut th{border-top:1px solid #E5E7EB}
