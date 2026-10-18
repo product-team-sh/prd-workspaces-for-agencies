@@ -3006,56 +3006,43 @@ function cuItem(k,R,used,cap,o){
  const st='<div class="cu-st"><span class="cu-w is-'+o.tone+'">'+(o.tone==="paused"?CU_PAUSE:'')+'<span>'+o.word+'</span></span>'+(o.ask?'':(o.act||''))+'</div>';
  const ask=o.ask?'<div class="cu-st"><span class="cu-chip">'+o.ask+'</span>'+(o.act||'')+'</div>':'';
  return apuItem(k==="sends"?"Emails":R.label.replace(/ \/ month$/,""),used,cap,{cls:"cu-i is-"+o.tone,attr:' data-cu="'+k+'"',aside:o.sub,note:st+ask+(o.line?'<div class="cu-ln">'+o.line+'</div>':'')})}
-const USE_COL={bad:"var(--red-18)",warn:"var(--orange-14)",ok:"var(--green-16)",info:"var(--green-16)"};
-function usageHomeCell(c){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return '<span class="is-none">&ndash;</span>';   /* change 311 (Hitesh: "we don't have data about it then show dash"): no usage data is the same dash as the metric cells; Status already says New or Disabled */
- /* change 196, 11 Oct 2026 (Hitesh): "show overall usage percentage not any single even if it's
-    near limit ... change color if any one of the limit is near". The number is the average of
-    every limited resource's share used; the colour is the worst resource's state (usageOf
-    sorts worst first): red when one is at its limit, orange when one is near, green otherwise. */
- const lim=u.filter(y=>y.cap>0), p=lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0;
- const top=u[0];
- /* change 281, 15 Oct 2026 (Hitesh: "color of the indicator should follow overall usage and remove line below it"):
-    the bar takes the band the overall % falls in (the bar component's own bands, pbCol); the % stays neutral ink; a resource at
-    its limit shows through the warning icon, which opens the pop-up. */
- /* change 232, 13 Oct 2026 (Hitesh: "Red bar + named line", "Only say Emails at limit"). A resource at
-    its limit stops the workspace there whatever the overall %, so the bar and % turn production red, the
-    % stays overall, and a 12px line under the bar names it. The name is doc 94's ("Emails" for Emails
-    sent / month) where "<name> at limit" fits the cell at 1366 (114px at 12px/500), else the Usage
-    short name: Lead Finder credits 150px, Email verification credits 181, Dialer credits 117 and
-    Inbox placement tests 165 do not fit. Two or more: "N resources at limit" (the shortest pair,
-    "Emails, AI credits at limit", is 139px). Inbox placement tests reads "Inbox tests" (Hitesh's
-    coordinator, 13 Oct: "Placement" was unclear). Full names stay in the label. */
- const LIM_NAME={sends:"Emails",lead_finder:"Lead Finder",verification:"Verification",ai:"AI credits",dialer:"Dialer",radar:"Inbox tests"};
- const atLim=u.filter(y=>y.cap>0&&y.used>=y.cap);
- /* change 266, 14 Oct 2026 (Hitesh: "keep it as it is ... if some of the things is fully used up or near limit
-    then we can show danger icon besides %"). Production's alert triangle right of the %: red when a resource
-    is used up (atLim, the line's own rule), orange when none is but one is at 90% or more. The tooltip and
-    the screen-reader text come from the same rows the pop-up lists. Never on a disabled workspace. */
- const uwN=y=>LIM_NAME[y.k]||USAGE_SHORT[y.k];
- const uwNear=atLim.length?[]:u.filter(y=>y.cap>0&&y.used<y.cap&&Math.round(y.pct*100)>=UW_NEAR).sort((a,b)=>b.pct-a.pct);
- const uwTone=c.disabled?"":atLim.length?"bad":uwNear.length?"warn":"";
- const uwLines=uwTone==="bad"?atLim.slice().sort((a,b)=>b.pct-a.pct).map(y=>uwN(y)+" used up: "+f(y.used)+" of "+f(y.cap)):uwNear.map(y=>uwN(y)+" "+Math.round(y.pct*100)+"%: "+f(y.used)+" of "+f(y.cap)+" used");
- const uwTrig=uwTone==="bad"?atLim:uwNear;
- const uwAria=uwTone==="bad"?atLim.slice().sort((a,b)=>b.pct-a.pct).map(y=>uwN(y)+" used up").join(", "):uwNear.map(y=>uwN(y)+" at "+Math.round(y.pct*100)+"%").join(", ");
- const uwIcon=uwTone?'<button type="button" class="u-wi is-'+uwTone+'" title="" data-uwtip="'+uwLines.join("&#10;")+'" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="'+uwAria+': open usage">'+UW_SVG[uwTone]+'</button>':"";
- /* change 298 (audit P1-2, P1-20): the same words and the same 90% line as the pop-up and the triangle */
- const why=atLim.length>1?" "+atLim.map(y=>RES[y.k].label).join(", ")+" are used up.":atLim.length?" "+RES[atLim[0].k].label+" is used up.":uwNear.length?" "+RES[uwNear[0].k].label+" is near its limit.":"";
- /* change 210, 12 Oct 2026 (Hitesh): "Everywhere we are saying 60% used, 50% used: repetitive, not required; the
-    % can be shown towards the right side of the usage indicator". Production's Email Accounts "Emails sent"
-    cell: the bar, then the figure to its right, 12px apart (email-sent-field.tsx, .email-sent-field). The
-    column header already says Usage, so the figure is the percentage alone. */
- return '<div class="u-hw"><button type="button" class="meter u-usagebtn u-home u-row hp-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="Usage for '+c.name+': '+p+'% used overall.'+why+' Show every resource">'
-  +'<span class="apu-b u-pb">'+pbar(p,pbCol(p))+'</span>'
-  +'<span class="meter-t tnum"><b class="u-pct">'+p+'%</b></span>'
-  /* change 194 (Hitesh: "remove subtext in usage i.e. Emails, AI"): the resource is named in the pop-up and the hover text */
-  +'</button>'+uwIcon+'</div>'}
+/* change 327, 18 Oct 2026 (Hitesh: "let's build this version with column name as Highest Usage"): board L of
+   c312b, "Plain when fine, named when it needs you". It replaces changes 196, 232, 266 and 281 (the overall %,
+   its bar, the used-up line and the triangle). One rule, usageNeed(), for the cell, its sort and its pop-up:
+   a resource needs you when it is used up (red), at 90% or more, or when it renews (emails, Lead Finder
+   credits) and runs out in about 3 days or fewer at this pace (amber). A row that needs nothing shows its
+   highest share used as a plain figure, like the other columns. A row that needs you shows Bounce rate's
+   tinted box naming the resource that needs you first: a used-up one (emails first), else the soonest to run
+   out, else the fullest at 90% or more. When that resource is not the highest share, the cell keeps the
+   warning and its hover adds which one is ("Highest: AI credits 87%"), so the header stays true.
+   Pace is change 320's "Runs out in about N days". A disabled workspace, or one with no usage, is the dash. */
+const USE_NM={sends:"Emails",lead_finder:"Lead Finder",verification:"Email verification",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
+const USE_SOON=3;
+function usageNeed(c){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return null;
+ const rows=u.filter(y=>y.cap>0).map(y=>{const out=y.used>=y.cap, pc=out?100:Math.min(99,Math.round(y.pct*100)), r=RES[y.k].rows[c.id];
+   const n=out||!PACE_RENEW(y.k)?null:paceDays(y.k,r), days=n==null?null:Math.max(1,Math.round(n));
+   return {k:y.k,label:RES[y.k].label,used:y.used,cap:y.cap,pct:y.pct,pc,out,days,pace:days==null?"":paceLine(y.k,r),soon:days!=null&&days<=USE_SOON,near:!out&&pc>=UW_NEAR}});
+ if(!rows.length) return null;
+ const byPct=rows.slice().sort((a,b)=>b.pct-a.pct), out=byPct.filter(y=>y.out), near=byPct.filter(y=>y.near);
+ const soon=rows.filter(y=>y.soon).sort((a,b)=>a.days-b.days||b.pct-a.pct);
+ const first=out.find(y=>y.k==="sends")||out[0]||soon[0]||near[0]||null;
+ return {rows,top:byPct[0],first,flag:out.length?out:rows.filter(y=>y.soon||y.near),tone:out.length?"bad":first?"warn":"ok"}}
+const useUsed=y=>y.label+": "+f(y.used)+" of "+f(y.cap)+" used";
+/* the sort key: needs you first, then the % the cell shows; null (the dash) sorts last */
+const usageKey=c=>{const N=!c.disabled&&usageNeed(c); return N?(N.first?1000+N.first.pc:N.top.pc):null};
+function usageHomeCell(c){const N=!c.disabled&&usageNeed(c); if(!N) return '<span class="is-none">&ndash;</span>';   /* change 311: no usage data (and, change 327, a disabled workspace) is the metric cells' dash */
+ const y=N.first, t=N.top, ea=x=>String(x).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+ const btn=(inner,said)=>'<button type="button" class="hp-cell u-cell" data-hpop="'+c.id+'|usage" aria-haspopup="dialog" aria-expanded="false" aria-label="'+ea("Highest usage for "+c.name+": "+said+". Show every resource")+'"><span class="tnum stackv">'+inner+'</span></button>';
+ if(!y) return btn('<span class="u-tip" title="" data-uwtip="'+ea(useUsed(t))+'">'+t.pc+'%</span>',t.label+" at "+t.pc+"%");
+ const also=t.k!==y.k&&t.pc>y.pc?"Highest: "+USE_NM[t.k]+" "+t.pc+"%":"";
+ const tip=useUsed(y)+"."+(y.pace?" "+y.pace+".":"")+(also?"\n"+also:"");
+ return btn('<span class="w7-hot u-chip u-tip '+(y.out?"performance-stats--decrement":"u-amb")+'" title="" data-uwtip="'+ea(tip)+'"><span class="u-nm">'+USE_NM[y.k]+'</span> <span class="u-p">'+y.pc+'%</span></span>',
+  y.label+(y.out?" used up":" at "+y.pc+"%"+(y.pace?", "+y.pace.toLowerCase():""))+(also?". "+also:""))}
 
-/* change 266: production's AlertTriangleRed / AlertTriangleOrange (src/assets/images), drawn at 16px like the
-   Email Accounts status icon. 90% is the near line for the icon only (the bar's colour keeps change 196's rule),
-   read on the rounded % the pop-up prints, so the pop-up never shows 90% beside a cell without an icon */
+/* change 327 (was change 266's triangle line): the 90% line where a resource needs you, on the Dashboard cell,
+   its pop-up and the Limits tab's amber bar, read on the whole % the pop-up prints */
 const UW_NEAR=90;
-const UW_SVG={bad:'<svg viewBox="0 0 15 15" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.27558 4.88708C7.61043 4.88708 7.88188 5.16059 7.88188 5.49798V6.71976C7.88188 7.05715 7.61043 7.33066 7.27558 7.33066C6.94073 7.33066 6.66928 7.05715 6.66928 6.71976V5.49798C6.66928 5.16059 6.94073 4.88708 7.27558 4.88708ZM7.27558 8.55244C7.61043 8.55244 7.88188 8.82595 7.88188 9.16333V9.16944C7.88188 9.50683 7.61043 9.78033 7.27558 9.78033C6.94073 9.78033 6.66928 9.50683 6.66928 9.16944V9.16333C6.66928 8.82595 6.94073 8.55244 7.27558 8.55244Z" fill="#B91C1C"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.35181 1.45439C6.63169 1.28813 6.95067 1.20044 7.27558 1.20044C7.60049 1.20044 7.91947 1.28813 8.19936 1.45439C8.47792 1.61987 8.70764 1.85717 8.86488 2.14182L13.1071 9.62197C13.1205 9.64555 13.1323 9.67 13.1424 9.69516C13.2516 9.96601 13.2949 10.2592 13.2687 10.5504C13.2425 10.8415 13.1475 11.1221 12.9918 11.3688C12.836 11.6154 12.6239 11.8209 12.3733 11.9681C12.1226 12.1154 11.8406 12.2 11.5509 12.2151C11.5405 12.2156 11.5301 12.2159 11.5197 12.2159H3.07393C3.06697 12.2159 3.06004 12.2158 3.05313 12.2156C3.03567 12.2162 3.01804 12.216 3.00027 12.2151C2.71052 12.2 2.42854 12.1154 2.17788 11.9681C1.92722 11.8209 1.71516 11.6154 1.55939 11.3688C1.40362 11.1221 1.30867 10.8415 1.28246 10.5504C1.25625 10.2592 1.29955 9.96601 1.40874 9.69516C1.41888 9.67 1.43068 9.64555 1.44405 9.62197L5.68628 2.14182C5.84352 1.85717 6.07324 1.61987 6.35181 1.45439ZM3.05429 10.9944C3.06081 10.9942 3.06736 10.9941 3.07393 10.9941H11.5014C11.5934 10.9874 11.6828 10.9595 11.7626 10.9126C11.8461 10.8635 11.9168 10.795 11.9688 10.7128C12.0207 10.6306 12.0523 10.5371 12.0611 10.44C12.0688 10.3542 12.0584 10.2679 12.0307 10.1866L7.80604 2.7374C7.75361 2.64192 7.6768 2.5623 7.58351 2.50688C7.49021 2.45145 7.38388 2.42222 7.27558 2.42222C7.16728 2.42222 7.06095 2.45145 6.96766 2.50688C6.87436 2.5623 6.7975 2.64189 6.74507 2.73737L6.74102 2.74474L2.52043 10.1866C2.49276 10.2679 2.48238 10.3542 2.4901 10.44C2.49884 10.5371 2.53049 10.6306 2.58241 10.7128C2.63433 10.795 2.70502 10.8635 2.78858 10.9126C2.8697 10.9603 2.96067 10.9883 3.05429 10.9944Z" fill="#B91C1C"/></svg>',warn:'<svg viewBox="0 0 14 14" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.00002 4.6665C7.32219 4.6665 7.58335 4.92767 7.58335 5.24984V6.4165C7.58335 6.73867 7.32219 6.99984 7.00002 6.99984C6.67785 6.99984 6.41669 6.73867 6.41669 6.4165V5.24984C6.41669 4.92767 6.67785 4.6665 7.00002 4.6665ZM7.00002 8.1665C7.32219 8.1665 7.58335 8.42767 7.58335 8.74984V8.75567C7.58335 9.07784 7.32219 9.339 7.00002 9.339C6.67785 9.339 6.41669 9.07784 6.41669 8.75567V8.74984C6.41669 8.42767 6.67785 8.1665 7.00002 8.1665Z" fill="#D97706"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.11123 1.38849C6.38051 1.22973 6.68741 1.146 7.00001 1.146C7.31261 1.146 7.61951 1.22973 7.88879 1.38849C8.15681 1.54651 8.37783 1.7731 8.52911 2.04491L12.6107 9.1876C12.6235 9.21012 12.6349 9.23347 12.6446 9.2575C12.7497 9.51612 12.7913 9.79613 12.7661 10.0741C12.7409 10.3521 12.6496 10.6201 12.4997 10.8556C12.3498 11.0911 12.1458 11.2873 11.9046 11.4279C11.6635 11.5685 11.3922 11.6494 11.1134 11.6637C11.1034 11.6643 11.0934 11.6645 11.0833 11.6645H2.95751C2.95081 11.6645 2.94414 11.6644 2.9375 11.6642C2.9207 11.6648 2.90374 11.6646 2.88664 11.6637C2.60787 11.6494 2.33657 11.5685 2.0954 11.4279C1.85424 11.2873 1.65021 11.0911 1.50034 10.8556C1.35047 10.6201 1.25911 10.3521 1.2339 10.0741C1.20868 9.79613 1.25034 9.51612 1.35539 9.2575C1.36515 9.23347 1.3765 9.21012 1.38937 9.1876L5.47091 2.04491C5.6222 1.7731 5.84321 1.54651 6.11123 1.38849ZM2.93862 10.4982C2.94489 10.498 2.95119 10.4979 2.95751 10.4979H11.0657C11.1543 10.4914 11.2403 10.4648 11.3171 10.42C11.3974 10.3732 11.4655 10.3077 11.5154 10.2292C11.5654 10.1507 11.5958 10.0614 11.6042 9.96876C11.6117 9.88682 11.6017 9.80437 11.575 9.72678L7.51038 2.61362C7.45993 2.52244 7.38603 2.44642 7.29627 2.3935C7.20651 2.34057 7.10421 2.31266 7.00001 2.31266C6.89581 2.31266 6.79351 2.34057 6.70375 2.3935C6.61399 2.44642 6.54004 2.52242 6.48959 2.61359L6.4857 2.62063L2.42498 9.72678C2.39836 9.80437 2.38837 9.88683 2.3958 9.96876C2.4042 10.0614 2.43465 10.1507 2.48461 10.2292C2.53457 10.3077 2.60258 10.3732 2.68297 10.42C2.76102 10.4655 2.84854 10.4923 2.93862 10.4982Z" fill="#D97706"/></svg>'};
-/* change 266: one fixed tooltip for every icon, so the table's scroll box never clips it */
+/* change 266: one fixed tooltip, so the table's scroll box never clips it (change 327: the Highest usage figures and the people groups) */
 let uwTipEl=null, uwTipAt=null, uwTipBy="";
 function uwHide(){if(uwTipEl)uwTipEl.hidden=true;uwTipAt=null;uwTipBy=""}
 function uwShow(ic,by){if(!ic||!ic.isConnected)return;
@@ -3064,8 +3051,8 @@ function uwShow(ic,by){if(!ic||!ic.isConnected)return;
  const r=ic.getBoundingClientRect(), w=uwTipEl.offsetWidth, h=uwTipEl.offsetHeight, vw=document.documentElement.clientWidth, vh=window.innerHeight;
  const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), up=ic.classList.contains("wsp-grp"), y=up?(r.top-6-h<8?r.bottom+6:r.top-6-h):(r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6);
  uwTipEl.style.left=Math.round(x)+"px"; uwTipEl.style.top=Math.round(y)+"px"}
-document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip],.wsp-grp[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
-document.addEventListener("focusin",e=>{const ic=e.target.closest&&e.target.closest(".u-wi[data-uwtip],.wsp-grp[data-uwtip]"); if(ic&&ic.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
+document.addEventListener("mouseover",e=>{const ic=e.target.closest&&e.target.closest(".u-tip[data-uwtip],.wsp-grp[data-uwtip]"); if(ic){if(ic!==uwTipAt)uwShow(ic,"hover")} else if(uwTipBy==="hover")uwHide()});
+document.addEventListener("focusin",e=>{const ic=e.target.closest&&e.target.closest(".u-tip[data-uwtip],.wsp-grp[data-uwtip]"); if(ic&&ic.matches(":focus-visible"))uwShow(ic,"focus"); else if(uwTipAt)uwHide()});
 document.addEventListener("focusout",()=>{if(uwTipBy==="focus")uwHide()});
 document.addEventListener("click",()=>{if(uwTipAt)uwHide()},true);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uwTipAt)uwHide()},true);
@@ -3740,13 +3727,13 @@ const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* chang
    One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
 let HSORT={home:null,ws:null};
-const HS_TIP_U="Average share used across every limited resource, this billing cycle";
+const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- home:[["name","Workspace","width:216px"],["status","Status","width:124px"],["pa","Prospects added","width:116px"],["sent","Emails sent","width:124px"],
+ home:[["name","Workspace","width:216px"],["status","Status","width:108px"],["pa","Prospects added","width:116px"],["sent","Emails sent","width:116px"],
   ["bounce","Bounce rate","width:90px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
   ["calls","Calls made","width:106px"],["conn","Calls connected","width:112px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],
-  ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Usage","width:134px",HS_TIP_U]],   /* change 322 */
- ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Usage","width:200px",HS_TIP_U]]};
+  ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Highest usage","width:166px",HS_TIP_U]],   /* change 322; change 327: Highest usage 166px (board L's 187px at 1,440 is 158px), so "Lead Finder 100%" stays whole where the table sits at its floor (a phone, LinkedIn steps on). Status gives 16px and Emails sent 8px, the two with room at the floor; the table's floor grows 8px (1,138px), so no other column or header is tighter than before */
+ ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Highest usage","width:200px",HS_TIP_U]]};
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};
 /* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
@@ -3762,17 +3749,17 @@ function hsHead(t){const S=HSORT[t];
 function hsVal(k,c){
  if(k==="name") return String(c.name);
  if(k==="status"){const s=wsState(c);return s==="New"?0:s==="Active"?1:null}
- if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return null;
-  const lim=u.filter(y=>y.cap>0); return lim.length?Math.round(lim.reduce((a,y)=>a+Math.min(1,y.pct),0)/lim.length*100):0}
+ if(k==="usage") return usageKey(c);   /* change 327: needs you first, then the % the cell shows */
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
  if(c.disabled||c.sent===0) return null;
  if(k==="li") return hcLi(c)||null;   /* change 322 */
  const w=wk7(c), N=v=>+String(pd(v)).replace(/,/g,"");
  return k==="pa"?N(w.pa):k==="sent"?N(w.sent):k==="bounce"?+w.bounce.toFixed(1):k==="rep"?+w.rate.toFixed(1):!w.calls?null:k==="calls"?N(w.calls):N(w.conn)}
 /* change 292 (audit P1-32): the default order of both tables: your own first, then used up, then 90% or more,
-   then A to Z; disabled last */
-const wsNeedTier=c=>{if(c.own) return 0; if(c.disabled||c.deletedOn) return 4; const L=RK.map(k=>RES[k].rows[c.id]).filter(r=>r&&r.cap>0);
- return L.some(r=>r.used>=r.cap)?1:L.some(r=>r.used/r.cap>=.9)?2:3};
+   then A to Z; disabled last. Change 327: the tiers are the Highest usage cell's own rule (usageNeed), so a red chip
+   ranks first, then every amber chip (90% or more, or a renewing resource out within about 3 days), then the rest */
+const wsNeedTier=c=>{if(c.own) return 0; if(c.disabled||c.deletedOn) return 4; const N=usageNeed(c);
+ return N&&N.tone==="bad"?1:N&&N.first?2:3};
 function wsOrder(list,get){get=get||(x=>x); return list.slice().sort((a,b)=>{const A=get(a),B=get(b); return wsNeedTier(A)-wsNeedTier(B)||A.name.localeCompare(B.name,undefined,{sensitivity:"base"})})}
 function hsApply(list,t,get){const S=HSORT[t]; if(!S) return list;
  const rows=list.map((x,i)=>({x,i,v:hsVal(S.col,get?get(x):x)}));
@@ -4046,7 +4033,7 @@ function recAccessCard(c,ro){
 function recLimitsCard(c,ro){
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   /* change 298 (audit P1-22, Hitesh's C7: A): the Limits tab's grey bar (Gray 400); amber at 90% or more
-     (UW_NEAR, the Dashboard's triangle line), red only when used up; whole percents, and never "100%" before it is */
+     (UW_NEAR, the Dashboard's needs-you line), red only when used up; whole percents, and never "100%" before it is */
   const out=r.cap>0&&r.used>=r.cap, pw=r.cap>0?(out?100:Math.min(99,Math.round(r.used/r.cap*100))):0;
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu",whole:pw,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,out?PB_COL[2]:pw>=UW_NEAR?PB_COL[1]:UL3_GREY),rem:f(Math.max(0,r.cap-r.used))+" left ("+(100-pw)+"%)"})   /* change 297 (audit P1-9) */}).join("");
  const ask=askOf(c.id);
@@ -9799,8 +9786,6 @@ function homeCells(c){
 const activeSeqs=c=>c.disabled?0:hpSeqStates(c).filter(x=>x.st==="Active").length;
 /* change 178: a cycle-total split scaled to the last 7 days, the last row taking the rounding */
 const hpWeek=(parts,total)=>{const sum=parts.reduce((a,b)=>a+b,0)||1;let left=total;return parts.map((p,i)=>{const v=i===parts.length-1?left:Math.round(total*p/sum);left-=v;return Math.max(0,v)})};
-/* change 281: the resources behind the Usage icon: every one used up (or over), else every one at 90% or more */
-function uwTrigKeys(u){const at=u.filter(y=>y.cap>0&&y.used>=y.cap); return (at.length?at:u.filter(y=>y.cap>0&&Math.round(y.pct*100)>=UW_NEAR)).map(y=>y.k)}
 function hpData(c,k){
  const M=hm(c), live=!c.disabled;
  const seqGo=q=>live?"seq|"+c.id+"|"+q.name:"";
@@ -9815,11 +9800,16 @@ function hpData(c,k){
    return {name:m[0],cells:[m[1]==="Disconnected"?"&ndash;":Math.min(100,m[2])+"%"],st,tone,go:live?"acc|"+c.id+"|"+m[0]:""}});
   return {cols:["Email account","Status","Health"],rows}}
  if(k==="usage"){const u=usageOf(c); if(!u.length||u.every(y=>y.used===0)) return {cols:[],rows:[]};
-  return {cols:["Resource","Status","Used"],rows:u.map(y=>{const pc=Math.min(100,Math.round(y.pct*100));
-   /* change 298 (audit P1-2, P1-20): "Used up" in red; "Near limit" on the one 90% line the triangle uses (UW_NEAR) */
-   const nr=Math.round(y.pct*100)>=UW_NEAR;
-   return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"Used up"):y.draw===0?"Pool empty":nr?"Near limit":"Fine",tone:y.tone==="bad"?"bad":nr?"warn":"ok",out:y.room===0,
-    cells:[f(y.used)+" of "+f(y.cap)+" ("+pc+"%)"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&uwTrigKeys(u).includes(y.k)}})}}
+  /* change 327: the cell's rule (usageNeed). "Runs out soon" for a renewing resource that runs out in about 3 days or
+     fewer (its days on hover), so the pop-up never calls a flagged resource Fine; the cell's resource first, then
+     every flagged one marked (the used-up ones only, when any is) */
+  const N=usageNeed(c), Z=k=>(N&&N.rows.find(y=>y.k===k))||{}, fk=N&&N.first?N.first.k:null;
+  return {cols:["Resource","Status","Used"],rows:u.map(y=>{const z=Z(y.k), pc=z.pc!=null?z.pc:Math.min(100,Math.round(y.pct*100));
+   /* change 298 (audit P1-2, P1-20): "Used up" in red; "Near limit" on the cell's 90% line (UW_NEAR) */
+   const soon=!!z.soon, nr=!!z.near;
+   return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"Used up"):y.draw===0?"Pool empty":soon?"Runs out soon":nr?"Near limit":"Fine",tone:y.tone==="bad"?"bad":soon||nr?"warn":"ok",out:y.room===0,
+    tip:y.room>0&&soon?z.pace:"",cells:[f(y.used)+" of "+f(y.cap)+" ("+pc+"%)"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&!!N&&N.flag.some(x=>x.k===y.k),first:y.k===fk}})
+   .sort((a,b)=>(b.first?1:0)-(a.first?1:0))}}
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
@@ -9879,7 +9869,7 @@ function hpOpen(btn){
  hpClose();
  let L=el("hpop"); if(!L){L=document.createElement("div");L.id="hpop";L.className="hpop";L.setAttribute("role","dialog");document.body.appendChild(L)}
  const D=hpData(c,k), rows=[...D.rows].sort((a,b)=>(b.hl?1:0)-(a.hl?1:0)||HP_RANK[a.tone]-HP_RANK[b.tone]);
- const st=r=>r.st?'<span class="hp-st'+(r.out?" is-out":r.tone==="bad"?" is-bad":r.tone==="warn"?" is-warn":"")+'">'+r.st+'</span>':"";
+ const st=r=>r.st?'<span class="hp-st'+(r.out?" is-out":r.tone==="bad"?" is-bad":r.tone==="warn"?" is-warn":"")+(r.tip?' u-tip" title="" data-uwtip="'+r.tip:'')+'">'+r.st+'</span>':"";   /* change 327: tip */
  const nm=r=>r.go?'<button type="button" class="hp-go" data-hpgo="'+r.go+'" title="'+r.name+'">'+r.name+'</button>':'<span class="hp-nm" title="'+r.name+'">'+r.name+'</span>';
  const bad=rows.filter(r=>r.tone==="bad"||r.tone==="warn").length;
  L.setAttribute("aria-label",HP_TITLE[k]+", "+c.name);
@@ -14505,8 +14495,9 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .hero-f>span.hero-f-wrap{white-space:normal}
 .hp-cell{display:block;width:calc(100% + 12px);margin:-6px -6px;padding:6px;background:none;border:0;border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .hp-cell:hover,.hp-cell[aria-expanded="true"]{background:#f3f4f6}.hp-cell:focus-visible{outline:2px solid #1D4ED8;outline-offset:0}
-/* change 218: the Usage pop-up names each resource in full, as the Limits tab does */
-.hpop.hpop--usage{width:480px}
+/* change 218: the Usage pop-up names each resource in full, as the Limits tab does; change 327: 500px, so "Runs out soon"
+   sits beside "Email verification credits" (191 + 127 + 179 = 497) instead of stacking */
+.hpop.hpop--usage{width:500px}
 /* change 231: the Reply rate pop-up adds Contacted, so it is as wide as it needs for five
    columns on one line (change 218) with the sequence name still readable */
 .hpop.hpop--rep{width:580px}
@@ -14610,24 +14601,15 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl th.th-s:hover .hs-i,.home-tbl .hs-b:focus-visible .hs-i,.home-tbl th.is-sorted .hs-i{visibility:visible}
 .home-tbl th.is-sorted .hs-i{color:var(--gray-300)}
 .home-tbl th.is-asc .hs-up,.home-tbl th.is-desc .hs-dn{color:var(--gray-800)}
-.u-home .u-pct{font-weight:600}
-/* change 210: bar, then the figure to its right, as production's .email-sent-field (gap .75rem, bar .375rem high) */
-.hp-cell.u-home.u-row{display:flex;flex-direction:row;align-items:center;gap:12px}
-.u-home.u-row .track{flex:1 1 auto;min-width:40px;height:6px;border-radius:8px}.u-home.u-row .track>span{border-radius:8px}
-.u-home.u-row .meter-t{flex:none;width:auto;font-size:14px;line-height:18px;overflow:visible}.u-home.u-row .u-pct{font-weight:500}
-/* change 232: a resource at its limit */
-.hp-cell.u-home.u-row.u-lim{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:20px 16px;column-gap:12px;row-gap:2px;align-items:center}
-.meter.u-row.u-lim .u-pct{color:var(--red-18)}
-/* change 266: the warning icon 4px right of the %, centred on it (the triangle sits high in production's viewBox, so the
-   glyph drops 1px to centre its ink on the digits); rows without one keep its 20px when the table has any */
-/* change 281: the icon is its own button beside the cell button, 4px right of the %; rows without one keep its 20px */
-.u-hw{display:flex;align-items:center;gap:4px;min-width:0;width:100%}.u-hw>.u-home{flex:1 1 auto;width:auto}
-.u-wi{display:inline-flex;flex:none;width:16px;height:16px;cursor:pointer;background:none;border:0;padding:0;margin:0;border-radius:4px}.u-wi svg{display:block;width:16px;height:16px;position:relative;top:1px}
-.u-wi:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
-.home-tbl:has(.u-wi) .u-hw:not(:has(.u-wi)){padding-right:20px}
+/* change 327: Highest usage. A fine row is the figures' plain number; a row that needs you is Bounce rate's tinted
+   box (.w7-hot), the app's amber (Amber 100 / Amber 800) or, used up, the red one, with the resource's name in regular
+   weight and the % in the figures' weight; a long name truncates before the % does (the space between them is for copied text; the flex gap draws it). The box's text starts on the
+   plain figures' edge (its -5px margin). */
+.home-tbl .w7-hot.u-amb{background:#FEF3C7;border-color:#FEF3C7;color:#92400E}
+.home-tbl .w7-hot.u-chip{display:inline-flex;gap:4px;max-width:calc(100% + 5px);white-space:nowrap;vertical-align:top}
+.home-tbl .u-chip .u-nm{font-weight:400;min-width:0;overflow:hidden;text-overflow:ellipsis}.home-tbl .u-chip .u-p{flex:none}
 .hp-t tr.hp-hl>td:first-child{box-shadow:inset 2px 0 0 var(--orange-14)}.hp-t tr.hp-hl.is-bad>td:first-child{box-shadow:inset 2px 0 0 var(--red-18)}
 .dq-fore.uw-tip{display:block;position:fixed;left:0;top:0;z-index:1005;white-space:pre-line;pointer-events:none}.dq-fore.uw-tip[hidden]{display:none}
-.u-lim .u-lim-l{grid-column:1/-1;min-width:0;font-size:12px;line-height:16px;font-weight:500;color:var(--red-18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-win{margin:0 0 8px}.ws-win+.panel{margin-top:0}
 /* change 197: people on the Workspaces page */
 .ws-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 8px}.ws-meta .ws-win{margin:0}
@@ -14670,7 +14652,6 @@ td>.cs:only-child{display:block}
 .ws-stat.is-need{height:20px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:500}.ws-stat.is-need+.stackb{margin-top:2px}
 .hero-dot.hero-need,.hero-need{color:#92400E}
 .home-tbl .ws-go{width:20px;height:20px;flex:none;visibility:hidden;position:absolute;left:calc(100% + 2px);top:50%;transform:translateY(-50%)}.home-tbl .crow:hover .ws-go,.home-tbl .crow:focus-within .ws-go{visibility:visible}
-.u-home{min-width:0;width:100%}.home-tbl .u-home .meter-t,.home-tbl .u-home .u-rest,.u-home .meter-t,.u-home .u-rest{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .home-tbl .cell-main.cell-main--ws{align-items:flex-start}.home-tbl .cell-main--ws .avatar{margin-top:1px}.ws-id{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ws-sub{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}.ws-sub .cs{min-width:0;overflow:hidden;text-overflow:ellipsis}
 /* the master prototype's effect: on hover the email line gives way to the four borderless shortcuts, so the row never changes height */
@@ -15679,7 +15660,6 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .apu-col{display:flex;flex-direction:column;gap:20px}
 .bkt{display:flex;height:.625rem;border-radius:1.875rem;overflow:hidden;background-color:#e5e7eb;width:100%}
 .bkt span{height:100%;transition:width .3s ease}
-.meter.u-row .apu-b.u-pb{margin:0;flex:1;min-width:0}.meter.u-row .u-pct{color:#1f2937;font-weight:500}
 .meter .pbw{width:100%}
 .lm-t .apu-i{max-width:340px}
 .pg-row.pg-row--apu{grid-template-columns:minmax(0,1fr);align-items:start}
@@ -15995,7 +15975,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3f908e7";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="5b6db44";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
