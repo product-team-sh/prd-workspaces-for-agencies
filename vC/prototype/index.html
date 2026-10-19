@@ -4160,7 +4160,7 @@ function recLimitsCard(c,ro){
   const out=r.cap>0&&r.used>=r.cap, pw=r.cap>0?(out?100:Math.min(99,Math.round(r.used/r.cap*100))):0;
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu",whole:pw,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,out?PB_COL[2]:pw>=UW_NEAR?PB_COL[1]:UL3_GREY),rem:f(Math.max(0,r.cap-r.used))+" left ("+(100-pw)+"%)"})   /* change 297 (audit P1-9) */}).join("");
  const ask=askOf(c.id);
- const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)} <button class="linkbtn linkbtn--sm" data-tab="limits">Review request</button></span></div>`:"";
+ const req=ask&&!ro?`<div class="msg m-warn rc-req2">${infoI}<span><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)} <button class="linkbtn linkbtn--sm" ${canI("limits")?`data-rqcgo="${ask.id}"`:`data-tab="limits"`}>Review request</button></span></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
 function recDetailsCard(c,ro){
@@ -4261,7 +4261,7 @@ function raRows(c){
   L.forEach(x=>{const o=x.asked||x.asked0||(x.amount+(x.given||0)); want[x.res]=Math.max(want[x.res]||0,o)});
   const pend=L.filter(x=>REQUESTS.indexOf(x)>-1), ask={who,when:q0.when,d:raWhen({when:q0.when,text:q0.note||q0.res}),k:"limits",isAsk:1,
    tx:`requested ${listAnd(Object.keys(want).map(r=>askShort({res:r,amount:want[r]})))}.`,q:q0.note||null};
-  if(pend.length){ask.open={mk:pend.some(x=>x.given)?"Partly given":"Waiting",act:canI("limits")?`<button type="button" class="linkbtn" data-tab="limits">Review request</button>`:""}; ask.need=`${who}'s request`}
+  if(pend.length){ask.open={mk:pend.some(x=>x.given)?"Partly given":"Waiting",act:canI("limits")?`<button type="button" class="linkbtn" data-rqcgo="${pend[0].ask||pend[0].id}">Review request</button>`:""}; ask.need=`${who}'s request`}
   rows.push(ask);
   const R=L.filter(x=>x.re&&x.state); if(!R.length) return;
   const gave=R.filter(x=>x.state==="approved"), no=R.filter(x=>x.state==="declined"), P=PEOPLE[R[0].dby]||PEOPLE.owner||{name:"Alex Meridian"};
@@ -5425,52 +5425,20 @@ function rcLimSentence(c){
    changeable on a disabled workspace (230); an Account Member reads the same tab with no controls. ═══ */
 let RL=null;   /* the open draft on this tab: {id, D}, the shape of 263's UL.ed.D */
 const RL_STEP=k=>RES[k].pool>=100000?500:RES[k].pool>=5000?50:RES[k].pool>=1000?10:5;
-const rlWant=(k,r)=>{const st=RL_STEP(k); return Math.max(st,Math.round(r.cap/3/st)*st)};   /* 262's restart amount */
 const rlRes=k=>RES[k].label;   /* change 297 (audit P1-5) */
 const rlDirty=()=>!!RL&&ul3Ch(RL.D).length>0;
 const rlOr=a=>a.length<=1?(a[0]||""):a.slice(0,-1).join(", ")+" or "+a[a.length-1];
-/* everything that needs capacity across the account, in Usage & limits' reading order: stops first (own
-   workspace, then A to Z), then asks oldest first. Account-wide whoever reads it, so the numbers match the
-   Account Owner's Usage & limits; an Account Member just is not told which other workspace it is. */
-function rlNeeds(){
- const live=c=>c&&!c.disabled&&!c.deletedOn, reqs=REQUESTS.filter(r=>live(byId[r.client])&&RES[r.res]&&RES[r.res].rows[r.client]);
- const asked=new Set(reqs.map(r=>r.client+"|"+r.res)), st=[];
- [OWN_WS].concat(CLIENTS.filter(live).sort((a,b)=>a.name.localeCompare(b.name))).forEach(c=>UL_K().forEach(k=>{const r=RES[k].rows[c.id];
-  if(r&&r.cap>0&&r.used>=r.cap&&!asked.has(c.id+"|"+k)) st.push({type:"stop",c,k,amt:rlWant(k,r),row:r})}));
- const asks=reqs.slice().sort((a,b)=>ulAge(b.when)-ulAge(a.when)).map(r=>({type:"ask",c:byId[r.client],k:r.res,amt:r.amount,r,row:RES[r.res].rows[r.client]}));
- return st.concat(asks)}
-/* nothing available (234): rebalance on Usage & limits, or buy more under it */
-const rlBuy=(k,n)=>`<span class="sub askl-buy">Or ${canI("billing")?`<button type="button" class="linkbtn" data-ulbuy="${k}">buy more in Billing</button>`:`<button type="button" class="linkbtn" data-ulaskowner="${k}|${n}">ask the Account Owner</button> to buy more`}</span>`;
-/* the ask ledger, scoped to one workspace (the Workspace column drops). Change 292 (audit P0-3): "Available after"
-   counts this workspace's own lines only; since 282 no other workspace's ask goes first. */
-function recAskLedger(c,ro){
- if(ro) return "";
- const N=rlNeeds(), rem={}, mine=[];
- N.forEach(n=>{if(n.c.id!==c.id) return; const k=n.k; if(rem[k]==null) rem[k]=compute(k).free; rem[k]-=n.amt; mine.push(Object.assign({after:rem[k],i:N.indexOf(n)},n))});
- if(!mine.length) return "";
- const can=canI("limits"), lock=rlDirty(), dis=lock?` disabled title="Save or cancel your limit changes first"`:"";
- const go=(attr,t)=>`<button type="button" class="linkbtn askl-go" ${attr}${dis}>${t}</button>`;
- const row=n=>{const r=n.row, out=r.cap>0&&r.used>=r.cap, free=compute(n.k).free, g=Math.min(n.amt,free);
-  const who=n.type==="ask"?`<span class="askl-nm">${n.r.by||n.c.name}</span><span class="sub">Requested ${AGE(n.r.when)}</span>${n.r.given?`<span class="sub">${f(n.r.given)} of ${f(n.r.asked0)} given</span>`:""}`
-   :`<span class="askl-nm">${n.k==="sends"?"Stopped sending":RES[n.k].label+" used up"}</span><span class="sub">${n.k==="sends"?RES.sends.label+" used up":"No request yet"}</span>`;
-  let act="";
-  if(can&&n.type==="ask"&&LM_DECL==="askl-"+n.r.id)
-   act=`<div class="askl-decl"><input type="text" class="ul-in askl-note" data-nonote="${n.r.id}" placeholder="Why (optional)" aria-label="Note ${n.r.by||c.name} reads with the decline"><span class="askl-acts"><button type="button" class="linkbtn askl-q" data-askldx>Cancel</button><button type="button" class="linkbtn askl-go" data-no="${n.r.id}">Decline</button></span></div>`;
-  else if(can&&n.type==="ask")
-   act=`<span class="askl-acts">${g>0?go(g>=n.amt?`data-ok="${n.r.id}"`:`data-rlpart="${n.r.id}" aria-haspopup="dialog"`,`Give ${f(g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Change limits on ${RES[n.k].label}"`,"Rebalance")}<button type="button" class="linkbtn askl-q" data-askld="${n.r.id}"${dis}>Decline</button></span>${g>0?"":rlBuy(n.k,n.amt)}`;
-  else if(can)
-   act=`<span class="askl-acts">${g>0?go(`data-rlraise="${n.k}|${r.cap+g}"`,`Raise to ${f(r.cap+g)}`):go(`data-rqreb="${n.k}" title="Opens Usage &amp; limits with Change limits on ${RES[n.k].label}"`,"Rebalance")}</span>${g>0?"":rlBuy(n.k,n.amt)}`;
-  const rid=mine.filter(m=>m.k===n.k).indexOf(n)?`askl-${n.k}-${mine.filter(m=>m.k===n.k).indexOf(n)+1}`:`askl-${n.k}`;   /* a second ask on one resource gets its own id */
-  return `<tr class="askl-r" id="${rid}" data-askl="${n.type==="ask"?n.r.id:"stop"}"><td data-l="Requested by">${who}</td><td data-l="Resource">${rlRes(n.k)}</td>
-   <td data-l="Used">${out?`<span class="ul3-mk is-out">${f(r.used)} of ${f(r.cap)}</span>`:`${f(r.used)} of ${f(r.cap)}`}</td>
-   <td data-l="Wants"><span class="askl-w">+${f(n.amt)}</span>${n.type==="stop"?'<span class="sub">To restart, no request</span>':""}</td>
-   <td data-l="Available after">${n.after>=0?f(n.after):`<span class="ul3-mk">Short by ${f(-n.after)}</span>`}</td>${can?`<td class="askl-a">${act}</td>`:""}</tr>`};
- const ks=[...new Set(mine.map(m=>m.k))];
- const foot=ks.map(k=>{const M=mine.filter(m=>m.k===k), last=M[M.length-1], want=M.reduce((t,m)=>t+m.amt,0);
-  return `<tr class="askl-f" data-asklf="${k}"><td colspan="3" data-l=""><span class="askl-fn"><b>${rlRes(k)}</b>, ${f(compute(k).free)} available</span></td><td data-l="Wants"><b class="askl-w">+${f(want)}</b></td><td data-l="After">${last.after>=0?`<b>${f(last.after)}</b>`:`<span class="ul3-mk">Short by ${f(-last.after)}</span>`}</td>${can?"<td></td>":""}</tr>`}).join("");
- return `<div class="panel askl" id="recAskl"><table class="askl-t"><colgroup><col style="width:21%"><col style="width:16%"><col style="width:15%"><col style="width:10%"><col style="width:17%">${can?"<col>":""}</colgroup>
-  <thead><tr><th>Requested by</th><th>Resource</th><th>Used</th><th>Wants</th><th>Available after</th>${can?'<th aria-label="Decision"></th>':""}</tr></thead>
-  <tbody>${mine.map(row).join("")}</tbody><tfoot>${foot}</tfoot></table></div>`}
+/* change 330, 19 Oct 2026 (Hitesh, showing this tab's request table beside the request card on Usage & limits:
+   "match this with [the card] or only show banner which redirects them to Usage & Limits page"): the banner.
+   Asks are decided on Usage & limits only (the needs-you-on-the-owning-screen rule, 14 Oct), so the table that
+   gave and declined here (269's ledger: rlNeeds, rlBuy, recAskLedger) is gone, its stop rows with it. One line in
+   change 320's requests banner (dn-req), in the Overview banner's words: who asked, when, what. Review request
+   opens Usage & limits on this workspace's card (rqcGo), the place the header chip already goes. */
+function recAskBanner(c,ro){
+ const L=askLines(c.id); if(ro||!L.length) return "";
+ const G=askGroups(L), n=G.length;
+ const t=n>1?`<strong>${n} requests waiting</strong> from ${askerOf(L,c.id)}: ${linesText(L)}`:`<strong>Requested by ${askerOf(L,c.id)}, ${AGE(G[0].when).toLowerCase()}:</strong> ${linesText(L)}`;
+ return `<div class="msg dn-req rlt-req" id="recAskBn" role="status">${warnI}<span class="dn-req-t">${t}</span>${canI("limits")?`<button type="button" class="linkbtn dn-req-go" data-rqcgo="${G[0].id}">Review request${n===1?"":"s"}</button>`:""}</div>`}
 /* emails renew monthly, so a pace is known (used so far / day of cycle); credits are a balance: no pace */
 /* change 292: the one pace line (paceLine); "None left" is already the cell's own text */
 function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
@@ -5503,9 +5471,8 @@ function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[
 function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledbox="${RL.id}"]`); if(!box) return; const D=RL.D, id=RL.id;
  box.querySelectorAll("[data-rlfx]").forEach(n=>n.innerHTML=rlFxLine(D,n.dataset.rlfx,id));
  box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad))});
- box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id]);
- const dirty=rlDirty(); document.querySelectorAll("#recAskl .askl-acts button").forEach(b=>{b.disabled=dirty; b.title=dirty?"Save or cancel your limit changes first":""})}
-/* change 320: the sub-line is the day of the cycle; what needs you is on the rows (amber marks, the request table) */
+ box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id])}
+/* change 320: the sub-line is the day of the cycle; what needs you is on the rows (amber marks) and in the request banner (330) */
 function rlHeadLine(c,ro){return ro?`${c.deletedOn?"Deleted":"Disabled"}, still counts against the plan`:`Day ${CYCLE.day} of ${CYCLE.days}`}
 function rlHeadLine0(c,ro,busy){
  const cyc=`Day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}`;
@@ -5534,11 +5501,11 @@ function rLimits(c){
     change 229: a partly approved line is visible while the rest of the ask waits */
  const ask=askOf(c.id), aIds=ask?new Set(ask.lines.map(x=>x.ask||x.id)):null, answered=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&(!aIds||aIds.has(a.ask||a.id)));
  const ansLine=answered.length?`<p class="rlt-p rlt-ans lm-answered">${ask?"":`Last request, answered ${answered[0].on||TODAY_D}. `}${[answered.filter(a=>a.state==="approved"),answered.filter(a=>a.state!=="approved")].map((L,i)=>!L.length?"":i?`Declined: ${listAnd(L.map(a=>`${f(a.amount)} ${RES[a.res].short}${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.`:`Gave${ask?" so far":""}: ${listAnd(L.map(a=>ansPart(a)?`${f(a.amount)} of ${f(a.asked)} ${RES[a.res].short}`:`${f(a.amount)} ${RES[a.res].short}, limit now ${f(a.to||RES[a.res].rows[c.id].cap)}`))}.`).filter(Boolean).join(" ")}</p>`:"";
- const led=recAskLedger(c,ro), ed=!!RL&&can;
- return `<div class="rlt">${grace()?rlGraceHTML():""}
+ const ed=!!RL&&can;
+ return `<div class="rlt">${grace()?rlGraceHTML():""}${recAskBanner(c,ro)}
   <div class="rlt-head"><div class="rlt-h"><h2 class="rlt-title">Limits</h2>${can&&!ed?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>
    <p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>${ansLine}</div>
-  ${led}${ed?rlEditorHTML(c):rlSheetHTML(c)}
+  ${ed?rlEditorHTML(c):rlSheetHTML(c)}
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}</div>`;
 }
 /* one listener per event, so a partial repaint never needs rewiring */
@@ -16110,7 +16077,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dbb348a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="5689f0a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
