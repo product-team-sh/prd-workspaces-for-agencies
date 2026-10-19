@@ -1649,7 +1649,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
   <div class="main">
     <header class="topbar">
       <!-- 28 Sep 2026, Hitesh: the global search box and its Cmd+K palette are removed. Each screen keeps its own search. -->
-      <div class="crumb"><span class="crumb-tail" id="crumbTail">Dashboard</span></div>
+      <div class="crumb"><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Dashboard</span></div>
       <div class="util">
         <button class="ubtn" title="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
         <button class="ubtn" title="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
@@ -3341,6 +3341,124 @@ const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-h
   <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
 </button>`;
+/* ═══ change 328 (Hitesh, 18 Oct 2026: "let's build H into vC"; H revised, change 317) ═══════
+   The top bar is the path: its segments with production's ChevronRight between them, one
+   trailing slot after the last segment (a single status: a chip, a switch, a count, Beta or
+   a help link), then the utilities. It holds no buttons, and the name it ends on is the only
+   place the page's name appears. Inside a workspace the path starts at the workspace, with
+   its avatar: an admin can click it to open the workspace record, a client user reads it as
+   plain text. Past three segments the first and the last two show, with "…" for the rest.
+   At 640px and under the bar is back, the page name and the slot; a text chip becomes an 8px
+   dot that carries the same words as its label and shows them in a tooltip on tap.       */
+const HDR_I={
+ chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+ dots:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>',
+ down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'};
+const hdrEsc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+/* one status for the slot: the chip, and its phone form (a dot with the same words) */
+function hdrChip(text,tone,attrs,tip){
+ const t=tip||text, chip=attrs?`<button type="button" class="chip hdr-chip hdr-chip--${tone}" ${attrs} title="${hdrEsc(t)}">${text}</button>`:`<span class="chip hdr-chip hdr-chip--${tone}" title="${hdrEsc(t)}">${text}</span>`;
+ return `<span class="hdr-st">${chip}<button type="button" class="hdr-dot hdr-dot--${tone}" data-hdrdot aria-label="${hdrEsc(text)}" aria-expanded="false" title="${hdrEsc(t)}"><span class="hdr-tip" role="tooltip">${text}</span></button></span>`;
+}
+/* the workspace record's status, always a short chip with the details on hover (change 328
+   review): "Disabled" (grey; who and when in the tooltip), "Request waiting" (amber; who asked,
+   from vC's own request wording) or a used-up limit (red; which limits) */
+function hdrRecSlot(c){
+ if(c.deletedOn) return "";
+ if(c.disabled) return hdrChip("Disabled","mute","",`Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}`);
+ const L=askLines(c.id);
+ if(L.length){const go=canI("limits");
+  return hdrChip("Request waiting","warn",go?`data-rqcgo="${L[0].ask||L[0].id}"`:`data-tab="limits"`,"Requested by "+askerOf(L,c.id)+", "+AGE(L[0].when).toLowerCase()+(go?". Open in Usage & limits":". Open Limits"))}
+ const at=RK.filter(k=>RES[k].rows[c.id]&&rowState(k,c.id,compute(k)).room===0).map(k=>RES[k].label);
+ if(!at.length) return "";
+ const stop=at.indexOf(RES.sends.label)>-1;
+ return hdrChip(stop?"Stopped sending":"Used up","bad",`data-tab="limits"`,(stop?RES.sends.label:at[0])+" used up"+(at.length>1?", and "+(at.length-1)+" more":"")+". Open Limits");
+}
+/* the sequence's status control: production's small switch (green when on) with its label;
+   it asks before it pauses or resumes, as the table's switch does */
+function hdrSeqSlot(c,q){
+ const st=q.state, key=c.id+"|"+q.name;
+ if(st!=="Active"&&st!=="Paused"){const w=st==="Draft"&&q.ask; return hdrChip(w?"Waiting":st,w&&!asClient?"warn":"mute","",seqStLabel(q,st))}
+ const owner=!asClient&&agencyFull(c), may=owner||canC(c,"editseq"), mayPause=may||canC(c,"pause"), on=st==="Active";
+ return `<span class="hdr-sww"><button type="button" class="hdr-sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${on?"Pause":"Resume"} ${hdrEsc(q.name)}" ${mayPause?`data-seqask="${key}"`:"disabled"}></button><span class="hdr-swl">${on?"Active":"Paused"}</span></span>`;
+}
+/* the path for this screen, or null where the bar is a single page name (left as vC sets it) */
+function hdrModel(){
+ if(solo||["login","invite","m1","m2"].indexOf(view.name)>-1) return null;
+ if(ctx==="agency"){
+  if(view.name==="record"&&byId[view.id]){const c=byId[view.id];
+   return {segs:[{t:"Workspaces",a:'id="backList"'},{t:c.name,av:av(c,24),dim:!!(c.disabled||c.deletedOn)}],slot:hdrRecSlot(c)}}
+  if(view.name==="person"){const p=personOf(view.id); if(!p) return null; const w=view.from&&byId[view.from];
+   return {segs:[w?{t:w.name,av:av(w,24),a:`data-tows="${w.id}"`}:{t:"People",a:"data-topeople"},{t:p.name,you:!!p.me,av:ppAv(p.initials,PP_AV,24,!!p.invited)}],slot:""}}
+  if(view.name==="addmember") return {segs:[{t:"People",a:"data-topeople"},{t:"Add a person"}],slot:""};
+  return null;
+ }
+ const c=byId[ctx]; if(!c||isNormal()) return null;
+ const ct=el("crumbTail"), yt=ct.querySelector(".yt"), label=ct.textContent.split(" / ").pop().trim();
+ const ws={t:c.name,av:av(c,24),a:!asClient&&isMember(ME(),c.id)?`data-hdrrec="${c.id}"`:""};
+ const mod=asClient?cView:inMod, here=view.name!=="settings"&&view.name!=="apiint";
+ if(here&&mod==="sequences"&&openSeq&&openSeq.split("|")[0]===c.id){const q=(c.sequences||[]).find(x=>c.id+"|"+x.name===openSeq);
+  if(q) return {segs:[ws,{t:"Sequence",a:"data-seqback"},{t:q.name}],slot:hdrSeqSlot(c,q)}}   /* production's one name: "Sequence", as on the list */
+ if(here&&mod==="prospects"&&openProspect){const p=(PROSPECTS[c.id]||[]).find(x=>x.id===openProspect);
+  if(p) return {segs:[ws,{t:"Prospects",a:'data-prospect=""'},{t:p.name}],slot:""}}
+ return {segs:[ws,{t:label}],slot:yt?yt.outerHTML:""};
+}
+function hdrSegHTML(s){
+ const inner=(s.av?`<span class="hdr-avw">${s.av}</span>`:"")+`<span class="hdr-t">${s.t}</span>`, cls="hdr-seg"+(s.av?" hdr-seg--ws":"");
+ return s.a?`<button type="button" class="${cls}" data-hdrseg="${s.i}" ${s.a}>${inner}</button>`:`<span class="${cls} hdr-seg--plain" data-hdrseg="${s.i}">${inner}</span>`;
+}
+function hdrPathHTML(segs){
+ const S=segs.map((s,i)=>Object.assign({i},s)), last=S.pop(), sep=`<span class="hdr-sep" aria-hidden="true">${HDR_I.chev}</span>`;
+ let lead;
+ if(S.length+1>3){const mid=S.slice(1,-1), names=hdrEsc(mid.map(x=>x.t).join(", "));
+  lead=hdrSegHTML(S[0])+sep+`<span class="hdr-morew"><button type="button" class="hdr-more" data-hdrmore aria-haspopup="menu" aria-expanded="false" aria-label="Show ${names}" title="${names}">${HDR_I.dots}</button><div class="menu hdr-menu" role="menu" hidden>${mid.map(x=>x.a?`<button type="button" class="menu-i" role="menuitem" ${x.a}><span class="menu-l">${x.t}</span></button>`:`<span class="menu-i hdr-menu-plain"><span class="menu-l">${x.t}</span></span>`).join("")}</div></span>`+sep+hdrSegHTML(S[S.length-1])+sep}
+ else lead=S.map(s=>hdrSegHTML(s)+sep).join("");
+ const up=S[S.length-1], back=up&&up.a?`<button type="button" class="hdr-back" data-hdrback="${up.i}" aria-label="Back to ${hdrEsc(up.t)}" title="Back to ${hdrEsc(up.t)}">${HDR_I.back}</button>`:"";
+ return {html:back+lead+(last.av?`<span class="hdr-avw hdr-avw--cur${last.dim?" is-dim":""}">${last.av}</span>`:""),last};
+}
+function hdrApply(){
+ const ct=el("crumbTail"), P=el("crumbPath"); if(!ct||!P) return;
+ const box=ct.parentNode, m=hdrModel();
+ box.classList.toggle("hdr-multi",!!(m&&m.segs.length>1));
+ if(!m){P.innerHTML=""; ct.removeAttribute("title"); return}
+ const r=hdrPathHTML(m.segs);
+ P.innerHTML=r.html;
+ ct.textContent=r.last.t; ct.title=r.last.t;
+ if(r.last.you) ct.insertAdjacentHTML("beforeend",' <span class="hdr-you">(you)</span>');
+ let x=el("crumbExtra"); if(!x){x=document.createElement("span");x.id="crumbExtra";ct.after(x)}
+ x.className="wlp crumb-extra hdr-slot"; x.innerHTML=m.slot||"";
+ P.querySelectorAll("[data-hdrrec]").forEach(b=>b.onclick=()=>{const id=b.dataset.hdrrec; ORIGIN=null;ctx="agency";asClient=false;PREVIEW=false;openSeq=null;openProspect=null;openReply=null;qFrom=null;focusMb=null;view={name:"record",id};tab="overview";render()});
+ const bk=P.querySelector("[data-hdrback]"); if(bk) bk.onclick=()=>{const t=P.querySelector(`[data-hdrseg="${bk.dataset.hdrback}"]`); if(t) t.click()};
+}
+/* the overflow menu and the dot's tooltip: one listener for the session */
+document.addEventListener("click",e=>{
+ const mb=e.target.closest("[data-hdrmore]"), dot=e.target.closest("[data-hdrdot]"), tm=e.target.closest("[data-hdrtmore]");
+ document.querySelectorAll("[data-hdrmore][aria-expanded=true],[data-hdrtmore][aria-expanded=true]").forEach(b=>{if(b!==mb&&b!==tm){b.setAttribute("aria-expanded","false"); const mn=b.parentNode.querySelector(".hdr-menu"); if(mn) mn.hidden=true}});
+ document.querySelectorAll("[data-hdrdot].is-open").forEach(d=>{if(d!==dot){d.classList.remove("is-open");d.setAttribute("aria-expanded","false")}});
+ if(mb||tm){const b=mb||tm, mn=b.parentNode.querySelector(".hdr-menu"), open=b.getAttribute("aria-expanded")!=="true"; b.setAttribute("aria-expanded",String(open)); if(mn) mn.hidden=!open; return}
+ if(dot){const open=!dot.classList.contains("is-open"); dot.classList.toggle("is-open",open); dot.setAttribute("aria-expanded",String(open))}
+});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape") return;
+ document.querySelectorAll("[data-hdrmore][aria-expanded=true],[data-hdrtmore][aria-expanded=true]").forEach(b=>{b.setAttribute("aria-expanded","false"); const mn=b.parentNode.querySelector(".hdr-menu"); if(mn) mn.hidden=true});
+ document.querySelectorAll("[data-hdrdot].is-open").forEach(d=>{d.classList.remove("is-open");d.setAttribute("aria-expanded","false")})});
+/* at phone width, tabs that do not fit on the tab row go under "More" */
+function hdrTabsFit(){
+ document.querySelectorAll(".hdr-sh > .tabbar").forEach(tb=>{
+  const sh=tb.parentNode, old=sh.querySelector(".hdr-tmorew"); if(old) old.remove();
+  const bs=[...tb.children].filter(b=>b.tagName==="BUTTON"); bs.forEach(b=>b.hidden=false);
+  if(window.innerWidth>640||tb.scrollWidth<=tb.clientWidth+1) return;
+  const w=document.createElement("span"); w.className="hdr-tmorew";
+  w.innerHTML=`<button type="button" class="hdr-tmore" data-hdrtmore aria-haspopup="menu" aria-expanded="false">More${HDR_I.down}</button><div class="menu hdr-menu" role="menu" hidden></div>`;
+  tb.appendChild(w);
+  const out=[];
+  for(let i=bs.length-1;i>=0&&tb.scrollWidth>tb.clientWidth+1;i--){if(bs[i].getAttribute("aria-selected")==="true") continue; bs[i].hidden=true; out.unshift(bs[i])}
+  if(!out.length){w.remove(); return}
+  const mn=w.querySelector(".hdr-menu");
+  out.forEach(b=>{const it=document.createElement("button"); it.type="button"; it.className="menu-i"; it.setAttribute("role","menuitem"); it.innerHTML=`<span class="menu-l">${b.innerHTML}</span>`; it.onclick=()=>b.click(); mn.appendChild(it)});
+ });
+}
+window.addEventListener("resize",()=>{clearTimeout(window.__hdrFitT); window.__hdrFitT=setTimeout(hdrTabsFit,120)});
 function renderShell(){
  renderBrandMark();
  const inC=ctx!=="agency", c=inC?byId[ctx]:null;
@@ -3443,6 +3561,7 @@ function renderShell(){
    :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
+ hdrApply();   /* change 328: the path, its trailing slot and the phone form */
  swPark(); renderRail(); placeSwitcher();
 }
 function renderPop(q=""){
@@ -3903,8 +4022,11 @@ function recMenuHTML(c){
  /* 2 Oct 2026 (S2, doc 65 §6): plain words, the product's own consequence */
  if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its users out. You can enable it again.</span></button>`);
  if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Removes it for everyone. You can restore it within 30 days.</span></button>`);
+ /* change 328: at phone width View as client leaves the actions row and is the menu's first item */
+ const onlyPh=!items.length;
+ if(!c.own&&!c.disabled&&!c.deletedOn&&canI("members")) items.unshift(`<button class="menu-i hdr-ph" role="menuitem" data-asclient="${c.id}"><span class="menu-l">${c.forClient===false?"View as its users":"View as client"}</span></button>`);
  if(!items.length) return "";
- return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+ return `<span class="${onlyPh?"hdr-ph":""}" style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
   <div class="menu" role="menu" ${recMenu?"":"hidden"} style="width:280px;padding:6px">${items.join("")}</div></span>`;
 }
 /* 18 Sep, delight pass: a client at a limit, or one that has asked for more,
@@ -3945,19 +4067,20 @@ function vRecord(id){
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  if(tab!=="limits"&&RL) RL=null;   /* change 269 */
  const dead=!!c.deletedOn, off=!!c.disabled;
+ /* change 328 (Hitesh, 18 Oct 2026: "let's build H into vC", H revised): the name is in the
+    bar ("Workspaces › Northwind Logistics" plus its one status), so the 84px band goes. Tabs
+    sit left on the tab row at 14px; the actions move to its right side, and the pager closes
+    the row in a fixed 104px slot, always "N of M". At phone width the actions take a row of
+    their own above the tabs and View as client moves into the menu. */
+ const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary hdr-desk")}<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
+ const pg=clientNav(c);
  return `
- <div class="toolbar${off||dead?" rc-off":""}"${dead?" data-keeptitle":""}>
-  <div class="cell-main">
-   <button class="linkbtn" id="backList">Workspaces</button><span class="sep">/</span>
-   ${av(c)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span></span></div>
-  <div class="tools">${clientNav(c)}
-   ${off?`<span class="chip c-mute">Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}</span>`:dead?"":rcHdrChip(c)}
-   ${dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
-   <button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`}${dead?"":recMenuHTML(c)}</div>
+ <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
+  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
+  <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}${pg?`<span class="hdr-vsep" aria-hidden="true"></span><span class="hdr-pgfix">${pg}</span>`:""}</div>
  </div>
  ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
- <div class="tabbar">${T.map(([k,l])=>`<button data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
  <div class="wrap">${
   tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:rActivity(c)}</div>`;
 }
@@ -6026,14 +6149,16 @@ function vPerson(){
    return `<div class="msg m-warn" role="status" style="margin:0 24px 12px">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name}; ${st(TRANSFER.from)}, ${st(TRANSFER.to)}. Nothing changes until both confirm.
      <button class="linkbtn" data-trcancel style="margin-left:8px">Cancel transfer</button><span class="sub" style="margin-left:16px">Demo:</span> ${[TRANSFER.from,TRANSFER.to].filter(k=>!TRANSFER.ok[k]).map(k=>`<button class="linkbtn" data-trconfirm="${k}" style="margin-left:8px">Confirm as ${PEOPLE[k].name.split(" ")[0]}</button>`).join(" ")}</span></div>`})():"";
  const reset=p.disabled?"":p.invited?`<button class="shd-button shd-button--tertiary" data-ppresend="${p.kind==="team"?p.k:p.key}">Resend invite</button>`:`<button class="shd-button shd-button--tertiary" data-preset="${p.email}">Send reset link</button>`;
+ /* change 328: the bar reads "People › finance@northwind.co" (or the workspace it was opened
+    from, 321's way back), so the band goes. Access and Activity sit left on the tab row, the
+    actions right; the email and status line opens the page. */
  return `
- <div class="toolbar" data-keeptitle><div class="cell-main">
-   ${view.from&&byId[view.from]?`<button class="linkbtn" data-tows="${view.from}">${byId[view.from].name}</button>`:`<button class="linkbtn" data-topeople>People</button>`}<span class="sep">/</span>
-   ${ppAv(p.initials,PP_AV,36,!!p.invited)}<span style="min-width:0"><span class="semibold-3" style="display:block">${p.name}${p.me?' <span class="sub">(you)</span>':""}</span><span class="cs">${p.kind==="client"&&!p.named?"":p.email+", "}${status}${signsAt}</span></span></div>
-  <div class="tools">${reset}${ownerBtn}${dis}${rm}</div></div>
+ <div class="hdr-sh per-sh">
+  <div class="tabbar" role="tablist">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" role="tab" data-t="${l}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
+  <div class="hdr-sh-r">${reset}${ownerBtn}${dis}${rm}</div>
+ </div>
  ${receiptBar("people")}${tr}
- <div class="tabbar">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
- <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
+ <div class="wrap"><p class="sub hdr-meta">${p.kind==="client"&&!p.named?"":p.email+", "}${status}${signsAt}</p>${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
 }
 /* Edit: the Invite people form, for this one person */
 function personEdit(key){
@@ -9417,14 +9542,19 @@ function vInClient(){
     matches it exactly. Inside a workspace of a multi-workspace account the
     header stays, since it names where you are. Its search box is dropped on
     the Sequences screen, where the table's own toolbar carries one. */
- return `${isNormal()&&inMod==="sequences"?"":`<div class="toolbar">
+ /* change 328: in a multi-workspace account the bar's path starts at the workspace (avatar
+    and name), so the identity band no longer repeats it. The module's own toolbar is
+    untouched; the pager stays on the record, which the first segment opens, and so does
+    View as client. Arriving from a Dashboard decision keeps Back to Dashboard and Next
+    decision, in a row with no name. The single-workspace account keeps its header as it was. */
+ return `${!isNormal()?(qFrom&&!own?`<div class="toolbar toolbar--notitle hdr-qrow"><div class="cell-main cell-main--sub"></div><div class="tools">${queueBack()}</div></div>`:""):inMod==="sequences"?"":`<div class="toolbar">
    <div class="cell-main">${av(c,32)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
     <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Workspace")+'<span class="gapx">'+inModLabel()+"</span>"}</span></span></div>
    ${inMod==="sequences"?"":`<div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>`}
    <div class="tools">${own?"":queueBack()+(qFrom?"":clientNav(c))}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
     </div></div>`}
 
-  <div class="wrap">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
+  <div class="wrap${!isNormal()&&!(qFrom&&!own)?" hdr-top":""}">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
      :(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
 }
 
@@ -10209,15 +10339,16 @@ function vSettings(){
  const nCompany=SETS.filter(x=>x[2]!=="user").length;
  const nHere=vis.filter(x=>x[2]!=="user").length;
 
- return `<div class="toolbar">
+ /* change 328: inside a workspace the bar reads "Atlas Manufacturing › Settings", so no band repeats it; the rail keeps Workspaces */
+ return `${!agency&&!isNormal()?"":`<div class="toolbar">
    <div class="cell-main">${agency?"":av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">Settings</span>
      <span class="cs">${isNormal()?AGENCY.name:agency?AGENCY.name+" account, across every workspace":asC?c.name+", as its users see it":c.name+" workspace"}</span>
    </span></div>
    <div class="tools">${agency||asC||ctx==="own"?"":`<button class="shd-button shd-button--tertiary" data-nav2="clients">Workspaces</button>`}</div>
    <!-- item 17, 28 Sep 2026: own is not a client to jump back to a list of; "Back to account" in the rail is the way up from there. -->
-  </div>
-  <div class="wrap">
+  </div>`}
+  <div class="wrap${!agency&&!isNormal()?" hdr-top":""}">
    ${agency||1?"":`<div class="msg m-info">${infoI}<span>${asC
      ?`<strong>${nHere} of ${nCompany}</strong> administration items are here. Whitelabel and Billing are the account&rsquo;s${apiN?"; "+apiN:"."}`
      :"Whitelabel and Billing are on the Admin Panel."+(apiN?" "+apiN:"")}</span></div>`}
@@ -10367,7 +10498,9 @@ function clientNav(c){
  if(i<0||L.length<2) return "";
  const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
  const suffix=fromOrigin&&ORIGIN.attn?" needing attention":"";
- return `<span class="cnav"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous workspace, ${p.name}">&#8249;</button><span class="sub tnum">${i+1} of ${L.length}${suffix}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next workspace, ${n.name}">&#8250;</button></span>`;
+ /* change 328: production chevrons, and always the count; the "needing attention" scope is in the label, so the pager keeps its fixed 104px slot */
+ const chL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>', chR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+ return `<span class="cnav" role="group" aria-label="Workspace ${i+1} of ${L.length}${suffix}"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous workspace, ${p.name}">${chL}</button><span class="sub tnum"${suffix?` title="Workspaces${suffix}"`:""}>${i+1} of ${L.length}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next workspace, ${n.name}">${chR}</button></span>`;
 }
 /* item 8, 28 Sep 2026: there is no queue screen in phase 1 (D13) - "Back to
    queue" actually returns to Home, and "Next in queue" steps to the next row
@@ -10762,7 +10895,7 @@ function wlDomainTab(){
 function vWhitelabel(){
  if(!canI("billing")) return denied("set up whitelabel");
  const tab=(k,l)=>`<div class="bs-tabs-tab${wlTab===k?" bs-tabs-tab-active":""}" data-wltab="${k}"><div class="bs-tabs-tab-btn" role="tab" aria-selected="${wlTab===k}">${l}</div></div>`;
- return `<div class="wlp globalSettings__Wrapper">
+ return `<div class="wlp globalSettings__Wrapper hdr-wl">
   <!-- 5 Oct 2026, change 113 (Changes needed.md #1): the page's own "Whitelabel" header
        is gone; the topbar already says it. Know more rides beside the crumb. -->
   <div class="globalSettings__Content whitelabel"><div class="bs-tabs bs-tabs-top bs-tabs-small subscription-info-tabs">
@@ -11641,12 +11774,12 @@ function vClientSide(){
     25 Sep 2026, Hitesh: "Please remove it". */
  const granted=fixClientCView(c);
  const rb=receiptBar("client:"+c.id);
- return `<div class="toolbar">
-   <div class="cell-main">${av(c)}<span style="min-width:0">
-     <span class="semibold-3" style="display:block">${c.name}</span></span></div>
+ /* change 328: the bar's path starts at the workspace (plain text for its users), so the name
+    band goes. Usage keeps its two actions, right-aligned in a row with no name. */
+ return `${cView==="usage"?`<div class="toolbar toolbar--notitle hdr-crow"><div class="cell-main cell-main--sub"></div>
    ${cView==="usage"?`<span class="c-a cx-tb">${urCtl("cu","Covers "+c.name+" only.")}${canC(c,"request")?`<button type="button" class="shd-button shd-button--primary cx-askbtn" data-askopen="">${CU_I.plus}Request more</button>`:""}</span>`:""}
- </div>
- <div class="wrap">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"||grace()?"":atLimitBanner(c)))}${
+ </div>`:""}
+ <div class="wrap${cView==="usage"?"":" hdr-top"}">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"||grace()?"":atLimitBanner(c)))}${
    granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
      ?`<p class="sub" style="margin:0">${AGENCY.name} shares ${RESTRICT_NOUN[cView]||"this"} here. Ask them if you need more.</p>`:""}${
    cView==="sequences"?cSeq(c)
@@ -11879,16 +12012,20 @@ function seqDetail(c,owner){
  const T=[["steps","Steps"],["prospects","Prospects"],["settings","Settings"]];
  if(!T.some(t=>t[0]===seqTab)) seqTab="steps";
  const body=seqTab==="steps"?seqStepsHTML(c,q):seqTab==="prospects"?seqProspectsHTML(c,q):seqSettingsHTML(c,q);
- return `<div class="cell-main" style="margin-bottom:16px">
-   <button class="linkbtn" data-seqback>Sequences</button><span class="sep">/</span>
-   <span class="semibold-3">${q.name}</span></div>
-  <div class="panel">
-   <div class="panel-h"><span class="panel-t">${q.name}</span>
-    ${owner?`<span class="sub">Created by ${q.owner}</span>`:""}
-    <span class="c-a">${seqActs(c,q,owner||canC(c,"editseq"),owner||canC(c,"editseq")||canC(c,"draft"),true)}<span class="chip c-${q.state==="Draft"&&q.ask?"info":SEQ_TONE(q.state)}">${seqStLabel(q,q.state)}</span></span></div>
-   <div class="tabbar">${T.map(([k,l])=>`<button data-seqtab="${k}" aria-selected="${seqTab===k}">${l}</button>`).join("")}</div>
-   <div class="wrap">${body}</div>
-  </div>`;
+ /* change 328: the bar reads "Atlas Manufacturing › Sequence › Plant managers, Midlands" with
+    the Active switch in its slot (hdrSeqSlot), so the body crumb and the panel's name go. The
+    tabs sit left on a tab row under the bar, the launch actions right. The switch asks before
+    it pauses or resumes, with the table's own words. */
+ const asking=seqConfirm===key;
+ return `<div class="hdr-sh hdr-sh--bleed seq-sh">
+  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-seqtab="${k}" role="tab" data-t="${l}" aria-selected="${seqTab===k}">${l}</button>`).join("")}</div>
+  <div class="hdr-sh-r">${owner?`<span class="sub hdr-by">Created by ${q.owner}</span>`:""}${seqActs(c,q,owner||canC(c,"editseq"),owner||canC(c,"editseq")||canC(c,"draft"),true)}</div>
+ </div>
+ ${asking?`<div class="panel hdr-seqask"><div class="inlineconfirm">
+   <span>${q.state==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
+   <span class="tools"><button class="shd-button shd-button--sm shd-button--${q.state==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${q.state==="Paused"?"Resume":"Pause"} sequence</button>
+   <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></div>`:""}
+ <div class="panel seq-body"><div class="wrap">${body}</div></div>`;
 }
 /* the other half of Pattern A: what the workspace actually sees. An inherited
    template is not a copy, so the agency editing it changes it here too, and a
@@ -11973,10 +12110,7 @@ const TRAIL_LABEL={sent:"Sent",open:"Opened",click:"Clicked a link",reply:"Repli
 function cProspect(c){
  const p=(PROSPECTS[c.id]||[]).find(x=>x.id===openProspect);
  if(!p) return cPros(c);
- return `<div class="cell-main" style="margin-bottom:16px">
-   <button class="linkbtn" data-prospect="">Prospects</button><span class="sep">/</span>
-   <span class="semibold-3">${p.name}</span></div>
- <div class="grid">
+ return `<div class="grid hdr-pros">
   <div class="panel"><div class="panel-h"><span class="panel-t">Email activity</span>
     <span class="chip c-${PRO_TONE[p.status]||"info"}">${p.status}</span></div>
    <div class="panel-b"><div class="trail">
@@ -12482,10 +12616,10 @@ function skeletonFor(){
  const card=(h)=>`<div class="sk-card" style="height:${h}px">${sk("40%",12)}${sk("30%",28,"margin-top:10px")}${sk("55%",12,"margin-top:10px")}</div>`;
  const table=(n,cols)=>`<div class="sk-table"><div class="sk-head">${cols.map(w=>sk(w,12)).join("")}</div>${Array.from({length:n},()=>skRow(cols)).join("")}</div>`;
  const inClient=ctx!=="agency";
- if(inClient) return `<div class="sk-page">${toolbar(`<span class="sk sk-av"></span><span>${sk("160px",18)}${sk("120px",12,"margin-top:6px")}</span>`,sk("120px",32))}${toolbar(`${sk("260px",32)}${sk("150px",32)}${sk("150px",32)}`,`${sk("130px",32)}${sk("150px",32)}`)}${table(7,["26%","14%","8%","10%","10%","10%","10%","12%"])}</div>`;
+ if(inClient) return `<div class="sk-page">${isNormal()?toolbar(`<span class="sk sk-av"></span><span>${sk("160px",18)}${sk("120px",12,"margin-top:6px")}</span>`,sk("120px",32)):""}${toolbar(`${sk("260px",32)}${sk("150px",32)}${sk("150px",32)}`,`${sk("130px",32)}${sk("150px",32)}`)}${table(7,["26%","14%","8%","10%","10%","10%","10%","12%"])}</div>`;
  const v=view.name;
  if(v==="dash") return `<div class="sk-page">${toolbar(sk("320px",14),`${sk("170px",32)}${sk("150px",32)}`)}<div class="sk-cards">${card(126)}${card(126)}${card(126)}</div>${table(6,["22%","10%","14%","10%","12%","12%","12%","8%"])}</div>`;
- if(v==="record"||v==="person") return `<div class="sk-page">${toolbar(`${sk("90px",14)}<span class="sk sk-av"></span><span>${sk("200px",22)}${sk("240px",12,"margin-top:6px")}</span>`,`${sk("140px",32)}${sk("150px",32)}${sk("32px",32)}`)}<div class="sk-tabs">${sk("70px",14)}${sk("70px",14)}${sk("50px",14)}${sk("60px",14)}</div><div class="sk-strip">${Array.from({length:6},()=>`<div>${sk("60%",12)}${sk("40%",24,"margin-top:8px")}${sk("50%",11,"margin-top:8px")}</div>`).join("")}</div><div class="sk-cards">${card(320)}${card(320)}${card(220)}</div></div>`;
+ if(v==="record"||v==="person") return `<div class="sk-page">${toolbar(`${sk("70px",14)}${sk("70px",14)}${sk("50px",14)}${sk("60px",14)}`,`${sk("140px",32)}${sk("150px",32)}${sk("32px",32)}`)}<div class="sk-tabs" style="display:none"></div><div class="sk-strip">${Array.from({length:6},()=>`<div>${sk("60%",12)}${sk("40%",24,"margin-top:8px")}${sk("50%",11,"margin-top:8px")}</div>`).join("")}</div><div class="sk-cards">${card(320)}${card(320)}${card(220)}</div></div>`;
  if(v==="people"||v==="addmember") return `<div class="sk-page">${toolbar(sk("320px",14),sk("130px",36))}<div class="sk-tabs">${sk("80px",14)}${sk("80px",14)}${sk("90px",14)}${sk("110px",14)}</div>${toolbar(`${sk("260px",32)}${sk("150px",32)}`,sk("360px",12))}${table(8,["24%","10%","12%","28%","10%","12%"])}</div>`;
  if(v==="credits") return `<div class="sk-page sk-bill"><div class="sk-nav">${Array.from({length:8},(_,i)=>sk(i%3===0?"50%":"80%",12,"margin:10px 0")).join("")}</div><div class="sk-main">${card(170)}${card(230)}${card(260)}</div></div>`;
  if(v==="analytics") return `<div class="sk-page">${toolbar(`${sk("80px",14)}${sk("120px",14)}${sk("60px",14)}`,`${sk("200px",32)}${sk("150px",32)}${sk("90px",32)}`)}<div class="sk-card" style="height:420px">${sk("100%",360,"margin-top:30px")}</div><div class="sk-cards">${card(90)}${card(90)}${card(90)}${card(90)}</div>${table(4,["26%","14%","10%","10%","10%","10%","10%"])}</div>`;
@@ -12570,6 +12704,7 @@ function render(){
  if(typeof demoSync==="function") demoSync();
 }
 const _renderCore=render; render=function(){_renderCore(); dedupeTitle(); renderToast(); tourCheck(); tourDraw()};
+const _render328=render; render=function(){_render328(); hdrTabsFit()};   /* change 328 */
 /* ═══ change 148: the learn-by-doing tour ═══
    Replaces the one-time Home guide card. Five steps, each spotlighting the
    control the step is about and advancing only when the user does the thing
@@ -15975,7 +16110,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5b6db44";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="dbb348a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16745,6 +16880,132 @@ body:has([data-ul3e2dock]) #toastLayer{bottom:88px}   /* the Undo toast sits abo
  .cx-dtop{padding:14px 12px 14px 16px}
  .cx-strip{grid-template-columns:1fr 1fr}.cx-strip>div:nth-child(3){grid-column:1/-1;border-left:0;border-top:1px solid #E5E7EB}
  .cx-dbody{padding:14px 16px 16px}.cx-dfoot{padding:10px 16px 12px}
+}
+</style>
+<style id="c328">
+/* ═══ change 328: H revised. The top bar is the path plus one trailing slot; numbers from the
+   change 317 board (c317/explore/headers-h-revised.html), which cites production for each. ═══ */
+.topbar .crumb{gap:8px;flex:1 1 auto;min-width:0;font-size:16px;line-height:24px}
+.hdr-path{display:contents}
+/* segments: 16px 500 Gray 500; the workspace segment Gray 700 with its 24px avatar */
+.hdr-seg{display:inline-flex;align-items:center;gap:8px;flex:none;min-width:0;margin:0;padding:0;border:0;background:none;font:inherit;font-size:16px;line-height:24px;font-weight:500;color:#6b7280;white-space:nowrap;border-radius:4px}
+.hdr-seg--ws{color:#374151}
+button.hdr-seg{cursor:pointer}
+button.hdr-seg:hover{color:#1f2937}
+button.hdr-seg:focus-visible,.hdr-back:focus-visible,.hdr-more:focus-visible,.hdr-dot:focus-visible,.hdr-sw:focus-visible,.hdr-tmore:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+/* production path separator: ChevronRight 16px, Gray 400 (_header.scss:86-101) */
+.hdr-sep{width:16px;height:16px;display:grid;place-items:center;color:#9ca3af;flex:none}
+.hdr-sep svg,.hdr-more svg{width:16px;height:16px;display:block}
+.hdr-avw{display:inline-flex;flex:none}
+.topbar .hdr-seg .hdr-t{font-size:16px;line-height:24px;font-weight:500;color:inherit}
+.hdr-avw .avatar,.hdr-avw .pp-av{width:24px!important;height:24px!important;font-size:10px!important;flex:none}
+.hdr-avw.is-dim{opacity:.6}
+.topbar .crumb-tail{font-size:16px;line-height:24px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.hdr-you{font-weight:400;color:#6b7280}
+/* past three segments: the middle sits behind one 28px overflow */
+.hdr-morew{position:relative;display:inline-flex;flex:none}
+.hdr-more{width:28px;height:28px;display:grid;place-items:center;margin:0;padding:0;border:0;border-radius:4px;background:none;color:#6b7280;cursor:pointer}
+.hdr-more:hover,.hdr-more[aria-expanded=true]{background:#f3f4f6;color:#374151}
+.hdr-menu{position:absolute;top:calc(100% + 6px);left:0;width:200px;padding:6px;z-index:40}
+.hdr-menu .menu-i{display:flex;align-items:center;width:100%;min-height:36px}
+.hdr-menu-plain{cursor:default}
+.hdr-back{display:none;width:32px;height:32px;place-items:center;margin:0 0 0 -12px;padding:0;border:0;border-radius:4px;background:none;color:#374151;cursor:pointer;flex:none}
+.hdr-back svg{width:20px;height:20px;display:block}
+/* the trailing slot: one item, 8px after the current segment */
+.topbar .crumb-extra{margin-left:0;flex:none;display:inline-flex;align-items:center;gap:6px}
+.hdr-slot .yt{margin-left:0}
+.hdr-st{position:relative;display:inline-flex;align-items:center}
+.hdr-slot .hdr-chip{height:22px;padding:0 8px;border:1px solid #e5e7eb;border-radius:4px;background:#f3f4f6;color:#374151;font-family:Inter,sans-serif;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;margin:0}
+button.hdr-chip{cursor:pointer}
+.hdr-slot .hdr-chip--warn{background:#fef3c7;border-color:#fde68a;color:#92400e}
+.hdr-slot .hdr-chip--bad{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+/* phone form of a chip: an 8px dot in the same place (vC's needs-you dot, Amber 600) */
+.hdr-dot{display:none;position:relative;width:8px;height:8px;margin:0;padding:0;border:0;border-radius:50%;background:#d97706;cursor:pointer;flex:none}
+.hdr-dot::before{content:"";position:absolute;inset:-12px}
+.hdr-dot--mute{background:#9ca3af}.hdr-dot--bad{background:#dc2626}
+.hdr-tip{display:none;position:absolute;top:calc(100% + 12px);left:-12px;padding:6px 8px;border-radius:4px;background:#111827;color:#fff;font-family:Inter,sans-serif;font-size:12px;line-height:16px;font-weight:400;white-space:nowrap;z-index:40;pointer-events:none}
+.hdr-tip::before{content:"";position:absolute;top:-4px;left:12px;width:8px;height:8px;background:#111827;transform:rotate(45deg)}
+.hdr-dot.is-open .hdr-tip{display:block}
+/* production small switch (_switch.scss:22-38): 28x16 track, 12px knob; on = #10B981; 14px label */
+.hdr-sww{display:inline-flex;align-items:center;gap:6px}
+.hdr-sw{position:relative;width:28px;height:16px;margin:0;padding:0;border:0;border-radius:100px;background:#bfbfbf;cursor:pointer;flex:none}
+.hdr-sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}
+.hdr-sw.on{background:#10b981}.hdr-sw.on::after{left:14px}
+.hdr-sw:disabled{cursor:default;opacity:.55}
+.hdr-swl{font-size:14px;line-height:16px;font-weight:500;color:#4b5563;white-space:nowrap}
+.is-preview .topbar [data-seqask]{opacity:.55;pointer-events:none}
+/* the tab row (Subheader): 50px, white; tabs left at production's 14px bs-tabs-small (_tab.scss:1-8),
+   actions right, the record pager last in a fixed 104px slot */
+.hdr-sh{display:flex;align-items:center;gap:8px;height:50px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb;position:relative;flex:none;box-sizing:border-box;max-width:100%}
+.hdr-sh>.tabbar{display:flex;align-items:stretch;align-self:stretch;gap:24px;margin:0;padding:0;border:0;background:none;flex:0 1 auto;min-width:0}
+.hdr-sh>.tabbar>button{position:relative;display:flex;flex:none;align-items:center;margin:0;padding:0;border:0!important;border-radius:0;background:none;font-size:14px;line-height:22px;font-weight:400;color:#6b7280;white-space:nowrap;cursor:pointer}
+.hdr-sh>.tabbar>button:hover{color:#374151}
+/* the bold label's width is kept, so the row never shifts when the tab changes */
+.hdr-sh>.tabbar>button[data-t]{flex-direction:column;justify-content:center;align-items:flex-start}
+.hdr-sh>.tabbar>button[data-t]::before{content:attr(data-t);font-weight:600;height:0;visibility:hidden;overflow:hidden}
+.hdr-sh>.tabbar>button[aria-selected=true]{color:#1d4ed8;font-weight:600}
+.hdr-sh>.tabbar>button[aria-selected=true]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#1d4ed8}
+.hdr-sh>.tabbar>button[hidden]{display:none}
+.hdr-sh-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+.hdr-sh-r:not(:has(*)){display:none}
+.hdr-vsep{width:1px;height:20px;margin:0 4px;background:#e5e7eb;flex:none}
+.hdr-sh-r>.hdr-vsep:first-child{display:none}
+.hdr-pgfix{width:104px;display:flex;justify-content:flex-end;flex:none}
+.hdr-pgfix .cnav{gap:2px;margin:0 -6px 0 0}
+.hdr-pgfix .cnav .ubtn{width:28px;height:28px;display:grid;place-items:center;border-radius:4px;color:#6b7280}
+.hdr-pgfix .cnav .ubtn svg{width:16px;height:16px;display:block}
+.hdr-pgfix .cnav .sub{font-size:13px;line-height:20px;color:#6b7280;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hdr-by{white-space:nowrap}
+.hdr-sh .rec-kebab{width:32px;min-width:32px;padding:0;justify-content:center}
+/* content starts 16px under the tab row or the bar */
+.hdr-sh~.wrap,.wrap.hdr-top{padding-top:16px}
+.wrap.hdr-top:has(>.hdr-sh--bleed:first-child){padding-top:0}
+.wrap>.hdr-sh--bleed{margin:0 -24px -4px;max-width:none}
+.per-sh~.msg{margin:16px 24px 0!important}
+.hdr-meta{margin:0 0 -8px;font-size:13px;line-height:20px}
+.seq-body>.wrap{padding-top:20px}
+.hdr-seqask .inlineconfirm{padding:12px 20px}
+.hdr-pros{margin-top:0}
+.hdr-qrow{padding-top:16px;padding-bottom:16px}
+/* the bar sits flat on a tab row */
+.main:has(>.page>.hdr-sh:first-child) .topbar,.main:has(>.page>.wrap>.hdr-sh--bleed:first-child) .topbar,.main:has(>.page>.hdr-wl) .topbar{box-shadow:none}
+/* phone-only menu item */
+@media (min-width:641px){.hdr-ph{display:none!important}}
+/* "More" for tabs that do not fit */
+.hdr-tmorew{position:relative;display:flex;align-items:stretch;flex:none}
+.hdr-tmore{display:flex;align-items:center;gap:4px;margin:0;padding:0;border:0;background:none;font-size:14px;line-height:22px;color:#6b7280;cursor:pointer;white-space:nowrap}
+.hdr-tmore svg{width:16px;height:16px}
+.hdr-tmorew .hdr-menu{left:auto;right:0;top:calc(100% + 2px)}
+/* Whitelabel: no body h1 (change 113); its tabs sit on the tab row */
+.wlp.globalSettings__Wrapper.hdr-wl{padding:0;background:transparent}
+.wlp.hdr-wl .bs-tabs-nav{height:50px;margin:0 0 16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb;align-items:stretch;box-sizing:border-box}
+.wlp.hdr-wl .bs-tabs-nav-wrap,.hdr-wl .bs-tabs-nav-list{display:flex;align-items:stretch}
+.wlp.hdr-wl .bs-tabs-tab{padding:0;line-height:22px}
+.wlp.hdr-wl .bs-tabs-tab.bs-tabs-tab-active::after{bottom:-1px}
+.wlp.hdr-wl .bs-tabs-content{padding:0 24px}
+/* phone, 640px and under: back, the name and the slot; then actions; then tabs */
+@media (max-width:640px){
+ .topbar{padding:0 16px;gap:8px}
+ .topbar .ubtn[title="Support"],.topbar .ubtn[title="Quick actions"],.topbar .me>svg{display:none}
+ .topbar .me{padding-right:4px}
+ .crumb.hdr-multi .hdr-seg,.crumb.hdr-multi .hdr-sep,.crumb.hdr-multi .hdr-morew,.crumb .hdr-avw{display:none}
+ .crumb.hdr-multi .hdr-back{display:grid}
+ .hdr-slot .hdr-chip,.hdr-slot .hdr-swl{display:none}
+ .hdr-slot .hdr-dot{display:block}
+ .hdr-sh{flex-wrap:wrap;height:auto;padding:0 16px;gap:0 8px}
+ .hdr-sh>.tabbar{order:2;flex:1 0 100%;height:50px;gap:16px}
+ .hdr-sh-r{order:1;flex:1 0 100%;margin-left:0;min-height:50px;padding:9px 0;flex-wrap:wrap;row-gap:8px;box-sizing:border-box}
+ .hdr-sh-r .hdr-pgfix{margin-left:auto;width:auto}
+ .hdr-sh-r .hdr-vsep,.hdr-desk{display:none}
+ /* the record menu opens under the actions row, from its left edge, so it stays on screen */
+ .rec-sh .hdr-sh-r{position:relative}
+ .rec-sh .hdr-sh-r>span[style],.rec-sh .rec-kebab{position:static!important}
+ .rec-sh .hdr-sh-r .menu{left:0;right:auto;top:calc(100% - 4px);max-width:100%}
+ .wrap>.hdr-sh--bleed{margin:0 -16px -4px}
+ .per-sh~.msg{margin:16px 16px 0!important}
+ .wlp.hdr-wl .bs-tabs-nav{padding:0 16px}
+ .wlp.hdr-wl .bs-tabs-content{padding:0 16px}
+ .wlp.hdr-wl .bs-tabs-tab{margin-right:16px}
 }
 </style>
 </body>
