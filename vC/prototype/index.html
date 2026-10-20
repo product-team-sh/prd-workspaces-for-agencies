@@ -7384,7 +7384,7 @@ const ul3TabN=x=>{const n=ulChanges().filter(y=>y.k===x).length; return n?`${n} 
 function ul3E2Paint(id){const k=ul3E2K(), P=document.querySelector(".ul3-e2"); if(!P) return;
  const pool=P.querySelector("[data-ul3pool]"); if(pool) pool.innerHTML=ul3PoolHTML(k);
  P.querySelectorAll("[data-ul3tabn]").forEach(s=>{s.textContent=ul3TabN(s.dataset.ul3tabn)});
- (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const lc=P.querySelector(`[data-ul3lc="${c.id}"]`); if(lc&&UL.lc!==k+"|"+c.id&&!lc.contains(document.activeElement)){const h=ul3LimCell(k,c,!canI("limits")); if(lc._h!==h){lc.innerHTML=h; lc._h=h}} const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i){i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap); i.setAttribute("aria-invalid",String(ul3E2Low(k,c.id)))}});
+ (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i){i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap); i.setAttribute("aria-invalid",String(ul3E2Low(k,c.id)))}});
  const d=P.querySelector("[data-ul3e2dock]"); if(d) d.innerHTML=ul3E2DockHTML()}
 /* what each workspace reads, from the same numbers Apply writes */
 function ul3Notice(x){const c=byId[x.id], later=c.disabled?" Its users see this once it is enabled.":""; return ul3Notice1(x)+later}
@@ -7413,11 +7413,10 @@ function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRo
  if(!ro&&UL.rv2&&n&&!ul3E2Over().length&&!ul3E2Lows().length) return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div></section>`;
  UL.rv2=false;
  const W=ul3E2Rows(k);
- {const m=!ro&&UL.ul3f&&/^\[data-uld="([^"]+)"\]$/.exec(UL.ul3f); if(m&&m[1].split("|")[0]===k&&UL.lc!==m[1]){UL.lc=m[1]; UL.lcWas=UL.draft[m[1]]}}   /* change 332: a landing on a limit opens its cell */
  const tabs=UL_K().map(x=>{const sh=ul3E2Short(x); return `<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}"${sh?` title="Requests for more ${RES[x].label} than the plan has available"`:""}>${RES[x].label}${sh?`<span class="ul3-tdot" data-ul3dot="${x}" aria-hidden="true"></span><span class="cx-sr">, requests exceed what is available</span>`:""}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`}).join("");
  const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New, nothing used yet":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
   return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
-   <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td class="${ul3LcCls(k,c,ro)}" data-ul3lc="${c.id}">${ul3LimCell(k,c,ro)}</td><td class="ul3-e2c" id="ul3chg-${c.id}" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
+   <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit" aria-invalid="${ul3E2Low(k,c.id)}"${!ro&&ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
  return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2" id="ulLimits">
   <div class="ul3-e2h"><div class="ul3-tabs" role="tablist" aria-label="Resource">${tabs}</div><div class="ul3-pool"><div class="ul3-pn" data-ul3pool aria-live="polite">${ul3PoolHTML(k)}</div>${ul3PaHTML(k)}</div></div>
   <table class="ul-t ul3-e2t" id="ul3E2T" role="tabpanel" tabindex="-1" aria-labelledby="ul3tab-${k}"><colgroup><col class="ul3-c1"><col class="ul3-c2"><col class="ul3-c3"><col></colgroup>
@@ -7426,37 +7425,7 @@ function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRo
 /* an Adjust limits link (the short lines and the cards' Available tiles): this panel, that resource, its table */
 function ul3Go(k){UL.focusK=k; UL.rv2=false; render();
  const S=el("ul3E2S"), T=el("ul3E2T"); if(S) S.scrollIntoView({block:"start",behavior:REDUCED()?"auto":"smooth"}); if(T) T.focus({preventScroll:true})}
-function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.acc={}; UL.dis={}; UL.focusK=null; UL.lc=null; UL.lcWas=null}
-/* ═══ change 332, 20 Oct 2026 (Hitesh: "Match the Saleshandy design", "Use the one with icon at the end of column"):
-   the Limit column edits in place as production's EditableColumnCell (prospect table). At rest the value and a
-   pencil at the cell's right edge, shown on hover or focus; the pencil or a double-click opens a field over the
-   cell; Enter or leaving commits to the draft, Esc reverts. The draft, the footer and Review stay vC's. ═══ */
-const UL3_PEN='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M13.793 4.785a3.828 3.828 0 1 1 5.414 5.415l-10.5 10.5a1 1 0 0 1-.707.293H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 .293-.708l10.5-10.5Zm2.707.88c-.485 0-.95.192-1.293.535L5 16.407v2.585h2.586L17.793 8.785a1.828 1.828 0 0 0-1.293-3.12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12.793 5.785a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1-1.414 1.415l-4-4a1 1 0 0 1 0-1.415Z"/></svg>';   /* @saleshandy/icons Pencil */
-const ul3LcCan=(c,ro)=>!ro&&ul3CanEd(c,false);
-const ul3LcCls=(k,c,ro)=>{const can=ul3LcCan(c,ro); return "ul3-lc"+(can?" is-edt":"")+(can&&UL.lc===k+"|"+c.id?" is-ed":"")};
-function ul3LcRest(k,c,can,ghost){const r=RES[k].rows[c.id], v=ulDv(k,c.id);
- return `<span class="ul3-ec"${ghost?' aria-hidden="true"':""}><span class="ul3-lv">${f(v)}${v!==r.cap?` <span class="ul3-was">was ${f(r.cap)}</span>`:""}</span>${!can?"":ghost?`<span class="ul3-lpen"></span>`:`<button type="button" class="ul3-lpen" data-ul3pen="${k}|${c.id}" aria-label="Change ${c.name}'s ${RES[k].label} limit">${UL3_PEN}</button>`}</span>`}
-function ul3LimCell(k,c,ro){const can=ul3LcCan(c,ro), key=k+"|"+c.id;
- if(!can||UL.lc!==key) return ul3LcRest(k,c,can,false);
- return ul3LcRest(k,c,true,true)+`<input type="text" inputmode="numeric" autocomplete="off" class="ul3-lci" data-uld="${key}" value="${f(ulDv(k,c.id))}" aria-label="${c.name} ${RES[k].label} limit" aria-invalid="${ul3E2Low(k,c.id)}" aria-describedby="ul3chg-${c.id}">`}
-function ul3LcPaint(k,id){const td=document.querySelector(`#ul3E2T [data-ul3lc="${id}"]`), c=byId[id]; if(!td||!c) return; const ro=!canI("limits");
- td.className=ul3LcCls(k,c,ro); const h=ul3LimCell(k,c,ro); td.innerHTML=h; td._h=h}
-function ul3LcOpen(key){const [k,id]=key.split("|");
- if(UL.lc&&UL.lc!==key){const o=document.querySelector(`.ul3-lci[data-uld="${UL.lc}"]`); if(o&&o.getAttribute("aria-invalid")==="true"){o.focus(); return} ul3LcClose("blur")}
- UL.lc=key; UL.lcWas=UL.draft[key]; ul3LcPaint(k,id); const i=document.querySelector(`.ul3-lci[data-uld="${key}"]`); if(i){i.focus({preventScroll:true}); i.select()}}
-/* how: "enter" and "esc" return focus to the pencil; "blur" leaves focus where it went. A value below what is used keeps the field open (production's handleBlur) */
-function ul3LcClose(how){const key=UL.lc; if(!key) return true; const [k,id]=key.split("|");
- const esc=how==="esc"; if(esc){if(UL.lcWas==null) delete UL.draft[key]; else UL.draft[key]=UL.lcWas}
- else if(ul3E2Low(k,id)) return false;
- /* typing already painted the draft; a commit repaints only this cell, so a click on Discard or Review that caused the blur still lands */
- UL.lc=null; UL.lcWas=null; if(esc) ul3E2Paint(id); ul3LcPaint(k,id);
- if(how!=="blur"){const b=document.querySelector(`[data-ul3pen="${key}"]`); if(b) b.focus({preventScroll:true})} return true}
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ul3pen]"); if(!b||view.name!=="limits") return; e.preventDefault(); ul3LcOpen(b.dataset.ul3pen)});
-document.addEventListener("dblclick",e=>{const td=e.target.closest&&e.target.closest("#ul3E2T td.ul3-lc.is-edt:not(.is-ed)"), b=td&&td.querySelector("[data-ul3pen]"); if(b) ul3LcOpen(b.dataset.ul3pen)});
-window.addEventListener("keydown",e=>{const t=e.target; if(!t.classList||!t.classList.contains("ul3-lci")||UL.lc!==t.dataset.uld) return;
- if(e.key==="Enter"){e.preventDefault(); e.stopImmediatePropagation(); ul3LcClose("enter")}
- else if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); ul3LcClose("esc")}},true);
-document.addEventListener("focusout",e=>{const t=e.target; if(t.classList&&t.classList.contains("ul3-lci")&&t.isConnected&&UL.lc===t.dataset.uld) ul3LcClose("blur")});
+function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.acc={}; UL.dis={}; UL.focusK=null}
 /* after a render: the locks, and the focus an action asked for */
 function ul3Wire(){if(UL.ed&&!byId[UL.ed.id]) UL.ed=null; ul3Lock();
  if(UL.ul3f){const n=document.querySelector(UL.ul3f); UL.ul3f=null; if(n){n.focus({preventScroll:true}); if(n.select) n.select(); const r=n.getBoundingClientRect(); if(r.top<60||r.bottom>innerHeight-40) n.scrollIntoView({block:"center"})}}}
@@ -16124,7 +16093,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0698b6e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="f5b0c0c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16628,28 +16597,10 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ul3-e2s .ul3-e2t th:first-child,.ul3-e2s .ul3-e2t td:first-child{padding-left:24px}
 .ul3-e2s .ul3-e2t th:last-child,.ul3-e2s .ul3-e2t td:last-child{padding-right:24px}
 .ul3-e2s .ul3-e2t:focus{outline:none}
-.ul3-e2s .ul3-c1{width:300px}.ul3-e2s .ul3-c2{width:216px}.ul3-e2s .ul3-c3{width:202px}
+.ul3-e2s .ul3-c1{width:300px}.ul3-e2s .ul3-c2{width:216px}.ul3-e2s .ul3-c3{width:172px}
 .ul3-e2s .ul3-e2t .ul3-in{width:140px}
 .ul3-e2s .ul3-e2t .ul3-in[aria-invalid="true"]{border-color:#B91C1C;box-shadow:inset 0 0 0 1px #B91C1C}
 .ul3-e2s .ul3-e2t .ul3-in:disabled{background:#F9FAFB;color:#6B7280}
-/* change 332: the Limit cell, production's EditableColumnCell (_table.scss editable-cell, edit-button, editable-input-number) */
-.ul3-e2t td.ul3-lc{position:relative}
-.ul3-e2t td.ul3-lc.is-edt:hover{background:#F3F4F6}
-.ul3-e2t td.ul3-lc.is-ed,.ul3-e2t td.ul3-lc.is-ed:hover{background:#fff}
-.ul3-ec{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px;white-space:nowrap}
-.ul3-lv{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;line-height:20px;font-weight:500;color:#1F2937;font-variant-numeric:tabular-nums}
-.ul3-e2s .ul3-lc .ul3-was{margin-left:2px;font-size:12px;line-height:16px;font-weight:400;color:#6B7280}
-.ul3-lpen{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;padding:3px;border:0;border-radius:2px;background:none;color:#6B7280;cursor:pointer;opacity:0;box-sizing:border-box}
-.ul3-lpen svg{display:block;width:14px;height:14px}
-.ul3-lc.is-edt:hover .ul3-lpen,.ul3-lpen:focus-visible{opacity:1}
-.ul3-lpen:hover{background:#fff}
-.ul3-lpen:focus-visible{outline:2px solid #1D4ED8;outline-offset:1px}
-.ul3-lc.is-ed .ul3-ec{visibility:hidden}
-.ul3-e2s .ul3-e2t td input.ul3-lci{position:absolute;left:0;right:0;top:calc(50% - 20px);z-index:1;width:100%;height:40px;margin:0;padding:0 16px;border:1px solid #3B82F6;border-radius:0;background:#fff;box-shadow:none;outline:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#1F2937;font-variant-numeric:tabular-nums;box-sizing:border-box}
-.ul3-e2s .ul3-e2t td input.ul3-lci:hover,.ul3-e2s .ul3-e2t td input.ul3-lci:focus,.ul3-e2s .ul3-e2t td input.ul3-lci:focus-visible{outline:none;box-shadow:none;border:1px solid #3B82F6}
-.ul3-e2s .ul3-e2t td input.ul3-lci[aria-invalid="true"],.ul3-e2s .ul3-e2t td input.ul3-lci[aria-invalid="true"]:hover,.ul3-e2s .ul3-e2t td input.ul3-lci[aria-invalid="true"]:focus{border:1px solid #F5222D;box-shadow:0 0 0 2px rgba(245,34,45,.5)}
-@media (hover:none){.ul3-lpen{opacity:1}}
-@media (max-width:760px){.ul3-lpen{opacity:1}.ul3-e2s .ul3-ec{padding-left:17px}.ul3-e2s .ul3-lc .ul3-lv{white-space:normal}.ul3-e2s .ul3-lc .ul3-was{display:block;margin-left:0}}
 .ul3-ub{display:flex;align-items:center;gap:10px}
 .ul3-ub .pbw{width:56px;height:4px;flex:none}
 .ul3-e2s .ul3-e2c{color:#1F2937}
