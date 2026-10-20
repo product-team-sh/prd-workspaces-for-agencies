@@ -3045,7 +3045,7 @@ let uwTipEl=null, uwTipAt=null, uwTipBy="";
 function uwHide(){if(uwTipEl)uwTipEl.hidden=true;uwTipAt=null;uwTipBy=""}
 function uwShow(ic,by){if(!ic||!ic.isConnected)return;
  if(!uwTipEl){uwTipEl=document.createElement("div");uwTipEl.className="dq-fore uw-tip";uwTipEl.id="uwTip";uwTipEl.setAttribute("role","tooltip");uwTipEl.setAttribute("aria-hidden","true");document.body.appendChild(uwTipEl)}
- uwTipEl.textContent=ic.getAttribute("data-uwtip"); uwTipEl.hidden=false; uwTipAt=ic; uwTipBy=by;
+ uwTipEl.textContent=ic.getAttribute("data-uwtip"); uwTipEl.classList.toggle("uw-lg",ic.hasAttribute("data-uwlg")); uwTipEl.classList.toggle("uw-md",ic.classList.contains("wss-st-i")); uwTipEl.hidden=false; uwTipAt=ic; uwTipBy=by;
  const r=ic.getBoundingClientRect(), w=uwTipEl.offsetWidth, h=uwTipEl.offsetHeight, vw=document.documentElement.clientWidth, vh=window.innerHeight;
  const x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), up=ic.classList.contains("wsp-grp"), y=up?(r.top-6-h<8?r.bottom+6:r.top-6-h):(r.bottom+6+h>vh-8?r.top-6-h:r.bottom+6);
  uwTipEl.style.left=Math.round(x)+"px"; uwTipEl.style.top=Math.round(y)+"px"}
@@ -3847,11 +3847,314 @@ function homeRow(c,mode){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>')
    +'</span></div></td>'
    +wsStatusCell(c)   /* change 311: the real state only, on both tables */
+   +(mode==="ws"?"":'<td class="wss-td">'+wssCell(c)+'</td>')   /* change 338: the Workspace score, Dashboard only */
    /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
    /* change 203, 12 Oct 2026 (Hitesh): Emails sent and Reply rate leave the Workspaces page; the Dashboard has them */
    +(mode==="ws"?'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>':homeCells(c).filter(x=>hcOn(x.col)).map(num).join(""))
    +'<td>'+usageHomeCell(c)+'</td>'
    +'</tr>'}
+/* ═══ change 338, 20 Oct 2026: the Workspace score (doc 108, board option 01) ═══
+   Hitesh, approving option 01: "I agree with your recommendation for workspace score implementation but Workspace
+   implementation should be exactly like sequence score – I am talking about design implementation".
+   The model is doc 108 pass 5, ported from experiments/c108/score.mjs (scoreWorkspace and its vC seed adapter), so
+   every number is worked out from the seed. The look is production's Sequence Score (saleshandy-webui):
+   the list pill (sequence-list-table.tsx renderSequenceScoreCell, _sequence.scss .sequence-score-badge), the tab
+   label ring and its hover card (sequence-score-header-tiles.tsx), the tab body (sequence-score.tsx, gauge-chart.tsx,
+   sequence-score-tab.tsx) and the factor rows (score-factor-detail-item.tsx). Bands are the doc's (75 and above On
+   track, 50 to 74 Check, under 50 Fix now) in production's three colours, never its 30 and 60 cut-offs.
+   Phase 1: only the agency sees it; client users get no column and no tab. */
+const WSS_CFG={Z:1.2816,MIN_SENT:200,UNIT_MIN_SENT:100,FAULT_GRACE_H:1,STALL_WINDOWS:2,STALE_H:24,CHECK_MAX_AGE_D:30,
+ LAG_MAX_H:{sends:2,replies:30,unsubs:30},COVERAGE_MIN:0.6,MIN_EXPECTED:10,MAX_COHORT_WEEKS:4,BASE_WEEKS:8,LOOKBACK_WEEKS:13,
+ CURVES:{lost:[[0,100],[5,75],[25,50],[100,0]],bounce:[[1,100],[2,75],[3,50],[5,0]],unit:[[3,100],[5,75],[10,50],[20,0]],
+  placement:[[30,0],[65,50],[80,75],[90,100]],trend:[[0.5,0],[0.75,50],[0.85,75],[0.95,100]],floor:[[0,25],[0.1,50],[0.3,75],[0.5,100]],unsub:[[1.5,100],[2,75],[4,50]]}};
+const WSS_GROUP={sending:0,delivery:1,replies:2}, WSS_GNAME=["Sending","Delivery","Replies"], WSS_FIRST={1:0,2:1,0:2};
+function wssCurve(x,pts){if(x<=pts[0][0]) return pts[0][1];
+ for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i]; if(x<=x1) return y0+(y1-y0)*(x-x0)/(x1-x0)}
+ return pts[pts.length-1][1]}
+const wssBand=s=>s>=75?"On track":s>=50?"Check":"Fix now";
+const wssSev=s=>({"On track":0,Check:1,"Fix now":2})[wssBand(Math.round(s))];
+function wssWilson(k,n,z){if(!n) return [0,1];
+ const p=k/n, d=1+z*z/n, c=p+z*z/(2*n), h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n));
+ return [Math.max(0,(c-h)/d),Math.min(1,(c+h)/d)]}
+function wssRatio(O,E,B,z,side){const o=Math.max(O,0.5), b=Math.max(B,0.5); return (o/E)*Math.exp(side*z*Math.sqrt(1/o+1/b))}
+const wssPl=(n,w)=>n+" "+w+(n===1?"":"s");
+const wssPct=(x,d)=>(+x.toFixed(d==null?1:d)).toString()+"%";
+const wssMean=a=>a.length?a.reduce((t,x)=>t+x,0)/a.length:0;
+const WSS_PAUSE={1:"fault",2:"fault",3:"plan",4:"choice",5:"limit",6:"plan",7:"plan",8:"gone",9:"fault",10:"plan",11:"plan",12:"choice",13:"fault",14:"fault",99:"limit"};
+function wssStalled(q,nowH){if(q.stalled!=null) return q.stalled; if(!q.schedule||q.due===false) return false;
+ const from=Math.max(q.lastSentH??-Infinity,q.dueSinceH??-Infinity); let missed=0;
+ for(let d=Math.floor(from/24);d<=Math.floor(nowH/24);d++){const end=d*24+q.schedule.end; if(q.schedule.days.includes((d%7)+1)&&end>from&&end<=nowH) missed++}
+ return missed>=WSS_CFG.STALL_WINDOWS}
+/* doc 108 12.0 and 12.2, as score.mjs scoreWorkspace */
+function wssScore(w){
+ const C=WSS_CFG, Z=C.Z, state=(s,why)=>({state:s,why,score:null,band:null,factors:[],missing:[]});
+ if(w.status==="deleted") return state("Removed","Deleted workspaces leave the Dashboard");
+ if(w.status==="disabled") return state("Disabled","This workspace is disabled");
+ if(w.accountStop) return state("Stopped",w.accountStop);
+ if((w.computedAgoH||0)>C.STALE_H) return state("Out of date","Last worked out "+Math.round(w.computedAgoH)+" hours ago");
+ if(!w.everSentEmail) return state(w.otherChannels?"No email":"New",w.otherChannels?"The score covers email only":"Nothing sent yet");
+ const lag=w.lagH||{}, late=k=>(lag[k]||0)>C.LAG_MAX_H[k];
+ if(late("sends")) return state("Data delayed","Sending data is "+Math.round(lag.sends)+" hours behind");
+ const seqs=(w.sequences||[]).map(q=>Object.assign({},q,{cls:q.pauseReason?WSS_PAUSE[q.pauseReason]:null,stall:wssStalled(q,w.nowH??0)}));
+ const accts=w.accounts||[];
+ const sent=seqs.reduce((t,q)=>t+(q.sent7||0),0), bounced=seqs.reduce((t,q)=>t+(q.bounced7||0),0);
+ const F=[], M=[];
+ const add=(key,group,score,label,detail)=>F.push({key,group,score:Math.max(0,Math.min(100,score)),label,detail:detail||{}});
+ const miss=(key,group,name,why)=>M.push({key,group,name,why});
+ const rate=(key,group,gated,point,label,few,detail)=>add(key,group,gated,label+(wssSev(point)>wssSev(gated)?" (few "+few+")":""),Object.assign({},detail,{point}));
+ /* 1 Sending stopped */
+ const grace=u=>(u.faultAgeH??99)>=C.FAULT_GRACE_H;
+ const live=seqs.filter(q=>!q.deleted&&(q.cls===null||q.cls==="fault"));
+ const stoppedSeq=live.filter(q=>((q.cls==="fault"&&grace(q))||q.stall)&&q.due!==false);
+ const runningSeq=live.filter(q=>q.cls===null&&!q.stall);
+ const meanSeq=wssMean(runningSeq.map(q=>q.sent7||0).filter(x=>x>0));
+ const usualSeq=q=>q.usual7>0?q.usual7:meanSeq||q.dailyLimit*5||1;
+ const sw=stoppedSeq.reduce((t,q)=>t+usualSeq(q),0), rw=runningSeq.reduce((t,q)=>t+(q.sent7||0),0);
+ const seqLost=sw+rw?sw/(sw+rw)*100:0;
+ const sendAccts=accts.filter(a=>a.state!=="paused-user"), okAccts=sendAccts.filter(a=>a.state!=="disconnected");
+ const meanAcc=wssMean(okAccts.map(a=>a.sent7||0).filter(x=>x>0));
+ const usualAcc=a=>a.usual7>0?a.usual7:a.assigned===false?0:meanAcc||(a.dailyLimit||0)*5||1;
+ const discAccts=sendAccts.filter(a=>a.state==="disconnected"&&grace(a));
+ const dw=discAccts.reduce((t,a)=>t+usualAcc(a),0), cw=okAccts.reduce((t,a)=>t+(a.sent7||0),0);
+ let accLost=dw+cw?dw/(dw+cw)*100:0;
+ const noSender=runningSeq.some(q=>q.due!==false)&&sendAccts.length&&sendAccts.every(a=>a.state==="disconnected"&&grace(a));
+ if(noSender) accLost=100;
+ if(live.length||sendAccts.length){
+  const lost=Math.max(seqLost,accLost), bySeq=seqLost>=accLost;
+  const label=!lost?"Nothing stopped":noSender?"No email account can send"
+   :bySeq?wssPl(stoppedSeq.length,"sequence")+(stoppedSeq.every(q=>q.stall)?" stalled":" stopped")
+   :wssPl(discAccts.filter(a=>usualAcc(a)>0).length,"email account")+" disconnected";
+  add("sending",WSS_GROUP.sending,wssCurve(lost,C.CURVES.lost),label,{seqLost,accLost,lost,bySeq:!!lost&&!noSender&&bySeq,stall:stoppedSeq.every(q=>q.stall),
+   disc:discAccts.map(a=>a.email),seqNames:stoppedSeq.map(q=>q.name)});
+ } else miss("sending",0,"Sending","no live sequence or email account");
+ /* 2 Bounce */
+ if(sent>0){const lo=wssWilson(bounced,sent,Z)[0], b=bounced/sent*100;
+  rate("bounce",WSS_GROUP.delivery,wssCurve(lo*100,C.CURVES.bounce),wssCurve(b,C.CURVES.bounce),"Bounce "+wssPct(b),"emails",{b,lo:lo*100,sent,bounced})}
+ else miss("bounce",1,"Bounce","nothing sent in 7 days");
+ /* 3 Worst sending unit, two of a kind */
+ const judge=(list,kind)=>list.filter(u=>u.n>=C.UNIT_MIN_SENT).map(u=>Object.assign({},u,{kind,r:u.b/u.n*100,lo:wssWilson(u.b,u.n,Z)[0]*100}));
+ const pools=[judge(seqs.map(q=>({name:q.name,n:q.sent7||0,b:q.bounced7||0})),"sequence"),judge(accts.map(a=>({name:a.email,n:a.sent7||0,b:a.bounced7||0})),"email account")].filter(p=>p.length>=2);
+ if(pools.length){const u=pools.flat().sort((x,y)=>y.lo-x.lo)[0];
+  rate("unit",WSS_GROUP.delivery,wssCurve(u.lo,C.CURVES.unit),wssCurve(u.r,C.CURVES.unit),"1 "+u.kind+" bouncing "+wssPct(u.r),"emails",u)}
+ else miss("unit",1,"Worst sequence or email account","needs two sequences or two email accounts with "+C.UNIT_MIN_SENT+" emails");
+ /* 4 and 5 */
+ const checked=sendAccts.filter(a=>a.checkedAgoD!=null&&a.checkedAgoD<=C.CHECK_MAX_AGE_D&&(a.sent7||0)>0);
+ if(checked.length){const tot=checked.reduce((t,a)=>t+a.sent7,0), doms=l=>new Set(l.map(a=>a.domain)).size;
+  const authBad=checked.filter(a=>a.authFail), blBad=checked.filter(a=>a.blacklisted);
+  add("auth",WSS_GROUP.delivery,wssCurve(authBad.reduce((t,a)=>t+a.sent7,0)/tot*100,C.CURVES.lost),authBad.length?"SPF, DKIM or DMARC failing on "+wssPl(doms(authBad),"domain"):"Domains set up");
+  add("blacklist",WSS_GROUP.delivery,wssCurve(blBad.reduce((t,a)=>t+a.sent7,0)/tot*100,C.CURVES.lost),blBad.length?wssPl(doms(blBad),"domain")+" blacklisted":"No domain blacklisted",{domains:[...new Set(blBad.map(a=>a.domain))]})}
+ else {miss("auth",1,"SPF, DKIM and DMARC","no check in "+C.CHECK_MAX_AGE_D+" days"); miss("blacklist",1,"Blacklists","no check in "+C.CHECK_MAX_AGE_D+" days")}
+ /* 6 Inbox placement */
+ if(w.radar&&w.radar.count>0){const p=w.radar.inbox/w.radar.count*100, hi=wssWilson(w.radar.inbox,w.radar.count,Z)[1]*100;
+  rate("placement",WSS_GROUP.delivery,wssCurve(hi,C.CURVES.placement),wssCurve(p,C.CURVES.placement),"Inbox placement "+wssPct(p,0),"seed emails",{p,hi})}
+ else miss("placement",1,"Inbox placement","no Inbox Radar test in 14 days");
+ /* 7 and 8: emails, with replies that came within 3 days */
+ const weeks=w.reply?w.reply.weeks:null;
+ if(late("replies")) ["trend","floor","positive"].forEach(k=>miss(k,2,k,"reply data is "+Math.round(lag.replies)+" hours behind"));
+ else {
+  const sum=(ws,k)=>ws.reduce((t,wk)=>t+wk.steps.reduce((u,s)=>u+s[k],0),0);
+  if(weeks&&weeks.length){
+   const wins=[];
+   for(let c=0;c<Math.min(C.MAX_COHORT_WEEKS,weeks.length);c++){
+    const cohort=weeks.slice(0,c+1), older=weeks.slice(c+1);
+    let base=older.slice(0,C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS), stale=false;
+    if(!base.length){base=older.slice(C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS); stale=base.length>0}
+    const B=sum(base,"replied"), pooled=B/Math.max(1,sum(base,"sent"));
+    const stepRate=s=>{const n=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].sent:0),0), k=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].replied:0),0); return n>=100?k/n:pooled};
+    const E=cohort.reduce((t,x)=>t+x.steps.reduce((u,s,i)=>u+s.sent*stepRate(i),0),0);
+    const r0={c,O:sum(cohort,"replied"),E,B,stale,N:sum(cohort,"sent")};
+    if(B>0&&E>0){r0.raw=r0.O/E; r0.hi=wssRatio(r0.O,E,B,Z,+1); r0.g=wssCurve(r0.hi,C.CURVES.trend); r0.p=wssCurve(r0.raw,C.CURVES.trend);
+     if(stale){r0.g=Math.max(50,r0.g); r0.p=Math.max(50,r0.p)} wins.push(r0)}
+    if(E>=C.MIN_EXPECTED) break}
+   const res=wins.sort((x,y)=>x.g-y.g||x.c-y.c)[0];
+   if(res){const words=(res.raw<1?"Replies down "+Math.round((1-res.raw)*100)+"%":"Replies steady")+(res.c?" over "+(res.c+1)+" weeks":"")+(res.stale&&res.raw<1?", for over 90 days":"");
+    rate("trend",WSS_GROUP.replies,res.g,res.p,words,"replies",res)}
+   else miss("trend",2,"Replies against usual",weeks.slice(1).some(x=>x.healthy===false)?"no healthy week to compare with":"no baseline yet");
+   const fw=weeks.slice(0,4), fs=sum(fw,"sent"), fr=sum(fw,"replied");
+   if(fs>0){const rr=fr/fs*100, hi=wssWilson(fr,fs,Z)[1]*100;
+    rate("floor",WSS_GROUP.replies,wssCurve(hi,C.CURVES.floor),wssCurve(rr,C.CURVES.floor),"Very few replies: "+wssPct(rr,2)+" of emails","emails",{rr,hi,fs,fr})}
+   else miss("floor",2,"Reply floor","no emails 31 to 3 days old")}
+  else {miss("trend",2,"Replies against usual","no baseline yet"); miss("floor",2,"Reply floor","no emails 31 to 3 days old")}
+  const p=w.positive;
+  if(!p||!p.timestamped) miss("positive",2,"Positive replies","needs the date each outcome was set");
+  else if(p.cohortClassified/Math.max(1,p.cohortReplies)<C.COVERAGE_MIN||p.baseClassified/Math.max(1,p.baseReplies)<C.COVERAGE_MIN) miss("positive",2,"Positive replies","fewer than "+C.COVERAGE_MIN*100+"% of replies have an outcome");
+  else if(p.basePositive>0&&p.cohortClassified>0){const E=p.cohortClassified*p.basePositive/p.baseClassified, raw=p.cohortPositive/E, hi=wssRatio(p.cohortPositive,E,p.basePositive,Z,+1);
+   rate("positive",WSS_GROUP.replies,Math.max(50,wssCurve(hi,C.CURVES.trend)),Math.max(50,wssCurve(raw,C.CURVES.trend)),raw<1?"Positive replies down "+Math.round((1-raw)*100)+"%":"Positive replies steady","replies",{raw,hi})}
+  else miss("positive",2,"Positive replies","no baseline yet")}
+ const u=w.unsub;
+ if(late("unsubs")) miss("unsub",2,"Unsubscribes","unsubscribe data is behind");
+ else if(u&&u.cohortSent>0&&u.baseSent>0){const E=u.cohortSent*Math.max(u.baseUnsub,0.5)/u.baseSent, raw=u.cohortUnsub/E, lo=wssRatio(u.cohortUnsub,E,u.baseUnsub,Z,-1);
+  const label=u.baseUnsub===0?u.cohortUnsub+" unsubscribes, none usual":"Unsubscribes "+(u.cohortUnsub/(u.cohortSent*u.baseUnsub/u.baseSent)).toFixed(1)+"x usual";
+  rate("unsub",WSS_GROUP.replies,Math.max(50,wssCurve(lo,C.CURVES.unsub)),Math.max(50,wssCurve(raw,C.CURVES.unsub)),label,"emails",{raw,lo})}
+ else miss("unsub",2,"Unsubscribes","no baseline yet");
+ const flagged=F.some(f=>f.score<75);
+ if(sent<C.MIN_SENT&&!flagged){
+  const active=seqs.filter(q=>!q.deleted&&q.cls===null&&q.due!==false);
+  if(!active.length&&seqs.some(q=>["choice","limit","plan"].includes(q.cls)))
+   return Object.assign(state("Not sending",seqs.some(q=>q.cls==="limit")?"Stopped at a limit; see Highest usage":seqs.some(q=>q.cls==="plan")?"Paused by the plan; see Billing":"Every sequence is paused by a person"),{missing:M});
+  return Object.assign(state("Not enough data","Scores start at "+C.MIN_SENT+" emails sent in 7 days; "+f(sent)+" sent"),{factors:F,missing:M})}
+ const low=Math.min(...F.map(x=>x.score)), score=Math.round(low), band=wssBand(score);
+ const cands=F.filter(x=>x.score-low<=5&&wssBand(Math.round(x.score))===wssBand(Math.round(low)));
+ const first=cands.sort((a,b)=>WSS_FIRST[a.group]-WSS_FIRST[b.group]||a.score-b.score)[0];
+ const shares=x=>(x.key==="unit"&&first.key==="bounce")||(x.key==="bounce"&&first.key==="unit");
+ const more=F.filter(x=>x!==first&&x.score<75&&!shares(x)).length;
+ return {state:null,score,band,fixFirst:band==="On track"?null:first,more:band==="On track"?0:more,factors:F,missing:M,sent}}
+/* the vC seed adapter, as score.mjs readSeed and fromSeed: the last 7 days whatever the Dashboard's period */
+function wssInput(c){
+ const keep=HOME_WIN; HOME_WIN="7d";
+ let M,W;
+ try{M=hm(c); W=wk7(c)} finally {HOME_WIN=keep}
+ const sq=(c.sequences||[]).filter(q=>q.state!=="Draft");
+ const SW=sq.map(q=>c.sent?Math.round(q.sent*W.sent/c.sent):0);
+ if(SW.length){const d=W.sent-SW.reduce((a,x)=>a+x,0); SW[SW.indexOf(Math.max(...SW))]+=d}
+ const rates=SW.length?hpBounce(M,SW):[];
+ const sentAll=c.sent, sent7=W.sent, bounce=M.bounce, chan=(typeof CHAN!=="undefined"&&CHAN[c.id])||{};
+ const infra=INFRA_ALL.filter(a=>a.client===c.id);
+ const S=sq.map((q,i)=>({name:q.name,state:q.state,sent7:SW[i],rate:rates[i]}));
+ const order=[...S.filter(q=>q.state==="Paused"),...S.filter(q=>q.state==="Active")];
+ const sysSet=new Set(order.slice(0,M.sysPaused||0).map(q=>q.name));
+ const stalled=infra.filter(a=>a.kind==="Sequence stalled").map(a=>a.detail.split(" has ")[0]);
+ const actives=S.filter(q=>q.state==="Active");
+ const sequences=S.map(q=>({name:q.name,sent7:q.sent7,bounced7:Math.round(q.sent7*q.rate/100),pauseReason:sysSet.has(q.name)?99:q.state==="Paused"?4:null,faultAgeH:72,due:true,stalled:false}));
+ stalled.forEach(n=>{const hit=sequences.find(q=>q.name===n)||sequences.find(q=>q.name===actives.map(x=>x.name)[actives.length>>1]); if(hit) hit.stalled=true});
+ let mp=M.paused||0;
+ const accounts=(c.mailboxes||[]).map(x=>{let st=x[1]==="Disconnected"?"disconnected":"sending";
+  if(st==="sending"&&x[1]==="Healthy"&&mp>0){mp--; st="paused-user"}
+  return {email:x[0],domain:x[0].split("@")[1],state:st,faultAgeH:72,warming:x[1]==="Warming",assigned:x[1]!=="Warming"}});
+ const senders=accounts.filter(a=>a.state!=="paused-user"&&!a.warming), per=senders.length?sent7/senders.length:0;
+ accounts.forEach(a=>{const cold=senders.includes(a); a.usual7=cold?Math.round(per):0; a.sent7=cold&&a.state==="sending"?Math.round(per):0; a.bounced7=Math.round(a.sent7*bounce/100)});
+ infra.filter(a=>a.kind==="Bounce rate rising").forEach(a=>{const m=a.detail.match(/^(\S+) at ([\d.]+)%/), x=m&&accounts.find(y=>y.email===m[1]); if(x) x.bounced7=Math.round(x.sent7*+m[2]/100)});
+ const totB=Math.round(sent7*bounce/100), sb=sequences.reduce((t,q)=>t+q.bounced7,0);
+ if(sb){sequences.forEach(q=>(q.bounced7=Math.round(q.bounced7*totB/sb))); sequences[0].bounced7+=totB-sequences.reduce((t,q)=>t+q.bounced7,0)}
+ const prevSent=W.prev.sent||sent7, prevRep=Math.round((W.prev.cont||W.cont)*c.prev/100);
+ return {id:c.id,status:c.deletedOn?"deleted":c.disabled?"disabled":"active",everSentEmail:sentAll>0,otherChannels:!!(chan.li||chan.call),sequences,accounts,radar:null,
+  reply:c.prev?{weeks:[{steps:[{sent:sent7,replied:W.rep}]},{steps:[{sent:Math.round(prevSent),replied:prevRep}],healthy:true}]}:null,positive:null,unsub:null}}
+/* one result per workspace per render; Refresh clears it */
+let WSS_C=null, WSS_UPD=10, WSS_SUB={}, WSS_HC=null;
+function wssOf(c){if(!WSS_C){WSS_C={}; setTimeout(()=>{WSS_C=null},0)}
+ if(!WSS_C[c.id]){let r; try{r=wssScore(wssInput(c))}catch(e){r={state:"Data delayed",why:"The score could not be worked out",score:null,band:null,factors:[],missing:[]}} WSS_C[c.id]=r}
+ return WSS_C[c.id]}
+/* phase 1 (doc 108 question 7): the agency only; a client user, signed in or previewed, sees no column and no tab */
+const wssOn=()=>ctx==="agency"&&!asClient&&!CLIENT_SESSION;
+/* production's three colours: getSequenceScoreProgress (the gauge number), getSequenceSetupProgress (rings),
+   .sequence-score-badge (the pill); the doc's cut-offs */
+const wssCls=r=>!r||r.score==null?"default":r.band==="On track"?"excellent":r.band==="Check"?"average":"poor";
+const wssSCls=s=>s==null?"default":s>=75?"excellent":s>=50?"average":"poor";
+const WSS_RING={poor:["#DC2626","#FEE2E2","#DC2626"],average:["#F59E0B","#FEF3C7","#F59E0B"],excellent:["#2DB482","#D1FAE5","#2DB482"],default:["#ddd","#ddd","#ddd"]};
+const WSS_NUM={poor:"#DC2626",average:"#F59E0B",excellent:"#2DB482",default:"#1F2937"};
+/* production's CircularProgressBar: viewBox 100, stroke 8, round caps, the text at 50,50 */
+function wssRing(score,size,fs){const k=wssSCls(score), C=WSS_RING[k], r=46, d=Math.PI*2*r, off=((100-(score||0))/100)*d;
+ const P="M 50,50 m 0,-46 a 46,46 0 1 1 0,92 a 46,46 0 1 1 0,-92";
+ return '<svg class="wss-cpb" viewBox="0 0 100 100" width="'+size+'" height="'+size+'" aria-hidden="true" focusable="false">'
+  +'<path d="'+P+'" stroke-width="8" fill-opacity="0" style="stroke:'+C[1]+'"/>'
+  +'<path class="wss-cpb-p" d="'+P+'" stroke-width="8" fill-opacity="0" style="stroke:'+C[0]+';stroke-linecap:round;stroke-dasharray:'+d.toFixed(3)+'px '+d.toFixed(3)+'px;stroke-dashoffset:'+off.toFixed(3)+'px"/>'
+  +'<text x="50" y="50" style="fill:'+C[2]+';font-size:'+fs+';font-weight:600;dominant-baseline:central;text-anchor:middle">'+(score==null?"&ndash;":score)+'</text></svg>'}
+/* production's GaugeChart, drawn as SVG with apexcharts 3.54.1's own geometry for its radialBar, measured from the real
+   library with gauge-chart.tsx's options (the tab: 300 by 174, centre 150,125, radius 83.67, track 17.65, bar 18.19; the
+   hover card: 182 by 100, centre 91,63.33, radius 58.63, track 10.70, bar 11.04): 240 degrees from -120 to 120, hollow
+   60%, track #F1F2F5, round caps, the number 32px 600 in apex's Helvetica on the centre's baseline, in the band colour. The fill is apex's
+   horizontal gradient across the bar, with stops that run low red to high green (V3's gauge rendered it inverted). */
+const WSS_STOPS={poor:[[0,"#DC2626"]],average:[[0,"#DC2626"],[100,"#F59E0B"]],excellent:[[0,"#DC2626"],[50,"#F59E0B"],[85,"#2DB482"],[100,"#2DB482"]]};
+let WSS_GID=0;
+function wssGauge(score,sm){const G=sm?{w:182,h:100,cx:91,cy:63.333,r:58.625,sw:10.705,bw:11.036}:{w:300,h:174,cx:150,cy:125,r:83.666,sw:17.645,bw:18.19};
+ const k=wssSCls(score), pt=a=>{const t=a*Math.PI/180; return (G.cx+G.r*Math.sin(t)).toFixed(3)+" "+(G.cy-G.r*Math.cos(t)).toFixed(3)};
+ const arc=(a0,a1)=>"M "+pt(a0)+" A "+G.r+" "+G.r+" 0 "+(a1-a0>180?1:0)+" 1 "+pt(a1);
+ const id="wssg"+(++WSS_GID), s=Math.max(0,Math.min(100,score||0)), end=-120+2.4*s;
+ const bar=s>0?'<defs><linearGradient id="'+id+'" x1="0" y1="1" x2="1" y2="1">'+(WSS_STOPS[k]||WSS_STOPS.poor).map(([o,c])=>'<stop offset="'+o/100+'" stop-color="'+c+'"/>').join("")+'</linearGradient></defs>'
+  +'<path class="wss-g-bar" d="'+arc(-120,end)+'" fill="none" stroke="url(#'+id+')" stroke-width="'+G.bw+'" stroke-linecap="round"/>':"";
+ const mk=(c,v,dash)=>'<div class="wss-mk wss-mk--'+c+'"><span>'+v+'</span>'+(dash?'<div class="wss-mk-d"></div>':'')+'</div>';
+ return '<div class="wss-gauge'+(sm?' wss-gauge--sm':'')+'"><svg class="wss-g" viewBox="0 0 '+G.w+' '+G.h+'" width="'+G.w+'" height="'+G.h+'" aria-hidden="true" focusable="false">'
+  +'<path d="'+arc(-120,120)+'" fill="none" stroke="#F1F2F5" stroke-width="'+G.sw+'" stroke-linecap="round"/>'+bar
+  +'<text class="wss-g-num" x="'+G.cx+'" y="'+G.cy+'" style="fill:'+WSS_NUM[k]+'">'+(score==null?"&ndash;":score)+'</text></svg>'
+  +mk("zero","0")+mk("tf","25",1)+mk("fifty","50",1)+mk("sf","75",1)+mk("hundred","100")+'</div>'}
+/* the Dashboard cell: production's pill, its tooltip and its click; a dash for every state (doc 108 4.5) */
+function wssCell(c){const r=wssOf(c);
+ if(r.score==null){const t=r.state+(r.why&&r.why!==r.state?". "+r.why+".":"");
+  return '<span class="is-none wss-none u-tip" title="" data-uwtip="'+wssEa(t)+'" tabindex="0" aria-label="Workspace score: '+wssEa(t)+'">&ndash;</span>'}
+ const k=wssCls(r);
+ return '<button type="button" class="wss-pill '+k+' u-tip" title="" data-uwlg data-uwtip="Your workspace score is '+r.band+'. Click to know more." data-wssgo="'+c.id+'" aria-label="Workspace score '+r.score+', '+r.band+'. Open the Workspace score tab"><span>'+r.score+'</span></button>'}
+const wssEa=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const wssSortVal=c=>{const r=wssOf(c); return r.score==null?null:r.score};
+/* the record's tab label: production's 28px ring and "Sequence Score" text in their hover container */
+function wssTabLabel(c){const r=wssOf(c);
+ return '<span class="wss-tab'+(r.score==null?' is-off':'')+'" data-wsshc="'+c.id+'"><span class="wss-tab-r">'+wssRing(r.score,28,"2.5rem")+'</span><span class="wss-tab-t">Workspace score</span></span>'}
+const wssGroups=r=>[0,1,2].map(g=>{const x=r.factors.filter(y=>y.group===g); return x.length?Math.round(Math.min(...x.map(y=>y.score))):null});
+const WSS_ADVICE={poor:"This workspace is unlikely to get good results until you fix what the Workspace score tab shows.",
+ average:"This workspace may get fewer results, so look at what the Workspace score tab shows.",
+ excellent:"This workspace is sending, reaching the inbox and getting replies as usual."};
+const WSS_DESC={poor:"This indicates a problem that is costing this workspace results, so fix it first.",
+ average:"This suggests something in this workspace is slipping and is worth a look this week.",
+ excellent:"This indicates the emails are going out, reaching the inbox and getting replies as usual."};
+/* production's hover card (SequenceScoreCard): three rings, the gauge, "Your sequence score is", the advice line; no emoji */
+function wssCardHTML(c){const r=wssOf(c), k=wssCls(r), G=wssGroups(r);
+ return '<div class="wss-hc" id="wssHc" role="tooltip"><div class="wss-hc-items '+k+'"><div class="wss-hc-l">'
+  +WSS_GNAME.map((n,i)=>'<div class="wss-hc-i">'+wssRing(G[i],32,"2.5rem")+'<div class="wss-hc-n">'+n+'</div></div>').join("")+'</div>'
+  +'<div class="wss-hc-r">'+wssGauge(r.score,true)+'<div class="wss-hc-b"><span class="wss-hc-bt">Your workspace score is</span><span class="wss-hc-bv '+k+'">'+r.band+'</span></div></div></div>'
+  +'<div class="wss-hc-a"><span>'+WSS_ADVICE[k]+'</span></div></div>'}
+function wssHcClose(){WSS_HC=null; const p=el("wssHc"); if(p) p.remove()}
+function wssHcOpen(t){const id=t.dataset.wsshc, c=byId[id]; if(!c||!wssOn()) return; const r=wssOf(c); if(r.score==null) return;
+ if(WSS_HC===id&&el("wssHc")) return; wssHcClose(); WSS_HC=id;
+ const w=document.createElement("div"); w.innerHTML=wssCardHTML(c); const p=w.firstChild; document.body.appendChild(p);
+ /* production: top 3rem from the container's top, right -60% of its width; kept 8px inside the window */
+ const R=t.getBoundingClientRect(), vw=document.documentElement.clientWidth, W=p.offsetWidth;
+ p.style.left=Math.round(Math.max(8,Math.min(vw-8-W,R.right+0.6*R.width-W)))+"px"; p.style.top=Math.round(R.top+48)+"px"}
+document.addEventListener("mouseover",e=>{const t=e.target.closest&&e.target.closest(".wss-tab[data-wsshc]"); if(t) wssHcOpen(t); else if(WSS_HC) wssHcClose()});
+document.addEventListener("scroll",()=>{if(WSS_HC) wssHcClose()},true);
+/* the factor rows: production's ScoreFactorDetailItem marks (checks-green.svg, check-orange.svg, alert-triangle.svg);
+   a question that is not checked gets the null ring's #ddd as a plain ring, with its reason */
+const WSS_MARK={valid:'<svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M18.9226 5.2503C19.248 5.57574 19.248 6.10338 18.9226 6.42881L10.5893 14.7621C10.2638 15.0876 9.73618 15.0876 9.41074 14.7621L5.24408 10.5955C4.91864 10.27 4.91864 9.74241 5.24408 9.41697C5.56951 9.09153 6.09715 9.09153 6.42259 9.41697L10 12.9944L17.7441 5.2503C18.0695 4.92487 18.5972 4.92487 18.9226 5.2503Z" fill="#0D852B"/><path fill-rule="evenodd" clip-rule="evenodd" d="M14.7556 5.2503C15.081 5.57574 15.081 6.10338 14.7556 6.42881L10.5889 10.5955C10.2635 10.9209 9.73586 10.9209 9.41042 10.5955C9.08498 10.27 9.08498 9.74241 9.41042 9.41697L13.5771 5.2503C13.9025 4.92487 14.4302 4.92487 14.7556 5.2503ZM1.07709 9.41697C1.40252 9.09153 1.93016 9.09153 2.2556 9.41697L6.42226 13.5836C6.7477 13.9091 6.7477 14.4367 6.42226 14.7621C6.09683 15.0876 5.56919 15.0876 5.24375 14.7621L1.07709 10.5955C0.751649 10.27 0.751649 9.74241 1.07709 9.41697Z" fill="#0D852B"/></svg>',
+ partial:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M15.5303 4.72529C15.8232 5.01818 15.8232 5.49305 15.5303 5.78595L8.03033 13.2859C7.73744 13.5788 7.26256 13.5788 6.96967 13.2859L3.21967 9.53594C2.92678 9.24305 2.92678 8.76818 3.21967 8.47529C3.51256 8.18239 3.98744 8.18239 4.28033 8.47529L7.5 11.695L14.4697 4.72529C14.7626 4.43239 15.2374 4.43239 15.5303 4.72529Z" fill="#FB923C"/></svg>',
+ invalid:'<svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99992 5.33337C8.36811 5.33337 8.66659 5.63185 8.66659 6.00004V7.33337C8.66659 7.70156 8.36811 8.00004 7.99992 8.00004C7.63173 8.00004 7.33325 7.70156 7.33325 7.33337V6.00004C7.33325 5.63185 7.63173 5.33337 7.99992 5.33337ZM7.99992 9.33337C8.36811 9.33337 8.66659 9.63185 8.66659 10V10.0067C8.66659 10.3749 8.36811 10.6734 7.99992 10.6734C7.63173 10.6734 7.33325 10.3749 7.33325 10.0067V10C7.33325 9.63185 7.63173 9.33337 7.99992 9.33337Z" fill="#C2410C"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.98436 1.58708C7.29212 1.40563 7.64286 1.30994 8.00012 1.30994C8.35738 1.30994 8.70812 1.40563 9.01587 1.58708C9.32217 1.76766 9.57476 2.02663 9.74766 2.33726L14.4123 10.5003C14.427 10.5261 14.44 10.5528 14.4511 10.5802C14.5712 10.8758 14.6188 11.1958 14.59 11.5135C14.5611 11.8313 14.4567 12.1375 14.2855 12.4066C14.1142 12.6758 13.881 12.9001 13.6054 13.0607C13.3298 13.2214 13.0197 13.3138 12.7011 13.3302C12.6897 13.3308 12.6782 13.3311 12.6668 13.3311H3.38012C3.37246 13.3311 3.36484 13.331 3.35725 13.3307C3.33805 13.3314 3.31867 13.3312 3.29913 13.3302C2.98052 13.3138 2.67047 13.2214 2.39485 13.0607C2.11924 12.9001 1.88606 12.6758 1.71478 12.4066C1.5435 12.1375 1.43909 11.8313 1.41028 11.5135C1.38146 11.1958 1.42907 10.8758 1.54913 10.5802C1.56028 10.5528 1.57325 10.5261 1.58796 10.5003L6.25257 2.33726C6.42547 2.02663 6.67806 1.76766 6.98436 1.58708ZM3.35853 11.9981C3.36569 11.9979 3.37289 11.9978 3.38012 11.9978H12.6467C12.7479 11.9904 12.8461 11.96 12.9339 11.9088C13.0258 11.8553 13.1035 11.7805 13.1606 11.6908C13.2177 11.6011 13.2525 11.499 13.2621 11.3931C13.2706 11.2995 13.2591 11.2052 13.2287 11.1165L8.58339 2.98722C8.52574 2.88302 8.44129 2.79613 8.3387 2.73565C8.23612 2.67517 8.1192 2.64327 8.00012 2.64327C7.88103 2.64327 7.76412 2.67517 7.66153 2.73565C7.55895 2.79613 7.47444 2.88299 7.41678 2.98719L7.41233 2.99523L2.77151 11.1166C2.74109 11.2052 2.72967 11.2995 2.73816 11.3931C2.74776 11.499 2.78257 11.6011 2.83966 11.6908C2.89675 11.7805 2.97448 11.8553 3.06635 11.9088C3.15555 11.9608 3.25558 11.9914 3.35853 11.9981Z" fill="#C2410C"/></svg>',
+ none:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="6.75" stroke="#ddd" stroke-width="1.5"/></svg>'};
+/* the ten questions, in chain order, each with its plain question, its fix and its button (doc 108 part 8) */
+const WSS_Q=[["sending",0,"Is any sequence or email account stopped by a fault?"],["bounce",1,"Are emails bouncing?"],["unit",1,"Is one sequence or email account bouncing?"],
+ ["auth",1,"Do the sending domains pass SPF, DKIM and DMARC?"],["blacklist",1,"Is a sending domain blacklisted?"],["placement",1,"Are emails landing in the inbox?"],
+ ["trend",2,"Are replies at their usual level?"],["floor",2,"Do enough emails get a reply?"],["positive",2,"Are positive replies at their usual level?"],["unsub",2,"Are unsubscribes at their usual level?"]];
+const WSS_FAULT={sending:1,auth:1,blacklist:1};
+function wssRow(c,q,r){const [key,,question]=q, x=r.factors.find(y=>y.key===key), m=r.missing.find(y=>y.key===key), D=x&&x.detail||{};
+ if(!x) return {mark:"none",question,desc:"Not checked: "+(m?m.why:"no data")+"."};
+ const s=Math.round(x.score), prob=s<75||(WSS_FAULT[key]&&s<100), mark=s<50?"invalid":prob?"partial":"valid";
+ let res=x.label+".", fix="", act=null;
+ if(key==="sending"){ if(!D.lost) res="Nothing is stopped by a fault.";
+  else {res=x.label+", about "+Math.round(D.lost)+"% of usual sending.";
+   if(D.disc&&D.disc.length&&!D.bySeq){fix="Reconnect it so its emails send again."; act=["Reconnect",c.id+"|accounts|"+D.disc[0]]}
+   else {fix=D.stall?"Open it and check why it has not sent.":"Resume it, or fix what stopped it."; act=["Open sequences",c.id+"|sequences"]}}}
+ if(key==="bounce"){res=x.label+": "+f(D.bounced)+" of "+f(D.sent)+" emails in the last 7 days."; if(prob){fix="Verify the prospects before more emails go out."; act=["Verify prospects",c.id+"|verify"]}}
+ if(key==="unit"){res=s<100?x.label+": "+D.name+", "+f(D.b)+" of "+f(D.n)+" emails.":"The highest is "+D.name+" at "+wssPct(D.r)+".";
+  if(prob){fix=D.kind==="sequence"?"Clean that sequence's list before it sends more.":"Check that email account before it sends more."; act=D.kind==="sequence"?["Open sequence",c.id+"|sequences"]:["Open email account",c.id+"|accounts|"+D.name]}}
+ if(key==="trend"){res=x.label+": "+f(D.O)+" against "+f(Math.round(D.E))+" usual for this many emails."; if(prob){fix="Check the copy and the list of the sequences that slowed."; act=["Open sequences",c.id+"|sequences"]}}
+ if(key==="floor"){res=prob?x.label+".":wssPct(D.rr,2)+" of emails got a reply in the last month."; if(prob){fix="Change the copy, the list or the offer."; act=["Open sequences",c.id+"|sequences"]}}
+ if((key==="auth"||key==="blacklist")&&prob){fix="Fix the domain's records, or move its email accounts."; act=["Open email accounts",c.id+"|accounts"]}
+ if(key==="placement"&&prob){fix="Test again after the fixes, or change the domain."; act=["Open Inbox Radar",c.id+"|radar"]}
+ if(key==="positive"&&prob){fix="Read the latest replies for what changed."; act=["Open replies",c.id+"|inbox"]}
+ if(key==="unsub"&&prob){fix="Check who the sequences are sending to."; act=["Open sequences",c.id+"|sequences"]}
+ return {mark,question,desc:res+(fix?" "+fix:""),act}}
+const WSS_TIP=["This score asks whether the emails are going out. A sequence or email account stopped by a fault lowers it; a pause by a person or a limit does not.",
+ "This score asks whether the emails reach the inbox: bounces across the workspace and in its worst sequence or email account, SPF, DKIM and DMARC, blacklists and Inbox Radar tests.",
+ "This score asks whether people reply: replies against this workspace's usual, how many emails get a reply, positive replies and unsubscribes."];
+const WSS_INFO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M11 7.993a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v3a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1-1-1Z"/></svg>';
+/* the weakest group opens first (getActiveScoreScoreTab picks the lowest); a tie keeps chain order */
+const wssWeakest=G=>{let b=0; G.forEach((s,i)=>{if(s!=null&&(G[b]==null||s<G[b])) b=i}); return b};
+/* production's tab body (sequence-score.tsx 205 to 287): gauge, headline, one-sentence description, three sub-score tabs, factor rows */
+function wssBody(c){const r=wssOf(c);
+ if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score shows how this workspace\'s email is doing this week: sending, delivery and replies.</h1><p>'+r.state+'. '+r.why+'.</p></div>';
+ const k=wssCls(r), G=wssGroups(r), cur=WSS_SUB[c.id]!=null?WSS_SUB[c.id]:wssWeakest(G);
+ const rows=WSS_Q.filter(q=>q[1]===cur).map(q=>wssRow(c,q,r));
+ return '<div class="wss-content"><div class="wss-chart">'+wssGauge(r.score,false)+'</div>'
+  +'<h2 class="wss-title">Your workspace score is <span class="'+k+'">'+r.band+'</span></h2>'
+  +'<p class="wss-desc">'+WSS_DESC[k]+'</p>'
+  +'<div class="wss-tabs"><div class="wss-nav" role="tablist" aria-label="Workspace score groups">'
+  +WSS_GNAME.map((n,i)=>'<button type="button" class="wss-st'+(i===cur?' is-on':'')+'" role="tab" aria-selected="'+(i===cur)+'" data-wsssub="'+c.id+'|'+i+'">'
+    +'<span class="wss-st-p '+wssSCls(G[i])+'">'+wssRing(G[i],54,"1.6875rem")+'</span>'
+    +'<span class="wss-st-m"><span class="wss-st-t">'+n+'</span><span class="wss-st-i u-tip" title="" data-uwtip="'+wssEa(WSS_TIP[i])+'" aria-label="'+wssEa(WSS_TIP[i])+'">'+WSS_INFO+'</span></span></button>').join("")+'</div>'
+  +'<div class="wss-pane" role="tabpanel" aria-label="'+WSS_GNAME[cur]+'"><div class="wss-rows">'
+  +rows.map(x=>'<div class="wss-f'+(x.mark==="none"?' is-none':'')+'" data-wssf="'+x.mark+'"><div class="wss-f-c"><div class="wss-f-t">'+WSS_MARK[x.mark]+'<p>'+x.question+'</p></div><div class="wss-f-d"><p>'+x.desc+'</p></div></div>'
+    +(x.act?'<div class="wss-f-a"><button type="button" class="wss-link" data-goto="'+x.act[1]+'">'+x.act[0]+'</button></div>':'')+'</div>').join("")
+  +'</div></div></div></div>'}
+/* production's header action on the score tab (sequence-single-header-actions.tsx 265 to 274): Refresh, a ghost button
+   with the 20px icon; the "Updated" time sits before it. In vC Refresh only works the score out again. */
+const WSS_REF='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M4 3.008a1 1 0 0 1 1 1V6.28a9.1 9.1 0 0 1 15.99 4.59 1 1 0 0 1-1.98.275A7.1 7.1 0 0 0 6.19 8.008H9a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1ZM3.862 12.017a1 1 0 0 1 1.129.853 7.1 7.1 0 0 0 12.818 3.138H15a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-2.273a9.1 9.1 0 0 1-15.99-4.59 1 1 0 0 1 .852-1.128Z"/></svg>';
+const wssHdr=c=>'<span class="wss-upd">'+(WSS_UPD?"Updated "+WSS_UPD+" min ago":"Updated just now")+'</span><button type="button" class="wss-ref" data-wssref="'+c.id+'">'+WSS_REF+'<span>Refresh</span></button>';
 /* ═══ change 197, 11 Oct 2026: people on the Workspaces page ═══
    Hitesh: "on workspace page, in workspace table - we need to remove few columns
    and add information related to users(all types) in the workspace"; R from doc 89
@@ -3982,13 +4285,13 @@ const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* chang
 let HSORT={home:null,ws:null};
 const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- home:[["name","Workspace","width:216px"],["status","Status","width:108px"],["pa","Prospects added","width:116px"],["sent","Emails sent","width:116px"],
-  ["bounce","Bounce rate","width:90px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
-  ["calls","Calls made","width:106px"],["conn","Calls connected","width:112px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],
+ home:[["name","Workspace","width:252px"],["status","Status","width:117px"],["score","Workspace score","width:127px","How this workspace's email is doing this week: sending, delivery and replies"],["pa","Prospects added","width:123px"],["sent","Emails sent","width:116px"],
+  ["bounce","Bounce rate","width:97px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
+  ["calls","Calls made","width:106px"],["conn","Calls connected","width:119px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],   /* change 338: widths from each column's measured need */
   ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Highest usage","width:166px",HS_TIP_U]],   /* change 322; change 327: Highest usage 166px (board L's 187px at 1,440 is 158px), so "Lead Finder 100%" stays whole where the table sits at its floor (a phone, LinkedIn steps on). Status gives 16px and Emails sent 8px, the two with room at the floor; the table's floor grows 8px (1,138px), so no other column or header is tighter than before */
  ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Highest usage","width:200px",HS_TIP_U]]};
 /* name A to Z and status New first start ascending; every figure starts highest first */
-const HS_FIRST={name:1,status:1};
+const HS_FIRST={name:1,status:1,score:1};   /* change 338: worst score first */
 /* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
 const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hidden="true" focusable="false">'
  +'<path class="hs-up" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 -2.44)" d="M11.293 8.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414L12 10.414l-5.293 5.293a1 1 0 0 1-1.414-1.414l6-6Z"/>'
@@ -4002,7 +4305,8 @@ function hsHead(t){const S=HSORT[t];
 function hsVal(k,c){
  if(k==="name") return String(c.name);
  if(k==="status"){const s=wsState(c);return s==="New"?0:s==="Active"?1:null}
- if(k==="usage") return usageKey(c);   /* change 327: needs you first, then the % the cell shows */
+ if(k==="usage") return usageKey(c);
+ if(k==="score") return wssSortVal(c);   /* change 338 */   /* change 327: needs you first, then the % the cell shows */
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
  if(c.disabled||c.sent===0) return null;
  if(k==="li") return hcLi(c)||null;   /* change 322 */
@@ -4197,7 +4501,7 @@ function vRecord(id){
     "Your workspace · email" on the own one. One chip only when something
     waits: a request, or Disabled. Disabled swaps Open workspace for Enable;
     deleted shows a bar with Restore and nothing else to act on. */
- const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]];
+ const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]].concat(wssOn()&&!c.deletedOn?[["score","Workspace score"]]:[]);   /* change 338 */
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  if(tab!=="limits"&&RL) RL=null;   /* change 269 */
  const dead=!!c.deletedOn, off=!!c.disabled;
@@ -4209,13 +4513,13 @@ function vRecord(id){
  const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary hdr-desk")}<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
  return `
  <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
-  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
-  <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}</div>
+  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}"${k==="score"?' class="wss-tabbtn"':''}>${k==="score"?wssTabLabel(c):l}</button>`).join("")}</div>
+  <div class="hdr-sh-r">${tab==="score"&&!dead?wssHdr(c):""}${acts}${dead?"":recMenuHTML(c)}</div>
  </div>
  ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
- <div class="wrap">${
-  tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:rActivity(c)}</div>`;
+ <div class="wrap${tab==="score"?" wss-page":""}">${
+  tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:tab==="score"?wssBody(c)/* change 338 */:rActivity(c)}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -10610,7 +10914,7 @@ let focusMb=null;
    instead of handing back a plain tab with six rows to search through. */
 let FOCUS_LIM=null;
 /* the three destinations that are record tabs rather than workspace modules */
-const RECTAB={overview:1,limits:1,members:1};
+const RECTAB={overview:1,limits:1,members:1,score:1};   /* change 338 */
 function gotoClient(id,mod,pid){
  if(RECTAB[mod]){
    /* capture the ranking the operator was actually looking at, once, rather
@@ -13255,7 +13559,11 @@ function wire(){
  q("[data-goclim]").forEach(b=>b.onclick=()=>{const [id,k]=b.dataset.goclim.split("|");
    ORIGIN=null;ctx="agency";view={name:"record",id};tab="limits";FOCUS_LIM=k;render();
    const row=el("rlim-"+k); if(row) row.scrollIntoView({behavior:REDUCED()?"auto":"smooth",block:"center"})});
- q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;FOCUS_LIM=null;render()});
+ q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;FOCUS_LIM=null;wssHcClose();render()});
+ /* change 338: the pill opens the Workspace score tab on its weakest group; a sub-score tab; Refresh */
+ q("[data-wssgo]").forEach(b=>b.onclick=e=>{e.stopPropagation();uwHide();const id=b.dataset.wssgo;delete WSS_SUB[id];gotoClient(id,"score")});
+ q("[data-wsssub]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.wsssub.split("|");WSS_SUB[id]=+i;uwHide();render()});
+ q("[data-wssref]").forEach(b=>b.onclick=()=>{WSS_C=null;WSS_UPD=0;render()});
  raBind();   /* change 294: the record's Activity tab */
  /* the setup strip embedded in Home's one-client row carries rcSetup's own
     "Set up" buttons, generic data-tab links that only make sense once a
@@ -15941,6 +16249,110 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
 .nc-modal #ncUsage .nc-urow.is-off .flabel,.nc-modal #ncUsage .nc-urow.is-off .nc-upct{color:#9ca3af}
 .nc-modal #ncUsage.is-edit input#ncShare{filter:grayscale(1);opacity:.45;cursor:not-allowed}
 @media (max-width:520px){.nc-modal #ncUsage .nc-sum-r:nth-child(odd),.nc-modal #ncUsage.is-edit .nc-sum-r:nth-child(odd){border-right:0}}
+/* ═══ change 338: the Workspace score, production's Sequence Score look (numbers from saleshandy-webui) ═══ */
+/* the pill: _sequence.scss 5870 to 5904 (.sequence-score-badge), colours _custom-variable.scss 656 to 703 */
+.wss-pill{display:flex;justify-content:center;align-items:center;box-sizing:border-box;padding:.125rem .5rem;width:2rem;height:1.5rem;border:1px solid transparent;border-radius:20px;background:none;font:inherit;cursor:pointer;margin:0}
+.wss-pill span{font-weight:600;font-size:.75rem;line-height:1.25rem}
+.wss-pill.poor{background:#FEF2F2;border-color:#EF4444}.wss-pill.poor span{color:#EF4444}
+.wss-pill.average{background:#FFFBEB;border-color:#F59E0B}.wss-pill.average span{color:#F59E0B}
+.wss-pill.excellent{background:#ECFDF5;border-color:#10B981}.wss-pill.excellent span{color:#10B981}
+.wss-pill:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px}
+/* production's OverlayTooltip: 10px padding, 12px medium, #1F2937; tooltip-lg (50rem) and the sub-score tabs' 15.875rem */
+.dq-fore.uw-tip.uw-lg{max-width:50rem;padding:.625rem;font-weight:500}
+.dq-fore.uw-tip.uw-md{max-width:15.875rem;padding:.625rem;font-weight:500}
+/* the tab label: sequence-score-header-tiles.tsx 157 to 177, _sequence.scss 1078 to 1095 */
+.tabbar button.wss-tabbtn{padding-top:0;padding-bottom:0;display:inline-flex;align-items:center}
+.wss-tab{display:inline-flex;align-items:center;position:relative;padding:.188rem .5rem;border-radius:.25rem;cursor:pointer}
+.wss-tab:hover{background:#F3F4F6}
+/* production's ring sits in a block div as an inline svg, so its box is 31px (28px and the line's descent) */
+.wss-tab-r{display:block;height:31px;margin-right:.5rem}
+.wss-tab-r svg{display:block}
+.wss-tab-t{font-size:14px;font-weight:500;line-height:20px;color:#6B7280}
+.tabbar button.wss-tabbtn[aria-selected=true] .wss-tab-t{font-weight:500;color:#6B7280}
+/* the hover card: _sequence.scss 1096 to 1252 */
+.wss-hc{position:fixed;z-index:1004;display:flex;flex-direction:column;box-sizing:border-box;border-radius:.5rem;background:#fff;box-shadow:0 2px 6px 0 #04154c1f;padding:1rem;gap:1rem;width:26.25rem;max-width:26.25rem;min-width:26.25rem;font-family:Inter,sans-serif;pointer-events:none}
+.wss-hc-items{display:flex;box-sizing:border-box;border-radius:.25rem;padding:.75rem;gap:.75rem;width:100%;overflow:hidden;background:#DDD6FE}
+.wss-hc-items.poor{background:#FEE2E2}.wss-hc-items.average{background:#FFEDD5}.wss-hc-items.excellent{background:#D1FAE5}
+.wss-hc-l{display:flex;flex-direction:column;gap:.75rem;flex:none}
+.wss-hc-i{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-sizing:border-box;width:9rem;height:4.25rem;padding:.5rem;border-radius:.25rem;background:#fff}
+.wss-hc-n{font-size:12px;font-weight:500;line-height:16px;color:#6B7280}
+.wss-hc-r{box-sizing:border-box;border-radius:.25rem;border:.73px solid #f9f9f9;background:#fff;width:100%;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;padding:1.25rem .75rem;gap:.5rem;overflow:hidden;min-width:0}
+.wss-hc-b{display:flex;flex-direction:column;gap:0;align-items:center}
+.wss-hc-bt{font-weight:600;font-size:1rem;line-height:1.25rem;color:#1F2937;white-space:nowrap}
+.wss-hc-bv{font-weight:600;font-size:1rem;line-height:1.25rem}
+.wss-hc-bv.poor{color:#B91C1C}.wss-hc-bv.average{color:#D97706}.wss-hc-bv.excellent{color:#047857}
+.wss-hc-a{width:100%;display:flex;flex-direction:row;gap:8px;overflow:hidden}
+.wss-hc-a span{font-size:12px;line-height:18px;color:#1F2937;font-weight:500;white-space:initial}
+/* the gauge: gauge-chart.tsx 11 to 91 and _sequence.scss 5597 to 5702 (markers); the hover card's overrides 1152 to 1185 */
+.wss-gauge{position:relative;width:300px;height:174px;flex:none}
+.wss-g{display:block;overflow:visible}
+.wss-g-num{font-size:32px;font-weight:600;text-anchor:middle;font-family:Helvetica,Arial,sans-serif}
+.wss-mk{display:flex;justify-content:center;align-items:baseline;gap:.25rem;width:18px;height:13.8208px;position:absolute}
+.wss-mk span{font-weight:600;font-size:.625rem;line-height:.75rem;display:flex;align-items:center;text-align:center;color:#D1D5DB}
+.wss-mk-d{width:2px;height:4px;background:#E5E7EB;border-radius:7px}
+.wss-mk--zero{left:3.625rem;top:9.375rem}
+.wss-mk--tf{left:3.875rem;top:3.3125rem}.wss-mk--tf .wss-mk-d{position:absolute;right:0;bottom:0;transform:rotate(122deg)}
+.wss-mk--fifty{width:.8125rem;height:1.0625rem;left:9.375rem;top:.75rem}.wss-mk--fifty .wss-mk-d{position:absolute;bottom:0}
+.wss-mk--sf{width:1.1531rem;height:.8013rem;justify-content:flex-end;right:54px;top:64px}.wss-mk--sf .wss-mk-d{position:absolute;left:0;bottom:1px;transform:rotate(-122deg)}
+.wss-mk--hundred{right:3.125rem;top:9.25rem}
+.wss-gauge--sm{width:100%;height:auto;flex:1;display:flex;align-items:center;justify-content:center}
+.wss-gauge--sm .wss-mk--zero{top:7.125rem;left:0}
+.wss-gauge--sm .wss-mk--tf{top:2rem;left:.5rem}
+.wss-gauge--sm .wss-mk--fifty{top:-.45rem;left:5.5rem}
+.wss-gauge--sm .wss-mk--sf{top:2.5rem;right:.25rem}
+.wss-gauge--sm .wss-mk--hundred{top:7.125rem;right:0}
+/* the tab body: _sequence.scss 5394 to 5590 (.sequence-score--wrapper, --content, --title, --description, tabs) */
+.wrap.wss-page{padding:1.5rem 4rem;background:#F9FAFB;display:flex;flex-direction:column;gap:1.25rem}
+.wss-content{width:100%;box-sizing:border-box;background:#fff;border:1px solid #E5E7EB;border-radius:4px;padding-top:2rem;display:flex;justify-content:center;align-items:center;flex-direction:column;position:relative;gap:1rem}
+.wss-chart{display:flex;justify-content:center}
+.wss-title{height:20px;font-weight:600;font-size:16px;line-height:1.25rem;color:#1F2937;margin:0}
+.wss-title span.poor{color:#DC2626}.wss-title span.average{color:#FBBF24}.wss-title span.excellent{color:#059669}
+.wss-desc{max-width:43.75rem;font-weight:500;font-size:12px;line-height:1.125rem;color:#6B7280;text-align:center;margin:0}
+.wss-tabs{width:100%;margin-top:1rem}
+/* rc-tabs top nav (_tab.scss .bs-tabs-top): the 1px #E5E7EB line drawn under the tabs, then 16px before the pane */
+.wss-nav{height:5.375rem;display:flex;justify-content:center;align-items:flex-end;position:relative;margin:0 0 16px}
+.wss-nav::before{content:"";position:absolute;left:0;right:0;bottom:0;border-bottom:1px solid #E5E7EB}
+.wss-st{display:flex;justify-content:center;align-items:center;gap:.75rem;margin:0;padding:1rem;border:1px solid transparent;background:none;font:inherit;cursor:pointer;transition:all .2s ease-in-out;position:relative;z-index:1}
+.wss-st.is-on,.wss-st:hover{border-color:#E5E7EB;background:linear-gradient(180deg,#F9FAFB -22.67%,#fff 100%)}
+.wss-st.is-on{border-bottom:none}
+.wss-st-p{display:inline-flex;width:3.375rem;height:3.375rem;border-radius:50%;background:transparent;position:relative}
+.wss-st-p.poor{background:rgba(254,242,242,.5)}.wss-st-p.average{background:rgba(255,251,235,.5)}.wss-st-p.excellent{background:rgba(236,253,245,.5)}
+.wss-st-m{display:flex;justify-content:center;align-items:center;gap:.25rem}
+.wss-st-t{font-weight:500;font-size:14px;line-height:1.25rem;color:#1F2937}
+.wss-st-i{display:inline-flex;color:#6B7280;transition:all .2s ease}.wss-st-i:hover{color:#1F2937}
+/* the factor rows: _sequence-setup-score.scss (.sequence-setup-wrapper 1.5rem) and _score-factor-detail-item.scss */
+.wss-pane{display:flex;justify-content:center;align-items:center;flex-direction:column;width:100%;box-sizing:border-box;background:#fff;padding:1.5rem;border-radius:0 0 4px 4px}
+.wss-rows{width:100%}
+.wss-f{border:.0625rem solid #E5E7EB;border-bottom:0;background:#fff;padding:.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.wss-f:first-of-type{border-radius:.25rem .25rem 0 0}
+.wss-f:last-of-type{border-bottom:.0625rem solid #E5E7EB;border-radius:0 0 .25rem .25rem}
+.wss-f:only-of-type{border-radius:.25rem}
+.wss-f-c{max-width:48.875rem;min-width:0}
+.wss-f-t{display:flex;align-items:center;gap:.75rem}
+.wss-f-t svg{width:1.125rem;height:1.125rem;flex:none}
+.wss-f-t p{font-weight:500;font-size:.875rem;line-height:1.25rem;color:#1F2937;margin:0}
+.wss-f-d p{font-weight:500;font-size:.75rem;line-height:1.25rem;color:#6B7280;margin:.5rem 0 0 1.875rem}
+.wss-f-a{flex:none}
+.wss-link{background:none;border:0;padding:0;font:inherit;font-size:14px;font-weight:500;line-height:1.25rem!important;color:#1D4ED8;cursor:pointer;white-space:nowrap}
+.wss-link:hover{color:#1E40AF;text-decoration:underline}
+/* states: .empty-sequence-score (_sequence.scss 5713 to 5733) inside the white card */
+.wss-empty{padding:3rem 1.5rem;gap:0}
+.wss-empty h1{font-weight:600;font-size:.875rem;line-height:1.5rem;text-align:center;color:#1F2937;margin:0 0 .5rem;max-width:43.75rem}
+.wss-empty p{font-weight:500;font-size:.875rem;line-height:1.25rem;text-align:center;color:#6B7280;margin:0}
+/* Refresh: refresh-button.tsx and app.scss .action-btn--refresh; steps-top-action's 1.25rem gap */
+.wss-upd{font-size:14px;line-height:20px;color:#6B7280;white-space:nowrap;margin-right:.75rem}
+.wss-ref{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;box-sizing:border-box;width:5rem;min-width:5rem;height:1.25rem;padding:0;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;line-height:20px;color:#6B7280;cursor:pointer;transition:all .2s ease;margin:0 .75rem 0 0}
+.wss-ref svg{flex:none}
+.wss-ref:hover{color:#1D4ED8}
+@media (max-width:720px){
+ .wrap.wss-page{padding:1rem}
+ .wss-nav{height:auto}
+ .wss-st{flex:1 1 0;flex-direction:column;gap:.5rem;padding:.75rem .5rem;min-width:0}
+ .wss-pane{padding:1rem}
+ .wss-f{padding:.75rem 1rem;flex-wrap:wrap}
+ .wss-f-a{margin-left:1.875rem}
+ .wss-upd{display:none}
+}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -16222,7 +16634,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d760ad3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="591a825";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
