@@ -3777,7 +3777,7 @@ const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-t
 const wsHeadHTML=()=>hsHead("ws");
 const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
 const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
-const homeTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl" style="min-width:'+hcMinW()+'px;width:100%;table-layout:fixed">';   /* change 322 */
+const homeTableOpen=()=>'<div class="hc-wrap">'+hcBtnHTML()+'<div class="tscroll"><table class="organism home-tbl" style="min-width:'+hcMinW()+'px;width:100%;table-layout:fixed">';   /* change 322; change 336: the columns cell rides over the header in hc-wrap */
 /* change 200, 12 Oct 2026 (Hitesh: "fix workspace column header man! it looks so bad";
    doc 91, H1 "let's go with what you reccomend"): one line per header at one height,
    no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
@@ -3823,18 +3823,22 @@ function hcLi(c){const key=HOME_WIN+"|"+me_;
   HC_LI={}; cl.forEach((x,i)=>HC_LI[x.id]=fl[i]); ws.forEach(x=>{if(!(x.id in HC_LI)) HC_LI[x.id]=Math.round(ex(x))}); HC_LIK=key;
   setTimeout(()=>{HC_LI=null},0)}
  return HC_LI[c.id]||0}
-const HC_I='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>';
-function hcBtnHTML(){const h=hcHide(), n=hcHiddenN();
- return '<span class="hc-w"><button type="button" class="hc-b'+(HC_OPEN?' on':'')+'" id="hcBtn" aria-haspopup="dialog" aria-expanded="'+HC_OPEN+'" aria-controls="hcPop"'+(n?' aria-label="Columns, '+n+' hidden"':'')+'>'
-  +HC_I+'<span>Columns</span>'+(n?'<span class="hc-n">'+n+' hidden</span>':'')+'</button>'
-  +(HC_OPEN?'<div class="hc-p" id="hcPop" role="dialog" aria-label="Columns"><div class="hc-l">'
+/* ═══ change 336, 20 Oct 2026 (Hitesh: "Edit column – To be matched to saleshandy design"; "column edit as in which
+   columns should be visible") ═══ Production's columns-selector: the LayoutColumns icon (@saleshandy/icons, 20px) in
+   its own cell at the right end of the header row, opening a Transfer pop-over. Like the CRM prospects table's
+   layout-columns-button, the cell sits over the header from outside the scroll box (hc-wrap), so it stays at the right
+   when the table scrolls sideways, takes no width from the columns, and its pop-over is never clipped. The set, its
+   saving, cols= and Reset to default are 322's. */
+const HC_I='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M6 5.007a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-12a1 1 0 0 0-1-1H6Zm-3 1a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12 3.007a1 1 0 0 1 1 1v16a1 1 0 1 1-2 0v-16a1 1 0 0 1 1-1Z"/></svg>';
+function hcBtnHTML(){const h=hcHide();
+ return '<button type="button" class="hc-b'+(HC_OPEN?' on':'')+'" id="hcBtn" aria-label="Choose columns" aria-haspopup="dialog" aria-expanded="'+HC_OPEN+'" aria-controls="hcPop">'+HC_I+'</button>'
+  +(HC_OPEN?'<div class="hc-p" id="hcPop" role="dialog" aria-label="Choose columns"><div class="hc-l">'
     +HC_OPT.map(k=>'<label class="cbx"><input type="checkbox" data-hcol="'+k+'"'+(h.indexOf(k)<0?' checked':'')+'><span>'+hcLabel(k)+'</span></label>').join("")+'</div>'
-    +(hcSame(h,HC_DEF)?'':'<div class="hc-f"><button type="button" class="linkbtn" data-hcreset>Reset to default</button></div>')+'</div>':'')+'</span>'}
-/* the pop-over hangs from the button's right edge; where that would leave the card (a phone) it takes the
-   button's left edge instead, and failing that stays 8px inside the card (c313's place()) */
-function hcPlace(){const p=el("hcPop"), t=el("hcBtn"); if(!p||!t) return; const c=p.closest(".card"); if(!c) return; p.style.right="0px";
- const r=p.getBoundingClientRect(), b=c.getBoundingClientRect(), n=t.getBoundingClientRect(); if(r.left>=b.left+8) return;
- const left=n.left+r.width<=b.right-8?n.left:b.left+8; p.style.right=(r.left-left)+"px"}
+    +(hcSame(h,HC_DEF)?'':'<div class="hc-f"><button type="button" class="linkbtn" data-hcreset>Reset to default</button></div>')+'</div>':'')}
+/* production's BottomEnd: the pop-over's right edge on the cell's, 3px under it (CSS); never closer than 8px to the
+   card's left edge */
+function hcPlace(){const p=el("hcPop"), c=p&&p.closest(".card"); if(!c) return; p.style.right="0px";
+ const d=c.getBoundingClientRect().left+8-p.getBoundingClientRect().left; if(d>0) p.style.right=-d+"px"}
 function hcClose(){HC_OPEN=false; const p=el("hcPop"); if(p) p.remove(); const b=el("hcBtn"); if(b){b.classList.remove("on"); b.setAttribute("aria-expanded","false")}}
 /* an outside click closes it before that click's own handler runs (capture), so a redraw cannot reopen it */
 document.addEventListener("click",e=>{if(!HC_OPEN) return; const p=el("hcPop"), b=el("hcBtn"); if((p&&p.contains(e.target))||(b&&b.contains(e.target))) return;
@@ -8410,7 +8414,7 @@ function vDash(){
    /* change 212, 12 Oct 2026 (Hitesh, on "View all 10 \u2192": "Change this, even arrow is not proper"). The text
       arrow sat below the line and "View all 10" promised more than the 10 rows already on screen. It names where
       it goes, with a drawn arrow centred on the text; the pager under the table still counts when rows are cut. */
-   +'<span class="c-a">'+hcBtnHTML()+'<button class="linkbtn ws-all" data-nav2="clients">Go to Workspaces<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></span></div>'
+   +'<span class="c-a"><button class="linkbtn ws-all" data-nav2="clients">Go to Workspaces<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></span></div>'
   +homeTableOpen()
    /* coordinator feedback, round 4: a one-client Home replaces the row with
       a setup strip spanning Status/Outreach/Replies/Usage, so the header
@@ -8419,7 +8423,7 @@ function vDash(){
    /* change 179 (Hitesh: "check styling and column header"): one line per header, centred; "Positive call outcomes" is "Positive calls" with its definition on hover */
    /* change 183 (Hitesh: per-day data must say so in the header or the figure): every column's unit sits under its label */
    +homeHeadHTML()
-   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div>'
+   +'<tbody>'+(list.slice(0,DASH_ROWS).map(crow).join("")||homeGroupEmpty(cliTab,cnt))+'</tbody></table></div></div>'
   +(list.length>DASH_ROWS?'<div class="pager"><span class="sub">'+(HSORT.home?DASH_ROWS+' of '+list.length+', sorted by '+hsSaid("home")+'.':'The '+DASH_ROWS+' that most need you, of '+list.length+'.')+'</span>'
     +'<button class="linkbtn" data-nav2="clients">All '+list.length+' in Workspaces</button></div>':'')
   +'</div>';
@@ -14648,19 +14652,26 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .home-tbl thead th{white-space:nowrap;vertical-align:top;padding-top:10px!important;padding-bottom:10px!important;line-height:16px}
 .home-tbl .th-u{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--gray-12);margin-top:1px}
 .home-tbl th:nth-child(n+3),.home-tbl td:nth-child(n+3){padding-left:12px;padding-right:12px}   /* change 322: the column count varies */
-/* change 322: the Columns button and its pop-over (c313 option 3's numbers) */
-.hc-w{position:relative;display:inline-flex}
-.hc-b{display:inline-flex;align-items:center;gap:6px;height:32px;margin:-3px 0;padding:0 10px;border:0;border-radius:4px;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:var(--gray-12);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
-.hc-b svg{width:16px;height:16px;flex:none}
-.hc-b:hover{background:var(--gray-16)}
-.hc-b.on{color:var(--blue-11);background:var(--blue-13)}
-.hc-b:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
-.hc-n{font-weight:400;color:var(--gray-15)}
-.hc-b.on .hc-n{color:var(--blue-11)}
-.hc-p{position:absolute;top:calc(100% + 9px);right:0;z-index:60;width:264px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:4px;box-shadow:var(--shadow-dropdown);overflow:hidden;text-align:left}
-.hc-l{padding:4px 0}
-.hc-f{padding:10px 12px;border-top:1px solid var(--gray-13)}
-.hc-f .linkbtn{display:block;line-height:20px}
+/* change 336: production's columns-selector. The cell: 40px, as organisms/table generateTogglerColumn with
+   _reports.scss's prospects header (12px, the 20px icon, 8px; a Gray 200 line on its left), on the header's Gray 50;
+   placed, held at the right and coloured as the CRM table's layout-columns-button (Gray 500 icon; Blue 50 fill and a
+   Blue 700 icon on hover and while open). The pop-over:
+   _transfer.scss's transfer-container, list rows and footer, and the product checkbox (_checkbox.scss) */
+.c-h+.hc-wrap{margin-top:12px}
+.hc-wrap{position:relative}
+.hc-b{position:absolute;top:0;right:0;z-index:3;width:40px;height:39px;display:flex;align-items:center;justify-content:center;margin:0;padding:0;border:0;border-radius:0;background:var(--gray-19);box-shadow:inset 1px 0 0 var(--gray-13),inset -1px 0 0 var(--gray-13);color:var(--gray-15);cursor:pointer;transition:background-color .2s ease,color .2s ease}
+.hc-b svg{display:block;width:20px;height:20px;flex:none}
+.hc-b:hover,.hc-b.on{background:var(--blue-17);color:var(--blue-11)}
+.hc-b:focus-visible{outline:2px solid var(--blue-11);outline-offset:-2px}
+.hc-p{position:absolute;top:43px;right:0;z-index:60;width:232px;box-sizing:border-box;padding:8px 0;background:var(--gray-1);border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);text-align:left;white-space:normal;font-size:14px;line-height:20px;font-weight:400;cursor:default}
+.hc-p .cbx{height:40px;box-sizing:border-box;padding:10px 16px;gap:8px;font-size:14px;line-height:20px;font-weight:400;color:var(--blue-15)}
+.hc-p .cbx:hover{background:var(--blue-17)}
+.hc-p .cbx input{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin:0;border:1px solid var(--gray-11);border-radius:2px;background:var(--gray-1) center/12px 12px no-repeat;cursor:pointer;transition:background-color .2s ease,border-color .2s ease}
+.hc-p .cbx input:hover,.hc-p .cbx:hover input{border-color:var(--blue-11)}
+.hc-p .cbx input:checked{border-color:var(--blue-11);background-color:var(--blue-11);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.hc-p .cbx input:focus{box-shadow:none;outline:none}.hc-p .cbx input:focus-visible{outline:2px solid var(--blue-11);outline-offset:2px}
+.hc-f{padding:.4rem 1rem;border-top:1px solid var(--gray-13)}
+.hc-p .hc-f .linkbtn{display:block;padding:0;font-size:14px;line-height:20px;font-weight:400;color:var(--blue-11)}
 .hero-u{font-size:14px;font-weight:500;color:var(--gray-12);margin-left:4px}
 #homeWin{width:160px;flex:none;margin-right:4px}.home-unit{flex:none;margin-right:8px}#homeWin .dd-ic{width:16px;height:16px;flex:none;color:var(--gray-12)}
 .grace-bar{align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:13px;line-height:20px;font-weight:400;color:var(--gray-17)}.grace-bar .grace-t{flex:1;min-width:0}.grace-bar strong{font-weight:600}
@@ -16093,7 +16104,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f5b0c0c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="adfa8a0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
