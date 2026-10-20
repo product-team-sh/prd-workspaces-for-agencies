@@ -3363,6 +3363,7 @@ function hdrChip(text,tone,attrs,tip){
    review): "Disabled" (grey; who and when in the tooltip), "Request waiting" (amber; who asked,
    from vC's own request wording) or a used-up limit (red; which limits) */
 function hdrRecSlot(c){
+ return "";   /* change 337: the bar carries no status chip; the tabs and banners say it */
  if(c.deletedOn) return "";
  if(c.disabled) return hdrChip("Disabled","mute","",`Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}`);
  const L=askLines(c.id);
@@ -3377,7 +3378,7 @@ function hdrRecSlot(c){
    it asks before it pauses or resumes, as the table's switch does */
 function hdrSeqSlot(c,q){
  const st=q.state, key=c.id+"|"+q.name;
- if(st!=="Active"&&st!=="Paused"){const w=st==="Draft"&&q.ask; return hdrChip(w?"Waiting":st,w&&!asClient?"warn":"mute","",seqStLabel(q,st))}
+ if(st!=="Active"&&st!=="Paused") return "";   /* change 337: no status chip in the bar */
  const owner=!asClient&&agencyFull(c), may=owner||canC(c,"editseq"), mayPause=may||canC(c,"pause"), on=st==="Active";
  return `<span class="hdr-sww"><button type="button" class="hdr-sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${on?"Pause":"Resume"} ${hdrEsc(q.name)}" ${mayPause?`data-seqask="${key}"`:"disabled"}></button><span class="hdr-swl">${on?"Active":"Paused"}</span></span>`;
 }
@@ -3497,7 +3498,7 @@ function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hi
 function hdrWsRows(q){const t=(q||"").trim().toLowerCase(), cur=ctx==="agency"?view.name==="record"?view.id:view.from:ctx;
  const L=hdrWsList().filter(c=>!t||c.name.toLowerCase().includes(t)||(c.company||"").toLowerCase().includes(t));
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
- return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint" style="--c:${c.colour||AGENCY.colour}">${initials(c.name)}</span><span class="t">${hdrEsc(c.name)}</span>${hdrWsNeeds(c)?'<span class="hdr-wsdot" role="img" aria-label="Needs you"></span>':""}${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
+ return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint" style="--c:${c.colour||AGENCY.colour}">${initials(c.name)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
   :`<p class="sub hdr-wsnone">No workspaces found</p>`}
 function hdrWsOpen(trig){
  if(HDR_WS&&HDR_WS.trig===trig){hdrWsClose(true); return}
@@ -16221,7 +16222,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6c6d30e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="d760ad3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
