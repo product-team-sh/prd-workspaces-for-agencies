@@ -823,7 +823,6 @@ input:disabled,select:disabled{background:var(--gray-19);color:var(--gray-15);bo
 .legend i{width:8px;height:8px;border-radius:2px;flex:none}
 .legend i.dash{width:14px;height:0;border-top:2px dashed var(--gray-11);border-radius:0}
 .sw[disabled]{opacity:.45;cursor:not-allowed}
-.cnav{display:inline-flex;align-items:center;gap:4px;margin-right:4px}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--gray-13)}
 .pager .tools{display:flex;align-items:center;gap:10px}
 .estbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px 24px 11px;border-bottom:1px solid var(--gray-13)} /* 17 Sep: bottoms aligned and 11+1 so the pills sit exactly 12px above the table head, like every other filter row */
@@ -835,7 +834,6 @@ input:disabled,select:disabled{background:var(--gray-19);color:var(--gray-15);bo
 .numin .unit{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--gray-11);white-space:nowrap;pointer-events:none}
 .draftbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--gray-13);background:var(--blue-17);font-size:13px;line-height:19px;color:var(--gray-17)}
 .draftbar .tools{display:flex;gap:8px;flex:none}
-.cnav .ubtn{width:28px;height:28px;font-size:18px;line-height:1}
 tr.is-focus td{background:var(--blue-17)}
 tr.is-focus td:first-child{box-shadow:inset 3px 0 0 var(--blue-11)} /* 17 Sep 2026: the bar was drawn in every cell */
 .chart{width:100%;height:auto;display:block;margin-top:12px;overflow:visible}
@@ -3344,9 +3342,10 @@ const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-h
    The top bar is the path: its segments with production's ChevronRight between them, one
    trailing slot after the last segment (a single status: a chip, a switch, a count, Beta or
    a help link), then the utilities. It holds no buttons, and the name it ends on is the only
-   place the page's name appears. Inside a workspace the path starts at the workspace, with
-   its avatar: an admin can click it to open the workspace record, a client user reads it as
-   plain text. Past three segments the first and the last two show, with "…" for the rest.
+   place the page's name appears. Change 334: the path is complete, from the rail section to the
+   page (Workspaces, the workspace, the module, the page); a client user's starts at their
+   workspace as plain text. Past four segments the first, the workspace and the last show, with
+   "…" for the rest.
    At 640px and under the bar is back, the page name and the slot; a text chip becomes an 8px
    dot that carries the same words as its label and shows them in a tooltip on tap.       */
 const HDR_I={
@@ -3382,54 +3381,185 @@ function hdrSeqSlot(c,q){
  const owner=!asClient&&agencyFull(c), may=owner||canC(c,"editseq"), mayPause=may||canC(c,"pause"), on=st==="Active";
  return `<span class="hdr-sww"><button type="button" class="hdr-sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${on?"Pause":"Resume"} ${hdrEsc(q.name)}" ${mayPause?`data-seqask="${key}"`:"disabled"}></button><span class="hdr-swl">${on?"Active":"Paused"}</span></span>`;
 }
-/* the path for this screen, or null where the bar is a single page name (left as vC sets it) */
+/* ═══ change 334 (Hitesh, 20 Oct 2026: "Check breadcrum here, it should be complete breadcrum everywhere") ═══
+   The path is derived in one place from where the screen sits: every level from the rail section
+   down to the page, and every ancestor a link to its level. HDR_LV holds the levels; hdrModel()
+   only says which levels a screen sits under. Tabs (a record's Overview to Activity, People's tabs,
+   Usage & billing's tabs, API & Integrations' tabs) are not levels. Inside a workspace an agency
+   person's path starts at Workspaces; a client user's starts at their workspace, as plain text.
+   The workspace segment is a switcher for an agency person: its name opens that level, the
+   chevron beside it lists the workspaces they can open (hdrWsOpen).
+   Hitesh, 20 Oct 2026: "breadcrum should be like [production's]: Workspaces then individual workspace
+   name then username": production's breadcrumb text style (font, colours, chevron, gaps); the avatars
+   stay on the workspace and person segments. */
+const hdrSetName=()=>{const s=setById[setSel]; return s?s[1].replace(/&amp;/g,"&"):"Settings"};
+/* the module's own name, one map for the leaf and the ancestor: production calls the list "Sequence" */
+const hdrModName=mod=>mod==="sequences"?"Sequence":asClient?(CLIENT_LBL[mod]||"Workspace"):mod==="usage"?"Usage & billing":(IN_LBL[mod]||(AGY_MOD[mod]?AGY_MOD[mod][0]:"Sequence"));
+const hdrLeave=()=>{ORIGIN=null;openSeq=null;openProspect=null;openReply=null;qFrom=null;focusMb=null};
+const HDR_LV={
+ /* the rail section: the Workspaces list (the record's legacy #backList when already in the admin panel) */
+ workspaces:()=>ctx==="agency"?{t:"Workspaces",a:'id="backList"'}:{t:"Workspaces",go:()=>{hdrLeave();ctx="agency";asClient=false;PREVIEW=false;view={name:"clients"};render()}},
+ /* a workspace: plain text for a client user; for an agency person a link to its record (from a
+    person page, back to its Members tab, 321's way back) and a switcher; the record itself is current */
+ ws:(c,how)=>{const s={t:c.name,av:av(c,24),ws:c.id,dim:!!(c.disabled||c.deletedOn)};
+  if(asClient) return s;
+  s.sw=hdrWsList().some(x=>x.id===c.id);
+  if(how==="here") return s;
+  s.a=how==="members"?`data-tows="${c.id}"`:isMember(ME(),c.id)?`data-hdrrec="${c.id}"`:"";
+  return s},
+ people:()=>({t:"People",a:"data-topeople"}),
+ /* a module: back to its list (the legacy hooks of 328 kept for Sequence and Prospects) */
+ module:mod=>({t:hdrModName(mod),a:mod==="sequences"?"data-seqback":mod==="prospects"?'data-prospect=""':"",go:()=>{openSeq=null;openProspect=null;openReply=null;render()}}),
+ /* Settings opens on its first page, My Profile, wherever it is */
+ settings:()=>({t:"Settings",go:()=>{setSel="profile";openSeq=null;openProspect=null;openReply=null;if(asClient&&ctx!=="agency") cView="settings"; else {inMod=null;view={name:"settings"}} render()}}),
+ page:t=>({t})
+};
+/* the path for this screen, or null where the bar is a single page name (left as vC sets it):
+   admin panel pages without sub-pages, and the single-workspace account */
 function hdrModel(){
  if(solo||["login","invite","m1","m2"].indexOf(view.name)>-1) return null;
+ const L=HDR_LV;
  if(ctx==="agency"){
   if(view.name==="record"&&byId[view.id]){const c=byId[view.id];
-   return {segs:[{t:"Workspaces",a:'id="backList"'},{t:c.name,av:av(c,24),dim:!!(c.disabled||c.deletedOn)}],slot:hdrRecSlot(c)}}
+   return {segs:[L.workspaces(),L.ws(c,"here")],slot:hdrRecSlot(c)}}
   if(view.name==="person"){const p=personOf(view.id); if(!p) return null; const w=view.from&&byId[view.from];
-   return {segs:[w?{t:w.name,av:av(w,24),a:`data-tows="${w.id}"`}:{t:"People",a:"data-topeople"},{t:p.name,you:!!p.me,av:ppAv(p.initials,PP_AV,24,!!p.invited)}],slot:""}}
-  if(view.name==="addmember") return {segs:[{t:"People",a:"data-topeople"},{t:"Add a person"}],slot:""};
+   return {segs:[...(w?[L.workspaces(),L.ws(w,"members")]:[L.people()]),{t:p.name,you:!!p.me,av:ppAv(p.initials,PP_AV,24,!!p.invited)}],slot:""}}
+  if(view.name==="addmember") return {segs:[L.people(),L.page("Add a person")],slot:""};
+  if(view.name==="settings") return {segs:[L.settings(),L.page(hdrSetName())],slot:""};
   return null;
  }
  const c=byId[ctx]; if(!c||isNormal()) return null;
- const ct=el("crumbTail"), yt=ct.querySelector(".yt"), label=ct.textContent.split(" / ").pop().trim();
- const ws={t:c.name,av:av(c,24),a:!asClient&&isMember(ME(),c.id)?`data-hdrrec="${c.id}"`:""};
+ const yt=el("crumbTail").querySelector(".yt");
+ const head=[...(asClient?[]:[L.workspaces()]),L.ws(c,"in")];
  const mod=asClient?cView:inMod, here=view.name!=="settings"&&view.name!=="apiint";
- if(here&&mod==="sequences"&&openSeq&&openSeq.split("|")[0]===c.id){const q=(c.sequences||[]).find(x=>c.id+"|"+x.name===openSeq);
-  if(q) return {segs:[ws,{t:"Sequence",a:"data-seqback"},{t:q.name}],slot:hdrSeqSlot(c,q)}}   /* production's one name: "Sequence", as on the list */
- if(here&&mod==="prospects"&&openProspect){const p=(PROSPECTS[c.id]||[]).find(x=>x.id===openProspect);
-  if(p) return {segs:[ws,{t:"Prospects",a:'data-prospect=""'},{t:p.name}],slot:""}}
- return {segs:[ws,{t:label}],slot:yt?yt.outerHTML:""};
+ if(view.name==="apiint") return {segs:[...head,L.settings(),L.page("API & Integrations")],slot:""};
+ if(!here||mod==="settings") return {segs:[...head,L.settings(),L.page(hdrSetName())],slot:""};
+ if(mod==="sequences"&&openSeq&&openSeq.split("|")[0]===c.id){const q=(c.sequences||[]).find(x=>c.id+"|"+x.name===openSeq);
+  if(q) return {segs:[...head,L.module(mod),L.page(q.name)],slot:hdrSeqSlot(c,q)}}
+ if(mod==="prospects"&&openProspect){const p=(PROSPECTS[c.id]||[]).find(x=>x.id===openProspect);
+  if(p) return {segs:[...head,L.module(mod),L.page(p.name)],slot:""}}
+ return {segs:[...head,L.page(hdrModName(mod))],slot:yt?yt.outerHTML:""};
 }
 function hdrSegHTML(s){
- const inner=(s.av?`<span class="hdr-avw">${s.av}</span>`:"")+`<span class="hdr-t">${s.t}</span>`, cls="hdr-seg"+(s.av?" hdr-seg--ws":"");
- return s.a?`<button type="button" class="${cls}" data-hdrseg="${s.i}" ${s.a}>${inner}</button>`:`<span class="${cls} hdr-seg--plain" data-hdrseg="${s.i}">${inner}</span>`;
+ const inner=(s.av?`<span class="hdr-avw">${s.av}</span>`:"")+`<span class="hdr-t">${hdrEsc(s.t)}</span>`, cls="hdr-seg"+(s.av?" hdr-seg--ws":"");
+ const seg=(s.a||s.go)?`<button type="button" class="${cls}" data-hdrseg="${s.i}"${s.go?` data-hdrgo="${s.i}"`:""} ${s.a||""}>${inner}</button>`:`<span class="${cls} hdr-seg--plain" data-hdrseg="${s.i}">${inner}</span>`;
+ return s.sw?`<span class="hdr-wsw">${seg}${hdrWsDD(s.t)}</span>`:seg;
 }
+/* the switcher's trigger: production's 16px ChevronDown in a 24px button beside the workspace's name */
+const hdrWsDD=(t,id)=>`<button type="button" class="hdr-wsdd"${id?` id="${id}"`:""} data-hdrwsdd aria-haspopup="menu" aria-expanded="false" aria-label="Switch workspace, ${hdrEsc(t)}">${HDR_I.down}</button>`;
+/* past four segments: the first, the workspace and the last stay, "…" holds the levels between
+   (no workspace in the path: the first, "…", the parent and the last) */
 function hdrPathHTML(segs){
  const S=segs.map((s,i)=>Object.assign({i},s)), last=S.pop(), sep=`<span class="hdr-sep" aria-hidden="true">${HDR_I.chev}</span>`;
- let lead;
- if(S.length+1>3){const mid=S.slice(1,-1), names=hdrEsc(mid.map(x=>x.t).join(", "));
-  lead=hdrSegHTML(S[0])+sep+`<span class="hdr-morew"><button type="button" class="hdr-more" data-hdrmore aria-haspopup="menu" aria-expanded="false" aria-label="Show ${names}" title="${names}">${HDR_I.dots}</button><div class="menu hdr-menu" role="menu" hidden>${mid.map(x=>x.a?`<button type="button" class="menu-i" role="menuitem" ${x.a}><span class="menu-l">${x.t}</span></button>`:`<span class="menu-i hdr-menu-plain"><span class="menu-l">${x.t}</span></span>`).join("")}</div></span>`+sep+hdrSegHTML(S[S.length-1])+sep}
+ let lead="";
+ if(S.length+1>4){const w=S.findIndex((s,k)=>k>0&&s.ws), keep=[0,w>0?w:S.length-1], mid=S.filter((s,k)=>keep.indexOf(k)<0), names=hdrEsc(mid.map(x=>x.t).join(", "));
+  const more=`<span class="hdr-morew"><button type="button" class="hdr-more" data-hdrmore aria-haspopup="menu" aria-expanded="false" aria-label="Show ${names}" title="${names}">${HDR_I.dots}</button><div class="menu hdr-menu" role="menu" hidden>${mid.map(x=>(x.a||x.go)?`<button type="button" class="menu-i" role="menuitem" data-hdrmi="${x.i}" ${x.a||""}><span class="menu-l">${hdrEsc(x.t)}</span></button>`:`<span class="menu-i hdr-menu-plain"><span class="menu-l">${hdrEsc(x.t)}</span></span>`).join("")}</div></span>`;
+  let put=false; S.forEach((s,k)=>{if(keep.indexOf(k)>-1){lead+=hdrSegHTML(s)+sep; return} if(!put){lead+=more+sep; put=true}})}
  else lead=S.map(s=>hdrSegHTML(s)+sep).join("");
- const up=S[S.length-1], back=up&&up.a?`<button type="button" class="hdr-back" data-hdrback="${up.i}" aria-label="Back to ${hdrEsc(up.t)}" title="Back to ${hdrEsc(up.t)}">${HDR_I.back}</button>`:"";
+ const up=S[S.length-1], back=up&&(up.a||up.go)?`<button type="button" class="hdr-back" data-hdrback="${up.i}" aria-label="Back to ${hdrEsc(up.t)}" title="Back to ${hdrEsc(up.t)}">${HDR_I.back}</button>`:"";
  return {html:back+lead+(last.av?`<span class="hdr-avw hdr-avw--cur${last.dim?" is-dim":""}">${last.av}</span>`:""),last};
 }
 function hdrApply(){
  const ct=el("crumbTail"), P=el("crumbPath"); if(!ct||!P) return;
+ hdrWsClose(false);
  const box=ct.parentNode, m=hdrModel();
+ let d=el("hdrWsCur"); if(!d){ct.insertAdjacentHTML("afterend",hdrWsDD("","hdrWsCur")); d=el("hdrWsCur")}
  box.classList.toggle("hdr-multi",!!(m&&m.segs.length>1));
- if(!m){P.innerHTML=""; ct.removeAttribute("title"); return}
+ if(!m){P.innerHTML=""; ct.removeAttribute("title"); d.hidden=true; box.classList.remove("hdr-wscur"); return}
  const r=hdrPathHTML(m.segs);
  P.innerHTML=r.html;
  ct.textContent=r.last.t; ct.title=r.last.t;
  if(r.last.you) ct.insertAdjacentHTML("beforeend",' <span class="hdr-you">(you)</span>');
- let x=el("crumbExtra"); if(!x){x=document.createElement("span");x.id="crumbExtra";ct.after(x)}
+ /* the current page is a workspace (its record): name and chevron open the switcher */
+ d.hidden=!r.last.sw; box.classList.toggle("hdr-wscur",!!r.last.sw);
+ if(r.last.sw) d.setAttribute("aria-label","Switch workspace, "+r.last.t);
+ let x=el("crumbExtra"); if(!x){x=document.createElement("span");x.id="crumbExtra";d.after(x)}
  x.className="wlp crumb-extra hdr-slot"; x.innerHTML=m.slot||"";
  P.querySelectorAll("[data-hdrrec]").forEach(b=>b.onclick=()=>{const id=b.dataset.hdrrec; ORIGIN=null;ctx="agency";asClient=false;PREVIEW=false;openSeq=null;openProspect=null;openReply=null;qFrom=null;focusMb=null;view={name:"record",id};tab="overview";render()});
- const bk=P.querySelector("[data-hdrback]"); if(bk) bk.onclick=()=>{const t=P.querySelector(`[data-hdrseg="${bk.dataset.hdrback}"]`); if(t) t.click()};
+ P.querySelectorAll("[data-hdrgo],[data-hdrmi]").forEach(b=>{const s=m.segs[+(b.dataset.hdrgo||b.dataset.hdrmi)]; if(s&&s.go&&!s.a) b.onclick=()=>s.go()});
+ const bk=P.querySelector("[data-hdrback]"); if(bk) bk.onclick=()=>{const i=bk.dataset.hdrback, t=P.querySelector(`button[data-hdrseg="${i}"]`)||P.querySelector(`[data-hdrmi="${i}"]`); if(t) t.click()};
 }
+/* ═══ change 334, the workspace switcher (Hitesh, 20 Oct 2026: "instead of having these button to
+   switch workspace detail page, we need to add drop-down like ability to change workspace detail we're
+   checking here"). The record pager goes. The workspace segment's chevron opens the rail switcher's
+   listing (.pop: 280 wide, 32px search, 40px rows, 24px avatar, the check on the current one): every
+   workspace the person can open, in the Dashboard's order (wsOrder, your own first), a search box past
+   seven, Disabled as a grey tag, an 8px Amber 600 dot when one needs you. No chips. Picking one keeps
+   the level: a record keeps its tab, a module keeps the module, a page that would not exist in the
+   other workspace (a sequence, a prospect) goes to its module, a person page goes to the record's
+   Members tab. A disabled workspace cannot be worked in, so from inside one it opens its record.
+   The URL hash follows and browser Back returns. At 640px and under it opens as a sheet. ═══ */
+const hdrWsList=()=>asClient?[]:wsOrder(myWorkspaces().filter(c=>!c.deletedOn));
+const hdrWsNeeds=c=>!c.own&&!c.disabled&&!c.deletedOn&&(askLines(c.id).length>0||[1,2].indexOf(wsNeedTier(c))>-1);
+let HDR_WS=null;   /* the open switcher: {trig} */
+function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hidden=true; const s=el("hdrWsScrim"); if(s) s.hidden=true;
+ const t=HDR_WS&&HDR_WS.trig; if(t) t.setAttribute("aria-expanded","false"); HDR_WS=null; if(refocus&&t&&t.isConnected) t.focus()}
+function hdrWsRows(q){const t=(q||"").trim().toLowerCase(), cur=ctx==="agency"?view.name==="record"?view.id:view.from:ctx;
+ const L=hdrWsList().filter(c=>!t||c.name.toLowerCase().includes(t)||(c.company||"").toLowerCase().includes(t));
+ const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
+ return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint" style="--c:${c.colour||AGENCY.colour}">${initials(c.name)}</span><span class="t">${hdrEsc(c.name)}</span>${hdrWsNeeds(c)?'<span class="hdr-wsdot" role="img" aria-label="Needs you"></span>':""}${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
+  :`<p class="sub hdr-wsnone">No workspaces found</p>`}
+function hdrWsOpen(trig){
+ if(HDR_WS&&HDR_WS.trig===trig){hdrWsClose(true); return}
+ hdrWsClose(false);
+ let M=el("hdrWsm"); if(!M){document.body.insertAdjacentHTML("beforeend",'<div class="hdr-wsscrim" id="hdrWsScrim" hidden></div><div class="pop hdr-wsm" id="hdrWsm" hidden></div>'); M=el("hdrWsm");
+  el("hdrWsScrim").onclick=()=>hdrWsClose(true);
+  M.addEventListener("click",e=>{const b=e.target.closest("[data-hdrws]"); if(b) hdrWsPick(b.dataset.hdrws)});
+  M.addEventListener("input",e=>{if(e.target.matches("[data-hdrwsq]")) el("hdrWsl").innerHTML=hdrWsRows(e.target.value)});
+  M.addEventListener("keydown",hdrWsKey)}
+ const sheet=window.innerWidth<=640, n=hdrWsList().length;
+ M.className="pop hdr-wsm"+(sheet?" hdr-wsm--sheet":"");
+ M.innerHTML=(sheet?'<div class="hdr-wsm-h">Switch workspace</div>':"")+(n>7?'<div class="pop-s"><input type="text" data-hdrwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>':"")+`<div class="pop-l" id="hdrWsl" role="menu" aria-label="Workspaces">${hdrWsRows("")}</div>`;
+ M.hidden=false; el("hdrWsScrim").hidden=!sheet;
+ if(!sheet){const a=(trig.closest(".hdr-wsw")||(trig.id==="hdrWsCur"?el("crumbPath").querySelector(".hdr-avw--cur"):null)||trig).getBoundingClientRect();
+  M.style.top=Math.round(trig.getBoundingClientRect().bottom+8)+"px"; M.style.left=Math.max(8,Math.min(Math.round(a.left),window.innerWidth-M.offsetWidth-8))+"px"}
+ else {M.style.top=""; M.style.left=""}
+ HDR_WS={trig}; trig.setAttribute("aria-expanded","true");
+ const f=M.querySelector("[data-hdrwsq]")||M.querySelector('.hdr-wsr[aria-current="true"]')||M.querySelector(".hdr-wsr"); if(f) f.focus();
+}
+function hdrWsKey(e){
+ const M=el("hdrWsm"), R=[...M.querySelectorAll(".hdr-wsr")], i=R.indexOf(document.activeElement), q=M.querySelector("[data-hdrwsq]");
+ if(e.key==="Escape"){e.preventDefault(); e.stopPropagation(); hdrWsClose(true); return}
+ if(e.key==="Tab"){hdrWsClose(false); return}
+ if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault(); if(!R.length) return;
+  const j=e.key==="ArrowDown"?(i<0?0:Math.min(R.length-1,i+1)):(i<=0?-1:i-1); if(j<0&&q) q.focus(); else R[Math.max(0,j)].focus(); return}
+ if(e.key==="Home"&&i>-1){e.preventDefault(); R[0].focus(); return}
+ if(e.key==="End"&&i>-1){e.preventDefault(); R[R.length-1].focus(); return}
+ if(e.key==="Enter"&&document.activeElement===q&&R.length===1){e.preventDefault(); hdrWsPick(R[0].dataset.hdrws)}
+}
+const hdrSnap=()=>({ctx,view:Object.assign({},view),tab,inMod,asClient,PREVIEW,cView,openSeq,seqTab,openProspect,setSel,apiTab,UB_TAB,PERSON_TAB});
+function hdrRestore(s){ctx=s.ctx;view=Object.assign({},s.view);tab=s.tab;inMod=s.inMod;asClient=s.asClient;PREVIEW=s.PREVIEW;cView=s.cView;openSeq=s.openSeq;seqTab=s.seqTab;openProspect=s.openProspect;setSel=s.setSel;apiTab=s.apiTab;UB_TAB=s.UB_TAB;PERSON_TAB=s.PERSON_TAB;
+ ORIGIN=null;RL=null;PA_ED=null;openReply=null;qFrom=null;focusMb=null;render()}
+/* the hash a reload would land on: the record and its tab, or the workspace and its module */
+const hdrHash=s=>demoHash([s.ctx==="agency"?"client="+s.view.id:"ws="+s.ctx,s.ctx==="agency"?(s.tab&&s.tab!=="overview"?"tab="+s.tab:""):"mod="+(s.view.name==="clients"?s.inMod:s.view.name),HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam(),hcParam()]);
+function hdrWsPick(id){
+ const c=byId[id]; if(!c){hdrWsClose(true); return}
+ const prev=hdrSnap(), from=ctx==="agency"?(view.name==="record"?view.id:view.from):ctx;
+ hdrWsClose(false);
+ if(id===from&&!(ctx==="agency"&&view.name==="person")) return;
+ hdrLeave(); RL=null; FOCUS_LIM=null; LM_DECL=null; PA_ED=null;
+ if(ctx==="agency"){if(view.name!=="record") tab="members"; view={name:"record",id}}   /* a record keeps its tab; a person page goes to the record's Members */
+ else if(c.disabled){ctx="agency"; asClient=false; view={name:"record",id}; tab="overview"}
+ else ctx=id;   /* the same module, Settings page or API & Integrations, in the other workspace */
+ /* the entry being left remembers where it was (unless it is 321's person entry, which restores itself), then the new one is pushed */
+ const now=hdrSnap();
+ try{const h=history.state; if(!h||h.sh==="hdrws") history.replaceState({sh:"hdrws",snap:prev},"",location.href);
+  history.pushState({sh:"hdrws",snap:now},"",location.pathname+location.search+"#"+hdrHash(now))}catch(e){}
+ render();
+ const f=el("hdrWsCur"); if(f&&!f.hidden) f.focus(); else {const w=document.querySelector("#crumbPath .hdr-wsdd"); if(w) w.focus()}
+}
+/* browser Back and Forward across a switch (before the person page's own handler, which keeps 321's way back) */
+window.addEventListener("popstate",e=>{const st=e.state; if(!st||st.sh!=="hdrws"||!st.snap) return;
+ if(view.name==="person"&&view.from) return;   /* leaving a person page opened from a record: 321's handler takes it to Members */
+ SH_SKIP=true; clearTimeout(window.__hdrSkipT); window.__hdrSkipT=setTimeout(()=>{SH_SKIP=false},80); e.stopImmediatePropagation();
+ hdrRestore(st.snap)});
+document.addEventListener("click",e=>{
+ const t=e.target.closest&&(e.target.closest("[data-hdrwsdd]")||(e.target.closest(".crumb.hdr-wscur #crumbTail, .crumb.hdr-wscur .hdr-avw--cur")&&el("hdrWsCur")));
+ if(t){hdrWsOpen(t); return}
+ if(HDR_WS&&!e.target.closest("#hdrWsm")) hdrWsClose(false);
+});
+document.addEventListener("keydown",e=>{if((e.key==="ArrowDown")&&e.target.matches&&e.target.matches("[data-hdrwsdd]")&&!HDR_WS){e.preventDefault(); hdrWsOpen(e.target)}});
+window.addEventListener("resize",()=>{if(HDR_WS) hdrWsClose(false)});
 /* the overflow menu and the dot's tooltip: one listener for the session */
 document.addEventListener("click",e=>{
  const mb=e.target.closest("[data-hdrmore]"), dot=e.target.closest("[data-hdrdot]"), tm=e.target.closest("[data-hdrtmore]");
@@ -4072,15 +4202,14 @@ function vRecord(id){
  const dead=!!c.deletedOn, off=!!c.disabled;
  /* change 328 (Hitesh, 18 Oct 2026: "let's build H into vC", H revised): the name is in the
     bar ("Workspaces › Northwind Logistics" plus its one status), so the 84px band goes. Tabs
-    sit left on the tab row at 14px; the actions move to its right side, and the pager closes
-    the row in a fixed 104px slot, always "N of M". At phone width the actions take a row of
+    sit left on the tab row at 14px; the actions move to its right side. Change 334: the pager
+    is gone; the workspace's name in the bar switches workspaces (hdrWsOpen). At phone width the actions take a row of
     their own above the tabs and View as client moves into the menu. */
  const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary hdr-desk")}<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
- const pg=clientNav(c);
  return `
  <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
   <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
-  <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}${pg?`<span class="hdr-vsep" aria-hidden="true"></span><span class="hdr-pgfix">${pg}</span>`:""}</div>
+  <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}</div>
  </div>
  ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
@@ -9521,7 +9650,7 @@ function vInClient(){
    <div class="cell-main">${av(c,32)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
     <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Workspace")+'<span class="gapx">'+inModLabel()+"</span>"}</span></span></div>
    ${inMod==="sequences"?"":`<div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>`}
-   <div class="tools">${own?"":queueBack()+(qFrom?"":clientNav(c))}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
+   <div class="tools">${own?"":queueBack()}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
     </div></div>`}
 
   <div class="wrap${!isNormal()&&!(qFrom&&!own)?" hdr-top":""}">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
@@ -10461,17 +10590,7 @@ function queueOrderIds(){
  F.forEach(x=>{if(x.client&&ids.indexOf(x.client)<0)ids.push(x.client)});
  return ids;
 }
-function clientNav(c){
- const fromOrigin=ORIGIN&&ORIGIN.order.indexOf(c.id)>-1;
- const L=fromOrigin?ORIGIN.order.map(id=>byId[id]).filter(Boolean):wsList();
- const i=L.findIndex(x=>x.id===c.id);
- if(i<0||L.length<2) return "";
- const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
- const suffix=fromOrigin&&ORIGIN.attn?" needing attention":"";
- /* change 328: production chevrons, and always the count; the "needing attention" scope is in the label, so the pager keeps its fixed 104px slot */
- const chL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>', chR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
- return `<span class="cnav" role="group" aria-label="Workspace ${i+1} of ${L.length}${suffix}"><button class="ubtn" data-cprev="${p.id}" title="Previous: ${p.name}" aria-label="Previous workspace, ${p.name}">${chL}</button><span class="sub tnum"${suffix?` title="Workspaces${suffix}"`:""}>${i+1} of ${L.length}</span><button class="ubtn" data-cnext="${n.id}" title="Next: ${n.name}" aria-label="Next workspace, ${n.name}">${chR}</button></span>`;
-}
+/* change 334: clientNav (the record pager) is gone; the bar's workspace switcher replaces it */
 /* item 8, 28 Sep 2026: there is no queue screen in phase 1 (D13) - "Back to
    queue" actually returns to Home, and "Next in queue" steps to the next row
    of Home's own "Needs a decision" list, so the labels say that instead. */
@@ -12887,9 +13006,6 @@ function wire(){
    const i=(view.name==="queue"||view.name==="dash")?queueItems().findIndex(x=>x.client===id&&destFor(x)===mod):-1;
    qFrom=i>-1?{i}:null;
    gotoClient(id,mod,pid)});
- q("[data-cprev],[data-cnext]").forEach(b=>b.onclick=()=>{const id=b.dataset.cprev||b.dataset.cnext;
-   if(ctx==="agency"&&view.name==="record"){view={name:"record",id};render();return}
-   ctx=id;openProspect=null;openSeq=null;openReply=null;focusMb=null;render()});
  q("[data-backq]").forEach(b=>b.onclick=()=>{qFrom=null;focusMb=null;ctx="agency";asClient=false;view=homeView();render()});
  q("[data-nextq]").forEach(b=>b.onclick=()=>{const i=+b.dataset.nextq,q=queueItems()[i];
    if(!q||!q.client){qFrom=null;ctx="agency";asClient=false;view=homeView();render();return}
@@ -13996,7 +14112,8 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
  if(k==="people"){view={name:"people"}; PEOPLE_TAB=v==="clients"?"clients":"agency"}
  if(k==="person"&&v){const key=v.indexOf("t:")===0||v.indexOf("w:")===0?v:"t:"+v; view=personOf(key)?{name:"person",id:key,from:HASHX.p.from&&byId[HASHX.p.from]?HASHX.p.from:undefined}:{name:"people"}; PERSON_TAB="access"}
  if(k==="addmember"){view={name:"people"};setTimeout(()=>openInvite({}),60)}
- if(k==="client"&&byId[v]) view={name:"record",id:v};
+ if(k==="client"&&byId[v]){view={name:"record",id:v}; if(["overview","members","limits","activity"].indexOf(HASHX.p.tab)>-1) tab=HASHX.p.tab}
+ if(k==="ws"&&byId[v]&&!byId[v].deletedOn){const m=HASHX.p.mod||"sequences", pg=m==="settings"||m==="apiint"; ctx=v;asClient=false;inMod=pg?null:m;view={name:pg?m:"clients"}}   /* change 334 */
  /* the client's own side, and the create modal, are otherwise several clicks
     in. Coordinator review round 1, 24 Sep: a cold #asclient link lands on the
     first screen the role actually grants, not on the fixed Workspace item -
@@ -16104,7 +16221,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="adfa8a0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="6c6d30e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16929,7 +17046,7 @@ button.hdr-chip{cursor:pointer}
 .hdr-swl{font-size:14px;line-height:16px;font-weight:500;color:#4b5563;white-space:nowrap}
 .is-preview .topbar [data-seqask]{opacity:.55;pointer-events:none}
 /* the tab row (Subheader): 50px, white; tabs left at production's 14px bs-tabs-small (_tab.scss:1-8),
-   actions right, the record pager last in a fixed 104px slot */
+   actions right */
 .hdr-sh{display:flex;align-items:center;gap:8px;height:50px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb;position:relative;flex:none;box-sizing:border-box;max-width:100%}
 .hdr-sh>.tabbar{display:flex;align-items:stretch;align-self:stretch;gap:24px;margin:0;padding:0;border:0;background:none;flex:0 1 auto;min-width:0}
 .hdr-sh>.tabbar>button{position:relative;display:flex;flex:none;align-items:center;margin:0;padding:0;border:0!important;border-radius:0;background:none;font-size:14px;line-height:22px;font-weight:400;color:#6b7280;white-space:nowrap;cursor:pointer}
@@ -16944,11 +17061,34 @@ button.hdr-chip{cursor:pointer}
 .hdr-sh-r:not(:has(*)){display:none}
 .hdr-vsep{width:1px;height:20px;margin:0 4px;background:#e5e7eb;flex:none}
 .hdr-sh-r>.hdr-vsep:first-child{display:none}
-.hdr-pgfix{width:104px;display:flex;justify-content:flex-end;flex:none}
-.hdr-pgfix .cnav{gap:2px;margin:0 -6px 0 0}
-.hdr-pgfix .cnav .ubtn{width:28px;height:28px;display:grid;place-items:center;border-radius:4px;color:#6b7280}
-.hdr-pgfix .cnav .ubtn svg{width:16px;height:16px;display:block}
-.hdr-pgfix .cnav .sub{font-size:13px;line-height:20px;color:#6b7280;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* change 334: production's breadcrumb (saleshandy-webui-main: sequence-single-header.tsx:306-311 draws it; its CSS
+   components/home/components/header/_header.scss:63-101 and 141-149, and the grey ancestor of _header.scss:28-35):
+   16px/20px, weight 600; an ancestor Gray 500 #6B7280 that turns Blue 700 #1D4ED8 on hover (0.2s); the current page
+   Gray 800 #1F2937; ChevronRight 16px Gray 400 #9CA3AF; 8px between. The 24px avatars stay (328). */
+.topbar .hdr-seg,.topbar .hdr-seg .hdr-t,.topbar .hdr-seg--ws{font-size:16px;line-height:20px;font-weight:600;color:#6b7280}
+.topbar button.hdr-seg{transition:color .2s ease}
+.topbar button.hdr-seg:hover,.topbar button.hdr-seg:hover .hdr-t{color:#1d4ed8}
+.topbar .crumb.hdr-multi .crumb-tail{font-size:16px;line-height:20px;font-weight:600;color:#1f2937}
+/* change 334: the workspace switcher. Its trigger is production's 16px ChevronDown in a 24px button,
+   2px after the name; the list is the rail switcher's own listing (.pop, 28 Sep 2026): 280 wide, 32px
+   search, 40px rows with a 24px avatar, Blue 50 hover and current, the check on the current one */
+.hdr-wsw{display:inline-flex;align-items:center;gap:2px;flex:none;min-width:0}
+.hdr-wsdd{width:24px;height:24px;display:grid;place-items:center;margin:0;padding:0;border:0;border-radius:4px;background:none;color:#6b7280;cursor:pointer;flex:none}
+.hdr-wsdd svg{width:16px;height:16px;display:block}
+.hdr-wsdd:hover,.hdr-wsdd[aria-expanded=true]{background:#f3f4f6;color:#374151}
+.hdr-wsdd:focus-visible,.hdr-wsr:focus-visible{outline:2px solid #1d4ed8;outline-offset:-2px}
+.hdr-wsdd[hidden],.hdr-wsm[hidden],.hdr-wsscrim[hidden]{display:none}
+#hdrWsCur{margin-left:-6px}
+.crumb.hdr-wscur #crumbTail,.crumb.hdr-wscur .hdr-avw--cur{cursor:pointer}
+.hdr-wsr.is-off .t{color:#9ca3af}
+.hdr-wsr.is-off .avatar{opacity:.5}
+/* needs you: vC's 8px Amber 600 dot, the phone bar's own */
+.hdr-wsdot{width:8px;height:8px;margin-left:auto;border-radius:50%;background:#d97706;flex:none}
+.hdr-wsr .hdr-wsdot~.pop-tag,.hdr-wsr .hdr-wsdot~.pop-cur,.hdr-wsr .pop-tag~.pop-cur{margin-left:8px}
+.hdr-wsr .pop-cur.hdr-wsnc{visibility:hidden}
+.hdr-wsnone{margin:0;padding:8px}
+.hdr-wsscrim{position:fixed;inset:0;z-index:1000;background:rgba(17,24,39,.35)}
+.hdr-wsm-h{padding:16px 16px 8px;font-size:16px;line-height:24px;font-weight:600;color:#111827}
 .hdr-by{white-space:nowrap}
 .hdr-sh .rec-kebab{width:32px;min-width:32px;padding:0;justify-content:center}
 /* content starts 16px under the tab row or the bar */
@@ -16982,14 +17122,19 @@ button.hdr-chip{cursor:pointer}
  .topbar{padding:0 16px;gap:8px}
  .topbar .ubtn[title="Support"],.topbar .ubtn[title="Quick actions"],.topbar .me>svg{display:none}
  .topbar .me{padding-right:4px}
- .crumb.hdr-multi .hdr-seg,.crumb.hdr-multi .hdr-sep,.crumb.hdr-multi .hdr-morew,.crumb .hdr-avw{display:none}
+ .crumb.hdr-multi .hdr-seg,.crumb.hdr-multi .hdr-sep,.crumb.hdr-multi .hdr-morew,.crumb.hdr-multi .hdr-wsw,.crumb .hdr-avw{display:none}
+ /* change 334: on a phone the bar keeps 328's back, name and slot: the name itself opens the switcher, as a sheet from the bottom */
+ #hdrWsCur{display:none}
+ .hdr-wsm.hdr-wsm--sheet{top:auto;left:0;right:0;bottom:0;width:auto;border-width:1px 0 0;border-radius:8px 8px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.08)}
+ .hdr-wsm--sheet .pop-s{padding:0 16px 8px}
+ .hdr-wsm--sheet .pop-l{max-height:60vh;padding:0 8px 16px}
+ .hdr-wsm--sheet .pop-r{height:44px}
  .crumb.hdr-multi .hdr-back{display:grid}
  .hdr-slot .hdr-chip,.hdr-slot .hdr-swl{display:none}
  .hdr-slot .hdr-dot{display:block}
  .hdr-sh{flex-wrap:wrap;height:auto;padding:0 16px;gap:0 8px}
  .hdr-sh>.tabbar{order:2;flex:1 0 100%;height:50px;gap:16px}
  .hdr-sh-r{order:1;flex:1 0 100%;margin-left:0;min-height:50px;padding:9px 0;flex-wrap:wrap;row-gap:8px;box-sizing:border-box}
- .hdr-sh-r .hdr-pgfix{margin-left:auto;width:auto}
  .hdr-sh-r .hdr-vsep,.hdr-desk{display:none}
  /* the record menu opens under the actions row, from its left edge, so it stays on screen */
  .rec-sh .hdr-sh-r{position:relative}
