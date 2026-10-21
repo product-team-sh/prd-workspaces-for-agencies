@@ -6236,10 +6236,18 @@ const ppStatus=r=>r.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</sp
  :r.invited?`<span class="pp-st pp-st--inv${invExpired(r.invited)?" pp-st--exp":""}"><i></i>${invExpired(r.invited)?"Invite expired":r.invited==="never"?"Not signed in yet":"Invited "+AGE(r.invited)}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
 function ppAccess(r){
  const all=myClients().concat([]);
- if(r.ws===null) return `<span class="pp-stack">${all.slice(0,6).map(c=>`<i style="background:${c.colour}"></i>`).join("")}</span><span class="sub">All ${all.length} workspaces${isATM()?"":", Workspace Admin"}</span>`;
- if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
+ /* change 345: at most 2 workspace chips, then a +N chip; its tooltip lists the rest (change 266's fixed tooltip) */
+ const PP_MAX=2, atm=isATM(), esc=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+ let L;
+ if(r.ws===null) L=all.map(c=>({n:c.name,c:c.colour,role:"Workspace Admin"}));
+ else if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
+ else L=r.ws.map(id=>({n:byId[id].name,c:byId[id].colour,role:ppWsRole(r.P,id)}));
  /* change 157: under ATM a Member has no level per workspace; the chip names the workspace only */
- return r.ws.map(id=>`<span class="pp-chip">${ppAv(initials(byId[id].name),byId[id].colour,18)}<span class="pp-chip-n">${byId[id].name.split(" ")[0]}</span>${isATM()?"":`<span class="pp-chip-r">${ppShort(ppWsRole(r.P,id))}</span>`}</span>`).join("");
+ const chip=x=>`<span class="pp-chip">${ppAv(initials(x.n),x.c,18)}<span class="pp-chip-n">${x.n.split(" ")[0]}</span>${atm?"":`<span class="pp-chip-r">${ppShort(x.role)}</span>`}</span>`;
+ const rest=L.slice(PP_MAX);
+ const more=rest.length?(()=>{const lines=(r.ws===null?["All "+L.length+" workspaces"+(atm?"":", Workspace Admin")]:[]).concat(rest.map(x=>x.n+(atm||r.ws===null?"":", "+ppShort(x.role))));
+  return `<span class="pp-chip pp-chip--more u-tip" tabindex="0" title="" data-uwlg data-uwtip="${esc(lines.join("\n"))}" aria-label="${esc(lines.join("; "))}">+${rest.length}</span>`})():"";
+ return L.slice(0,PP_MAX).map(chip).join("")+more;
 }
 /* 1 Oct 2026, Hitesh: "row 16, A variation, for the People listing page" (the
    canvas board PL-A). One kind of person at a time: tabs Your team, Client
@@ -14711,7 +14719,8 @@ demoSync();
 .pp-role{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:4px;background:var(--blue-13);color:var(--blue-20);font-size:12px;font-weight:500}
 .pp-role--mute{background:var(--gray-16);color:var(--blue-16)}
 .pp-access{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--gray-12)}
-.pp-stack{display:inline-flex}.pp-stack i{width:18px;height:18px;border-radius:999px;border:2px solid #fff;display:inline-block}.pp-stack i+i{margin-left:-6px}
+/* change 345: the +N chip keeps .pp-chip's height, radius and border*/
+.pp-chip.pp-chip--more{padding:0 8px;font-weight:500;cursor:default}.pp-chip.pp-chip--more:focus-visible{outline:2px solid var(--blue-700,#1D4ED8);outline-offset:1px}
 .pp-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px 0 4px;border-radius:999px;background:#fff;border:1px solid var(--gray-13);font-size:12px;color:var(--gray-17);white-space:nowrap}
 .pp-status{display:flex;align-items:center;gap:10px;white-space:nowrap}.pp-row>span:last-child{display:flex;justify-content:flex-end}
 .pp-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--green-14)}.pp-st i{width:6px;height:6px;border-radius:999px;background:var(--green-16)}
@@ -16656,7 +16665,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="35bf35d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="0b58b9e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
