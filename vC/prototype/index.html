@@ -5390,7 +5390,8 @@ function rmClientRow(c,r,ed,link,ty){
 }
 function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
- const items=can?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[];
+ /* change 349: every row has a kebab, or none does. A row with nothing to edit on this workspace (Owner, Admin, you, a disabled person) has one item, which opens their page in People */
+ const items=!ed?[]:can&&!r.me?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[["people","Change in People"]];
  return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
   <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
@@ -5463,22 +5464,22 @@ function rMembers(c){
  const admins=ppTeam().filter(r=>r.role!=="Member"&&!r.disabled).map(r=>r.name);
  const lead="";   /* change 320: the read-only line went; nothing to change shows no control to change it */
  const side=ro?""   /* change 333: each row says "No access while disabled"; the header has Enable */
-  :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary rmt-invbtn" data-rminvite aria-controls="rmInvite" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button>`:"";
+  :ed&&!RM.inv?`<button type="button" class="linkbtn rmt-invlink" data-rminvite aria-controls="rmInvite" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>${c.own?"Add teammates":"Invite people"}</button>`:"";   /* change 348: a link in the table header, no filled button, no row of its own */
  /* change 304: one list as People's, client users first; the Type column says which kind (not on the own workspace, which has one kind) */
  const ty=!c.own, nc=ty?5:4, none=t=>`<tr class="rmt-none"><td colspan="${nc}">${t}</td></tr>`;
  const noMember=ed&&!c.own&&!tm.some(r=>!r.fixed);
  /* with no select in the table, a role sits on its header; next to selects it lines up with their text */
  const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
- return `<div class="rmt">${side?`<div class="rmt-bar">${side}</div>`:""}
-  ${lead}${rmInviteHTML(c)}
+ return `<div class="rmt">
+  ${lead}${rmInviteHTML(c)}${side?`<div class="rmt-pinv">${side}</div>`:""}
   <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
-   <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col"><span class="rmt-sr">Actions</span></th></tr></thead>
+   <thead><tr><th scope="col">Person</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span>${side?`<div class="rmt-hl">${side}</div>`:""}</th></tr></thead>
    <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite people</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`No Account Member works on ${rmEsc(c.name)} yet, so nobody is assigned to its outreach.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
   </table></div></div>`;
 }
 /* change 293: one listener per event, as the Limits tab does, so every repaint keeps working */
 const rmOn=()=>view.name==="record"&&tab==="members"&&ctx==="agency"&&!asClient&&byId[view.id];
-function rmFocus(sel){const e=sel&&document.querySelector(sel); if(!e) return; e.focus(); if(e.id==="rmEmail") e.setSelectionRange(e.value.length,e.value.length)}
+function rmFocus(sel){const e=sel&&[...document.querySelectorAll(sel)].find(x=>x.getClientRects().length); if(!e) return; e.focus(); if(e.id==="rmEmail") e.setSelectionRange(e.value.length,e.value.length)}
 const rmKeySel=(a,key)=>`[${a}="${CSS.escape(key)}"]`;
 /* the design system's Toast in its neutral variant: the recurring-mistakes table keeps "no green toasts" */
 function rmToast(c,text,undo,what){receipt("client:"+c.id,text,undo,what); RECEIPT.variant="neutral"}
@@ -5490,6 +5491,7 @@ function rmSetRole(c,key,v){
  rmToast(c,`${email} is now ${roleA(v)} in ${c.name}.`,()=>{u[1]=was},`changed ${email}'s role`); logAct(c.id,`${email} changed to ${v}`);
 }
 function rmAct(c,act,key){
+ if(act==="people"){PP.menu=null; shOpenPerson(key,c.id); render(); return}   /* change 349 */
  if(act==="access"){PP.menu=null; shOpenPerson(key,c.id); PA_ED={key,draft:{},ask:false}; render();
   const open=n=>{if(!view||view.id!==key) return; const t=document.querySelector("#pplvl_"+c.id+" [data-ddtrig]");
    if(t&&t.onclick){t.focus(); t.click()} else if(n<20) setTimeout(()=>open(n+1),50); else personEdit(key)}; open(0); return}
@@ -15436,8 +15438,16 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rlt-head .rlt-sub{margin:0}
 /* change 333: no headings on the record tabs; the first row sits on the tab's own top padding (the Overview
    strip's 16px), an action row is exactly its control's height, 16px above the table as before */
-.rmt-bar{display:flex;justify-content:flex-end}
-.rmt-bar .rmt-invbtn{margin:0}
+/* change 348: no row for the invite action; it is a link in the header's Actions cell (right edge = the kebabs'),
+   or, where the header is hidden (up to 920px), right-aligned above the table */
+.rmt-hact{position:relative;overflow:visible}
+.rmt-hl{display:flex;justify-content:flex-end;height:16px;overflow:visible}
+.rmt-invlink{display:inline-flex;align-items:center;flex:none;padding:0;margin:-2px 0;border:0;font-size:14px;line-height:20px;font-weight:500;color:#1D4ED8;white-space:nowrap}
+.rmt-invlink:hover{color:#1E40AF;text-decoration:underline}
+.rmt-invlink:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px;text-decoration:none}
+.rmt-invlink svg{width:16px;height:16px;margin-right:6px;flex:none}
+.rmt-pinv{display:none}
+@media (max-width:920px){.rmt-hl{display:none}.rmt-pinv{display:flex;justify-content:flex-end}}
 .rlt-head.rlt-tb{padding-top:0}
 .rlt-tb .rlt-h{align-items:baseline;min-height:20px}
 .wrap .ra{padding-top:0}
@@ -16665,7 +16675,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0b58b9e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="fa1dc75";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
