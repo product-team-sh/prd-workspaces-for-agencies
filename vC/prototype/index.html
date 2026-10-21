@@ -1660,7 +1660,6 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
     </header>
     <div class="pop" id="mePop" hidden><div class="pop-l" id="mePopL"></div></div>
     <div class="ctx-bar" id="ctxBar"></div>
-    <div class="asbanner" id="asBanner" hidden></div>
     <div class="page" id="page"></div>
   </div>
 </div>
@@ -2158,7 +2157,6 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
  /* the prototype's today is 9 Sep 2026 (CYCLE, declared further down, says the same) */
  const d=Date.parse(x.replace(/,/g,"")+" 00:00"), t=Date.parse("9 September 2026 00:00"); return isNaN(d)?60:Math.max(0,Math.round((t-d)/864e5))};
 [
- [ "nw","Priya Nair","2 hours ago","Previewed the workspace as ops@northwind.co"],
  [ "at","Lena Okafor","3 hours ago","Email account connect@atlasmfg-go.com connected"],
  [ "sf","System","5 hours ago","Sending stopped: the Emails sent / month limit of 30,000 was reached"],
  [ "at","Jonah Reyes","6 hours ago","Bought 2 email accounts on atlas-mail.com, $7.00 a month"],
@@ -2822,7 +2820,7 @@ let UBX={tab:"all",client:"all",q:"",cq:"",open:null};
    because NC_INIT() runs at load, before the roles block below. */
 const DEFAULT_CLIENT_ROLE="Workspace Collaborator";
 /* D14, 28 Sep 2026: the creator says who the workspace is for. Only a
-   workspace for a client uses client wording (View as client, the sign-in
+   workspace for a client uses client wording (the sign-in
    orientation line). Default: a client, the more common case. */
 const NC_INIT=()=>({name:"",company:"",email:"",role:DEFAULT_CLIENT_ROLE,caps:null,bif:true,reachedStep3:true,forClient:true,site:"",team:[],teamOpen:false,share:null,custom:{},open:false,err:null});
 /* the first entry used to be the agency's own blue, so a first client came out
@@ -4466,11 +4464,8 @@ function recMenuHTML(c){
  /* 2 Oct 2026 (S2, doc 65 §6): plain words, the product's own consequence */
  if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its users out. You can enable it again.</span></button>`);
  if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Removes it for everyone. You can restore it within 30 days.</span></button>`);
- /* change 328: at phone width View as client leaves the actions row and is the menu's first item */
- const onlyPh=!items.length;
- if(!c.own&&!c.disabled&&!c.deletedOn&&canI("members")) items.unshift(`<button class="menu-i hdr-ph" role="menuitem" data-asclient="${c.id}"><span class="menu-l">${c.forClient===false?"View as its users":"View as client"}</span></button>`);
  if(!items.length) return "";
- return `<span class="${onlyPh?"hdr-ph":""}" style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+ return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
   <div class="menu" role="menu" ${recMenu?"":"hidden"} style="width:280px;padding:6px">${items.join("")}</div></span>`;
 }
 /* 18 Sep, delight pass: a client at a limit, or one that has asked for more,
@@ -4494,8 +4489,7 @@ function vRecord(id){
  /* fix 25 Sep review #18: this route had no membership check at all - a
     Member not on this client's workspace (isMember false) got the full
     record: totals, chart, activity feed, and working Members/Limits/Email
-    Accounts/Settings tabs, including live "Open workspace" and "View as
-    client" buttons that would carry them straight into a workspace they are
+    Accounts/Settings tabs, including a live "Open workspace" button that would carry them straight into a workspace they are
     not on. D4: a Member "cannot: anything account-level; any workspace they
     are not in." Every other agency-side surface reaches this client only
     through myClients(), which already excludes it for such a Member (fix
@@ -4515,8 +4509,8 @@ function vRecord(id){
     bar ("Workspaces › Northwind Logistics" plus its one status), so the 84px band goes. Tabs
     sit left on the tab row at 14px; the actions move to its right side. Change 334: the pager
     is gone; the workspace's name in the bar switches workspaces (hdrWsOpen). At phone width the actions take a row of
-    their own above the tabs and View as client moves into the menu. */
- const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`${c.own?"":viewAsBtn(c,"shd-button shd-button--tertiary hdr-desk")}<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
+    their own above the tabs. */
+ const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
  return `
  <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
   <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}"${k==="score"?' class="wss-tabbtn"':''}>${k==="score"?wssTabLabel(c):l}</button>`).join("")}</div>
@@ -4625,7 +4619,7 @@ function rOverview(c){
 }
 /* ═══ Activity, 2 Oct 2026 (S2): fed only by events the workspaces feature
    itself writes (created, invited, role changed, limit changed, request
-   approved or declined, disabled or enabled, previewed as client, deleted or
+   approved or declined, disabled or enabled, deleted or
    restored). No engagement here: sending and replies are Analytics' job. */
 function logAct(cid,text){ACTIVITY.unshift({client:cid,who:ME().name,when:"just now",text,at:Date.now()})}
 /* change 204: the same entry, named for whoever is acting, client sessions included */
@@ -4674,7 +4668,6 @@ const RA_RULES=[
  [/^(.+) removed; (.+)$/,m=>({k:"people",tx:`removed ${m[1]}.`,ctx:raDot(raCap(m[2]))})],
  [/^(.+) added as (?:an? )?(.+)$/,m=>({k:"people",tx:`added ${m[1]} as ${roleA(m[2])}.`})],
  [/^(.+) moved to (.+)$/,m=>({k:"people",tx:`moved ${m[1]} to ${m[2]}.`})],
- [/^Previewed (.+)$/,m=>({k:"people",tx:`previewed ${m[1]}.`})],
  [/^Signed in (.+)$/,m=>({k:"people",tx:`signed in ${m[1].replace(/ as (Workspace|Account) /," as a $1 ")}.`})],
  [/^Sending stopped: (.+)$/,m=>({k:"workspace",tx:"stopped sending.",ctx:raDot(raCap(m[1])),stop:1})],
  [/^Sending priority changed to (.+)$/,m=>({k:"workspace",tx:`changed sending priority to ${m[1]}.`})],
@@ -5034,16 +5027,15 @@ const isMember=(p,cid)=>p.ws?p.ws.indexOf(cid)>-1:true;
    no workspace default to fall back to. u is a [email,role] pair from
    c.users; missing (no user yet) reads as the least access. */
 const userAccessOf=(c,u)=>roleSet(u?u[1]:DEFAULT_CLIENT_ROLE);
-/* the "as client" preview has no user switcher, so it acts as the first user
+/* a client session with no chosen user acts as the first user
    on the client, the same one the invite and the record's Members tab lead
    with. Alloy's second user is reachable only by looking at its own row. */
 /* change 150: the demo panel signs in as a chosen workspace user; when that
    email is on the client it is the acting user, else the first user as before. */
 let ACTING_EMAIL=null, CLIENT_SESSION=false;   /* CLIENT_SESSION: signed in as that user, so no preview banner and no account to go back to */
 const actingClientUser=c=>{if(ACTING_EMAIL&&c.users){const u=c.users.find(x=>x[0]===ACTING_EMAIL);if(u) return u} return (c.users&&c.users[0])||null};
-/* 24 Sep 2026, Hitesh: a workspace with no client user yet is previewed as the
-   role a new invitee would get by default, not as the most restrictive role.
-   "View as client" then shows what it WILL look like, and the banner says so. */
+/* 24 Sep 2026, Hitesh: a workspace with no client user yet reads as the
+   role a new invitee would get by default, not as the most restrictive role. */
 const actingRole=c=>{const u=actingClientUser(c);return u?u[1]:DEFAULT_CLIENT_ROLE};
 const noClientUserYet=c=>!(c.users&&c.users.length);
 const isOwnerP=p=>p.role==="Owner";
@@ -5795,7 +5787,7 @@ function askHTML(){
    <label class="cx-flab" for="cuWhy">Why do you need it?<span class="cx-req" aria-hidden="true">*</span></label>
    <textarea id="cuWhy" class="cx-ta" required placeholder="For example: The Q4 campaign starts on 15 Sep and needs about 4,000 emails a day."${errWhy?' aria-invalid="true"':""}>${cuEsc(modal.why)}</textarea>
    ${errWhy?`<span class="cx-ferr" role="alert">Add a reason. ${AG} decides on it.</span>`:`<span class="cx-s cx-whyh">One or two sentences. ${AG} reads this when they decide.</span>`}</div>
-  <div class="cx-mf"><span class="cx-to">${PREVIEW?`Preview: goes to ${AG} as ${cuMe(c)}.`:`Goes to ${AG}, not to Saleshandy.`}</span><button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-asksend>Send request</button></div></div></div>`;
+  <div class="cx-mf"><span class="cx-to">Goes to ${AG}, not to Saleshandy.</span><button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-asksend>Send request</button></div></div></div>`;
 }
 function askSend(){
  const c=byId[modal.client]; if(!c) return; const AG=AGENCY.name, why=(modal.why||"").trim();
@@ -9954,14 +9946,14 @@ function vInClient(){
     the Sequences screen, where the table's own toolbar carries one. */
  /* change 328: in a multi-workspace account the bar's path starts at the workspace (avatar
     and name), so the identity band no longer repeats it. The module's own toolbar is
-    untouched; the pager stays on the record, which the first segment opens, and so does
-    View as client. Arriving from a Dashboard decision keeps Back to Dashboard and Next
+    untouched; the pager stays on the record, which the first segment opens.
+    Arriving from a Dashboard decision keeps Back to Dashboard and Next
     decision, in a row with no name. The single-workspace account keeps its header as it was. */
  return `${!isNormal()?(qFrom&&!own?`<div class="toolbar toolbar--notitle hdr-qrow"><div class="cell-main cell-main--sub"></div><div class="tools">${queueBack()}</div></div>`:""):inMod==="sequences"?"":`<div class="toolbar">
    <div class="cell-main">${av(c,32)}<span style="min-width:0"><span class="semibold-3" style="display:block">${c.name}</span>
     <span class="cs">${justCreatedWs===c.id?c.name+"’s workspace, created just now":(isNormal()?"Your workspace":own?"Your own outreach":"Workspace")+'<span class="gapx">'+inModLabel()+"</span>"}</span></span></div>
    ${inMod==="sequences"?"":`<div class="tools"><div class="search">${srchI}<input type="text" placeholder="Search here..."></div></div>`}
-   <div class="tools">${own?"":queueBack()}${own?"":viewAsBtn(c,"shd-button shd-button--tertiary")}
+   <div class="tools">${own?"":queueBack()}
     </div></div>`}
 
   <div class="wrap${!isNormal()&&!(qFrom&&!own)?" hdr-top":""}">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
@@ -10055,8 +10047,7 @@ const PACE_DAYS=3;   /* under this many days of runway, pacing stops being a car
 const GRACE={on:false,failedOn:"7 Sep",daysLeft:5};
 /* item 55, 28 Sep 2026: canViewAs deleted, unread (one hit, its own
    definition; always returned true and nothing called it). */
-/* change 155: View as client is Owner and Admin only (PRD §3.5, doc 84 row 10) */
-const viewAsBtn=(c,cls)=>canI("members")?`<button class="${cls}" data-asclient="${c.id}">${c.forClient===false?"View as its users":"View as client"}</button>`:"";
+/* change 341: viewAsBtn deleted with View as client; an agency person invites a test client user instead */
 const grace=()=>GRACE.on;
 /* change 185, 11 Oct 2026 (Hitesh: "This notice banner needs to improve ui"): one
    size of type, what happened and what it means first in bold, the deadline after,
@@ -10785,7 +10776,7 @@ function vSettings(){
  return `${!agency&&!isNormal()?"":`<div class="toolbar">
    <div class="cell-main">${agency?"":av(c)}<span style="min-width:0">
      <span class="semibold-3" style="display:block">Settings</span>
-     <span class="cs">${isNormal()?AGENCY.name:agency?AGENCY.name+" account, across every workspace":asC?c.name+", as its users see it":c.name+" workspace"}</span>
+     <span class="cs">${isNormal()?AGENCY.name:agency?AGENCY.name+" account, across every workspace":c.name+" workspace"}</span>
    </span></div>
    <div class="tools">${agency||asC||ctx==="own"?"":`<button class="shd-button shd-button--tertiary" data-nav2="clients">Workspaces</button>`}</div>
    <!-- item 17, 28 Sep 2026: own is not a client to jump back to a list of; "Back to account" in the rail is the way up from there. -->
@@ -13082,11 +13073,7 @@ function render(){
  document.querySelector(".app").classList.toggle("mig-mode",view.name==="m1"||view.name==="m2");
  renderShell();
  const inClient=ctx!=="agency";
- const bn=el("asBanner"); bn.hidden=!(inClient&&asClient&&!CLIENT_SESSION);
- /* 2 Oct 2026 (S2, canvas row 07): a preview, not a session */
- if(inClient&&asClient) bn.innerHTML=`<span>Viewing <strong>${byId[ctx].name}</strong> as its users see it. Nothing you do here is sent, and this preview is noted on the workspace.</span>
-   <button id="exitAs">Back to Admin Panel</button>`;
- document.querySelector(".app").classList.toggle("is-preview",!!(inClient&&asClient&&PREVIEW));
+ /* change 341: the preview banner and its Exit are gone; a client session has no way back to the agency */
  const pageEl=el("page"), prevScroll=pageEl.scrollTop;
  const navKey=ctx+"|"+view.name+"|"+(view.id||"")+"|"+(inMod||"")+"|"+(asClient?1:0)+"|"+(cView||"")+"|"+(solo?1:0);
  if(!SKEL_FORCE&&navKey!==lastNavKey&&!REDUCED()&&!modal&&!drawer&&view.name!=="m1"&&view.name!=="m2"&&view.name!=="login"){
@@ -13685,9 +13672,7 @@ function wire(){
    receipt("client:"+r.client,"Sent from your workspace. "+AGENCY.name+" can see this thread too.",
      ()=>{r.replied=was;r.repliedIn=wasIn;render()});
    render()});
- q("[data-asclient]").forEach(b=>b.onclick=()=>{ctx=b.dataset.asclient;asClient=true;PREVIEW=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;
-   logAct(ctx,"Previewed the workspace as its users see it");render()});
- /* 2 Oct 2026 (S2): the record's own states and cards */
+  /* 2 Oct 2026 (S2): the record's own states and cards */
  q("[data-enable]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.enable]; if(!c||!canI("disable")) return; c.disabled=false;
    receipt("client:"+c.id,`${c.name} enabled. Sequences resume where they paused.`,()=>{c.disabled=true;render()},`enabled ${c.name}`); logAct(c.id,"Workspace enabled"); render()});
  q("[data-restore]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.restore]; if(!c||!canI("destructive")) return; const on=c.deletedOn,by=c.deletedBy; delete c.deletedOn; delete c.deletedBy;
@@ -13766,7 +13751,6 @@ function wire(){
    REQUESTS=REQUESTS.filter(x=>x.id!==rid);
    receipt("client:"+r.client,`Withdrawn. ${AGENCY.name} no longer sees this request.`,()=>{REQUESTS.push(r);render()});
    render()});
- const ex=el("exitAs"); if(ex) ex.onclick=()=>{asClient=false;PREVIEW=false;render()};
  q("[data-res]").forEach(b=>b.onclick=()=>{activeRes=b.dataset.res;render()});
  /* change 214: each workspace named in the capacity line opens its own Limits tab */
  q("[data-reqws]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"record",id:b.dataset.reqws};tab="limits";render()});
@@ -13904,7 +13888,7 @@ function wire(){
  q("[data-previewinvite]").forEach(b=>b.onclick=()=>{const [id,email,role]=b.dataset.previewinvite.split("|");
    view={name:"invite",client:id,email,role,back:{name:"record",id,fromtab:"members"}};render()});
  {const b=el("invDone");if(b)b.onclick=()=>{const c=byId[view.client]||myClients()[0]||CLIENTS[0];if(view.email)LASTSEEN[view.email]="just now";
-   ctx=view.client;asClient=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;view={name:"clients"};render()}}
+   ctx=view.client;asClient=true;CLIENT_SESSION=true;ACTING_EMAIL=view.email||null;cView="sequences";openProspect=null;openSeq=null;openReply=null;view={name:"clients"};render()}}
  q("[data-invback]").forEach(b=>b.onclick=()=>{const bk=view.back||{name:"clients"};
    if(bk.fromtab){ctx="agency";view={name:"record",id:bk.id};tab=bk.fromtab}else view=bk; render()});
  /* change 271 (254 finding 1): Update payment on the payment-failed banner, wherever it shows, opens the
@@ -14461,15 +14445,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
  if(k==="addmember"){view={name:"people"};setTimeout(()=>openInvite({}),60)}
  if(k==="client"&&byId[v]){view={name:"record",id:v}; if(["overview","members","limits","activity"].indexOf(HASHX.p.tab)>-1) tab=HASHX.p.tab}
  if(k==="ws"&&byId[v]&&!byId[v].deletedOn){const m=HASHX.p.mod||"sequences", pg=m==="settings"||m==="apiint"; ctx=v;asClient=false;inMod=pg?null:m;view={name:pg?m:"clients"}}   /* change 334 */
- /* the client's own side, and the create modal, are otherwise several clicks
-    in. Coordinator review round 1, 24 Sep: a cold #asclient link lands on the
-    first screen the role actually grants, not on the fixed Workspace item -
-    Workspace Admin and Collaborator (Sequences first in CLIENT_MODULES) land on
-    Sequences, Workspace Viewer (only Reports and Usage) lands on Reports. */
- if(k==="asclient"&&byId[v]){ctx=v;asClient=true;
-  const cc=byId[v], role=actingRole(cc), mods=roleSet(role).mods;
-  const first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);
-  cView=first?first[0]:"settings"}
+ /* change 341: the #asclient deep link is gone with View as client; as=w:<id>|<email> is the client's own side */
  if(k==="addclient"){view={name:"clients"};setTimeout(openAddClient,0)}
  /* change 150: the demo panel's params. `guide=off` turns the learn-by-doing
     tour off; `as=t:<key>` signs in as an agency person and lands them where
@@ -16586,7 +16562,7 @@ function sessRender(){
 function sessGo(i){
  sIdx=Math.max(0,Math.min(TOPICS.length-1,i));
  modal=null;drawer=null;popOpen=false;mePopOpen=false;newOpen=false;newPick=null;recMenu=false;
- TOPICS[sIdx].go();
+ TOPICS[sIdx].go(); CLIENT_SESSION=asClient; if(asClient) ACTING_EMAIL=null;   /* change 341: the client side is a sign-in, never a preview */
  render();
  if(el("modalWrap"))renderModal();
  if(el("drawerWrap"))renderDrawer();
@@ -16672,7 +16648,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="f6b2198";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="5431c13";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
