@@ -4174,7 +4174,8 @@ function wsFaces(list,col){
  return '<span class="wsp-faces">'+list.slice(0,n).map(face).join("")+(list.length>n?'<span class="wsp-more">+'+(list.length-n)+'</span>':'')+'</span>';
 }
 function wsPeopleCell(c,side){
- const P=wsPeopleOf(c), L=side==="client"?P.client:P.team;
+ const P=wsPeopleOf(c), L=side==="client"?P.client:c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").map(t=>({key:t.k,name:t.name,label:t.name,first:t.name.split(" ")[0],ini:t.initials,
+   invited:!!t.invited,expired:!!t.invited&&invExpired(t.invited),disabled:t.disabled,side:"Your team"})).concat(P.team):P.team;   /* change 346: your own workspace shows its people too */
  if(side==="client"&&c.own) return '<span class="cs">Your own workspace</span>';
  if(!L.length) return side==="client"
    ?'<span class="wsp-l"><span class="cs">No one invited yet</span>'+(canI("members")&&!c.disabled?'<button type="button" class="linkbtn linkbtn--sm" data-invite="'+c.id+'">Invite</button>':'')+'</span>'
@@ -4310,7 +4311,7 @@ function hsVal(k,c){
  if(k==="status"){const s=wsState(c);return s==="New"?0:s==="Active"?1:null}
  if(k==="usage") return usageKey(c);
  if(k==="score") return wssSortVal(c);   /* change 338 */   /* change 327: needs you first, then the % the cell shows */
- if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
+ if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length+(k==="team"&&c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").length:0)}   /* change 346 */
  if(c.disabled||c.sent===0) return null;
  if(k==="li") return hcLi(c)||null;   /* change 322 */
  if(k==="cont"||k==="repd"){const o=ocOf(c), v=k==="cont"?o.cont:o.rep; return v?+String(pd(v)).replace(/,/g,""):null}   /* change 340 */
@@ -6480,7 +6481,15 @@ function personAccessHTML(p){
  const wsVal=allWs?(atm?`<b>All workspaces</b>`:`<b>Workspace Admin in every workspace</b>`)
    :lvlRows.length?lvlRows.map(wsLine).join(""):`<b>Not in any workspace yet</b>`;
  const teams=noLvl?teamsOf(p.k):[];
- const rows=(aRole?row("Account role",`<b>${roleName(aRole)}</b><span class="pacc-s">${ROLE_SAYS[aRole]||""}</span>`):"")
+ /* change 350: the line under the tabs is gone; it moves here as rows (Email only when a stored name
+    leaves the breadcrumb showing something else) */
+ const stV=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span>`
+  :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv pp-st--exp"><i></i>Invite expired</span>`:p.invited==="never"?`Not signed in yet`:`<span class="pp-st pp-st--inv"><i></i>Invited ${AGE(p.invited).toLowerCase()}</span>`)
+  :`<span class="pp-st"><i></i>Active</span>`;
+ const lastV=!p.invited&&p.seen&&p.seen!=="never"&&p.seen!=="unknown"?p.seen.charAt(0).toUpperCase()+p.seen.slice(1):"Never";
+ const idRows=(p.kind==="client"&&!p.named?"":row("Email",`<b>${p.email}</b>`))+row("Status",`<b>${stV}</b>`)+row("Last sign-in",`<b>${lastV}</b>`)
+   +(p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?row("Signs in at",`<b>${BRAND.domain}</b>`):"");
+ const rows=idRows+(aRole?row("Account role",`<b>${roleName(aRole)}</b><span class="pacc-s">${ROLE_SAYS[aRole]||""}</span>`):"")
    +row(noLvl||allWs?"Workspaces":lvlRows.length>1?"Workspace roles":"Workspace role",wsVal,!allWs&&lvlRows.length&&canLvl&&paEditing(p)?"pacc-r--dd":"")
    +(noLvl&&!allWs?row("Teams",`<b>${teams.length?listAnd(teams.map(t=>t.name+(t.manager===p.k?" (manager)":""))):"Not in a team"}</b>`):"");
  const ctl=paCtl(p,editBtn,canLvl&&!allWs&&lvlRows.length>0&&personCanEdit(p));   /* change 333: no "Access" title under the Access tab */
@@ -6533,9 +6542,6 @@ function vPerson(){
  if(!canI("members")) return denied("see or manage people");
  const p=personOf(view.id); if(!p){view={name:"people"};return vPeople()}
  const sub=p.kind==="client"?`${roleName(p.role)} at ${p.c.name}`:`${roleName(isATM()?atmRoleOf(p.k):p.role)} on your team${isATM()&&teamsOf(p.k).length?", in "+listAnd(teamsOf(p.k).map(t=>t.name)):""}`;
- const status=p.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span>, can't sign in, last signed in ${p.seen}`
-  :p.invited?(invExpired(p.invited)?`<span class="pp-st pp-st--inv pp-st--exp"><i></i>Invite expired</span>, sent ${AGE(p.invited).toLowerCase()}`:p.invited==="never"?`Not signed in yet`:`Invited ${AGE(p.invited).toLowerCase()}, not accepted`):`<span class="pp-st"><i></i>Active</span>, last signed in ${p.seen}`;
- const signsAt=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?`, signs in at ${BRAND.domain}`:"";
  const iOwn=ME().role==="Owner", live=!p.invited&&!p.disabled;
  const ownerBtn=!iOwn||p.kind!=="team"?"":p.owner&&p.me?`<button class="shd-button shd-button--secondary" data-transfer ${transferCands().length&&!TRANSFER?"":"disabled"} title="${transferCands().length?"":"Needs an Account Admin or another Account Owner to hand to"}">Transfer ownership</button>`
    :p.owner&&live&&ownersOf().length>1?`<button class="shd-button shd-button--tertiary pa-danger" data-rmowner="${p.key}">Remove Account Owner role</button>`
@@ -6560,7 +6566,7 @@ function vPerson(){
   <div class="hdr-sh-r">${reset}${ownerBtn}${dis}${rm}</div>
  </div>
  ${receiptBar("people")}${tr}
- <div class="wrap"><p class="sub hdr-meta">${p.kind==="client"&&!p.named?"":p.email+", "}${status}${signsAt}</p>${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
+ <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
 }
 /* Edit: the Invite people form, for this one person */
 function personEdit(key){
@@ -16648,7 +16654,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5431c13";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="1bd404d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -17523,7 +17529,7 @@ button.hdr-chip{cursor:pointer}
 .wrap.hdr-top:has(>.hdr-sh--bleed:first-child){padding-top:0}
 .wrap>.hdr-sh--bleed{margin:0 -24px -4px;max-width:none}
 .per-sh~.msg{margin:16px 24px 0!important}
-.hdr-meta{margin:0 0 -8px;font-size:13px;line-height:20px}
+.pacc-v .pp-st{font-size:14px;line-height:20px;font-weight:500;color:inherit}.pacc-v .pp-st--exp{color:#92400E}.pacc-v .pp-st--off{color:inherit}
 .seq-body>.wrap{padding-top:20px}
 .hdr-seqask .inlineconfirm{padding:12px 20px}
 .hdr-pros{margin-top:0}
