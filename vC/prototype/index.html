@@ -7174,7 +7174,9 @@ function billLine(){
    the opener instead. Production's Plan Details card (238) stays; its line under the plan name now
    carries the seats and Whitelabel (the Seats and add-ons panel went). Where your plan goes is one
    table read from compute(), the source Usage & limits' Your plan reads, so Used and Available to
-   give agree on both screens. No asks, no limits list, one link to Usage & limits (239). */
+   give agree on both screens. No asks, no limits list, one link to Usage & limits (239).
+   change 343 (Hitesh, 21 Oct 2026: "show only things part of platform plan"): the card keeps what Platform
+   sells (Emails sent / month, Lead Finder credits); a resource BS_BUY sells elsewhere is on its own screen. */
 /* change 283: Download usage report. One control for Billing's Where your plan goes and the client's Usage page.
    The popover is state (UR), so a repaint keeps it open; listeners are delegated once on the document. */
 const UR={open:null,per:"90",from:"2026-08-10",to:"2026-09-09",busy:false,t:null}, UR_TODAY="2026-09-09";
@@ -7279,7 +7281,7 @@ function vPlatform(){
   </div>
   ${isNormal()?"":`<div class="panel bp-panel" id="bpGoes">
    <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="c-a">${urCtl("bill","")}<button class="linkbtn ul3-l" data-ulgo>Open Usage &amp; limits</button></span></div>
-   ${bpTable(RK.filter(k=>RES[k].pool>0))}</div>`}
+   ${bpTable(RK.filter(k=>RES[k].pool>0&&!BS_BUY[k]))}</div>`}
   ${bpAddons()}`;
 }
 /* one row per resource: Used (of the plan), Available to give, the largest share, one action.
@@ -8581,7 +8583,7 @@ function vCredits(){
    </div>
    <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:10px">
     ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Available"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Available"})}
-    ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill>add capacity</button>.</span></div>`:""}
+    ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill="${activeRes}">add capacity</button>.</span></div>`:""}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
     <thead><tr><th>Workspace</th><th class="ar">Limit</th><th>Usage</th></tr></thead>
@@ -10987,7 +10989,7 @@ function queueItems(){
  if(grace()&&canI("limits")) add({score:101,sev:"critical",kind:"Payment failed",client:null,pay:true,
    why:`Failed on ${GRACE.failedOn}. ${GRACE.daysLeft} days before the account pauses. Every workspace is reading and nothing is sending`,age:"today",act:"Update payment"});
  const ro=canI("limits")?runsOut():null;
- if(ro&&ro.d<PACE_DAYS) add({score:95,sev:"critical",kind:"Plan runs out",client:null,plan:true,
+ if(ro&&ro.d<PACE_DAYS) add({score:95,sev:"critical",kind:"Plan runs out",client:null,plan:true,k:ro.k,
    why:`${RES[ro.k].label} at this burn is gone ${onDay(ro.d)}. Every workspace stops with it`,age:"today",act:"Add capacity"});
  REQUESTS.filter(r=>myClientsForLimits().some(c=>c.id===r.client)).forEach(r=>{const m=compute(r.res);
    add({score:80,sev:"decision",kind:"Capacity request",client:r.client,
@@ -11053,7 +11055,7 @@ function aQueue(Q,filters){
      :q.collision?`<button class="linkbtn linkbtn--sm" data-collision>Review</button>`
      :q.reply?`<button class="linkbtn linkbtn--sm" data-openreply="${q.reply}">Reply</button>`
      :q.seq&&c?`<button class="linkbtn" data-qseq="${c.id}|${q.seq}">${q.act}</button>`
-     :q.plan?dqTip(`<button class="linkbtn" data-gobill>${q.act}</button>`,ADD_CAP_TIP)
+     :q.plan?dqTip(`<button class="linkbtn" data-gobill="${q.k||""}">${q.act}</button>`,ADD_CAP_TIP)
      :q.pay?`<button class="linkbtn" data-gobill>${q.act}</button>`
      :c?`<button class="linkbtn" data-goto="${c.id}|${destFor(q)}${q.mb?"|"+q.mb:""}">${q.act}</button>`
      :`<button class="linkbtn">${q.act}</button>`}</td></tr>`}).join("");
@@ -13810,7 +13812,7 @@ function wire(){
  q("[data-blalloc]").forEach(b=>b.onclick=()=>{const cid=b.dataset.blalloc;BLR=null;clearTimeout(blrTimer);render();
    const i=document.querySelector(`input[data-cid="${cid}"][data-fld="cap"]`);if(i){i.focus();i.select();i.closest("tr").classList.add("bl-focus");setTimeout(()=>i.closest("tr")&&i.closest("tr").classList.remove("bl-focus"),1600)}});
  /* change 109: limits are decided on the workspace; Billing only shows where the plan goes */
- q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab="plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`tr[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
+ q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.goalloc]||"plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`tr[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
  
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
  q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
@@ -13900,7 +13902,7 @@ function wire(){
  /* change 271 (254 finding 1): Update payment on the payment-failed banner, wherever it shows, opens the
     card update in the billing portal directly; other data-gobill links ("add capacity") still open Billing */
  /* change 285: the card is updated on Billing now; Update payment opens its Payment panel with the card form open */
- q("[data-gobill]").forEach(b=>b.onclick=b.closest(".grace")?e=>{e.stopPropagation(); ctx="agency"; asClient=false; view={name:"credits"}; billTab="plan"; BILL.card=true; BILL.ce={}; BILL.focusCard=true; render()}:()=>{ctx="agency";view={name:"credits"};billTab="plan";render()});
+ q("[data-gobill]").forEach(b=>b.onclick=b.closest(".grace")?e=>{e.stopPropagation(); ctx="agency"; asClient=false; view={name:"credits"}; billTab="plan"; BILL.card=true; BILL.ce={}; BILL.focusCard=true; render()}:()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.gobill]||"plan";render()});
  const bl=el("backList");if(bl)bl.onclick=()=>{view={name:"clients"};render()};
  const ad=el("addClient");if(ad)ad.onclick=openAddClient;
  q("input[data-cid]").forEach(i=>i.onchange=()=>{setLimit(activeRes,i.dataset.cid,num(i.value)); render()});
@@ -16654,7 +16656,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1bd404d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="35bf35d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
