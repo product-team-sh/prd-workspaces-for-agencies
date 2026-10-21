@@ -3835,7 +3835,7 @@ const QA=[["sequences","Sequences","M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"],
 function homeRow(c,mode){
   const flash=FLASH_CID===c.id, fresh=c.sent===0;
   /* change 173: a counted cell opens its line items (hpop below); change 178: the cells are homeCells(), last 7 days */
-  const num=x=>'<td>'+(x.k&&hpData(c,x.k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+x.k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.label+' for '+c.name+', last 7 days: show each">'+x.html+'</button>':x.html)+'</td>';
+  const num=x=>'<td'+(x.col==="cont"||x.col==="repd"?' class="oc-td"':'')+'>'+(x.k&&hpData(c,x.k).rows.length?'<button type="button" class="hp-cell" data-hpop="'+c.id+'|'+x.k+'" aria-haspopup="dialog" aria-expanded="false" aria-label="'+x.label+' for '+c.name+', last 7 days: show each">'+x.html+'</button>':x.html)+'</td>';
   return '<tr class="crow'+(flash?' crow-flash':'')+'" data-crow="'+c.id+'"><td><div class="cell-main cell-main--ws">'+av(c)+'<span class="ws-id">'
    /* change 171, 9 Oct 2026 (Hitesh): the open-workspace arrow sits beside the
       name and shows on row hover; the last column it lived in is gone */
@@ -4223,14 +4223,19 @@ const homeHeadHTML=()=>hsHead("home");
    saved per person (localStorage here, the account in the product) and rides in the hash as cols= (the
    optional columns shown, or none) only when it differs from the default. A link's cols= shows that set
    and leaves the receiver's saved one alone (H1.4) until they tick something. */
-const HC_OPT=["bounce","rep","conn","li"], HC_DEF=["li"], HC_CELLS=["pa","sent","bounce","rep","calls","conn","li"];
-const HC_SLUG={bounce:"bounce-rate",rep:"reply-rate",conn:"calls-connected",li:"linkedin-steps"}, HC_KEY="vc.homeCols.v1";
+/* change 340, 21 Oct 2026 (Hitesh: "workspace table column we need to make it outcome oriented"): Contacted and
+   Replied are always shown; the six activity columns are the options, all hidden by default. The key moves to v2:
+   v1 held hidden sets against the old defaults, so it is dropped on first read and everyone starts on the new
+   default. "reply-rate", the old slug, still reads as Email reply rate. */
+const HC_OPT=["sent","bounce","rep","calls","conn","li"], HC_DEF=HC_OPT.slice(), HC_CELLS=["pa","cont","repd","sent","bounce","rep","calls","conn","li"];
+const HC_SLUG={sent:"emails-sent",bounce:"bounce-rate",rep:"email-reply-rate",calls:"calls-made",conn:"calls-connected",li:"linkedin-steps"}, HC_ALIAS={"reply-rate":"rep"}, HC_KEY="vc.homeCols.v2";
 let HC_HIDE=HC_DEF.slice(), HC_FOR=null, HC_OPEN=false, HC_LI=null, HC_LIK="";
 const hcSame=(a,b)=>a.slice().sort().join()===b.slice().sort().join();
 function hcFromHash(){const m=location.hash.match(/(?:^#|&)cols=([^&]*)/); if(!m) return null; const v=decodeURIComponent(m[1]);
  if(v==="none") return HC_OPT.slice();
- const on=v.split(",").map(s=>HC_OPT.find(k=>HC_SLUG[k]===s)).filter(Boolean); return on.length?HC_OPT.filter(k=>on.indexOf(k)<0):null}
-function hcStore(){try{return JSON.parse(localStorage.getItem(HC_KEY)||"{}")||{}}catch(e){return {}}}
+ const on=v.split(",").map(s=>HC_OPT.find(k=>HC_SLUG[k]===s||HC_ALIAS[s]===k)).filter(Boolean); return on.length?HC_OPT.filter(k=>on.indexOf(k)<0):null}
+function hcStore(){try{localStorage.removeItem("vc.homeCols.v1")}catch(e){}   /* change 340 */
+ try{return JSON.parse(localStorage.getItem(HC_KEY)||"{}")||{}}catch(e){return {}}}
 function hcSaved(){const s=hcStore()[me_]; return Array.isArray(s)?s.filter(k=>HC_OPT.indexOf(k)>-1):null}
 function hcSave(){const s=hcStore(); s[me_]=HC_HIDE.slice(); try{localStorage.setItem(HC_KEY,JSON.stringify(s))}catch(e){}}
 function hcHide(){if(HC_FOR!==me_){HC_FOR=me_; HC_HIDE=hcFromHash()||hcSaved()||HC_DEF.slice()} return HC_HIDE}
@@ -4285,8 +4290,8 @@ const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* chang
 let HSORT={home:null,ws:null};
 const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- home:[["name","Workspace","width:252px"],["status","Status","width:117px"],["score","Workspace score","width:127px","How this workspace's email is doing this week: sending, delivery and replies"],["pa","Prospects added","width:123px"],["sent","Emails sent","width:116px"],
-  ["bounce","Bounce rate","width:97px","Emails that bounced, as a share of emails sent"],["rep","Reply rate","width:108px","Prospects who replied, as a share of prospects contacted"],
+ home:[["name","Workspace","width:252px"],["status","Status","width:117px"],["score","Workspace score","width:127px","How this workspace's email is doing this week: sending, delivery and replies"],["pa","Prospects added","width:123px"],["cont","Contacted","width:116px","Prospects reached on any channel in the period: email, calls or LinkedIn. Counted once across channels"],["repd","Replied","width:108px","Prospects who replied by email or answered a call. Counted once across channels. LinkedIn replies aren't tracked"],["sent","Emails sent","width:116px"],   /* change 340 */
+  ["bounce","Bounce rate","width:97px","Emails that bounced, as a share of emails sent"],["rep","Email reply rate","width:126px","Prospects who replied by email, as a share of prospects contacted by email"],
   ["calls","Calls made","width:106px"],["conn","Calls connected","width:119px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],   /* change 338: widths from each column's measured need */
   ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Highest usage","width:166px",HS_TIP_U]],   /* change 322; change 327: Highest usage 166px (board L's 187px at 1,440 is 158px), so "Lead Finder 100%" stays whole where the table sits at its floor (a phone, LinkedIn steps on). Status gives 16px and Emails sent 8px, the two with room at the floor; the table's floor grows 8px (1,138px), so no other column or header is tighter than before */
  ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Highest usage","width:200px",HS_TIP_U]]};
@@ -4310,6 +4315,7 @@ function hsVal(k,c){
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length}
  if(c.disabled||c.sent===0) return null;
  if(k==="li") return hcLi(c)||null;   /* change 322 */
+ if(k==="cont"||k==="repd"){const o=ocOf(c), v=k==="cont"?o.cont:o.rep; return v?+String(pd(v)).replace(/,/g,""):null}   /* change 340 */
  const w=wk7(c), N=v=>+String(pd(v)).replace(/,/g,"");
  return k==="pa"?N(w.pa):k==="sent"?N(w.sent):k==="bounce"?+w.bounce.toFixed(1):k==="rep"?+w.rate.toFixed(1):!w.calls?null:k==="calls"?N(w.calls):N(w.conn)}
 /* change 292 (audit P1-32): the default order of both tables: your own first, then used up, then 90% or more,
@@ -9085,7 +9091,7 @@ function heroCards(mine,tch,rep,items){
     grace()?`<span class="hero-need">${f(held)} paused until payment is fixed</span>`
     :"").replace('<button type="button" class="hero-card" data-nav="">','<div class="hero-card hero-card--still">').replace(/<\/button>$/,"</div>")}
   ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",
-    `<span class="hero-vrow"><span class="hero-v">${pd(cW.now)}</span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`)}
+    `<span class="hero-vrow"><span class="hero-v">${pd(mine.reduce((t,c)=>t+ocOf(c).cont,0))}</span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`)}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -10216,7 +10222,7 @@ function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
 function wsStatusCell(c){
  const t=wsShownState(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
  return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
-const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Reply rate",leads:"Leads revealed"};
+const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Email reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
 const HP_RANK={bad:0,warn:1,info:2,ok:3,mute:4};
@@ -10293,6 +10299,36 @@ let HOME_UNIT="total";
 const perDay=()=>HOME_UNIT==="day";
 const pd=n=>perDay()?pdDay(n):f(Math.round(n||0));
 const pdDay=n=>{const v=(n||0)/win().days;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
+/* ═══ change 340, 21 Oct 2026: Contacted and Replied, distinct prospects on any channel in the period ═══
+   The seed holds channel totals, not people: email contacted and replied per sequence (wk7 cont, rep), calls made and
+   connected (CHAN call, CALL_W) and LinkedIn steps (hcLi). The people per channel and the overlap are derived:
+     by email     E  = w.cont                     replied by email  rE = w.rep
+     by call      C  = round(calls made / 1.6)    (about 1.6 dials per person in a period)
+                  answered a call  rC = round(calls connected / 1.1)
+     on LinkedIn  L  = round(LinkedIn steps / 2.4)  (a profile view, a request, a message)
+     Contacted = E + (C - min(E, round(0.7 C))) + (L - min(E, round(0.55 L)))
+                 (70% of the people called and 55% of the people on LinkedIn were also emailed)
+     Replied   = rE + (rC - min(rE, round(0.15 rC)))
+                 (15% of the people who answered a call also replied by email)
+   So max(E, C, L) <= Contacted <= E + C + L, and Replied >= rE. Production does not track LinkedIn replies (doc 109
+   section 7), so Replied is email and calls and its hover says so. The previous period runs the same formula on
+   w.prev; vC has no previous LinkedIn figure per workspace, so LinkedIn is held level. A disabled or never-sent
+   workspace shows the dash and counts 0, as the tile above sums what the column shows. */
+const OC_DIAL=1.6, OC_CONN=1.1, OC_LI=2.4, OC_EC=0.7, OC_EL=0.55, OC_RC=0.15;
+function ocCount(E,calls,conn,liSteps,rE){const C=Math.round((calls||0)/OC_DIAL), L=Math.round((liSteps||0)/OC_LI), rC=Math.round((conn||0)/OC_CONN);
+ return {E,C,L,rE,rC,cont:E+(C-Math.min(E,Math.round(OC_EC*C)))+(L-Math.min(E,Math.round(OC_EL*L))),rep:rE+(rC-Math.min(rE,Math.round(OC_RC*rC)))}}
+function ocOf(c){if(c.disabled||c.sent===0) return {E:0,C:0,L:0,rE:0,rC:0,cont:0,rep:0,contD:null,repD:null};
+ const w=wk7(c), li=hcLi(c), P=w.prev, o=ocCount(w.cont,w.calls,w.conn,li,w.rep);
+ const q=ocCount(P.cont==null?w.cont:P.cont,P.calls==null?w.calls:P.calls,P.conn==null?w.conn:P.conn,li,P.rep==null?w.rep:P.rep);
+ const d=(a,b)=>b?Math.round((a-b)/b*100):null; o.contD=d(o.cont,q.cont); o.repD=d(o.rep,q.rep); return o}
+/* the cell: the figure and its change, as Prospects added; the hover splits it by channel, one line each, so no
+   line wraps in production's 225px tooltip (a person in two channel rows is one in the total) */
+function ocCell(c,k){const o=ocOf(c), v=k==="cont"?o.cont:o.rep; if(!v) return '<span class="is-none">&ndash;</span>';
+ const parts=(k==="cont"?[["Email",o.E],["Calls",o.C],["LinkedIn",o.L]]:[["Email",o.rE],["Calls",o.rC]]).filter(x=>x[1]>0);
+ const tip=parts.map(x=>x[0]+" "+pd(x[1])).join("\n")+(parts.length>1?"\nCounted once across channels.":"")+(k==="rep"?"\nLinkedIn replies aren't tracked.":"");
+ const said=(k==="cont"?"Contacted":"Replied")+" for "+c.name+": "+pd(v)+". "+tip.replace(/\n/g," ");
+ const d=k==="cont"?o.contD:o.repD;
+ return '<span class="tnum stackv oc-v u-tip" title="" tabindex="0" data-oc="'+k+'" data-uwtip="'+tip.replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'" aria-label="'+said.replace(/"/g,"&quot;")+'">'+pd(v)+(d==null||d===0?"":w7Delta(d,true))+'</span>'}
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
  /* change 265: an ordinary change is quiet grey text with the trend glyph (fd/dashboard.html's look);
@@ -10301,14 +10337,16 @@ function homeCells(c){
  const Dq=d=>d==null||d===0?"":w7Delta(d,true);
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
- if(off) return [["pa","Prospects added"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Reply rate"],[null,"Calls made"],[null,"Calls connected"],[null,"LinkedIn steps"]].map(([k,l],i)=>Object.assign(cell(null,l,dash),{col:HC_CELLS[i]}));   /* change 322 */
+ if(off) return [["pa","Prospects added"],[null,"Contacted"],[null,"Replied"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Email reply rate"],[null,"Calls made"],[null,"Calls connected"],[null,"LinkedIn steps"]].map(([k,l],i)=>Object.assign(cell(null,l,dash),{col:HC_CELLS[i]}));   /* change 322 */
  const n=(v,d,prev)=>'<span class="tnum stackv">'+pd(v)+Dq(d)+'</span>';
  return [
   cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
+  cell(null,"Contacted",ocCell(c,"cont")),   /* change 340 */
+  cell(null,"Replied",ocCell(c,"rep")),
   cell(w.sent?"sent":null,"Emails sent",n(w.sent,w.sdD,w.prev.sent)),
   /* change 265: a bounce rate of 3% or more sits on the red of change 221's falling chip */
   cell(w.sent?"bounce":null,"Bounce rate",'<span class="tnum stackv">'+(w.bounce>=3?'<span class="w7-hot performance-stats--decrement" title="Bounce rate 3% or more">'+w.bounce.toFixed(1)+'%</span>':w.bounce.toFixed(1)+'%')+'</span>'),
-  cell(w.sent?"rep":null,"Reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
+  cell(w.sent?"rep":null,"Email reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
   cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
   cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash),
   /* change 322: LinkedIn steps in the period, no change (vC has no last-period LinkedIn per workspace) */
@@ -10412,7 +10450,7 @@ function hpOpen(btn){
   +'<div class="hp-b"><table class="hp-t"><thead><tr>'+D.cols.map(h=>'<th>'+h+'</th>').join("")+'</tr></thead><tbody>'
   +rows.map(r=>'<tr'+(r.hl?' class="hp-hl is-'+r.tone+'"':k==="usage"&&(r.tone==="bad"||r.tone==="warn")?' class="is-'+r.tone+'"':'')+'><td>'+nm(r)+'</td><td data-h="'+D.cols[1]+'">'+st(r)+'</td>'+r.cells.map((x,i)=>'<td class="tnum" data-h="'+D.cols[i+2]+'">'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>'
   /* change 200: the header no longer says what a rate is of, so its pop-up does */
-  +(k==="rep"?'<p class="hp-note">Reply rate: prospects who replied, as a share of prospects contacted.</p>':k==="bounce"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':'')
+  +(k==="rep"?'<p class="hp-note">Email reply rate: prospects who replied by email, as a share of prospects contacted by email.</p>':k==="bounce"?'<p class="hp-note">Bounce rate is the share of emails sent that bounced.</p>':'')
   +'<div class="hp-f">'+(c.disabled?'<span class="sub">Disabled. Enable it from its record to open anything here.</span>'
     :'<button type="button" class="linkbtn" data-hpgo="mod|'+c.id+'|'+HP_MOD[k][0]+'">Open '+HP_MOD[k][1]+' in '+c.name+'</button>'+(k==="usage"&&canI("limits")?ulPopLink(c):''))+'</div>';
  L.classList.toggle("hpop--usage",k==="usage"); L.classList.toggle("hpop--rep",k==="rep"); L.hidden=false; HPOP={id,k,btn}; btn.setAttribute("aria-expanded","true");
@@ -16634,7 +16672,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d2e74a3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="f6b2198";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
