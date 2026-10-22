@@ -4062,7 +4062,7 @@ function wssScore(w){
    if(B>0&&E>0){const raw=O/E, hi=wssRatio(O,E,B,Z,+1); let g=wssCurve(hi,C.CURVES.trend), p=wssCurve(raw,C.CURVES.trend); if(stale){g=Math.max(50,g); p=Math.max(50,p)} wins.push({c,O,E,B,raw,hi,g,p,stale})}
    if(E>=C.MIN_EXPECTED) break}
   const res=wins.sort((x,y)=>x.g-y.g||x.c-y.c)[0];
-  if(res) rate("trend","prospect",res.g,res.p,(res.raw<1?"Replies down "+Math.round((1-res.raw)*100)+"%":"Replies steady")+(res.c?" over "+(res.c+1)+" weeks":"")+(res.stale&&res.raw<1?", for over 90 days":""),"replies",res);
+  if(res) rate("trend","prospect",res.g,res.p,(res.raw<1?"Reply rate down "+Math.round((1-res.raw)*100)+"%":"Reply rate steady")+(res.c?" over "+(res.c+1)+" weeks":"")+(res.stale&&res.raw<1?", for over 90 days":""),"replies",res);
   else miss("trend","prospect","Replies against usual",weeks.slice(1).some(x=>x.healthy===false)?"no healthy week to compare with":"no baseline yet");
   const fw=weeks.slice(0,4), fs=sum(fw,"sent"), fr=sum(fw,"replied");
   if(fs>0){const rr=fr/fs*100, hi=wssWilson(fr,fs,Z)[1]*100; rate("floor","prospect",wssCurve(hi,C.CURVES.floor),wssCurve(rr,C.CURVES.floor),"Very few replies: "+wssPct(rr,2)+" of emails","emails",{rr,hi,fs,fr})}
@@ -4443,7 +4443,7 @@ function wssProspect(c,r,d){const P=k=>r.problems.find(p=>p.key===k), M=k=>r.mis
    out.push({key:"trend",sc:t.score,mark:wssMk(t.score),title:t.label,desc:wssN(D.O)+" replies to "+win+", against "+wssN(Math.round(D.E))+" usual, down at least "+sureDn+"% for sure. Fine under 15% down.",
     items:fl.length?fl.map(q=>[q.name,"Open sequence",c.id+"|sequences|"+q.name]):null,act:fl.length?null:["Open sequences",c.id+"|sequences"]})}
   else out.push({key:"trend",mark:"valid",title:t.label,desc:wssN(D.O)+" replies to "+win+", against "+wssN(Math.round(D.E))+" usual. Fine under 15% down.",
-   pass:(dn>0?"Replies down "+dn+"%":"Replies steady")+", fine under 15% down"})}
+   pass:(dn>0?"Reply rate down "+dn+"%":"Reply rate steady")+", fine under 15% down"})}   /* change 361: "Reply rate", not "Replies" (doc 115 E6) */
  else if(M("trend")) out.push({key:"trend",mark:"none",title:"Replies against usual not checked",desc:M("trend").why.replace(/^./,x=>x.toUpperCase())+"."});
  const f=P("floor"); if(f){if(f.score<75) out.push({key:"floor",sc:f.score,mark:wssMk(f.score),title:f.label,desc:"Over the last month. Fine from 0.15%."});
   else out.push({key:"floor",mark:"valid",title:"Reply rate "+wssPct(f.detail.rr),desc:"Over the last month. Fine from 0.15%.",pass:"Reply rate "+wssPct(f.detail.rr)+" over the last month, fine from 0.15%"})}   /* 108's Check line (75), 0.15% (round 13) */
@@ -9460,7 +9460,8 @@ function vDash(){
   +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Dashboard</span>'
   +(norm?'':(()=>{const M=["January","February","March","April","May","June","July","August","September","October","November","December"],mi=M.indexOf(CYCLE.month.split(" ")[0]),cur=M[mi].slice(0,3),prev=M[(mi+11)%12].slice(0,3);
      /* change 184 (Hitesh: "too long - keep it short but clear"): the picker names the period and the headers carry "a day" and "this cycle", so the line is the dates alone */
-     const R=winRange(); return '<span class="sub dash-arrival" title="Compared with '+R.prev+'">'+R.cur+'</span>'})())
+     /* change 361 (doc 115 B): the line names both periods, read, not hidden in a hover */
+     const R=winRange(); return '<span class="sub dash-arrival">'+R.cur+(R.prev?" compared with "+R.prev:"")+'</span>'})())
   +'</span></div>'
   +'<div class="tools" style="position:relative">'
    /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
@@ -9601,8 +9602,9 @@ function heroCards(mine,tch,rep,items){
     cards read the table's clock: workspaces added in the last 7 days, prospects
     contacted in the last 7 days against the 7 before (the cycle figures scaled
     the same way as the table). Active sequences is a count of now. */
- const days=anSeries(mine).slice(-14).map(p=>p.contacted), mx=Math.max(1,...days);
- const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, last 14 days; the period is in full blue">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-Math.min(14,win().days)?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
+ /* change 361: the 14 bars end yesterday, like the period (26 Aug to 8 Sep); the count stays 14 (115 open question 6) */
+ const days=anSeries(mine).slice(-15,-1).map(p=>p.contacted), mx=Math.max(1,...days);
+ const spark=`<span class="hero-spark" aria-label="Prospects contacted a day, the 14 days to yesterday; the period is in full blue">${days.map((v,i)=>`<i style="height:${Math.max(8,Math.round(v/mx*100))}%${i>=days.length-Math.min(14,win().days)?";background:var(--blue-11)":""}"></i>`).join("")}</span>`;
  /* change 231: the card is the sum of the workspaces' Contacted for the period (wk7), so it
     always adds up; its change is that sum against the same sum for the period before */
  const cW=mine.map(wk7).reduce((a,w)=>({now:a.now+w.cont,prev:a.prev+(w.prev.cont||0)}),{now:0,prev:0});
@@ -9611,6 +9613,10 @@ function heroCards(mine,tch,rep,items){
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
  const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+(perDay()?pdDay(winTot(x[0],cW.d)):f(Math.round(winTot(x[0],cW.d))))+" "+x[1]+'</span>'); const chanT=listAnd(chan);   /* change 298 (audit P2-15): a day keeps one decimal under 10 (181) */   /* change 297 (audit P2-3) */
+ /* change 361: the tile's value hover gives both numbers like the table's cells (no chip on the tile, change 310);
+    the earlier figure sums the rows' earlier Contacted, a row with no earlier figure held level (change 231) */
+ const ocs=mine.map(ocOf), tNow=ocs.reduce((t,o)=>t+o.cont,0), tPrev=ocs.some(o=>o.contP!=null)?ocs.reduce((t,o)=>t+(o.contQ||0),0):null,
+  tD=tPrev?Math.round((tNow-tPrev)/tPrev*100):null, tTip=tPrev==null?"":cmpTip(pd(tNow),pd(tPrev),tD,cmpOn(tD,tPrev));
  const card=(nav,icon,title,value,foot)=>`<button type="button" class="hero-card" data-nav="${nav}"><span class="hero-h"><span class="hero-t">${icon}${title}</span></span>${value}<span class="hero-f">${foot}</span></button>`;
  const I=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
  return `<div class="hero">
@@ -9624,7 +9630,7 @@ function heroCards(mine,tch,rep,items){
     grace()?`<span class="hero-need">${f(held)} paused until payment is fixed</span>`
     :"").replace('<button type="button" class="hero-card" data-nav="">','<div class="hero-card hero-card--still">').replace(/<\/button>$/,"</div>")}
   ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",
-    `<span class="hero-vrow"><span class="hero-v">${pd(mine.reduce((t,c)=>t+ocOf(c).cont,0))}</span>${spark}</span>`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`)}
+    `<span class="hero-vrow"><span class="hero-v${tTip?' u-tip" title="" data-uwtip="'+cmpEa(tTip):''}">${pd(tNow)}</span>${spark}</span>${tTip?'<span id="heroCmp" hidden>'+cmpEa(tTip.replace(/\n/g,". "))+'</span>':''}`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`).replace('data-nav="analytics">',tTip?'data-nav="analytics" aria-describedby="heroCmp">':'data-nav="analytics">')}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -10783,18 +10789,34 @@ function hpSeqStates(c){
    this cycle's totals only, so a window's total is the cycle's daily pace times
    its days, leaning the longer windows toward the earlier pace by the metric's
    own change; the changes shrink for longer windows. Illustrative, like the seed. */
+/* change 361, 22 Oct 2026 (Hitesh: "Let's go with your recommendations – for what Dashboard changes compare
+   against"; doc 115 sections 0, 4, 5): every Dashboard period is full days ending yesterday, so a full day
+   always meets a full day and today's part-done figures never pull a change down. On 9 Sep, Last 7 days is
+   2 to 8 Sep against 26 Aug to 1 Sep; Last 30 days is 10 Aug to 8 Sep against 11 Jul to 9 Aug; This month is
+   1 to 8 Sep with no comparison (a month-to-date baseline is weekday skewed, 115 open question 4). Replied
+   counts replies by the day they arrive. The seed has no part-done today (pace times days), so the 7- and
+   30-day figures keep their numbers; This month is 8 days of pace. On the 1st there is no full day this
+   month: not modelled (the demo clock is day 9).
+   E1 (Rajat): distinct people don't add up across days. vC computes each period from the seed directly;
+      production needs a read-time count per period, or a per-day uniqState kept in workspace_daily_stats.
+      Full days make it a once-a-day job per account and preset (115 section 4).
+   E2 (Rajat): the daily rollup is UTC days, so "yesterday" ends at UTC midnight, not the agency's; either
+      say UTC or roll up by hour in the account's time zone (115 open question 2).
+   E3 (Rajat): confirm how production's Replied counts: by the day the reply arrives (what this assumes), or
+      prospects contacted in the period who later replied (then recent periods always read low until replies
+      catch up). 115 open question 1. */
 let HOME_WIN="7d";
 const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",days:7,f:d=>1,dd:d=>d},
  "30d":{label:"Last 30 days",lower:"the last 30 days",days:30,f:d=>d==null?1:1/(1+d/200),dd:d=>d==null?null:Math.round(d*0.6)},
- "mtd":{label:"This month",lower:"this month",days:CYCLE.day,f:d=>d==null?1:1-d/600,dd:d=>d==null?null:Math.round(d*0.8)}};
+ "mtd":{label:"This month",lower:"this month",days:CYCLE.day-1,f:d=>d==null?1:1-d/600,dd:d=>null,cmp:false}};   /* change 361: 1 to 8 Sep, totals only */
 const win=()=>WINS[HOME_WIN]||WINS["7d"];
 const winTot=(cycle,d)=>Math.round((cycle||0)/CYCLE.day*win().days*win().f(d));
 const winD=d=>win().dd(d);
 const wk=n=>winTot(n,null);
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const winRange=()=>{const n=win().days,end=new Date(2026,8,CYCLE.day), at=x=>new Date(end.getTime()-x*864e5),
-  rng=(a,b)=>a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
-  return {cur:rng(at(n-1),at(0)),prev:rng(at(2*n-1),at(n)),start:at(n-1),end}};
+const winRange=()=>{const n=win().days,end=new Date(2026,8,CYCLE.day-1), at=x=>new Date(end.getTime()-x*864e5),   /* change 361: ends yesterday */
+  rng=(a,b)=>a.getTime()===b.getTime()?b.getDate()+" "+MON3[b.getMonth()]:a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
+  return {cur:rng(at(n-1),at(0)),prev:win().cmp===false?null:rng(at(2*n-1),at(n)),start:at(n-1),end}};
 /* [calls made change %, connect rate %, calls connected change %]. Change 180 (Hitesh): "We can shows calls
    connected - it's okay, remove positive call outcomes": Calls connected is the Dialer's own Call Reports
    measure (calls the prospect answered), with its change against the previous period. */
@@ -10819,8 +10841,21 @@ function contSplit(c,sentW){const R=(c.sequences||[]).filter(q=>q.state!=="Draft
  const CW=SW.map((s,i)=>Math.round(s/(kOf(R[i])*g))), RW=CW.map((n,i)=>Math.round(n*(R[i].reply||0)/100));
  return {R,SW,CW,RW,cont:CW.reduce((a,b)=>a+b,0),rep:RW.reduce((a,b)=>a+b,0)}}
 const W7_RED=(d,prev)=>d!=null&&d<=-25&&prev!=null&&prev>=10;
+/* change 361 (doc 115 J): a change shows only when the earlier figure was CMP_GATE.min or more AND it moved
+   CMP_GATE.pct% or more; otherwise the plain figure. Both values are a guess: check them against a week of
+   real agency data in Metabase before production (115 E5, open question 3). Counts are gated on the period
+   totals (Per day too); a rate on the replies behind it, the base W7_RED reads. W7_RED's red chip is kept
+   only where the change passes this gate. */
+const CMP_GATE={min:30,pct:10};
+const cmpOn=(d,prev)=>d!=null&&prev!=null&&prev>=CMP_GATE.min&&Math.abs(d)>=CMP_GATE.pct;
+/* change 361 (doc 115 C): a compared figure's hover gives both numbers, each with its period, then the change
+   when it passes the gate: "52 in 2 to 8 Sep" / "124 in 26 Aug to 1 Sep" / "Down 58%". One line each: the
+   sentence "52, against 124 in 26 Aug to 1 Sep" wraps in production's 225px tooltip at four-digit figures.
+   Empty when there is no earlier figure. */
+const cmpTip=(nowT,prevT,d,on)=>{const R=winRange(); return R.prev&&prevT!=null?nowT+" in "+R.cur+"\n"+prevT+" in "+R.prev+(on?"\n"+(d>0?"Up ":"Down ")+Math.abs(d)+"%":""):""};
+const cmpEa=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 /* change 265: the quiet change, signed text then the production trend glyph (PS_I) */
-const w7Delta=(d,noIcon)=>'<span class="w7-d" title="'+(d>0?"Up ":"Down ")+Math.abs(d)+'%">'+(d>0?'+':'')+d+'%'+(noIcon?'':PS_I[d>0?"up":"down"])+'</span>';   /* change 311: the Dashboard passes noIcon (no arrows) */
+const w7Delta=(d,noIcon)=>'<span class="w7-d"'+(noIcon?'':' title="'+(d>0?"Up ":"Down ")+Math.abs(d)+'%"')+'>'+(d>0?'+':'')+d+'%'+(noIcon?'':PS_I[d>0?"up":"down"])+'</span>';   /* change 361: the Dashboard (noIcon) cell's own hover says it, so no second browser title */   /* change 311: the Dashboard passes noIcon (no arrows) */
 /* change 181, 11 Oct 2026 (Hitesh: "per day version gives better idea"; "Go"): every
    count on Home is the daily average of the last 7 days (the 7-day total over 7).
    The window, the changes and the red rule (on the 7-day totals) are unchanged.
@@ -10855,35 +10890,42 @@ function ocCount(E,calls,conn,liSteps,rE){const C=Math.round((calls||0)/OC_DIAL)
 function ocOf(c){if(c.disabled||c.sent===0) return {E:0,C:0,L:0,rE:0,rC:0,cont:0,rep:0,contD:null,repD:null};
  const w=wk7(c), li=hcLi(c), P=w.prev, o=ocCount(w.cont,w.calls,w.conn,li,w.rep);
  const q=ocCount(P.cont==null?w.cont:P.cont,P.calls==null?w.calls:P.calls,P.conn==null?w.conn:P.conn,li,P.rep==null?w.rep:P.rep);
- const d=(a,b)=>b?Math.round((a-b)/b*100):null; o.contD=d(o.cont,q.cont); o.repD=d(o.rep,q.rep); return o}
+ const d=(a,b)=>b?Math.round((a-b)/b*100):null; o.contD=d(o.cont,q.cont); o.repD=d(o.rep,q.rep);
+ /* change 361: the earlier counts, null where the seed has no earlier figure (Pinecrest), so no change and no
+    comparison hover; contQ is the held-level figure the tile's sum uses (change 231) */
+ o.contQ=q.cont; o.contP=w.contD==null?null:q.cont; o.repP=w.repD==null?null:q.rep; if(o.contP==null) o.contD=null; if(o.repP==null) o.repD=null; return o}
 /* the cell: the figure and its change, as Prospects added; the hover splits it by channel, one line each, so no
    line wraps in production's 225px tooltip (a person in two channel rows is one in the total) */
 function ocCell(c,k){const o=ocOf(c), v=k==="cont"?o.cont:o.rep; if(!v) return '<span class="is-none">&ndash;</span>';
  const parts=(k==="cont"?[["Email",o.E],["Calls",o.C],["LinkedIn",o.L]]:[["Email",o.rE],["Calls",o.rC]]).filter(x=>x[1]>0);
  const tip=parts.map(x=>x[0]+" "+pd(x[1])).join("\n")+(parts.length>1?"\nCounted once across channels.":"")+(k==="rep"?"\nLinkedIn replies aren't tracked.":"");
  const said=(k==="cont"?"Contacted":"Replied")+" for "+c.name+": "+pd(v)+". "+tip.replace(/\n/g," ");
- const d=k==="cont"?o.contD:o.repD;
- return '<span class="tnum stackv oc-v u-tip" title="" tabindex="0" data-oc="'+k+'" data-uwtip="'+tip.replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'" aria-label="'+said.replace(/"/g,"&quot;")+'">'+pd(v)+(d==null||d===0?"":w7Delta(d,true))+'</span>'}
+ const d=k==="cont"?o.contD:o.repD, p=k==="cont"?o.contP:o.repP, on=cmpOn(d,p), cmp=p==null?"":cmpTip(pd(v),pd(p),d,on);   /* change 361 */
+ const tipC=(cmp?cmp+"\n":"")+tip, saidC=said+(cmp?" "+cmp.replace(/\n/g,". ")+".":"");
+ return '<span class="tnum stackv oc-v u-tip" title="" tabindex="0" data-oc="'+k+'" data-uwtip="'+tipC.replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'" aria-label="'+saidC.replace(/"/g,"&quot;")+'">'+pd(v)+(on?w7Delta(d,true):"")+'</span>'}
 function homeCells(c){
  const w=wk7(c), off=c.disabled||c.sent===0, dash='<span class="is-none">&ndash;</span>';
  /* change 265: an ordinary change is quiet grey text with the trend glyph (fd/dashboard.html's look);
     only W7_RED (replies down 25% or more on 10+) keeps change 221's red chip */
- const D=(d,prev)=>d==null||d===0?"":W7_RED(d,prev)?psChip(d,(d>0?'+':'')+d+'%',"bad",true):w7Delta(d,true);   /* change 311 (Hitesh: "we want to remove them"): no arrows in the table */
+ const D=(d,prev)=>!cmpOn(d,prev)?"":W7_RED(d,prev)?psChip(d,(d>0?'+':'')+d+'%',"bad",true).replace(/ title="[^"]*"/,""):w7Delta(d,true);   /* change 311 (Hitesh: "we want to remove them"): no arrows in the table; change 361: gated, no second title */
  const Dq=d=>d==null||d===0?"":w7Delta(d,true);
  const cell=(k,label,html)=>({k,label,html});
  /* change 199, 11 Oct 2026 (Hitesh): "leads revealed column can be removed as we have prospects added" */
  if(off) return [["pa","Prospects added"],[null,"Contacted"],[null,"Replied"],["sent","Emails sent"],[null,"Bounce rate"],["rep","Email reply rate"],[null,"Calls made"],[null,"Calls connected"],[null,"LinkedIn steps"]].map(([k,l],i)=>Object.assign(cell(null,l,dash),{col:HC_CELLS[i]}));   /* change 322 */
- const n=(v,d,prev)=>'<span class="tnum stackv">'+pd(v)+Dq(d)+'</span>';
+ /* change 361: a compared figure carries the hover with both numbers (vC's u-tip); the change only past the gate */
+ const cc=(lab,inner,tip)=>tip?'<span class="tnum stackv u-tip" title="" tabindex="0" data-uwtip="'+cmpEa(tip)+'" aria-label="'+cmpEa(lab+" for "+c.name+": "+tip.replace(/\n/g,". ")+".")+'">'+inner+'</span>':'<span class="tnum stackv">'+inner+'</span>';
+ const n=(v,d,prev,lab)=>{const on=cmpOn(d,prev); return cc(lab,pd(v)+(on?Dq(d):""),lab&&prev!=null?cmpTip(pd(v),pd(prev),d,on):"")};
+ const rp=w.rateD==null||w.prev.rate==null?null:w.rate/(1+w.rateD/100), ron=cmpOn(w.rateD,w.prev.rate);
  return [
-  cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa)),
+  cell(w.pa?"pa":null,"Prospects added",n(w.pa,w.paD,w.prev.pa,"Prospects added")),
   cell(null,"Contacted",ocCell(c,"cont")),   /* change 340 */
   cell(null,"Replied",ocCell(c,"rep")),
-  cell(w.sent?"sent":null,"Emails sent",n(w.sent,w.sdD,w.prev.sent)),
+  cell(w.sent?"sent":null,"Emails sent",n(w.sent,w.sdD,w.prev.sent,"Emails sent")),
   /* change 265: a bounce rate of 3% or more sits on the red of change 221's falling chip */
   cell(w.sent?"bounce":null,"Bounce rate",'<span class="tnum stackv">'+(w.bounce>=3?'<span class="w7-hot performance-stats--decrement" title="Bounce rate 3% or more">'+w.bounce.toFixed(1)+'%</span>':w.bounce.toFixed(1)+'%')+'</span>'),
-  cell(w.sent?"rep":null,"Email reply rate",'<span class="tnum stackv">'+w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate)+'</span>'),
-  cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls):dash),
-  cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn):dash),
+  cell(w.sent?"rep":null,"Email reply rate",cc("Email reply rate",w.rate.toFixed(1)+'%'+D(w.rateD,w.prev.rate),rp==null?"":cmpTip(w.rate.toFixed(1)+"%",rp.toFixed(1)+"%",w.rateD,ron))),
+  cell(null,"Calls made",w.calls?n(w.calls,w.callD,w.prev.calls,"Calls made"):dash),
+  cell(null,"Calls connected",w.calls?n(w.conn,w.connD,w.prev.conn,"Calls connected"):dash),
   /* change 322: LinkedIn steps in the period, no change (vC has no last-period LinkedIn per workspace) */
   cell(null,"LinkedIn steps",hcLi(c)?n(hcLi(c),null):dash)].map((x,i)=>Object.assign(x,{col:HC_CELLS[i]}))}
 /* change 177, 11 Oct 2026 (Hitesh): "we are saying active sequence but we
@@ -17356,7 +17398,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="2dcf9ec";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="eb48857";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
