@@ -4192,8 +4192,10 @@ function wssTipText(r){
   "Not checked: "+wssNotChecked(r).join(", "),"Click to know more."].filter(Boolean).join("\n")}
 const wssProbText=r=>r.fixFirst?r.fixFirst.label+(r.more?", +"+r.more:""):"";
 function wssCell(c){const r=wssOf(c), t=wssEa(wssTipText(r));
- if(r.score==null)
-  return '<span class="wss-word u-tip" title="" data-uwlg data-uwtip="'+t+'" tabindex="0" aria-label="Workspace score: '+t+'">'+r.state+'</span>';
+ if(r.score==null){
+  /* change 359 (Hitesh: "workspace score show - if workspace score not available"): the table's grey dash, the reason on hover and focus */
+  const why=wssEa(r.state==="Disabled"?"Disabled.":r.state==="New"?"Nothing sent yet.":(r.why||r.state).replace(/\.$/,"")+".");
+  return '<span class="is-none wss-dash u-tip" title="" data-uwlg data-uwtip="'+why+'" tabindex="0" aria-label="Workspace score not available. '+why+'">&ndash;</span>'}
  /* production's Sequence Score list pill (sequence-list-table.tsx 1265-1295): the number only, coloured by band; the band word
     lives in the tooltip and the hover card (Hitesh: "exactly like sequence score in sequence list column") */
  const k=wssCls(r), pill='<button type="button" class="wss-pill '+k+' u-tip" title="" data-uwlg data-uwtip="'+t+'" data-wssgo="'+c.id+'" aria-label="Workspace score '+r.score+', '+r.band+(r.band==="On track"?"":", "+wssEa(wssProbText(r)))+'. Open the Workspace score tab"><span>'+r.score+'</span></button>';
@@ -4672,7 +4674,7 @@ function hsHead(t){const S=HSORT[t];
 /* the key is what the cell shows (homeCells, wsStatusCell, usageHomeCell, wsPeopleCell); null sorts last */
 function hsVal(k,c){
  if(k==="name") return String(c.name);
- if(k==="status"){const s=wsState(c);return s==="New"?0:s==="Active"?1:null}
+ if(k==="status"){return wsState(c)==="Disabled"?null:1}   /* change 359: New is Active */
  if(k==="usage") return usageKey(c);
  if(k==="score") return wssSortVal(c);   /* change 338 */   /* change 327: needs you first, then the % the cell shows */
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length+(k==="team"&&c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").length:0)}   /* change 346 */
@@ -10748,10 +10750,13 @@ function wsState(c){return c.disabled?"Disabled":c.sent===0?"New":"Active"}
 /* change 291 (audit P0-1): while payment has failed nothing sends, so a workspace that would be
    Active is shown Paused, the banner's word. Only the tables and the Workspaces card use it. */
 const wsShownState=c=>{const s=wsState(c); return s==="Active"&&grace()?"Paused":s};
+/* change 359 (Hitesh: "workspace status should be actual status only, new is not the status"): the Status column
+   shows Active, Paused or Disabled; a workspace with nothing sent yet is enabled, so Active (Paused if payment failed) */
+const wsStatus=c=>{const s=wsShownState(c); return s==="New"?(grace()?"Paused":"Active"):s};
 /* colour only means "needs you": grey for the states, amber for Paused */
 function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
 function wsStatusCell(c){
- const t=wsShownState(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
+ const t=wsStatus(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
  return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Email reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
@@ -17352,7 +17357,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3ab7002";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="480c4cf";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
