@@ -3476,16 +3476,26 @@ function hdrModel(){
   return null;
  }
  const c=byId[ctx]; if(!c||isNormal()) return null;
+ /* change 356 (Hitesh, 22 Oct 2026: "This breadcrum is not appropriate, when we go inside individual
+    workspace"; he picked "Production title only"): inside a workspace the bar is production's page
+    header and nothing else. No Workspaces root, no workspace name, no switcher (it is the sidebar's,
+    #sbWs); production's own sub-path stays (Sequence > the sequence, with its switch). */
  const yt=el("crumbTail").querySelector(".yt");
- const head=[...(asClient?[]:[L.workspaces()]),L.ws(c,"in")];
  const mod=asClient?cView:inMod, here=view.name!=="settings"&&view.name!=="apiint";
- if(view.name==="apiint") return {segs:[...head,L.settings(),L.page("API & Integrations")],slot:""};
- if(!here||mod==="settings") return {segs:[...head,L.settings(),L.page(hdrSetName())],slot:""};
+ if(view.name==="apiint") return {segs:[L.page("API & Integrations")],slot:"",prod:true};
+ if(!here||mod==="settings") return {segs:[L.page("Settings")],slot:"",prod:true};
  if(mod==="sequences"&&openSeq&&openSeq.split("|")[0]===c.id){const q=(c.sequences||[]).find(x=>c.id+"|"+x.name===openSeq);
-  if(q) return {segs:[...head,L.module(mod),L.page(q.name)],slot:hdrSeqSlot(c,q)}}
+  if(q) return {segs:[L.module(mod),L.page(q.name)],slot:hdrSeqSlot(c,q),prod:true}}
  if(mod==="prospects"&&openProspect){const p=(PROSPECTS[c.id]||[]).find(x=>x.id===openProspect);
-  if(p) return {segs:[...head,L.module(mod),L.page(p.name)],slot:""}}
- return {segs:[...head,L.page(hdrModName(mod))],slot:yt?yt.outerHTML:""};
+  if(p) return {segs:[L.module(mod),L.page(p.name)],slot:"",prod:true}}
+ return {segs:[L.page(hdrModName(mod))],slot:yt?yt.outerHTML:hdrProdExtra(mod),prod:true};
+}
+/* change 356: production's header extras beside a module's title (header.tsx:1071-1095): Tasks' LinkBadge
+   (Book icon, 18px) and Inbox Radar's YouTube mark; Sequence's mark comes from renderShell as before */
+function hdrProdExtra(mod){
+ if(mod==="task") return `<a class="link-badge-anchor" href="#" data-flash="Opens the help article"><button type="button" class="link-badge-button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7.5 18.79a8 8 0 0 0-4 1.07 1 1 0 0 1-1-1.731 10 10 0 0 1 9.5-.27 10 10 0 0 1 9.5.27 1 1 0 0 1-1 1.732 8 8 0 0 0-8 0 1 1 0 0 1-1 0 8 8 0 0 0-4-1.072ZM7.5 5.793a8 8 0 0 0-4 1.072 1 1 0 1 1-1-1.732 10 10 0 0 1 9.5-.27 10 10 0 0 1 9.5.27 1 1 0 0 1-1 1.732 8 8 0 0 0-8 0 1 1 0 0 1-1 0 8 8 0 0 0-4-1.072Z" clip-rule="evenodd"/><path fill="currentColor" fill-rule="evenodd" d="M3 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1ZM12 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1ZM21 5a1 1 0 0 1 1 1v13a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg>Learn how to manage tasks</button></a>`;
+ if(mod==="radar") return '<span class="yt" role="img" aria-label="Learn how to use Inbox Radar." title="Learn how to use Inbox Radar."></span>';
+ return "";
 }
 function hdrSegHTML(s){
  const inner=(s.av?`<span class="hdr-avw">${s.av}</span>`:"")+`<span class="hdr-t">${hdrEsc(s.t)}</span>`, cls="hdr-seg"+(s.av?" hdr-seg--ws":"");
@@ -3512,6 +3522,7 @@ function hdrApply(){
  const box=ct.parentNode, m=hdrModel();
  let d=el("hdrWsCur"); if(!d){ct.insertAdjacentHTML("afterend",hdrWsDD("","hdrWsCur")); d=el("hdrWsCur")}
  box.classList.toggle("hdr-multi",!!(m&&m.segs.length>1));
+ box.classList.toggle("hdr-in",!!(m&&m.prod));   /* change 356: production's page header inside a workspace */
  if(!m){P.innerHTML=""; ct.removeAttribute("title"); d.hidden=true; box.classList.remove("hdr-wscur"); return}
  const r=hdrPathHTML(m.segs);
  P.innerHTML=r.html;
@@ -3541,7 +3552,7 @@ const hdrWsNeeds=c=>!c.own&&!c.disabled&&!c.deletedOn&&(askLines(c.id).length>0|
 let HDR_WS=null;   /* the open switcher: {trig} */
 function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hidden=true; const s=el("hdrWsScrim"); if(s) s.hidden=true;
  const t=HDR_WS&&HDR_WS.trig; if(t) t.setAttribute("aria-expanded","false"); HDR_WS=null; if(refocus&&t&&t.isConnected) t.focus()}
-function hdrWsRows(q){const t=(q||"").trim().toLowerCase(), cur=ctx==="agency"?view.name==="record"?view.id:view.from:ctx;
+function hdrWsRows(q,here){const t=(q||"").trim().toLowerCase(), cur=here!==undefined?here:ctx==="agency"?view.name==="record"?view.id:view.from:ctx;   /* here: the rail's current workspace (change 356) */
  const L=hdrWsList().filter(c=>!t||c.name.toLowerCase().includes(t)||(c.company||"").toLowerCase().includes(t));
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
  return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint" style="--c:${c.colour||AGENCY.colour}">${initials(c.name)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
@@ -3593,7 +3604,7 @@ function hdrWsPick(id){
  try{const h=history.state; if(!h||h.sh==="hdrws") history.replaceState({sh:"hdrws",snap:prev},"",location.href);
   history.pushState({sh:"hdrws",snap:now},"",location.pathname+location.search+"#"+hdrHash(now))}catch(e){}
  render();
- const f=el("hdrWsCur"); if(f&&!f.hidden) f.focus(); else {const w=document.querySelector("#crumbPath .hdr-wsdd"); if(w) w.focus()}
+ const f=el("hdrWsCur"); if(f&&!f.hidden) f.focus(); else {const w=document.querySelector("#crumbPath .hdr-wsdd")||el("wsBtn"); if(w) w.focus()}   /* change 356: from the rail, focus returns to the rail's switcher */
 }
 /* browser Back and Forward across a switch (before the person page's own handler, which keeps 321's way back) */
 window.addEventListener("popstate",e=>{const st=e.state; if(!st||st.sh!=="hdrws"||!st.snap) return;
@@ -3767,21 +3778,22 @@ function renderPop(q=""){
   el("popL").innerHTML=row("agency",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,true);
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{closePop()});
   return}
- const ownMatch=(!t||OWN_WS.name.toLowerCase().includes(t))&&isMember(ME(),"own");
- const list=myClients().filter(c=>!t||c.name.toLowerCase().includes(t)||c.company.toLowerCase().includes(t))
-   .slice().sort((a,b)=>a.name.localeCompare(b.name));
+ /* change 356: the workspace switcher lives here now (the top bar inside a workspace is production's title
+    only). Its rows are the top bar's switcher list (change 337, hdrWsRows): the Dashboard's order, Disabled
+    greyed, the check on the current one, no dots or chips. Inside a workspace a pick is the top bar's pick
+    (hdrWsPick keeps the module); from the admin panel it opens the workspace, as before. */
  el("popL").innerHTML=(t?"":`<div class="pop-acct">${row("agency",`<span class="pop-ico">${gridI}</span>`,AGENCY.name,{text:"Admin"},ctx==="agency") /* change 192 (Hitesh): "Account" reads as billing; the row is the admin panel */}</div>`)
   +`<div class="pop-h">Your workspaces</div>`
-  +(ownMatch?row("own",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,ctx==="own"):"")
   /* change 132 (Hitesh): no attention tags in the switcher; it lists places, Home carries the state */
-  +(list.length?list.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join("")
-   :ownMatch?"":`<p class="sub" style="padding:8px">No workspaces found</p>`);
+  +hdrWsRows(t,ctx==="agency"?null:ctx);
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
-   if(ctx==="own"){inMod="sequences"}
-   else if(ctx==="agency"){view=homeView()}
-   else {inMod="sequences";view={name:"clients"}}
+   view=homeView();
    closePop();render()});
+ el("popL").querySelectorAll("[data-hdrws]").forEach(b=>b.onclick=()=>{const id=b.dataset.hdrws; closePop();
+   if(ctx!=="agency"){hdrWsPick(id); return}
+   ctx=id;asClient=false;openProspect=null;openSeq=null;openReply=null;inMod="sequences";if(id!=="own") view={name:"clients"};
+   render()});
 }
 const openPop=()=>{popOpen=true;const P=el("pop"),R=el("sbWs").getBoundingClientRect();
  /* opens below the trigger, or above it when the trigger sits in the lower half
@@ -14439,7 +14451,7 @@ el("meBtn").onclick=e=>{
   e.stopPropagation();
   if(el("meBtn").classList.contains("me-static"))return;   /* change 292: solo, or a preview with no client user yet */
   mePopOpen?closeMePop():openMePop()};
-el("wsBtn").onclick=e=>{e.stopPropagation();if(asClient||solo)return;popOpen?closePop():openPop()};
+el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2))return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
 el("popQ").oninput=e=>renderPop(e.target.value);
 el("popAdd").onclick=()=>{if(!canI("limits"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
@@ -17160,7 +17172,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0d372eb";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="dce0634";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18024,6 +18036,10 @@ button.hdr-chip{cursor:pointer}
 .topbar button.hdr-seg{transition:color .2s ease}
 .topbar button.hdr-seg:hover,.topbar button.hdr-seg:hover .hdr-t{color:#1d4ed8}
 .topbar .crumb.hdr-multi .crumb-tail{font-size:16px;line-height:20px;font-weight:600;color:#1f2937}
+/* change 356: inside a workspace the title is production's h2.semibold-3.popover-arrow-color-txt (16px/24px, 600,
+   #1F2937, header.tsx:1039); its LinkBadge sits 8px after it (ml-2) and keeps its own 24px height */
+.topbar .crumb.hdr-in:not(.hdr-multi) .crumb-tail{font-size:16px;line-height:24px;font-weight:600;color:#1f2937}
+.topbar .crumb.hdr-in .hdr-slot .link-badge-anchor{display:inline-flex;text-decoration:none}
 /* change 334: the workspace switcher. Its trigger is production's 16px ChevronDown in a 24px button,
    2px after the name; the list is the rail switcher's own listing (.pop, 28 Sep 2026): 280 wide, 32px
    search, 40px rows with a 24px avatar, Blue 50 hover and current, the check on the current one */
