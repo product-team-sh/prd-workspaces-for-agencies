@@ -4185,7 +4185,7 @@ const wssNames=r=>["Mailbox health","Prospect quality","Sequence setup"];
 const wssNotChecked=r=>["warm-up"].concat(r.missing.some(m=>m.key==="connect")?["calls"]:[]);
 const wssProbs=(r,part)=>r.problems.filter(p=>p.part===part&&p.score<75).sort((a,b)=>(b===r.fixFirst)-(a===r.fixFirst)||a.score-b.score).map(p=>p.label);   /* the problem named first */
 function wssTipText(r){
- if(r.score==null) return r.state+(r.why&&r.why!==r.state?". "+r.why+".":"");
+ if(r.score==null){const st=r.state==="New"?"Nothing sent yet":r.state; return st+(r.why&&r.why!==st?". "+r.why+".":"")}   /* change 360: the engine keeps "New", nobody reads it */
  const N=wssNames(r), line=(n,v,ps)=>n+" "+v+(ps.length?": "+ps.join(", "):"");
  return [r.band+" "+r.score,line(N[0],r.parts.mailbox,wssProbs(r,"mailbox")),line(N[1],r.parts.prospect,wssProbs(r,"prospect")),
   r.parts.setup==null?null:N[2]+" "+r.parts.setup+", "+wssSetupLabel(r.parts.setup).toLowerCase()+", shown only",
@@ -4494,7 +4494,7 @@ const WSS_INFO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria
 const wssWeakest=G=>G[1]!=null&&(G[0]==null||G[1]<G[0])?1:0;
 /* production's tab body (sequence-score.tsx 205 to 287): gauge, headline, one sentence, three part tabs, the pane */
 function wssBody(c){const r=wssOf(c);
- if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score is the lower of mailbox health and prospect quality this week.</h1><p>'+r.state+'. '+r.why+'.</p></div>';
+ if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score is the lower of mailbox health and prospect quality this week.</h1><p>'+(r.state==="New"?"Nothing sent yet.":r.state+'. '+r.why+'.')+'</p></div>';
  const k=wssCls(r), G=wssGroups(r), N=wssNames(r), cur=WSS_SUB[c.id]!=null?WSS_SUB[c.id]:wssWeakest(G), d=wssDetail(c);
  return '<div class="wss-content"><div class="wss-chart">'+wssGauge(r.score,false)+'</div>'
   +'<h2 class="wss-title">Your workspace score is <span class="'+k+'">'+r.band+'</span></h2>'
@@ -7897,7 +7897,7 @@ function ulLine(r,ro){const k=r.res,R=RES[k],row=R.rows[r.client],c=byId[r.clien
   use:ulUse(k,row.used,row.cap), plan:`<span class="ul-plan">${head}</span><span class="sub ul-eff">${sub}</span>`, decide}}
 function ulAskTbody(a,ro){const c=byId[a.client], L=a.lines, multi=L.length>1, folded=ulFolded(a), isNew=!UL.seen[a.id];
  const allFit=L.every(r=>compute(r.res).free>=r.amount), short=L.filter(r=>compute(r.res).free<r.amount).length;
- const wsCell=`<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm ul-nmrow"><span class="ul-nmt" title="${c.name}">${c.name}</span>${isNew?'<span class="ul-new">New</span>':""}</span><span class="sub">${AGE(a.when)}${multi?`, ${L.length} lines in one request`:""}</span></span></div>`;
+ const wsCell=`<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm ul-nmrow"><span class="ul-nmt" title="${c.name}">${c.name}</span>${isNew?'<span class="ul-new">New request</span>':""}</span><span class="sub">${AGE(a.when)}${multi?`, ${L.length} lines in one request`:""}</span></span></div>`;
  const tog=a.note||multi?`<button class="ul-fold" data-ulfold="${a.id}" aria-expanded="${!folded}" aria-label="${folded?"Show":"Fold"} ${c.name}'s request">${ulCaret(!folded)}</button>`:"";
  const allBtns=ro?`<span class="sub">Read only</span>`:`<div class="ul-acts"><button class="shd-button shd-button--secondary shd-button--sm" data-noall="${c.id}${ulAsks().filter(x=>x.client===c.id).length>1?"|"+a.id:""}">Decline all</button><button class="shd-button shd-button--primary shd-button--sm" data-okall="${c.id}${ulAsks().filter(x=>x.client===c.id).length>1?"|"+a.id:""}"${allFit?"":` disabled title="${short} line${short===1?"":"s"} request more than the plan has available. Decide line by line."`}>Approve all</button></div>${allFit?"":`<span class="sub ul-why">${short} line${short===1?"":"s"} request${short===1?"s":""} more than the plan has. Decide line by line.</span>`}`;
  const lineRow=(r,lead)=>{const x=ulLine(r,ro); return `<tr class="ul-ln" data-ulline="${r.id}"><td>${lead||""}</td><td>${x.asked}</td><td>${x.use}</td><td>${x.plan}</td><td>${x.decide}</td><td>${lead?tog:""}</td></tr>`};
@@ -7968,7 +7968,7 @@ function ulPlanRow(){const ks=UL_K();
    <span class="ul-pv" data-ulpused="${k}">${t(m.used)}</span><span class="ul-pv" data-ulpgiven="${k}">${t(given)}</span><span class="ul-pv ul-pavail" data-ulpav="${k}"><b>${t(av)}</b></span></td>`}).join("")}</tr>`}
 function ulWsCell(c,ed){const ask=ulReqs().find(r=>r.client===c.id), st=wsState(c);
  const used0=UL_K().every(k=>!RES[k].rows[c.id]||!RES[k].rows[c.id].used);
- const sub=c.disabled?`<span class="sub">Disabled</span>`:ask?`<span class="sub ul-asked">Requested ${AGE(ask.when).toLowerCase()}</span>`:st==="New"&&used0?`<span class="sub">New, nothing used yet</span>`:"";
+ const sub=c.disabled?`<span class="sub">Disabled</span>`:ask?`<span class="sub ul-asked">Requested ${AGE(ask.when).toLowerCase()}</span>`:"";
  return `<div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub}</span></div>`}
 function ulGridRow(c,ro){const ks=UL_K(), off=!!c.disabled;
  return `<tr class="ul-wr${off?" is-off":""}" data-ulws="${c.id}"><td>${ulWsCell(c,false)}</td>${ks.map(k=>{const r=RES[k].rows[c.id]; if(!r) return `<td class="ul-c"><span class="sub">Not on this workspace</span></td>`;
@@ -8086,7 +8086,7 @@ function ul3Item(k,c,ro){const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const
  const pen=!ul3CanEd(c,ro)?"":`<button type="button" class="ul3-pen" data-ul3ed="${c.id}|${k}" aria-label="Change ${c.name}'s ${R.label} limit" title="Change this limit">${NC_PEN}</button>`;
  return apuItem(`<span class="ul3-lab">${R.label}${pen}</span>`,r.used,r.cap,{cls:"ul3-i",attr:` data-ul3i="${k}|${c.id}"`,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,UL3_GREY),rem:ul3Mk(ul3Lv(r),`${f(rem)} (${pbPct(rp)}%) Remaining`)})}
 function ul3Row(c,ro){const ed=!!UL.ed&&UL.ed.id===c.id, open=UL.open3===c.id||ed, q=ul3Quiet(c), b=q?null:ul3Close(c), A=ulReqs().filter(r=>r.client===c.id);
- const sub=c.disabled?"Disabled":q&&wsState(c)==="New"?"New":"", can=ul3CanEd(c,ro), lock=ul3Dirty()&&!ed, dis=lock?" disabled":"";
+ const sub=c.disabled?"Disabled":"", can=ul3CanEd(c,ro), lock=ul3Dirty()&&!ed, dis=lock?" disabled":"";
  const inner=q?"":`<span class="ul3-cl"><span class="ul3-cb">${pbar(b.x*100,UL3_GREY)}</span><span class="ul3-ct">${ul3Mk(ul3Lv(b.r),ul3Lv(b.r)===2?`${UL3_NM[b.k]} used up`:`${UL3_NM[b.k]} ${ulPct(b.r.used,b.r.cap)}%`)}</span></span>`;
  /* change 263: the closest limit is the way in; it opens the six limits with that one ready to type */
  const close=q?`<span class="ul3-g">${c.disabled?"Nothing used":"Nothing used yet"}</span>`
@@ -8269,7 +8269,7 @@ function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRo
  UL.rv2=false;
  const W=ul3E2Rows(k);
  const tabs=UL_K().map(x=>{const sh=ul3E2Short(x); return `<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}"${sh?` title="Requests for more ${RES[x].label} than the plan has available"`:""}>${RES[x].label}${sh?`<span class="ul3-tdot" data-ul3dot="${x}" aria-hidden="true"></span><span class="cx-sr">, requests exceed what is available</span>`:""}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`}).join("");
- const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New, nothing used yet":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
+ const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
   return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
    <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit" aria-invalid="${ul3E2Low(k,c.id)}"${!ro&&ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
  return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2" id="ulLimits">
@@ -8675,7 +8675,7 @@ function rqcLChg(C,id){const x=C.rows[id], r=x.r, k=C.k, c=byId[id];
   return `&minus;${f(x.d)}${stop?` <span class="ul3-mk">Stops ${UL3_STOP[k]}</span>`:""}${p?`. ${p}`:""}`}
  if(x.d<0) return `+${f(-x.d)}`;
  return was&&was!=="None left"?`<span class="ul3-g">${was}</span>`:""}
-function rqcLRow(C,id){const L=RQC.lend, x=C.rows[id], c=byId[id], r=x.r, k=C.k, sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New, nothing used yet":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
+function rqcLRow(C,id){const L=RQC.lend, x=C.rows[id], c=byId[id], r=x.r, k=C.k, sub=c.disabled?"Disabled":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
  return `<tr class="rqc-lrw${c.disabled?" is-off":""}" data-rqclrow="${id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${rqcEsc(c.name)}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
   <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span>${f(r.used)} of ${f(r.cap)}</span></span></td>
   <td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${x.d?" is-ch":""}" data-rqcli="${id}" value="${L.raw[id]!=null?rqcEsc(L.raw[id]):f(x.v)}" aria-label="${rqcEsc(c.name)} ${RES[k].label} limit" aria-invalid="${x.low}"></td><td class="rqc-lc" data-rqclc="${id}">${rqcLChg(C,id)}</td></tr>`}
@@ -9358,7 +9358,7 @@ function vDash(){
     below unconditionally. */
  const grpOf=x=>x.c.disabled?"att":x.a&&x.a.pin?"att":x.c.sent>0?"run":"new";
  const cnt=g=>flag.filter(x=>grpOf(x)===g).length;
- const PT=[["all","All",mine.length],["att","Needs attention",cnt("att")],["run","Running",cnt("run")],["new","New",cnt("new")]];
+ const PT=[["all","All",mine.length],["att","Needs attention",cnt("att")],["run","Running",cnt("run")],["new","Not sending yet",cnt("new")]];   /* change 360: not a status, so named for what is true */
  /* 1 Oct 2026: the own workspace stays first, as in the switcher; the rest
     sort by what most needs attention, then by sends. */
  /* 2 Oct 2026, Hitesh: the group pills are gone; the period line under the title says what cycle every number is for. */
@@ -9575,9 +9575,9 @@ function homeGroupEmpty(tab,cnt){
  const E=(t,sub,btn)=>'<tr class="home-empty-row"><td colspan="6"><div class="home-empty"><p class="home-empty-t">'+t+'</p><p class="home-empty-s">'+sub+'</p>'+(btn||"")+'</div></td></tr>';
  const go=(k,l)=>'<button class="shd-button shd-button--tertiary" data-clitab="'+k+'">'+l+'</button>';
  if(tab==="run") return E("No workspace is sending yet","A workspace moves here once its first sequence starts sending.",
-   cnt("new")?go("new","See the "+cnt("new")+" new workspace"+(cnt("new")===1?"":"s")):cnt("att")?go("att","See what needs attention"):"");
+   cnt("new")?go("new",cnt("new")+" workspace"+(cnt("new")===1?"":"s")+" not sending yet"):cnt("att")?go("att","See what needs attention"):"");
  if(tab==="att") return E("Nothing needs attention","Limits reached, disconnected email accounts and unread replies land here.",go("all","See all workspaces"));
- if(tab==="new") return E("No new workspaces","Every workspace has started sending.",'<button class="shd-button shd-button--tertiary" data-newws>'+ADD_I+'Add a workspace</button>');
+ if(tab==="new") return E("No workspaces waiting to send","Every workspace has started sending.",'<button class="shd-button shd-button--tertiary" data-newws>'+ADD_I+'Add a workspace</button>');
  return E("No workspaces yet","Add the first one to see it here.",'<button class="shd-button shd-button--primary" data-newws>'+ADD_I+'Add a workspace</button>');
 }
 function heroCards(mine,tch,rep,items){
@@ -9587,7 +9587,7 @@ function heroCards(mine,tch,rep,items){
     limit" were not statuses (a running workspace at a limit was in both). Deleted
     workspaces are not in the total (they leave the list and the plan count), so
     Deleted comes last, as a ring, and says so on hover. */
- const byState=["Paused","Active","New","Disabled"].map(s=>[s,mine.filter(c=>wsShownState(c)===s).length]).filter(x=>x[1]>0); /* change 291 */
+ const byState=["Paused","Active","Disabled"].map(s=>[s,mine.filter(c=>wsStatus(c)===s).length])   /* change 360: statuses only, nothing sent counts as Active */.filter(x=>x[1]>0); /* change 291 */
  const wsScope=ME().ws, gone=CLIENTS.filter(c=>c.deletedOn&&(!wsScope||wsScope.indexOf(c.id)>-1)).length;
  const seqs=mine.flatMap(c=>(c.sequences||[]).map(q=>({q,c})));
  /* change 291 (audit P0-1): while payment has failed nothing runs; the sequences that would are held */
@@ -17357,7 +17357,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="480c4cf";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="61bbc8a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
