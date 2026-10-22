@@ -5044,9 +5044,7 @@ function raRows(c){
   if(r.stop&&!seen.stop){seen.stop=1; if(!c.disabled&&hm(c).sysPaused>0){r.open={mk:"Still stopped",act:canI("limits")?`<button type="button" class="linkbtn" data-tab="limits">Review limits</button>`:""}; r.need="sending stopped at a limit"}}
   if(r.off&&!seen.off){seen.off=1; if(c.disabled) r.open={ctx:"Still disabled."}}
   if(r.inv&&!seen["i:"+r.inv]){seen["i:"+r.inv]=1; const u=(c.users||[]).find(x=>x[0]===r.inv); if(!u) return;
-   const dom=r.inv.split("@")[1], o=CLIENTS.find(x=>x.id!==c.id&&!x.deletedOn&&x.email&&x.email.split("@")[1]===dom), verb=u[1]==="Workspace Viewer"?"view":"work in";
-   if(o){r.tx=r.tx.replace(r.inv,`<span class="ra-mku">${r.inv}</span>`); r.open={ctx:`The address is on ${raPoss(o.name)} domain, another of your clients. It can still ${verb} this workspace.`,act:canI("members")?`<button type="button" class="linkbtn" data-tab="members">Review access</button>`:""}; r.look=`${r.inv} can ${verb} this workspace`}
-   else if(AGE(LASTSEEN[r.inv]||"unknown")==="never") r.open={ctx:"Not accepted yet."}}});
+   if(AGE(LASTSEEN[r.inv]||"unknown")==="never") r.open={ctx:"Not accepted yet."}}});
  return rows}
 function raRel(r){const a=raAgo(r.d), w=String(r.when||"").toLowerCase();
  return a===0?(/min|hour|just now/.test(w)?AGE(r.when):"today"):a===1?"yesterday":a<7?a+" days ago":"on "+raDM(r.d)}
@@ -5672,7 +5670,7 @@ let RC_DDMAP={};
    experiments/fd/record-members.html#at): the record's Members tab. One heading that counts who has access, one
    table (Person, Role in this workspace, Last sign-in, row menu) in two groups, Client users then Your team, and an
    Invite people form that opens in place under the heading (no modal). Client users sort by attention (an address
-   on another client's domain first, amber underline), then role, then address. The role is plain text that shows
+   role, then address. The role is plain text that shows
    it is a control on hover and focus; picking one changes it with Undo. A client user's row menu matches People
    (change 292): Move to another workspace, Resend invite only while invited, Disable or Enable, Remove from <name>
    (not for the only client user). Account Owners and Account Admins are Workspace Admin in every workspace and
@@ -5689,17 +5687,14 @@ const RM_KEBAB='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 const RM_X='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>';
 /* change 308: one neutral avatar for everyone on the tab (Gray 100 fill, Gray 700 initials); Type says the kind */
 const RM_AV="#F3F4F6";
-/* an address on another client's domain (never this workspace's own domain) */
-function rmCross(c,email){const d=rmDom(email); if(!d||d===rmDom(c.email)) return null;
- const o=CLIENTS.find(x=>x!==c&&!x.own&&!x.deletedOn&&rmDom(x.email)===d); return o?{d,ws:o.name}:null}
 /* when the workspace was added ("08 Sep, 2026" reads "8 Sep"), for an invite with no sent date of its own */
 const rmCreated=c=>c.created?String(c.created).replace(/^0/,"").replace(/,.*$/,""):null;
 function rmClients(c){const R=CLIENT_ROLES;
  return (c.users||[]).map(u=>{const email=u[0], key="w:"+c.id+"|"+email, seen=AGE(LASTSEEN[email]||"unknown"), inv=seen==="never";
   /* change 308: a name only when the person set one (u[2]); otherwise the address is the name line */
   const nm=u[2]||null;
-  return {key,email,label:email,name:nm,ini:initials(nm||email.split("@")[0].replace(/[._-]+/g," ")),col:RM_AV,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],x:rmCross(c,email),client:true}})
-  .sort((a,b)=>(!!b.x-!!a.x)||R.indexOf(a.role)-R.indexOf(b.role)||a.email.localeCompare(b.email))}
+  return {key,email,label:email,name:nm,ini:initials(nm||email.split("@")[0].replace(/[._-]+/g," ")),col:RM_AV,role:u[1],seen,isInv:inv,sent:inv?(INVITED[key]||rmCreated(c)):null,off:!!DISABLED[key],client:true}})
+  .sort((a,b)=>R.indexOf(a.role)-R.indexOf(b.role)||a.email.localeCompare(b.email))}
 function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,email:r.email,ini:r.initials,col:RM_AV,
  acct:roleName(r.role),fixed:r.ws===null,role:r.ws===null?"Workspace Admin":ppWsRole(r.P,c.id),seen:r.seen,isInv:r.seen==="never",sent:r.invited,off:r.disabled,me:r.me}))}
 /* Last sign-in: the status folds in here (no Status column, no green dot) */
@@ -5731,23 +5726,19 @@ function rmMenuCell(r,items){
 }
 function rmWho(r,link,inner,tip){const t=tip?` title="${rmEsc(tip)}"`:""; return link?`<button type="button" class="rmt-who" data-rmperson="${rmEsc(r.key)}"${t}>${inner}</button>`:`<span class="rmt-who"${t}>${inner}</span>`}
 /* change 304: People's person cell: 32px avatar (dashed while invited), the name, the address under it. A client
-   user's name is People's, made from the address. An address on another client's domain keeps one line: the amber
-   underline on the address and the reason after it, the full sentence on hover; Remove is in the row menu. */
+   user's name is People's, made from the address. */
 /* change 308: a name only when the person set one, the address under it; with no name the address is the one line.
    An address may end in an ellipsis, with the full address as its title. */
 function rmPerson(r,link){const em=rmEsc(r.email);
  const main=r.name?rmWho(r,link,rmEsc(r.name)+(r.me?' <span class="sub">(you)</span>':""))+`<i class="rmt-em" title="${em}">${em}</i>`:rmWho(r,link,em,r.email);
  return `<span class="pp-person rmt-person${r.name?"":" is-addr"}">${ppAv(r.ini,r.col,32,r.isInv)}<span>${main}</span></span>`}
 /* People's Type column ("Your team", "Client user") in place of the group rows */
-/* change 308: an address on another client's domain is flagged here, change 307's amber chip, the sentence its title */
-const rmTypeCell=(ty,t,flag)=>ty?`<td><span class="rmt-type">${t}</span>${flag||""}</td>`:"";
-const rmFlag=(r,ed)=>{const why=`On ${rmPoss(r.x.ws)} domain, another of your clients.`;
- return `<span class="rmt-flag${ed?"":" is-quiet"}" title="${rmEsc(why)}">Other client's domain<span class="rmt-sr"> ${rmEsc(why)}</span></span>`};
+const rmTypeCell=(ty,t)=>ty?`<td><span class="rmt-type">${t}</span></td>`:"";
 function rmClientRow(c,r,ed,link,ty){
  const only=(c.users||[]).length===1;
  const items=ed?[r.off?null:["access","Edit access"],["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
   ["remove","Remove from "+c.name,only?`The only sign-in for ${c.name}; disable the workspace instead`:""]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user",r.x?rmFlag(r,ed):"")}
+ return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user")}
   <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 function rmTeamRow(c,r,ed,link,ty){
@@ -5766,7 +5757,7 @@ function rmHeading(c,cl,tm,ed){
    p:`${back.length?`${listAnd(back)} get access back when you ${c.deletedOn?"restore":"enable"} it.`:""}${off.length?` ${listAnd(off.map(r=>r.name))} ${off.length===1?"is":"are"} disabled in People.`:""}`.trim()}}
  const acl=cl.filter(r=>!r.isInv&&!r.off), atm=tm.filter(r=>!r.isInv&&!r.off), n=acl.length+atm.length;
  const pend=cl.filter(r=>r.isInv&&!r.off).length+tm.filter(r=>r.isInv&&!r.off).length, off=cl.filter(r=>r.off).length+tm.filter(r=>r.off).length;
- const xc=cl.filter(r=>r.x).length, pc=cl.filter(r=>r.isInv&&!r.off);
+ const pc=cl.filter(r=>r.isInv&&!r.off);
  let p=c.own?"Your team only. Your own workspace has no client users.":`${acl.length} from ${c.name}, ${atm.length} from ${AGENCY.name}.`;
  /* nobody from the client is in yet: say who is and what is waiting */
  if(!c.own&&!acl.length&&!cl.some(r=>r.off)) p=!cl.length?`Only your team so far. ${c.name} has no client users yet.`
@@ -5774,7 +5765,6 @@ function rmHeading(c,cl,tm,ed){
   :`Only your team so far. ${pc.length} client invites are not accepted yet.`;
  else if(pend) p+=` ${rmN(pend,"invite is","invites are")} not accepted yet.`;
  if(off) p+=` ${rmN(off,"person is","people are")} disabled.`;
- if(xc&&ed) p+=xc===1?" 1 is on another client's domain.":` ${xc} are on other clients' domains.`;
  return {h:`${rmN(n,"person has","people have")} access`,p};
 }
 /* the invite form: Client users (addresses, then one role) or Your team (Account Members, then one role) */
@@ -5783,7 +5773,7 @@ function rmChipSt(c,v){
  if((c.users||[]).some(u=>u[0].toLowerCase()===v)) return {dup:1,msg:`<b>${rmEsc(v)}</b> already has access.`};
  const a=onAccount(v); if(a&&a.kind==="team") return {bad:1,msg:`<b>${rmEsc(v)}</b> is ${rmEsc(a.name)}, on your team. Add them under Your team.`};
  if(SH_ACCOUNTS.indexOf(v)>-1) return {bad:1,msg:`<b>${rmEsc(v)}</b> already owns a Saleshandy account. Ask them to close it, or use another address.`};
- const x=rmCross(c,v); return x?{x,msg:`<span class="rmt-mku">${rmEsc(x.d)}</span> is ${rmEsc(rmPoss(x.ws))} domain, another of your clients. Check before you send.`}:{};
+ return {};
 }
 const rmDraft=()=>RM.inv.draft.split(/[\s,;]+/).filter(Boolean).map(v=>v.toLowerCase());
 function rmCommit(){if(!RM.inv) return; const raw=rmDraft(); RM.inv.draft=""; raw.forEach(v=>{if(RM.inv.chips.indexOf(v)<0) RM.inv.chips.push(v)})}
@@ -5805,8 +5795,8 @@ function rmInviteHTML(c){
  const seg=c.own?"":`<div class="rmt-irow"><span class="rmt-k rmt-k--seg" id="rmWho">Who</span><div><div class="segc rmt-seg" role="group" aria-labelledby="rmWho"><button type="button" aria-pressed="${!team}" data-rmkind="client">Client users</button><button type="button" aria-pressed="${team}" data-rmkind="team">Your team</button></div>
    </div></div>`;
  let body;
- if(!team){const st=I.chips.map(v=>[v,rmChipSt(c,v)]), seenD={};
-  const hints=st.filter(x=>x[1].msg&&!(x[1].x&&(seenD[x[1].x.d]=(seenD[x[1].x.d]||0)+1)>1)).map(x=>`<li>${x[1].msg}</li>`);
+ if(!team){const st=I.chips.map(v=>[v,rmChipSt(c,v)]);
+  const hints=st.filter(x=>x[1].msg).map(x=>`<li>${x[1].msg}</li>`);
   body=`<div class="rmt-irow"><label class="rmt-k" for="rmEmail">Email addresses</label><div>
     <div class="pp-emails rmt-chips">${st.map(([v,s],i)=>`<span class="rmt-chip${s.bad?" is-bad":""}"><span class="cv" data-rmeditchip="${i}" title="Click to edit">${rmEsc(v)}</span><button type="button" data-rmunchip="${i}" aria-label="Remove ${rmEsc(v)}">${RM_X}</button></span>`).join("")}<input type="text" id="rmEmail" inputmode="email" autocomplete="off" value="${rmEsc(I.draft)}" placeholder="${I.chips.length?"":"name@"+rmEsc(rmDom(c.email)||"company.com")+", separate with commas"}" aria-describedby="rmHints"></div>
     ${hints.length?`<ul class="rmt-hints" id="rmHints">${hints.join("")}</ul>`:'<ul class="rmt-hints" id="rmHints" hidden></ul>'}</div></div>
@@ -15725,12 +15715,7 @@ span.rmt-who{cursor:default}
 button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offset:3px}
 .rmt-who:focus-visible,.rmt-opt:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
 .rmt-opt:focus-visible{outline-offset:-2px;border-radius:0}
-.rmt-mku{text-decoration:underline 3px #FCD34D;text-underline-offset:4px;text-decoration-skip-ink:none}
-.rmt-person .rmt-mku{text-decoration-thickness:2px;text-underline-offset:3px}
 .rmt-type{display:block;font-size:13px;line-height:20px;color:#6B7280;white-space:nowrap}
-/* change 308: change 307's flag chip (Amber 100 / Amber 800, 20px, 4px corners, 12/16 500), 2px under the type */
-.rmt-flag{position:relative;display:inline-flex;align-items:center;height:20px;margin-top:2px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;cursor:default}
-.rmt-flag.is-quiet{background:#F3F4F6;color:#374151}
 /* change 308: the neutral avatar, Gray 100 fill and Gray 700 initials, for everyone on the tab */
 .rmt-person .pp-av{color:#374151}
 .rmt-person i.rmt-em{display:block}
@@ -15960,7 +15945,6 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .ra-open{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:6px 0 0}
 .ra-octx{color:#6B7280}
 .ra-mk{display:inline-block;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-weight:600}
-.ra-mku{text-decoration:underline 3px #FCD34D;text-underline-offset:4px;text-decoration-skip-ink:none}
 .ra-ent.is-flash{animation:raFlash 1.6s ease-out}
 @keyframes raFlash{0%,40%{background:#FEF3C7}100%{background:transparent}}
 @media (prefers-reduced-motion:reduce){.ra-ent.is-flash{animation:none}}
@@ -17180,7 +17164,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="695363f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="1e34640";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
