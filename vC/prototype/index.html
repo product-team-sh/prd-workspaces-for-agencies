@@ -8169,7 +8169,7 @@ const ul3E2Rows=k=>ulRows().filter(c=>RES[k].rows[c.id]).sort((a,b)=>(!!a.disabl
 /* a limit never goes below what is used (282's rule: a limit already below it can stay or rise) */
 const ul3E2Low=(k,id)=>{const r=RES[k].rows[id], v=ulDv(k,id); return v<r.used&&v<r.cap};
 const ul3E2Lows=()=>ulChanges().filter(x=>ul3E2Low(x.k,x.id));
-/* short: what the waiting asks on this resource want is more than the plan has available (rqcShortHTML's test) */
+/* short: what the waiting asks on this resource want is more than the plan has available (the panel head's test, rqcPool) */
 const ul3E2Short=k=>{const a=ulReqs().filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0); return a>0&&a>compute(k).free};
 /* Billing's own wording (bpRenew): Emails and Lead Finder renew on the plan date; the credits do not */
 const ul3E2Renew=k=>bpRenew(k);
@@ -8541,13 +8541,15 @@ const rqcAskOf=id=>ulAsks().find(a=>a.id===id)||null;
 function rqcGive(a){const ov=a.lines.filter(rqcOver), gl=a.lines.map(r=>({r,g:rqcOver(r)?rqcV(r):rqcG(r)})).filter(x=>x.g>0), cr=new Set(gl.filter(x=>x.r.res!=="sends").map(x=>x.r.res)).size;
  const u=x=>rqcNoun(x.r.res);   /* change 297 (audit P1-5): "Give 20,000 emails and 960 Lead Finder credits" */
  const label=gl.length?`Give ${listAnd(gl.map(x=>`${f(x.g)} ${u(x)}`))}`:"Give";
+ /* change 352 (D3): the row's button; its panel already names the resource */
+ const short=gl.length?`Give ${listAnd(gl.map(x=>f(x.g)))}`:"Give";
  const stays=a.lines.filter(r=>rqcG(r)<r.amount).map(r=>`${f(r.amount-rqcG(r))} ${rqcNoun(r.res)}`);
  /* change 299 (audit P2-1): why Give is off, said under the buttons, not only in a tooltip */
  /* change 344: a line older asks leave nothing for counts as nothing available, said so */
  const none=[...new Set(a.lines.filter(r=>rqcLeft(r)<=0).map(r=>r.res))], older=none.some(k=>compute(k).free>0);
  const why=ov.length?"":gl.length?"":none.length===new Set(a.lines.map(r=>r.res)).size?`No ${listAnd(none.map(rqcNoun))} available${older?" after older requests":""}. ${none.includes("sends")&&none.length===1?`Change limits or ${EMAILS_MORE.say}.`:"Change limits or buy more."}`:"Enter an amount above 0 to give.";
- if(ov.length) return {label,can:false,why:"",tip:rqcOverT(ov[0])};
- return {label,can:gl.length>0,why,tip:(gl.length?label+".":why||"Nothing is available to give.")+(stays.length?` ${rqcCap1(listAnd(stays))} ${stays.length===1?"stays":"stay"} waiting.`:"")}}
+ if(ov.length) return {label,short,can:false,why:"",tip:rqcOverT(ov[0])};
+ return {label,short,can:gl.length>0,why,tip:(gl.length?label+".":why||"Nothing is available to give.")+(stays.length?` ${rqcCap1(listAnd(stays))} ${stays.length===1?"stays":"stay"} waiting.`:"")}}
 /* the two ways out of a short resource */
 const rqcAdjB=k=>`<button type="button" class="linkbtn rqc-lk" data-rqcadj="${k}">Change limits</button>`;
 /* change 299 (C6): how more emails are got, said once; flip both words here if emails become buyable */
@@ -8557,15 +8559,19 @@ const rqcBuyB=(k,n)=>`<button type="button" class="linkbtn rqc-lk" data-rqcbuy="
 function rqcBuy(k,n){if(!canI("billing")){receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast(); return}
  if(BP_PRICE[k]!=null){BILL.buy=k; BILL.amt=n>0?n:null; BILL.focus=true}   /* change 299: the shortfall stays filled in */
  RQC.pop=null; RQC.adj=null; RQC.edit=null; ctx="agency"; view={name:"credits"}; billTab=BS_BUY[k]||"plan"; render()}
-function rqcShortHTML(ro){const R=ulReqs();
- /* change 299 (audit P0-9): an applied amount recomputes the line ("giving N"); a draft in an open field never does */
- const rows=UL_K().map(k=>{const L=R.filter(r=>r.res===k); if(!L.length) return ""; const asked=L.reduce((t,r)=>t+r.amount,0), giving=L.reduce((t,r)=>t+rqcVa(r),0), free=compute(k).free, gap=giving-free;
-  if(gap<=0&&giving===asked) return "";
-  return `<div class="rqc-ql" data-rqcshort="${k}"><span><b>${UL4_POOL(k)}:</b> ${f(asked)} requested, ${giving!==asked?`giving ${f(giving)}, `:""}${f(free)} available${gap>0?" "+rqcMk("Short by "+f(gap)):""}</span>${ro||gap<=0?"":`<span class="rqc-qa">${rqcAdjB(k)}${rqcBuyB(k,gap)}</span>`}</div>`}).join("");
- return `<div class="rqc-short">${rows}</div>`}
-/* change 344 (R, Hitesh 22 Oct 2026, on the product lead's "anyway we can reduce cognitive load here"): no grey box and
-   no tiles. Under who asked, one line per resource: its name, the ask, a Short by chip or a tag, Used in one format,
-   Change amount. Available, Change limits and Buy more are said once, in the strip above the cards. */
+/* change 352 (D3, Hitesh 22 Oct 2026: "let's implement D3 by resource version in vC"): one panel per resource with
+   waiting requests. Its head says what is requested and available, Short by, and the two ways out, once. Change 299
+   (audit P0-9): an applied amount recomputes the head ("giving N"); a draft in an open field never does */
+function rqcPool(k){const L=ulReqs().filter(r=>r.res===k), asked=L.reduce((t,r)=>t+r.amount,0), giving=L.reduce((t,r)=>t+rqcVa(r),0), free=compute(k).free;
+ return {n:L.length,asked,giving,free,gap:giving-free}}
+function rqcHeadHTML(k,ro){const P=rqcPool(k), L=RQC.lend&&RQC.lend.k===k?rqcLCalc():null, av=L?Math.max(0,L.A):P.free, sh=L?L.short:P.gap;   /* change 355: while Change limits is open, the head counts */
+ return `<div class="rqc-gh" data-rqchead="${k}"><span><span class="rqc-gt" id="rqcG-${k}">${UL4_POOL(k)}</span><span class="rqc-gs">${f(P.asked)} requested, ${P.giving!==P.asked?`giving ${f(P.giving)}, `:""}${f(av)} available${L&&L.A!==P.free?` <span class="ul3-was">was ${f(P.free)}</span>`:""}</span>${sh>0?" "+rqcMk("Short by "+f(sh)):""}</span>${ro||sh<=0||L?"":`<span class="rqc-qa">${rqcAdjB(k)}${rqcBuyB(k,P.gap)}</span>`}</div>`}
+/* short resources first, then the rest in vC's resource order */
+const rqcResOrder=()=>{const K=UL_K().filter(k=>rqcPool(k).n>0); return K.filter(k=>rqcPool(k).gap>0).concat(K.filter(k=>rqcPool(k).gap<=0))};
+/* one line of a request as an ask of its own: each row's Give and Decline act on that resource only; the request
+   waits until every line is decided, since REQUESTS keeps the others */
+const rqcLnAsk=id=>{const r=REQUESTS.find(x=>x.id===id), a=r&&rqcAskOf(r.ask||r.id); return a?Object.assign({},a,{lines:[r],line:r.id}):null};
+/* change 344: the grey tag for a line given in part, its rest waiting */
 const rqcWait=r=>`<span class="rqc-tg">${f(r.given)} of ${f(r.asked0)} given</span>`;
 /* one Used format everywhere ("1,280 of 1,280 used"); the pace only where paceLine has one, for what renews */
 function rqcUsed(r){const x=RES[r.res].rows[r.client], u=x.used, c=x.cap, p=RQC_RENEW(r.res)&&u>0&&u<c?paceLine(r.res,{used:u,cap:c}):"";
@@ -8575,24 +8581,122 @@ const rqcHintHTML=r=>rqcOver(r)?`<span class="rqc-s rqc-err" id="rqcH-${r.id}" r
 /* beside the ask: what the pool can't cover once older asks are filled, what was given already, an applied amount */
 function rqcMarks(r){const sb=rqcShortBy(r), ov=RQC.amt[r.id]!=null&&RQC.amt[r.id]!==r.amount;
  return (sb>0?rqcMk("Short by "+f(sb),true):"")+(r.given?rqcWait(r):"")+(ov?`<span class="rqc-g">Giving ${f(RQC.amt[r.id])}</span>`:"")}
-function rqcLine(r,ro){const ed=RQC.edit&&RQC.edit.id===r.id;
- const a=ed?`<input type="text" class="ul-in rqc-in${rqcOver(r)?" is-err":""}" data-rqcin="${r.id}" inputmode="numeric" autocomplete="off" value="${f(RQC.edit.val)}" aria-label="Amount to give ${rqcEsc(byId[r.client].name)}, ${UL4_POOL(r.res)}" aria-invalid="${rqcOver(r)}" aria-describedby="rqcH-${r.id}">`:`+${f(r.amount)}`;
- return `<div class="rqc-ln" data-rqcrow="${r.id}"><span class="rqc-lr">${UL4_POOL(r.res)}</span><span class="rqc-la" data-rqcwants="${r.id}">${a}</span><span class="rqc-lx">${ed?rqcHintHTML(r):rqcMarks(r)}</span><span class="rqc-lu">${rqcUsed(r)}</span><span class="rqc-ll">${ro||ed?"":`<button type="button" class="linkbtn rqc-lk" data-rqcamt="${r.id}">Change amount</button>`}</span></div>`}
-/* change 299: under a card's buttons, why Give is off (P2-1). Change 344: the payment-failed note is said once, above the cards (rqcHTML) */
+/* change 299: under a row's buttons, why Give is off (P2-1). Change 344: the payment-failed note is said once, above the panels (rqcHTML) */
 const rqcNoteT=(a,G)=>G.can?"":G.why;
-const rqcNoteHTML=(a,G)=>{const t=rqcNoteT(a,G); return `<p class="rqc-an" data-rqcnote-a="${a.id}"${t?"":" hidden"}>${t}</p>`};
-function rqcCard(a,ro){const c=byId[a.client], G=rqcGive(a);
- const acts=ro?"":`<div class="rqc-aw"><div class="rqc-acts"><button type="button" class="shd-button shd-button--primary rqc-give" data-rqcgive="${a.id}" title="${rqcEsc(G.tip)}"${G.can?"":" disabled"}>${RQC_I.check}<span>${G.label}</span></button><button type="button" class="shd-button shd-button--secondary rqc-dec" data-rqcdecl="${a.id}">${RQC_I.x}Decline</button></div>${rqcNoteHTML(a,G)}</div>`;
- return `<article class="panel rqc-card" data-rqccard="${a.id}" aria-labelledby="rqcT-${a.id}"><div class="rqc-h"><div><h3 class="rqc-t" id="rqcT-${a.id}">${c.name} requested more</h3></div>${acts}</div>
-  <div class="rqc-who">${ulAv(c,32)}<span><span class="rqc-by"><b>${askerOf(a.lines,c.id)}</b><span class="rqc-g">, ${AGE(a.when).toLowerCase()}</span></span>${a.note?`<p>${rqcEsc(a.note)}</p>`:""}</span></div><div class="rqc-ls">${a.lines.map(r=>rqcLine(r,ro)).join("")}</div></article>`}
-/* while a field is typed in, only the Give label, the card's note, the field's message and the strip repaint, so the caret stays.
-   Change 344: a draft reserves nothing, so the other cards wait for the amount to apply */
-function rqcLive(id){const r=REQUESTS.find(x=>x.id===id); if(!r) return; const a=rqcAskOf(r.ask||r.id);
- const b=a&&document.querySelector(`[data-rqcgive="${a.id}"]`); if(b){const G=rqcGive(a); b.querySelector("span").textContent=G.label; b.title=G.tip; b.disabled=!G.can;
-  const n=document.querySelector(`[data-rqcnote-a="${a.id}"]`); if(n){const t=rqcNoteT(a,G); n.textContent=t; n.hidden=!t}}
- /* change 299: the field's message and the top line follow the typing */
+const rqcNoteHTML=(a,G)=>{const t=rqcNoteT(a,G); return `<p class="rqc-an" data-rqcnote-a="${a.line||a.id}"${t?"":" hidden"}>${t}</p>`};
+/* change 352: a row is one line of a request: the workspace and who asked, the reason, the ask with Change amount and
+   its marks, Used, then Give (the amount only) and Decline for this line */
+function rqcRow(a,r,ro){const c=byId[a.client], A=rqcLnAsk(r.id)||Object.assign({},a,{lines:[r],line:r.id}), G=rqcGive(A), ed=RQC.edit&&RQC.edit.id===r.id, ln=RQC.lend&&RQC.lend.k===r.res?rqcLCalc():null, mk=ed?"":ln?rqcLMarks(ln,r):rqcMarks(r);
+ const amt=ed?`<input type="text" class="ul-in rqc-in${rqcOver(r)?" is-err":""}" data-rqcin="${r.id}" inputmode="numeric" autocomplete="off" value="${f(RQC.edit.val)}" aria-label="Amount to give ${rqcEsc(c.name)}, ${UL4_POOL(r.res)}" aria-invalid="${rqcOver(r)}" aria-describedby="rqcH-${r.id}">${rqcHintHTML(r)}`
+  :`<b>+${f(r.amount)}</b>${ro||ln?"":`<button type="button" class="linkbtn rqc-lk" data-rqcamt="${r.id}">Change amount</button>`}${mk?`<span class="rqc-gm">${mk}</span>`:""}`;
+ const acts=ln?`<div class="rqc-gb"></div>`:ro?"":`<div class="rqc-gb"><div class="rqc-gbb"><button type="button" class="shd-button shd-button--primary shd-button--sm rqc-give" data-rqcgive="${r.id}" title="${rqcEsc(G.tip)}"${G.can?"":" disabled"}>${RQC_I.check}<span>${G.short}</span></button><button type="button" class="shd-button shd-button--secondary shd-button--sm rqc-dec" data-rqcdecl="${r.id}" aria-label="Decline ${rqcEsc(c.name)}'s ${UL4_POOL(r.res)}">${RQC_I.x}Decline</button></div>${rqcNoteHTML(A,G)}</div>`;
+ return `<div class="rqc-gr" data-rqccard="${a.id}" data-rqcrow="${r.id}"><div class="rqc-gw">${ulAv(c,28)}<span><b class="rqc-gn">${c.name}</b><br><span class="rqc-g">${askerOf(a.lines,c.id)}, ${AGE(a.when).toLowerCase()}</span></span></div>
+  <div class="rqc-gy">${a.note?rqcEsc(a.note):""}</div><div class="rqc-ga" data-rqcwants="${r.id}">${amt}</div><div class="rqc-gu">${rqcUsed(r)}</div>${acts}</div>`}
+function rqcPanel(k,A,ro){const rows=[]; A.forEach(a=>a.lines.forEach(r=>{if(r.res===k) rows.push(rqcRow(a,r,ro))}));
+ return `<section class="panel rqc-gp" data-rqcres="${k}" aria-labelledby="rqcG-${k}">${rqcHeadHTML(k,ro)}${rows.join("")}${!ro&&RQC.lend&&RQC.lend.k===k?rqcLendHTML():""}</section>`}
+/* change 355 (D1 of experiments/c353-explore/adjust-explore-2.html, Hitesh 22 Oct 2026: "for request we should go ahead
+   and build D1 into vC"): Change limits opens donor rows inside the short panel, in the Limits panel's columns, filled
+   by pace. RQC.lend = {k, lim: {id: new limit}, raw: {id: typed text}, buy, all}. Nothing is written until the confirm. */
+const rqcLr=(k,id)=>RES[k].rows[id];
+const rqcLRoom=(k,id)=>Math.max(0,rqcLr(k,id).cap-rqcLr(k,id).used);
+/* days the rest lasts at this cycle's pace, as paceLine counts them; a disabled or unused workspace never runs out */
+const rqcLDays=(k,id,cap)=>{const r=rqcLr(k,id); return byId[id].disabled||!r.used?Infinity:Math.max(0,cap-r.used)/(r.used/CYCLE.day)};
+/* donors: every workspace with room on this resource except the ones asking for it, most runway first */
+function rqcDonors(k){const ask=new Set(ulReqs().filter(r=>r.res===k).map(r=>r.client)), key=id=>byId[id].disabled?1e9:!rqcLr(k,id).used?1e8:rqcLDays(k,id,rqcLr(k,id).cap);
+ return ulRows().filter(c=>RES[k].rows[c.id]&&!ask.has(c.id)&&rqcLRoom(k,c.id)>0).map(c=>c.id).sort((a,b)=>key(b)-key(a))}
+/* the fill: disabled first, then the one workspace that covers the rest and still lasts longest (else the largest room),
+   a workspace that has used nothing last (it would stop). vC projects no pace before day 3: most unused first then. */
+function rqcByPace(k,R){const t={}; if(R<=0) return t; const D=rqcDonors(k), take=(id,x)=>{if(x>0){t[id]=(t[id]||0)+x; R-=x}};
+ D.filter(id=>byId[id].disabled).forEach(id=>{if(R>0) take(id,Math.min(R,rqcLRoom(k,id)))});
+ let C=D.filter(id=>!byId[id].disabled&&rqcLr(k,id).used>0);
+ while(R>0&&C.length){const can=CYCLE.day<3?[]:C.filter(id=>rqcLRoom(k,id)>=R);
+  const p=can.length?can.slice().sort((a,b)=>rqcLDays(k,b,rqcLr(k,b).cap-R)-rqcLDays(k,a,rqcLr(k,a).cap-R))[0]:C.slice().sort((a,b)=>rqcLRoom(k,b)-rqcLRoom(k,a))[0];
+  take(p,Math.min(R,rqcLRoom(k,p))); C=C.filter(id=>id!==p)}
+ D.filter(id=>!byId[id].disabled&&!rqcLr(k,id).used).forEach(id=>{if(R>0) take(id,Math.min(R,rqcLRoom(k,id)))});
+ return t}
+function rqcLendOpen(k){const t=rqcByPace(k,rqcPool(k).gap); RQC.edit=null; RQC.pop=null;
+ RQC.lend={k,lim:Object.fromEntries(Object.keys(t).map(id=>[id,rqcLr(k,id).cap-t[id]])),raw:{},buy:0,all:false};
+ const first=rqcDonors(k)[0]; RQC.focus=first?`[data-rqcli="${first}"]`:"[data-rqclx]"; render()}
+const rqcLCanBuy=k=>canI("billing")&&BP_PRICE[k]!=null&&!grace();
+/* the one calculation: what is available with the new limits and the buy, and what each waiting line gets, oldest first */
+function rqcLCalc(){const L=RQC.lend, k=L.k, free0=compute(k).free, rows={}; let T=0;
+ [...new Set(rqcDonors(k).concat(Object.keys(L.lim)))].forEach(id=>{const r=rqcLr(k,id); if(!r) return; const v=L.lim[id]!=null?L.lim[id]:r.cap, d=r.cap-v; rows[id]={id,r,v,d,low:v<r.used&&v<r.cap}; T+=d});
+ const buy=rqcLCanBuy(k)?L.buy:0, A=free0+T+buy; let rem=Math.max(0,A), want=0; const g={};
+ ulAsks().forEach(a=>a.lines.forEach(x=>{if(x.res!==k) return; const w=rqcVa(x); want+=w; g[x.id]=Math.max(0,Math.min(w,rem)); rem-=g[x.id]}));
+ const G=Object.values(g).reduce((s,v)=>s+v,0), R=Object.values(rows), lows=R.filter(x=>x.low), changed=R.filter(x=>x.d&&!x.low), over=A<0;
+ return {k,free0,A,T,G,g,want,buy,short:Math.max(0,want-Math.max(0,A)),rows,lows,changed,lowered:changed.filter(x=>x.d>0),over,ok:!lows.length&&!over&&G>0,cost:buy*(BP_PRICE[k]||0)}}
+/* a request row while the rows are open: what it would get */
+const rqcLMarks=(C,r)=>{const sb=rqcVa(r)-(C.g[r.id]||0), ov=RQC.amt[r.id]!=null&&RQC.amt[r.id]!==r.amount;
+ return (sb>0?rqcMk("Short by "+f(sb),true):"")+(r.given?rqcWait(r):"")+(ov?`<span class="rqc-g">Giving ${f(RQC.amt[r.id])}</span>`:"")};
+const rqcPoss=n=>n+(/s$/.test(n)?"'":"'s");
+/* the Change column: refused below use; a lowered limit says by how much, a stop, and the new pace against the old */
+function rqcLChg(C,id){const x=C.rows[id], r=x.r, k=C.k, c=byId[id];
+ if(x.low) return `<span class="ul3-mk">Below the ${f(r.used)} used</span> <span class="ul3-g">A limit can't go below what is used.</span>`;
+ const was=paceLine(k,r), now=paceLine(k,{used:r.used,cap:x.v}), n=s=>(s.match(/about (\d+) day/)||[])[1];
+ if(x.d>0){const stop=!c.disabled&&x.v<=r.used, p=!stop&&n(now)?now+(n(was)&&n(was)!==n(now)?`, not ${n(was)}`:"")+".":"";
+  return `&minus;${f(x.d)}${stop?` <span class="ul3-mk">Stops ${UL3_STOP[k]}</span>`:""}${p?`. ${p}`:""}`}
+ if(x.d<0) return `+${f(-x.d)}`;
+ return was&&was!=="None left"?`<span class="ul3-g">${was}</span>`:""}
+function rqcLRow(C,id){const L=RQC.lend, x=C.rows[id], c=byId[id], r=x.r, k=C.k, sub=c.disabled?"Disabled":wsState(c)==="New"&&ul3Quiet(c)?"New, nothing used yet":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
+ return `<tr class="rqc-lrw${c.disabled?" is-off":""}" data-rqclrow="${id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${rqcEsc(c.name)}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
+  <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span>${f(r.used)} of ${f(r.cap)}</span></span></td>
+  <td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${x.d?" is-ch":""}" data-rqcli="${id}" value="${L.raw[id]!=null?rqcEsc(L.raw[id]):f(x.v)}" aria-label="${rqcEsc(c.name)} ${RES[k].label} limit" aria-invalid="${x.low}"></td><td class="rqc-lc" data-rqclc="${id}">${rqcLChg(C,id)}</td></tr>`}
+const RQC_PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const rqcLBuyCost=C=>C.buy?`${usd(C.cost)} on ${BILL_CARD}`:"";
+function rqcLBuyRow(C){const L=RQC.lend, k=C.k;
+ return `<tr class="rqc-lrw" data-rqclrow="buy"><td><div class="ul-ws"><span class="avatar rqc-lbav">${RQC_PLUS}</span><span class="ul-wsn"><span class="ul-nm">Buy more</span></span></div></td><td class="ul3-num ul3-g">${usd(BP_PRICE[k])} a credit</td>
+  <td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${C.buy?" is-ch":""}" data-rqclb value="${L.raw.buy!=null?rqcEsc(L.raw.buy):f(L.buy)}" aria-label="${RES[k].label} to buy"></td><td class="rqc-lc" data-rqclc="buy">${rqcLBuyCost(C)}</td></tr>`}
+/* who still waits, in the dock and the toast */
+function rqcLWait(C){const W=[]; ulAsks().forEach(a=>a.lines.forEach(x=>{if(x.res!==C.k) return; const w=rqcVa(x), g=C.g[x.id]||0, nm=byId[x.client].name; if(w>g) W.push(g>0?`${rqcPoss(nm)} other ${f(w-g)} stays waiting`:`${nm} stays waiting`)})); return W.length?rqcCap1(listAnd(W))+".":""}
+const rqcLTold=C=>C.changed.map(x=>x.id).filter(id=>!byId[id].own).map(id=>byId[id].name).sort();
+function rqcLMsg(C){if(C.lows.length) return `<span class="ul3-mk">Below what is used: ${listAnd(C.lows.map(x=>byId[x.id].name))}.</span> Raise it to give.`;
+ if(C.over) return `<span class="ul3-mk">Above your plan by ${f(-C.A)}.</span> Lower a limit to give.`;
+ const p=[], told=rqcLTold(C); if(C.short>0) p.push(`${rqcMk("Short by "+f(C.short))} ${rqcLWait(C)}`);
+ if(told.length) p.push(`${listAnd(told)} admins are told.`); if(C.changed.length) p.push("New limits stay after 1 Oct.");
+ return p.join(" ")}
+function rqcLLab(C){const p=[], n=C.changed.length+C.lows.length, up=C.changed.some(x=>x.d<0);
+ if(n) p.push(`${up?"change":"lower"} ${n===1?"1 limit":n+" limits"}`); if(C.buy>0) p.push(`buy ${f(C.buy)} for ${usd(C.cost)}`); if(C.G>0) p.push(`give ${f(C.G)}`);
+ return p.length?rqcCap1(listAnd(p)):"Give"}
+const rqcLDockIn=C=>`<p class="ul3-dm" aria-live="polite">${rqcLMsg(C)}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary" data-rqclx>Cancel</button><button type="button" class="shd-button shd-button--primary" data-rqclok${C.ok?"":" disabled"}>${rqcLLab(C)}</button></span>`;
+function rqcLendHTML(){const L=RQC.lend, C=rqcLCalc(), D=rqcDonors(L.k), many=D.length>RQC_LEND_SHOW+1&&!L.all;
+ const shown=many?D.filter((id,i)=>i<RQC_LEND_SHOW||C.rows[id].d):D;
+ const more=many&&shown.length<D.length?`<tr class="rqc-lmore"><td colspan="4"><button type="button" class="linkbtn" data-rqclmore>Show ${D.length-shown.length} more</button></td></tr>`:"";
+ return `<div class="rqc-ls" role="group" aria-label="Change ${RES[L.k].label} limits"><table class="ul-t rqc-lt"><colgroup><col class="rqc-lc1"><col class="rqc-lc2"><col class="rqc-lc3"><col></colgroup><thead><tr><th>Workspace</th><th>Used</th><th>Limit</th><th>Change</th></tr></thead>
+  <tbody>${shown.map(id=>rqcLRow(C,id)).join("")}${more}${rqcLCanBuy(L.k)?rqcLBuyRow(C):""}</tbody></table></div><div class="rqc-ld" data-rqcld>${rqcLDockIn(C)}</div>`}
+const RQC_LEND_SHOW=4;
+/* typing repaints what depends on it, not the page, so the caret stays */
+function rqcLPaint(){const L=RQC.lend; if(!L) return; const C=rqcLCalc(), G=document.querySelector(`.rqc-gp[data-rqcres="${L.k}"]`); if(!G) return;
+ const h=G.querySelector("[data-rqchead]"); if(h) h.outerHTML=rqcHeadHTML(L.k,false);
+ G.querySelectorAll(".rqc-gr").forEach(n=>{const r=REQUESTS.find(x=>x.id===n.dataset.rqcrow), a=r&&rqcAskOf(r.ask||r.id); if(a) n.outerHTML=rqcRow(a,r,false)});
+ G.querySelectorAll("[data-rqcli]").forEach(i=>{const x=C.rows[i.dataset.rqcli]; if(!x) return; i.classList.toggle("is-ch",!!x.d); i.setAttribute("aria-invalid",String(x.low))});
+ G.querySelectorAll("[data-rqclc]").forEach(td=>{const id=td.dataset.rqclc; td.innerHTML=id==="buy"?rqcLBuyCost(C):C.rows[id]?rqcLChg(C,id):""});
+ const b=G.querySelector("[data-rqclb]"); if(b) b.classList.toggle("is-ch",!!C.buy);
+ const d=G.querySelector("[data-rqcld]"); if(d) d.innerHTML=rqcLDockIn(C)}
+/* the confirm: buy (Billing's own buy), lower through setLimit (each workspace's notice and Activity), then give each
+   line oldest first through rqcGiveDo. One toast; Undo reverses the gives and the limits, never a purchase. */
+function rqcLendDo(){const L=RQC.lend; if(!L) return; const C=rqcLCalc(); if(!C.ok) return; const k=C.k, R=RES[k];
+ const ch=C.changed.slice().sort((a,b)=>b.d-a.d), prev=ch.map(x=>({id:x.id,was:x.r.cap,custom:x.r.custom}));
+ const restore=()=>prev.forEach(p=>{const r=rqcLr(k,p.id); r.cap=p.was; r.custom=p.custom; syncRes(k,r)});
+ if(C.buy>0){R.pool+=C.buy; CREDIT_SRC[k].buys.push([C.buy,"today"]); BILL.charged+=C.cost}
+ for(const x of ch){if(!setLimit(k,x.id,x.v,"set on Usage & limits to give to the requests")){restore(); RQC.lend=null; const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; receipt("ul",t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; render(); return}}
+ const undos=[], gave=[], waits=[];
+ ulAsks().forEach(a=>a.lines.filter(x=>x.res===k).forEach(x=>{const A1=rqcLnAsk(x.id); if(!A1) return; const g=rqcG(x), w=rqcVa(x), nm=byId[x.client].name; if(!(g>0)) return;
+  rqcGiveDo(A1,true,""); if(RECEIPT&&RECEIPT.undo) undos.push(RECEIPT.undo); gave.push(`${nm} ${f(g)}`); if(w>g) waits.push(`${rqcPoss(nm)} other ${f(w-g)} stays waiting`)}));
+ ulAsks().forEach(a=>a.lines.filter(x=>x.res===k&&!gave.some(s=>s.startsWith(byId[x.client].name+" "))).forEach(x=>waits.push(`${byId[x.client].name} stays waiting`)));
+ const lowN=ch.filter(x=>x.d>0).map(x=>byId[x.id].name).sort(), upN=ch.filter(x=>x.d<0).map(x=>byId[x.id].name).sort(), told=ch.filter(x=>!byId[x.id].own).length;
+ const p=[]; if(lowN.length) p.push(`Lowered ${listAnd(lowN)}`); if(upN.length) p.push(`Raised ${listAnd(upN)}`); if(C.buy>0) p.push(`Bought ${f(C.buy)} for ${usd(C.cost)}`); if(gave.length) p.push(`Gave ${listAnd(gave)}`);
+ const text=p.join(". ")+"."+(waits.length?" "+rqcCap1(listAnd(waits))+".":"")+(told?` ${told>1?"Their":"Its"} admins were told.`:"")+(C.buy>0?` The ${f(C.buy)} bought stay if you undo.`:"");
+ RQC.lend=null;
+ receipt("ul",text,()=>{undos.slice().reverse().forEach(u=>u()); restore()},`lowered ${ch.length} limit${ch.length===1?"":"s"} and gave ${R.label}`);
+ render()}
+/* while a field is typed in, only the row's Give, its note, the field's message and the panel head repaint, so the caret stays.
+   Change 344: a draft reserves nothing, so the other rows wait for the amount to apply */
+function rqcLive(id){const r=REQUESTS.find(x=>x.id===id); if(!r) return; const a=rqcLnAsk(id);
+ const b=a&&document.querySelector(`[data-rqcgive="${id}"]`); if(b){const G=rqcGive(a); b.querySelector("span").textContent=G.short; b.title=G.tip; b.disabled=!G.can;
+  const n=document.querySelector(`[data-rqcnote-a="${id}"]`); if(n){const t=rqcNoteT(a,G); n.textContent=t; n.hidden=!t}}
+ /* change 299: the field's message and the head follow the typing */
  const i=document.querySelector(`[data-rqcin="${id}"]`), h=el("rqcH-"+id); if(i){i.classList.toggle("is-err",rqcOver(r)); i.setAttribute("aria-invalid",String(rqcOver(r)))} if(h) h.outerHTML=rqcHintHTML(r);
- const s=document.querySelector(".rqc-short"); if(s) s.outerHTML=rqcShortHTML(false)}
+ const s=document.querySelector(`[data-rqchead="${r.res}"]`); if(s) s.outerHTML=rqcHeadHTML(r.res,false)}
 /* ── deciding ── */
 function rqcGiveDo(a,keep,note){const c=byId[a.client], before=REQUESTS.slice(), parts=[], kept=[], undos=[], ks=[]; let closed=false;
  a.lines.forEach(x=>{const r=REQUESTS.find(y=>y.id===x.id); if(!r) return; const g=rqcG(r); delete RQC.amt[r.id]; if(!(g>0)) return;
@@ -8649,13 +8753,13 @@ function rqcDecHTML(D,ro){const G=[]; D.forEach(a=>{const id=a.ask||a.id; let g=
 /* Usage & limits: Requests, the short lines, one card per ask, then Decided */
 function rqcHTML(ro){const A=ulAsks(), n=A.length, D=rqcDecided();
  return `<section class="ul3-ans ul5-ans rqc" aria-labelledby="ul3H"><div class="rqc-hd"><h2 class="ul3-h" id="ul3H">Requests</h2>${n?"":`<span class="rqc-hs">Nothing waiting for you</span>`}</div>
-  ${!ro&&n&&grace()?`<div class="rqc-pn" role="status">Sending is paused until the card is updated. What you give applies once it is.</div>`:""}${rqcShortHTML(ro)}${A.map(a=>rqcCard(a,ro)).join("")}
+  ${!ro&&n&&grace()?`<div class="rqc-pn" role="status">Sending is paused until the card is updated. What you give applies once it is.</div>`:""}${rqcResOrder().map(k=>rqcPanel(k,A,ro)).join("")}
   ${D.length?`<button type="button" class="rqc-dtg" data-rqcdec aria-expanded="${!!UL.decided}">Decided (${D.length})${RQC_I.chev}</button>${UL.decided?`<div class="panel rqc-dw ul-decided">${rqcDecHTML(D,ro)}</div>`:""}`:""}</section>`}
 /* ── the pop-overs: Decline with a note, and a Give that gives less than asked ── */
-function rqcPopHTML(){const o=RQC.pop; if(!o) return ""; const a=rqcAskOf(o.id); if(!a){RQC.pop=null; return ""} const c=byId[a.client], by=askerOf(a.lines,c.id), nick=ul4First(c);
+function rqcPopHTML(){const o=RQC.pop; if(!o) return ""; const a=rqcLnAsk(o.id); if(!a){RQC.pop=null; return ""} const c=byId[a.client], by=askerOf(a.lines,c.id), nick=ul4First(c);
  let h;
  const px=`<button type="button" class="rqc-px" data-rqcpx aria-label="Close">${RQC_I.x}</button>`;   /* change 299 (audit P2-9) */
- if(o.kind==="decl") h=`<div class="rqc-ph"><div class="rqc-pt" id="rqcPopT">Decline the request from ${c.name}</div>${px}</div><p class="rqc-pp">Declines ${listAnd(a.lines.map(r=>`${f(r.amount)} ${r.res==="sends"?"emails a month":RES[r.res].short}`))}. ${nick} can request again.</p>
+ if(o.kind==="decl") h=`<div class="rqc-ph"><div class="rqc-pt" id="rqcPopT">Decline the request from ${c.name}</div>${px}</div><p class="rqc-pp">Declines ${listAnd(a.lines.map(r=>`${f(r.amount)} ${r.res==="sends"?"emails a month":RES[r.res].short}`))}. ${(R=>R.length?`Its ${rqcFull(R.map(r=>[r,r.amount]))} stay waiting. `:"")(((rqcAskOf(a.id)||{}).lines||[]).filter(r=>r.id!==a.line))}${nick} can request again.</p>
   <label class="rqc-pl" for="rqcNote">Note to ${by} (optional)</label><textarea id="rqcNote" class="rqc-ta" data-rqcnote placeholder="Say why, or when to request again">${rqcEsc(o.note)}</textarea>
   <div class="rqc-pf"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-rqcpx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rqcdeclok>Decline ${rqcFull(a.lines.map(r=>[r,r.amount]))}</button></div>`;
  else{const G=rqcGive(a), part=a.lines.filter(r=>rqcG(r)>0&&rqcG(r)<r.amount), one=part.length===1?part[0]:null, rn=one?f(one.amount-rqcG(one)):"";
@@ -8678,9 +8782,9 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 /* the card scrolls to the top of the page and its background fades from Blue 50 over 2s */
 function rqcArrive(){const id=RQC.arrive; if(!id) return; const n=document.querySelector(`[data-rqccard="${id}"]`); RQC.arrive=null; if(!n) return;
  n.scrollIntoView({block:"start",behavior:"auto"}); n.classList.remove("is-arrive"); void n.offsetWidth; n.classList.add("is-arrive");
- const h=n.querySelector(".rqc-t"); if(h){h.setAttribute("tabindex","-1"); h.focus({preventScroll:true})} setTimeout(()=>n.classList.remove("is-arrive"),2100)}
+ const h=n.querySelector(".rqc-gn"); if(h){h.setAttribute("tabindex","-1"); h.focus({preventScroll:true})} setTimeout(()=>n.classList.remove("is-arrive"),2100)}
 function rqcWire(){const on=view.name==="limits"&&ctx==="agency"&&!!document.querySelector(".rqc");
- if(!on){RQC.pop=null; RQC.adj=null; RQC.edit=null; const L=el("rqcLayer"); if(L) L.innerHTML=""; return}
+ if(!on){RQC.pop=null; RQC.adj=null; RQC.edit=null; RQC.lend=null; const L=el("rqcLayer"); if(L) L.innerHTML=""; return}
  if(RQC.arrive){rqcArrive(); return}
  const fo=RQC.focus; RQC.focus=null; rqcPaint();
  if(RQC.edit){const i=document.querySelector(`[data-rqcin="${RQC.edit.id}"]`); if(i&&document.activeElement!==i){i.focus({preventScroll:true}); i.select()}}
@@ -8688,33 +8792,44 @@ function rqcWire(){const on=view.name==="limits"&&ctx==="agency"&&!!document.que
  else if(RQC.pop&&!el("rqcPop").contains(document.activeElement)){const i=document.querySelector("#rqcPop textarea,#rqcPop input:checked"); if(i) i.focus({preventScroll:true})}}
 /* one listener per event, so a partial repaint never needs rewiring */
 document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency"||!document.querySelector(".rqc")) return;
- const t=e.target.closest("[data-rqcgive],[data-rqcdecl],[data-rqcamt],[data-rqcadj],[data-rqcbuy],[data-rqcpx],[data-rqcdeclok],[data-rqcgiveok],[data-rqcundo],[data-rqcdec],[data-rqcdr]");
+ const t=e.target.closest("[data-rqcgive],[data-rqcdecl],[data-rqcamt],[data-rqcadj],[data-rqcbuy],[data-rqcpx],[data-rqcdeclok],[data-rqcgiveok],[data-rqcundo],[data-rqcdec],[data-rqcdr],[data-rqclmore],[data-rqclx],[data-rqclok]");
  if(!t){if(RQC.pop&&!e.target.closest("#rqcPop")){RQC.pop=null; rqcPaint()} else if(RQC.edit&&!e.target.closest("[data-rqcwants]")){const id=RQC.edit.id;
    if(rqcCommit()) render(); else if(!e.target.closest("input,textarea,select,button,a,[tabindex]")){const i=document.querySelector(`[data-rqcin="${id}"]`); if(i) i.focus({preventScroll:true})}} return}
  if(t.disabled) return; const d=t.dataset; e.preventDefault();
  if(RQC.edit&&d.rqcamt!==RQC.edit.id){if(!rqcCommit()) RQC.edit=null}
- if(d.rqcgive){const a=rqcAskOf(d.rqcgive); if(!a) return; if(RQC.pop&&RQC.pop.kind==="give"&&RQC.pop.id===a.id){RQC.pop=null; rqcPaint(); return}
-  if(a.lines.some(r=>rqcG(r)>0&&rqcG(r)<r.amount)){RQC.pop={kind:"give",id:a.id,keep:true,note:"We gave what was available today. Request again next cycle if you still need it."}; render(); return}
+ if(d.rqcgive){const a=rqcLnAsk(d.rqcgive); if(!a) return; if(RQC.pop&&RQC.pop.kind==="give"&&RQC.pop.id===a.line){RQC.pop=null; rqcPaint(); return}
+  if(a.lines.some(r=>rqcG(r)>0&&rqcG(r)<r.amount)){RQC.pop={kind:"give",id:a.line,keep:true,note:"We gave what was available today. Request again next cycle if you still need it."}; render(); return}
   rqcGiveDo(a,true,""); render(); return}
  if(d.rqcdecl){if(RQC.pop&&RQC.pop.kind==="decl"&&RQC.pop.id===d.rqcdecl){RQC.pop=null; rqcPaint(); return} RQC.pop={kind:"decl",id:d.rqcdecl,note:""}; render(); return}
  if(d.rqcpx!=null){const o=RQC.pop; RQC.pop=null; RQC.focus=o?(o.kind==="decl"?`[data-rqcdecl="${o.id}"]`:`[data-rqcgive="${o.id}"]`):null; render(); return}
- if(d.rqcdeclok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcDeclDo(a,(o.note||"").trim()); render(); return}
- if(d.rqcgiveok!=null){const o=RQC.pop, a=o&&rqcAskOf(o.id); RQC.pop=null; if(a) rqcGiveDo(a,o.keep,o.keep?"":(o.note||"").trim()); render(); return}
+ if(d.rqcdeclok!=null){const o=RQC.pop, a=o&&rqcLnAsk(o.id); RQC.pop=null; if(a) rqcDeclDo(a,(o.note||"").trim()); render(); return}
+ if(d.rqcgiveok!=null){const o=RQC.pop, a=o&&rqcLnAsk(o.id); RQC.pop=null; if(a) rqcGiveDo(a,o.keep,o.keep?"":(o.note||"").trim()); render(); return}
  if(d.rqcamt){const r=REQUESTS.find(x=>x.id===d.rqcamt); if(!r) return; RQC.pop=null; RQC.edit={id:r.id,val:rqcV(r)}; render(); return}
- if(d.rqcadj){ul3Go(d.rqcadj); return}   /* change 290 */
+ if(d.rqcadj){rqcLendOpen(d.rqcadj); return}   /* change 355: the rows open in the panel (290's scroll to the Limits panel is gone here) */
+ if(d.rqclmore!=null&&RQC.lend){RQC.lend.all=true; const D=rqcDonors(RQC.lend.k); RQC.focus=D[RQC_LEND_SHOW]?`[data-rqcli="${D[RQC_LEND_SHOW]}"]`:null; render(); return}
+ if(d.rqclx!=null){const k=RQC.lend&&RQC.lend.k; RQC.lend=null; RQC.focus=k?`[data-rqcadj="${k}"]`:null; render(); return}
+ if(d.rqclok!=null){rqcLendDo(); return}
  if(d.rqcbuy){const [k,n]=d.rqcbuy.split("|"); rqcBuy(k,+n); return}
  if(d.rqcundo){rqcUndoAns(d.rqcundo); render(); return}
  if(d.rqcdec!=null){UL.decided=!UL.decided; RQC.focus="[data-rqcdec]"; render(); return}
  if(d.rqcdr){RQC.exp[d.rqcdr]=!RQC.exp[d.rqcdr]; RQC.focus=`[data-rqcdr="${d.rqcdr}"]`; render(); return}});
 document.addEventListener("input",e=>{const t=e.target; if(!t.dataset||view.name!=="limits"||ctx!=="agency") return;
  if(t.dataset.rqcin&&RQC.edit){RQC.edit.val=ulNum(t.value); rqcLive(t.dataset.rqcin); return}
- if(t.dataset.rqcnote!=null&&RQC.pop){RQC.pop.note=t.value; return}});
+ if(t.dataset.rqcnote!=null&&RQC.pop){RQC.pop.note=t.value; return}
+ /* change 355: the donor rows and the buy row */
+ if(t.dataset.rqcli!=null&&RQC.lend){RQC.lend.raw[t.dataset.rqcli]=t.value; RQC.lend.lim[t.dataset.rqcli]=ulNum(t.value); rqcLPaint(); return}
+ if(t.dataset.rqclb!=null&&RQC.lend){RQC.lend.raw.buy=t.value; RQC.lend.buy=ulNum(t.value); rqcLPaint(); return}});
+/* change 355: a field that loses focus shows its number with separators */
+document.addEventListener("change",e=>{const t=e.target, L=RQC.lend; if(!L||!t.dataset) return;
+ if(t.dataset.rqcli!=null){delete L.raw[t.dataset.rqcli]; t.value=f(L.lim[t.dataset.rqcli]!=null?L.lim[t.dataset.rqcli]:rqcLr(L.k,t.dataset.rqcli).cap)}
+ if(t.dataset.rqclb!=null){delete L.raw.buy; t.value=f(L.buy)}});
 document.addEventListener("change",e=>{const t=e.target; if(t.dataset&&t.dataset.rqcmode&&RQC.pop){RQC.pop.keep=t.dataset.rqcmode==="keep"; rqcPaint(); const i=document.querySelector(`#rqcPop [data-rqcmode="${t.dataset.rqcmode}"]`); if(i) i.focus()}});
 document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
  if(t.dataset&&t.dataset.rqcin&&RQC.edit){
   if(e.key==="Enter"||(e.key==="Tab"&&!e.shiftKey)){const id=RQC.edit.id; if(e.key==="Enter") e.preventDefault(); if(!rqcCommit()) return; e.preventDefault(); RQC.focus=`[data-rqcamt="${id}"]`; render()}
   if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); RQC.focus=`[data-rqcamt="${RQC.edit.id}"]`; RQC.edit=null; render()}
   return}
+ if(e.key==="Escape"&&RQC.lend&&t.closest&&t.closest(".rqc-ls,.rqc-ld")){e.preventDefault(); e.stopImmediatePropagation(); const k=RQC.lend.k; RQC.lend=null; RQC.focus=`[data-rqcadj="${k}"]`; render(); return}   /* change 355 */
  if(e.key==="Escape"&&RQC.pop){e.preventDefault(); e.stopImmediatePropagation(); const o=RQC.pop; RQC.pop=null; RQC.focus=o.kind==="decl"?`[data-rqcdecl="${o.id}"]`:`[data-rqcgive="${o.id}"]`; render(); return}
  if((e.key==="Enter"||e.key===" ")&&t.dataset&&t.dataset.rqcdr){e.preventDefault(); RQC.exp[t.dataset.rqcdr]=!RQC.exp[t.dataset.rqcdr]; RQC.focus=`[data-rqcdr="${t.dataset.rqcdr}"]`; render()}},true);
 addEventListener("resize",rqcPlace); addEventListener("scroll",rqcPlace,true);
@@ -17172,7 +17287,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dce0634";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="7ecf319";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -17452,47 +17567,91 @@ input.ul4-qn.is-ch{border-color:#1F2937}
 .rqc.ul5-ans{gap:16px}
 .rqc-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .rqc-hs{font-size:14px;line-height:20px;color:#6B7280}
-.rqc-short{background:#fff;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:-4px}.rqc-short:empty{display:none}
-.rqc-card{scroll-margin-top:16px}.rqc-card.is-arrive{animation:rqcArr 2s ease-out}.rqc-t:focus{outline:none}
+.rqc-gr{scroll-margin-top:16px}.rqc-gr.is-arrive{animation:rqcArr 2s ease-out}.rqc-gn:focus{outline:none}
 @keyframes rqcArr{from{background-color:#EFF6FF}to{background-color:#fff}}
 .linkbtn.pa-req{display:inline;padding:0;font:inherit;text-align:left}
-.rqc-ql{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 24px;padding:10px 16px;font-size:14px;line-height:20px;color:#374151}
-.rqc-ql+.rqc-ql{border-top:1px solid #F3F4F6}
-.rqc-ql b{font-weight:600;color:#1F2937}.rqc-ql .rqc-mk{margin-left:4px}
 .rqc-qa,.rqc-tl{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;row-gap:4px}
 .rqc-mk{display:inline-block;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:20px;font-weight:600;white-space:nowrap}
 .rqc-mk.is-sm{font-size:12px;line-height:18px;font-weight:500}
 .linkbtn.rqc-lk{font-size:14px;line-height:20px;font-weight:500;white-space:nowrap;text-align:left}
 .rqc .linkbtn:focus-visible,.rqc-pop .linkbtn:focus-visible,.rqc-dt tr:focus-visible,.rqc-dtg:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
-.panel.rqc-card{margin:0;border:1px solid #F3F4F6;overflow:visible}
-.rqc-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px 24px;padding:20px 24px 16px}
-.rqc-t{margin:0;font-size:18px;line-height:28px;font-weight:600;color:#1F2937}
 .rqc-tg{display:inline-block;margin-top:4px;padding:0 6px;border-radius:4px;background:#F3F4F6;color:#4B5563;font-size:12px;line-height:20px;font-weight:500}
-.rqc-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}
-.rqc-acts .shd-button{height:auto;min-height:36px;min-width:112px;padding:6px 16px;gap:6px;font-size:14px;line-height:20px;white-space:normal;text-align:left}
-.rqc-acts .shd-button svg{width:16px;height:16px;flex:none}
-.rqc-acts .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF}
-/* change 344: the card's lines (R). Numbers from experiments/c344-explore, all vC's: 24px card gutter, 14/20 and 13/20 type,
-   the #F3F4F6 divider, 36px rows; the field keeps the row's height so nothing moves when it opens */
-.rqc-who{display:flex;gap:12px;align-items:flex-start;padding:0 24px 16px;min-width:0;font-size:14px;line-height:20px;color:#1F2937}
-.rqc-who>span{min-width:0}.rqc-who b{font-weight:600;overflow-wrap:anywhere}
-.rqc-who p{margin:2px 0 0;font-size:13px;line-height:20px;color:#4B5563}
-.rqc-ls{border-top:1px solid #F3F4F6;padding:4px 0 8px}
-.rqc-ln{display:grid;grid-template-columns:200px 104px 168px minmax(0,1fr) auto;column-gap:16px;row-gap:4px;align-items:center;min-height:36px;padding:6px 24px;font-size:14px;line-height:20px;color:#1F2937}
-.rqc-lr{min-width:0;font-weight:500}
-.rqc-la{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
-.rqc-la .ul-in.rqc-in{width:104px;margin:-2px 0;text-align:right;font-weight:400}
-.rqc-lx{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;font-size:13px;line-height:20px}
-.rqc-lx .rqc-s{display:inline;margin:0}.rqc-lx .rqc-tg{margin:0}
-.rqc-lu{min-width:0;color:#4B5563;font-variant-numeric:tabular-nums}
-.rqc-ll{justify-self:end}.rqc-ll .linkbtn.rqc-lk{font-size:13px;line-height:20px}
+/* change 352: D3, one panel per resource (experiments/c344-explore/requests-explore.html, d3() and its CSS, every number
+   vC's). Head 14px 24px over a Gray 200 rule; rows 12px 24px on #F3F4F6 dividers; the mock's 290/202/190/170/240
+   columns are kept as proportions, so a page wider than the mock's stage widens each column alike */
+.panel.rqc-gp{margin:0;border:1px solid #F3F4F6;overflow:visible;container:rqcg/inline-size}
+.rqc-gh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 24px;padding:14px 24px;border-bottom:1px solid #E5E7EB;font-size:14px;line-height:22px;color:#1F2937}
+.rqc-gt{font-size:16px;line-height:24px;font-weight:600;color:#1F2937}
+.rqc-gs{margin-left:12px;color:#6B7280}
+.rqc-gh .linkbtn.rqc-lk{line-height:22px}
+.rqc-gr{display:grid;grid-template-columns:minmax(0,290fr) minmax(0,202fr) minmax(0,190fr) minmax(0,170fr) minmax(240px,240fr);column-gap:24px;align-items:center;padding:12px 24px;font-size:14px;line-height:22px;color:var(--gray-24)}
+.rqc-gr+.rqc-gr{border-top:1px solid #F3F4F6}
+.rqc-gw{display:flex;gap:12px;align-items:flex-start;min-width:0;font-size:14px;line-height:20px}
+.rqc-gw>span{min-width:0}.rqc-gw b{font-weight:600;color:#1F2937;overflow-wrap:anywhere}
+.rqc-gy{min-width:0;font-size:13px;line-height:20px;color:#4B5563;overflow-wrap:anywhere}
+.rqc-ga{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;min-width:0;font-variant-numeric:tabular-nums}
+.rqc-ga>b{font-weight:600}
+.rqc-ga .linkbtn.rqc-lk{font-size:13px;line-height:22px}
+.rqc-gm{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;flex-basis:100%;min-height:22px;margin-top:2px;font-size:13px;line-height:20px}.rqc-gm .rqc-tg{margin:0}
+.rqc-ga .ul-in.rqc-in{width:104px;margin:-3px 0;text-align:right;font-weight:400}
+.rqc-ga .rqc-s{display:inline;margin:0}
+.rqc-gu{min-width:0;color:#4B5563;font-variant-numeric:tabular-nums}
+.rqc-gb{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:0}
+.rqc-gbb{display:flex;gap:8px;justify-content:flex-end}
+.rqc-gb .shd-button svg{width:16px;height:16px;flex:none}
+.rqc-gb .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF;cursor:not-allowed}
+.rqc-gb .rqc-an{text-align:right}
 .rqc-pn{padding:10px 16px;font-size:14px;line-height:20px;color:#374151;background:#fff;border:1px solid #E5E7EB;border-radius:8px}
-/* a card under 840px (vC's rail leaves that at viewports up to about 945) can't give Used a column without six-line
-   wraps: Used moves under the resource name, the rest stays on the first row */
-.rqc-card{container:rqcc/inline-size}
-@container rqcc (max-width:839px){
- .rqc-ln{grid-template-columns:minmax(0,200px) 104px minmax(0,1fr) auto;row-gap:2px}
- .rqc-lr{grid-row:1;grid-column:1}.rqc-la{grid-row:1;grid-column:2}.rqc-lx{grid-row:1;grid-column:3}.rqc-ll{grid-row:1;grid-column:4}.rqc-lu{grid-row:2;grid-column:1/4}
+/* change 355: Change limits inside the panel (D1 of experiments/c353-explore/adjust-explore-2.html), in the Limits panel's
+   numbers: 300/216/172 columns, 10px 12px heads, 12px cells with 24px at the edges, a 136px field, a white 12px 24px dock */
+.rqc-ls{border-top:1px solid #E5E7EB}
+.rqc-lt col.rqc-lc1{width:300px}.rqc-lt col.rqc-lc2{width:216px}.rqc-lt col.rqc-lc3{width:172px}
+.rqc-lt td{vertical-align:middle;color:#1F2937;border-top:1px solid #E5E7EB}
+.rqc-lt tbody tr:first-child td{border-top:0}
+.rqc-lt .ul-ws{align-items:center}
+.rqc-lt tr.is-off .ul-ws{opacity:.55}
+.rqc-lt .ul3-in{width:136px}
+.rqc-lt .ul3-in[aria-invalid="true"]{border-color:#B91C1C;background:#fff}
+.rqc-lt .ul3-in[aria-invalid="true"]:focus{box-shadow:0 0 0 2px #FEE2E2}
+.rqc-lt tr.rqc-lmore td{padding-top:8px;padding-bottom:8px}
+.rqc-lc{font-variant-numeric:tabular-nums}
+.avatar.rqc-lbav{background:#F3F4F6;border-color:#E5E7EB;color:#4B5563}.avatar.rqc-lbav svg{width:14px;height:14px}
+.rqc-ld{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:12px 24px;background:#fff;border-top:1px solid #E5E7EB;border-radius:0 0 8px 8px}
+.rqc-ld .ul3-dm{flex:1 1 320px;max-width:none}
+.rqc-ld .ul3-db{flex-wrap:wrap;justify-content:flex-end}
+.rqc-ld .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF;cursor:not-allowed}
+/* under 820px each donor row folds: name and field on one line, use and change under them (the mock's 390 shots) */
+@container rqcg (max-width:819px){
+ .rqc-lt,.rqc-lt tbody{display:block}
+ .rqc-lt thead,.rqc-lt colgroup{display:none}
+ .rqc-lt tr{display:grid;grid-template-columns:minmax(0,1fr) 136px;gap:6px 12px;align-items:center;padding:12px 24px;border-top:1px solid #E5E7EB}
+ .rqc-lt tbody tr:first-child{border-top:0}
+ .rqc-lt td{display:block;padding:0!important;border:0!important}
+ .rqc-lt td:nth-child(1){grid-column:1;grid-row:1}.rqc-lt td:nth-child(3){grid-column:2;grid-row:1}
+ .rqc-lt td:nth-child(2){grid-column:1/-1;grid-row:2;padding-left:38px!important}.rqc-lt td:nth-child(4){grid-column:1/-1;grid-row:3;padding-left:38px!important}
+ .rqc-lt td:empty{display:none}
+ .rqc-lt .ul3-in{width:100%}
+ .rqc-lt tr.rqc-lmore{display:block;padding-top:8px;padding-bottom:8px}
+}
+/* a panel under 1,000px (the mock's own 1,100px viewport turn): the reason sits beside the workspace, the numbers and
+   buttons under them */
+@container rqcg (max-width:999px){
+ .rqc-gr{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;row-gap:8px}
+ .rqc-gw{grid-row:1;grid-column:1}.rqc-gy{grid-row:1;grid-column:2/-1}.rqc-ga{grid-row:2;grid-column:1}.rqc-gu{grid-row:2;grid-column:2}.rqc-gb{grid-row:2;grid-column:3}
+}
+/* phone, as the mock's 390 shot: everything stacks, the ask and Used share a line, the buttons start the last */
+@container rqcg (max-width:639px){
+ .rqc-gh{padding:12px 16px}.rqc-gs{display:block;margin-left:0}
+ .rqc-gr{grid-template-columns:minmax(0,1fr) 140px;row-gap:6px;padding:12px 16px}
+ .rqc-gw,.rqc-gy{grid-column:1/-1}.rqc-gw{grid-row:1}.rqc-gy{grid-row:2}.rqc-ga{grid-row:3;grid-column:1}.rqc-gu{grid-row:3;grid-column:2;text-align:right}.rqc-gb{grid-row:4;grid-column:1/-1;align-items:flex-start}
+ .rqc-gy:empty{display:none}
+ .rqc-gbb{justify-content:flex-start}.rqc-gb .rqc-an{text-align:left}
+ .rqc-gb:empty{display:none}
+ .rqc-lt tr{grid-template-columns:minmax(0,1fr) 96px;padding:12px 16px}
+ .rqc-lt .ul-nm{white-space:normal;overflow:visible}
+ .rqc-ld{padding:12px 16px}
+ .rqc-ld .ul3-db{width:100%;flex-direction:column-reverse;align-items:stretch}
+ .rqc-ld .ul3-db .shd-button{height:auto;min-height:36px;white-space:normal;text-align:center}
 }
 .rqc-l{display:block;margin-bottom:2px;font-size:12px;line-height:16px;color:#6B7280}
 .rqc-v{display:block;font-size:14px;line-height:20px;font-weight:500;color:#1F2937;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
@@ -17565,14 +17724,7 @@ input.ul4-qn.is-ch{border-color:#1F2937}
 .rqc-afs{display:flex;flex-wrap:wrap;gap:2px 20px;font-size:13px;color:#374151}
 .rqc-afb{display:flex;gap:8px;margin-left:auto}
 @media (max-width:760px){
- .rqc-ql{padding:10px 12px}
- .rqc-h{padding:16px}
- .rqc-acts{width:100%;flex-direction:column;align-items:stretch;gap:8px}.rqc-acts .shd-button{justify-content:center;text-align:center}
- .rqc-who{padding:0 16px 12px}
- .rqc-ln{grid-template-columns:minmax(0,1fr) auto;row-gap:2px;padding:8px 16px}
- .rqc-lr{grid-row:1;grid-column:1}.rqc-la{grid-row:1;grid-column:2}.rqc-lu{grid-row:2;grid-column:1}.rqc-ll{grid-row:2;grid-column:2;align-self:end}.rqc-lx{grid-row:3;grid-column:1/-1}
- .rqc-lx:empty{display:none}
- .rqc-la .ul-in.rqc-in{width:96px}
+ .rqc-ga .ul-in.rqc-in{width:96px}
  .rqc-dt,.rqc-dt tbody{display:block}.rqc-dt thead,.rqc-dt colgroup{display:none}
  .rqc-dt tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
  .rqc-dt tbody tr:first-child{border-top:0}
