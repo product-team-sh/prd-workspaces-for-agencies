@@ -4183,9 +4183,8 @@ function wsPeopleCell(c,side){
  let line, fix="";
  if(side==="client"){
   const on=L.filter(x=>!x.invited), exp=L.filter(x=>x.expired), inv=L.filter(x=>x.invited&&!x.expired);
-  const resend=x=>canI("members")?'<button type="button" class="linkbtn linkbtn--sm" data-ppresend="'+x.key+'">Resend</button>':'';
-  if(exp.length){line='<span class="cs is-warn">Invite expired</span>';fix=resend(exp[0])}
-  else if(!on.length){line='<span class="cs">Invited</span>';fix=resend(inv[0])}
+  if(exp.length){line='<span class="cs is-warn">'+(exp.length>1?exp.length+' invites expired':'Invite expired')+'</span>'}
+  else if(!on.length){line='<span class="cs">'+(inv.length>1?inv.length+' invited':'Invited')+'</span>'}
   else line='<span class="cs">'+on.length+' user'+(on.length===1?'':'s')+(inv.length?', '+inv.length+' invited':'')+'</span>';
  } else {
   const on=L.filter(x=>!x.invited&&!x.disabled).map(x=>x.first), inv=L.filter(x=>x.invited), off=L.filter(x=>x.disabled);
@@ -4193,6 +4192,10 @@ function wsPeopleCell(c,side){
   const names=on.length===2?on.join(" and "):on.slice(0,2).join(", ")+(on.length>2?" +"+(on.length-2):"");
   line='<span class="cs">'+[names].concat(extra).filter(Boolean).join("; ")+'</span>';
  }
+ /* change 347: one Resend per cell, both columns; covers every pending invite in it */
+ {const pend=L.filter(x=>x.invited&&!x.disabled), anyIn=L.some(x=>!x.invited&&!x.disabled);
+  if(pend.length&&(pend.some(x=>x.expired)||!anyIn)&&canI("members")&&!c.disabled)
+   fix='<button type="button" class="linkbtn linkbtn--sm" data-ppresendall="'+pend.map(x=>x.key).join(";;")+'" data-ppresendname="'+(pend.length===1?pend[0].label:"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")+'">Resend</button>'}
  /* change 314: names only (a stored name, else the email), one per line, up to 8; state (invited, disabled), never role */
  const nmx=L.map(x=>x.label+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", invited":"")), shown=nmx.slice(0,8).concat(nmx.length>8?["and "+(nmx.length-8)+" more"]:[]);
  const tip=shown.join("\n"), esc=t=>t.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
@@ -14034,6 +14037,9 @@ function wire(){
  wireDD(document,"paKind",v=>{PA_KIND=v;render()});
  wireDD(document,"paWs",v=>{PA_WS=v;render()});
  q("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles"};renderModal()});
+ q("[data-ppresendall]").forEach(b=>b.onclick=e=>{e.stopPropagation();const ks=b.dataset.ppresendall.split(";;");   /* change 347 */
+  ks.forEach(k=>{INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now"});
+  ppToast(ks.length===1?"Invite resent to "+(b.dataset.ppresendname||(PEOPLE[ks[0]]&&PEOPLE[ks[0]].email)||"1 person")+".":"Invites resent to "+ks.length+" people.",null);render()});
  q("[data-ppresend]").forEach(b=>b.onclick=()=>{const k=b.dataset.ppresend;INVITED[(k.indexOf("w:")===0?"":"t:")+k]="just now";ppToast(`Invite resent${PEOPLE[k]&&PEOPLE[k].email?" to "+PEOPLE[k].email:""}.`,null);render()});
  q("[data-pproles]").forEach(b=>{if(!b.onclick)b.onclick=()=>{modal={kind:"pproles"};renderModal()}});
  q("[data-ppcl]").forEach(b=>b.onclick=e=>{e.stopPropagation();PP.menu=PP.menu===b.dataset.ppcl?null:b.dataset.ppcl;render()});
@@ -16675,7 +16681,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="fa1dc75";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="09299e9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
