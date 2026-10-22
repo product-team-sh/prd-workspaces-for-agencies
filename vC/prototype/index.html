@@ -2197,6 +2197,54 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
  [ "al","Rosa Lindqvist","27 days ago","Email account sales@alloy-outbound.com reconnected"],
  [ "ok","Rosa Lindqvist","29 days ago","Added 180 prospects from a CSV import"],
 ].forEach(([client,who,when,text])=>ACTIVITY.push({client,who,when,text,at:-AGO_DAYS(when)}));
+/* change 353, 22 Oct 2026: 45 invented Northwind entries (see patch-353.py) so one workspace has a list long enough to page */
+[
+ [ "nw","Jonah Reyes","today","Sequence Q4 depot managers launched"],
+ [ "nw","Priya Nair","today","Added 320 prospects from Lead Finder"],
+ [ "nw","Dev Kapoor","today","Signed in to the workspace as Workspace Admin"],
+ [ "nw","Lena Okafor","yesterday","Email account dispatch@northwind-ship.com connected"],
+ [ "nw","Priya Nair","yesterday","Sequence Peak season pre-book paused"],
+ [ "nw","Alex Meridian","yesterday","Sending priority changed to Balanced Sending"],
+ [ "nw","Dev Kapoor","yesterday","Added 410 prospects from a CSV import"],
+ [ "nw","Jonah Reyes","yesterday","Sequence Carrier re-engagement created"],
+ [ "nw","Lena Okafor","2 days ago","Email account bookings@northwind-ship.com connected"],
+ [ "nw","Priya Nair","2 days ago","Sequence Peak season pre-book resumed"],
+ [ "nw","Dev Kapoor","2 days ago","Signed in to the workspace as Workspace Admin"],
+ [ "nw","Alex Meridian","3 days ago","Dedupe across sequences changed to On"],
+ [ "nw","Jonah Reyes","3 days ago","Added 275 prospects from a CSV import"],
+ [ "nw","Priya Nair","3 days ago","Sequence Port operators launched"],
+ [ "nw","Lena Okafor","4 days ago","Email account desk@northwind-fleet.co connected"],
+ [ "nw","Dev Kapoor","4 days ago","Sequence Carrier re-engagement paused"],
+ [ "nw","Jonah Reyes","5 days ago","Added 90 prospects from Lead Finder"],
+ [ "nw","Priya Nair","5 days ago","Signed in to the workspace as Workspace Admin"],
+ [ "nw","Alex Meridian","6 days ago","Custom tracking domain set to go.northwind.co"],
+ [ "nw","Lena Okafor","6 days ago","Email account ops2@northwind-fleet.co reconnected"],
+ [ "nw","Dev Kapoor","7 days ago","Sequence Port operators paused"],
+ [ "nw","Jonah Reyes","7 days ago","Added 520 prospects from a CSV import"],
+ [ "nw","Priya Nair","8 days ago","Sequence Q4 depot managers created"],
+ [ "nw","Alex Meridian","8 days ago","Sending priority changed to Max Sending"],
+ [ "nw","Lena Okafor","10 days ago","Email account sales@northwind-ship.com connected"],
+ [ "nw","Dev Kapoor","10 days ago","Added 140 prospects from Lead Finder"],
+ [ "nw","Jonah Reyes","11 days ago","Sequence Carrier re-engagement resumed"],
+ [ "nw","Priya Nair","12 days ago","Signed in to the workspace as Workspace Admin"],
+ [ "nw","Alex Meridian","13 days ago","Dedupe across sequences changed to Off"],
+ [ "nw","Lena Okafor","14 days ago","Email account hello@northwind-fleet.co connected"],
+ [ "nw","Dev Kapoor","15 days ago","Sequence Cold storage leads created"],
+ [ "nw","Jonah Reyes","16 days ago","Added 360 prospects from a CSV import"],
+ [ "nw","Priya Nair","17 days ago","Sequence Cold storage leads paused"],
+ [ "nw","Alex Meridian","18 days ago","Sending priority changed to Balanced Sending"],
+ [ "nw","Lena Okafor","19 days ago","Email account dispatch@northwind-ship.com reconnected"],
+ [ "nw","Dev Kapoor","20 days ago","Added 75 prospects from Lead Finder"],
+ [ "nw","Jonah Reyes","21 days ago","Sequence Port operators created"],
+ [ "nw","Priya Nair","23 days ago","Signed in to the workspace as Workspace Admin"],
+ [ "nw","Alex Meridian","24 days ago","Priya Nair's role changed to Workspace Admin"],
+ [ "nw","Lena Okafor","25 days ago","Email account bookings@northwind-ship.com reconnected"],
+ [ "nw","Dev Kapoor","26 days ago","Added 220 prospects from a CSV import"],
+ [ "nw","Jonah Reyes","27 days ago","Sequence Peak season pre-book launched"],
+ [ "nw","Priya Nair","28 days ago","Sequence Carrier re-engagement launched"],
+ [ "nw","Alex Meridian","29 days ago","Custom tracking domain set to track.northwind.co"],
+ [ "nw","Lena Okafor","29 days ago","Added 60 prospects from Lead Finder"],
+].forEach(([client,who,when,text])=>ACTIVITY.push({client,who,when,text,at:-AGO_DAYS(when)}));
 
 /* ══ depth ═══════════════════════════════════════════════════════════════════
    A prototype stops being believed at the first count that disagrees with the
@@ -4916,7 +4964,7 @@ const limNow=(k,cap)=>RES[k].label+" limit is now "+f(cap);
    to one line. Sign-ins is a view of each client user's latest sign-in. Rows come from ACTIVITY (rewritten in
    active voice here; the stored text is untouched), REQUESTS and ANSWERS (one row per ask, one per decision).
    Times are paStamp's, so a row reads the same time here and on the person's page. */
-let RA={id:null,by:"any",earlier:false};
+let RA={id:null,by:"any",earlier:false,pg:1,size:25};   /* change 353: pg and size page the list */
 const RA_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], RA_DAYN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const RA_WIN=30, raNow=()=>new Date(2026,8,CYCLE.day);
 const raCap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s, raDot=s=>/[.!?]$/.test(s)?s:s+".", raNum=s=>+String(s).replace(/,/g,"");
@@ -5014,18 +5062,23 @@ function raSum(c,rows){const last=rows[0]; if(!last) return "Nothing has changed
  return `Nothing open needs you. ${lead}`}
 function raEnt(r){const o=r.open;
  return `<li class="ra-ent" id="${r.id}"><time datetime="${r.d.getFullYear()}-${String(r.d.getMonth()+1).padStart(2,"0")}-${String(r.d.getDate()).padStart(2,"0")}T${raHM(r.d)}">${raHM(r.d)}</time><div class="ra-tx"><b class="ra-who">${r.who}</b> ${r.tx}${r.q?`<q class="ra-q">${r.q}</q>`:""}${r.ctx?`<span class="ra-ctx">${r.ctx}</span>`:""}${o?`<p class="ra-open">${o.mk?`<span class="ra-mk">${o.mk}</span>`:""}${o.ctx?`<span class="ra-octx">${o.ctx}</span>`:""}${o.act||""}</p>`:""}</div></li>`}
-function raGroups(list,cls){const g=[]; list.forEach(r=>{const l=g[g.length-1]; if(l&&+raDay(l.d)===+raDay(r.d)) l.items.push(r); else g.push({d:r.d,items:[r]})});
+function raGroups(list,cls,auto){const g=[]; list.forEach(r=>{const l=g[g.length-1]; if(l&&+raDay(l.d)===+raDay(r.d)) l.items.push(r); else g.push({d:r.d,items:[r]})});
  return g.map(x=>{const a=raAgo(x.d), lab=a===0?"Today":a===1?"Yesterday":RA_DAYN[x.d.getDay()], ds=a<200?raDM(x.d):raDMY(x.d);
-  return `<section class="ra-day${cls?" "+cls:""}" aria-label="${lab} ${ds}"><h3 tabindex="-1">${lab}<span>${ds}</span></h3><ol class="ra-ents">${x.items.map(raEnt).join("")}</ol></section>`}).join("")}
+  const k=cls||(auto&&a>RA_WIN?"ra-old":"");
+  return `<section class="ra-day${k?" "+k:""}" aria-label="${lab} ${ds}"><h3 tabindex="-1">${lab}<span>${ds}</span></h3><ol class="ra-ents">${x.items.map(raEnt).join("")}</ol></section>`}).join("")}
 function raLog(c,rows){
  const list=rows.filter(r=>RA.by==="any"||r.who===RA.by);
  if(!list.length){const what="changes";
   return `<div class="panel ra-sheet"><p class="ra-empty"><span>No ${what}${RA.by!=="any"?" by "+RA.by:""} in ${c.name}.</span><button type="button" class="linkbtn" data-rareset>Show all changes</button></p></div>`}
  const recent=list.filter(r=>raAgo(r.d)<=RA_WIN), old=list.filter(r=>raAgo(r.d)>RA_WIN);
- let h=raGroups(recent);
+ /* change 353: the list is paged. What is shown is the recent changes (or all, once Earlier is open); each page is
+    grouped on its own, so a day that continues repeats its heading at the top of the next page */
+ const shown=RA.earlier?list:recent, size=RA.size||25, pages=Math.max(1,Math.ceil(shown.length/size));
+ RA.pg=Math.min(Math.max(1,RA.pg||1),pages); RA.order=list.map(r=>r.id); RA.nrecent=recent.length;
+ let h=raGroups(shown.slice((RA.pg-1)*size,RA.pg*size),"",1);
  if(old.length){
-  if(RA.earlier) h+=raGroups(old,"ra-old");
-  else {let sum="";
+  if(RA.earlier){}
+  else if(RA.pg===pages){let sum="";
    if(RA.by==="any"){const b=old.filter(r=>r.born), rest=old.length-b.length, cr=b.find(r=>/^created the workspace/.test(r.tx)), ni=b.filter(r=>r.inv).length;
     if(cr) sum=`${cr.who} ${listAnd(["created the workspace",ni?`invited ${ni} client user${ni>1?"s":""}`:"",b.some(r=>/starting limits/.test(r.tx))?"confirmed the starting limits":""].filter(Boolean))}.`;
     if(rest) sum+=(sum?" ":"")+`${rest} more ${rest===1?"change":"changes"} up to ${raDM(old[0].d)}.`}
@@ -5033,7 +5086,30 @@ function raLog(c,rows){
    const nn=old.filter(r=>r.need).length, nl=old.filter(r=>r.look).length;
    if(nn) sum+=nn===1?" One of them needs you.":` ${nn} of them need you.`; else if(nl) sum+=nl===1?" One of them is worth a look.":` ${nl} of them are worth a look.`;
    h+=`<div class="ra-earlier"><h3>Earlier<span>${raDMY(old[old.length-1].d)}</span></h3><p><span>${sum}</span><button type="button" class="linkbtn" data-raearlier>Show ${old.length} earlier ${old.length===1?"change":"changes"}</button></p></div>`}}
- return `<div class="panel ra-sheet" id="raLog">${h}</div>`}
+ return `<div class="panel ra-sheet" id="raLog">${h}</div>`+raPager(shown.length,size,pages)}
+/* change 353: production's table pagination (ui/table/components/table-pagination.tsx, _table.scss &--pagination,
+   _pagination.scss). Page numbers as react-ultimate-pagination gives them: boundary 1, siblings 1, ellipsis, no first and last */
+const RA_SIZES=[25,50,100];
+function raPgItems(cur,total){const B=1,S=1; if(total<=B*2+S*2+3) return Array.from({length:total},(_,i)=>i+1);
+ const end0=total-B+1, sS=Math.max(Math.min(cur-S,total-B-S*2-1),B+2), sE=Math.min(Math.max(cur+S,B+S*2+2),end0-2), out=[];
+ for(let i=1;i<=B;i++) out.push(i);
+ out.push(sS>B+2?0:(B+1<end0-1?B+1:null));
+ for(let i=sS;i<=sE;i++) out.push(i);
+ out.push(sE<end0-2?0:(end0-1>B?end0-1:null));
+ for(let i=end0;i<=total;i++) out.push(i);
+ return out.filter(x=>x!==null)}
+function raPager(N,size,pages){ if(N<=RA_SIZES[0]) return "";
+ const cur=RA.pg, a=(cur-1)*size+1, b=Math.min(N,cur*size);
+ const chev=d=>`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+ const step=(to,dis,label,d)=>`<li class="ra-pi${dis?" is-off":""}"><button type="button" class="ra-pl" ${dis?"disabled":`data-rapg="${to}"`} aria-label="${label}">${chev(d)}</button></li>`;
+ const nums=raPgItems(cur,pages).map(n=>n===0?`<li class="ra-pi ra-pn ra-pe" aria-hidden="true"><span class="ra-pl">&hellip;</span></li>`
+  :`<li class="ra-pi ra-pn${n===cur?" is-on":""}"><button type="button" class="ra-pl" data-rapg="${n}"${n===cur?' aria-current="page"':""} aria-label="Page ${n}">${n}</button></li>`).join("");
+ return `<nav class="ra-pg" id="raPg" aria-label="Pagination">
+  <span class="ra-pg-m">${f(a)}-${f(b)} of ${f(N)}</span>
+  <div class="ra-pg-c ra-pg-d"><p>Showing</p>${ddHTML("raSize",String(size),[{items:RA_SIZES.map(n=>({value:String(n),label:String(n)}))}],{})}<p>out of ${f(N)}</p></div>
+  <span class="ra-pg-sep" aria-hidden="true"></span>
+  <div class="ra-pg-c ra-pg-d"><p>Go to page:</p><form id="raGo" novalidate><input class="ra-pg-in" id="raGoIn" type="number" min="1" max="${pages}" value="${cur}" aria-label="Go to page"></form><p>/${pages}</p></div>
+  <ul class="ra-pul">${step(cur-1,cur<=1,"Previous page","M10 4 6 8l4 4")}${nums}${step(cur+1,cur>=pages,"Next page","M6 4l4 4-4 4")}</ul></nav>`}
 function raShort(c,rows){const U=c.users||[], never=U.filter(u=>AGE(LASTSEEN[u[0]]||"unknown")==="never").length,
   foot="";   /* change 320: the explanatory footers went */
  return `<div class="panel ra-sheet" id="raLog">${raGroups(rows)}${foot?`<div class="ra-foot">${foot}</div>`:""}</div>`}
@@ -5043,7 +5119,7 @@ function raSignRows(c){return (c.users||[]).filter(u=>{const v=LASTSEEN[u[0]]; r
  .map((u,i)=>{const w=new Date(), cap=raNow(); cap.setHours(w.getHours(),w.getMinutes()-5,0,0); let d=raWhen({when:LASTSEEN[u[0]],text:"signin"}); if(d>cap) d=cap;
   return {who:u[0],when:LASTSEEN[u[0]],d,k:"signin",tx:"signed in.",id:"ra-si-"+c.id+"-"+i}})}
 function rActivity(c){
- if(RA.id!==c.id) RA={id:c.id,by:"any",earlier:false};
+ if(RA.id!==c.id) RA={id:c.id,by:"any",earlier:false,pg:1,size:25};
  const chg=raRows(c), rows=chg.concat(raSignRows(c)).sort((x,y)=>y.d-x.d), short=rows.length<5;
  const people=[...new Set(rows.map(r=>r.who))]; if(RA.by!=="any"&&people.indexOf(RA.by)<0) RA.by="any";
  const nBy=p=>rows.filter(r=>r.who===p).length;
@@ -5052,14 +5128,21 @@ function rActivity(c){
  return `<div class="ra">
   ${filters}${short?raShort(c,rows):raLog(c,rows)}</div>`;
 }
-function raJump(id){RA.by="any";render(); if(!el(id)){RA.earlier=true;render()}
+function raJump(id){RA.by="any";render(); if(!el(id)){const i=(RA.order||[]).indexOf(id); if(i>=RA.nrecent) RA.earlier=true; if(i>-1) RA.pg=Math.floor(i/(RA.size||25))+1; render()}   /* change 353: the row's page */
  const r=el(id); if(!r) return; r.scrollIntoView({block:"center",behavior:REDUCED()?"auto":"smooth"});
  r.classList.remove("is-flash"); void r.offsetWidth; r.classList.add("is-flash");
  const a=r.querySelector(".ra-open button"); if(a) a.focus({preventScroll:true})}
 function raBind(){
- wireDD(document,"raBy",v=>{if(v){RA.by=v;render()}});
- document.querySelectorAll("[data-rareset]").forEach(b=>b.onclick=()=>{RA.by="any";render()});
- document.querySelectorAll("[data-raearlier]").forEach(b=>b.onclick=()=>{RA.earlier=true;render();const h=document.querySelector(".ra-old h3");if(h)h.focus()});
+ wireDD(document,"raBy",v=>{if(v){RA.by=v;RA.pg=1;render()}});   /* change 353: a filter goes back to page 1 */
+ document.querySelectorAll("[data-rareset]").forEach(b=>b.onclick=()=>{RA.by="any";RA.pg=1;render()});
+ document.querySelectorAll("[data-raearlier]").forEach(b=>b.onclick=()=>{RA.earlier=true;RA.pg=Math.floor((RA.nrecent||0)/(RA.size||25))+1;render();const h=document.querySelector(".ra-old h3");if(h)h.focus()});
+ /* change 353: pager */
+ const raTop=()=>{const t=document.querySelector(".ra"); if(t) t.scrollIntoView({block:"start"})};
+ document.querySelectorAll("[data-rapg]").forEach(b=>b.onclick=()=>{RA.pg=+b.dataset.rapg;render();raTop()});
+ wireDD(document,"raSize",v=>{if(v){RA.size=+v;RA.pg=1;render();raTop()}});
+ const go=el("raGo"); if(go) go.onsubmit=e=>{e.preventDefault(); const i=el("raGoIn"), n=Number(i.value), max=Number(i.max);
+  if(!Number.isInteger(n)||n<1||n>max){i.classList.add("is-err");return} RA.pg=n;render();raTop()};
+ const gi=el("raGoIn"); if(gi) gi.oninput=()=>gi.classList.remove("is-err");
  document.querySelectorAll("[data-rajump]").forEach(b=>b.onclick=e=>{e.preventDefault();raJump(b.dataset.rajump)});
  document.querySelectorAll("[data-raaccts]").forEach(b=>b.onclick=()=>{ctx=b.dataset.raaccts;asClient=false;inMod="accounts";openProspect=null;openSeq=null;openReply=null;render()});
 }
@@ -15883,6 +15966,27 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 @media (prefers-reduced-motion:reduce){.ra-ent.is-flash{animation:none}}
 .ra-earlier p{margin:0;padding:10px 24px 10px 64px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;color:#6B7280}
 .ra-earlier p span{max-width:76ch}
+/* change 353: production's table pagination (ui/table _table.scss &--pagination: 40px, 0 24px, 20px gap, white, 1px #D1D5DB,
+   0 0 10px rgba(4,21,76,.08); 14/20 Gray 800 text; select 74px; separator 1px x 20px; _pagination.scss page items) */
+.ra-pg{height:40px;display:flex;justify-content:flex-end;align-items:center;gap:20px;margin-top:12px;padding:0 24px;background:#fff;border:1px solid #D1D5DB;border-radius:4px;box-shadow:0 0 10px 0 rgba(4,21,76,.08)}
+.ra-pg p,.ra-pg-m{margin:0;font-size:14px;line-height:20px;font-weight:400;color:#1F2937}
+.ra-pg-m{display:none;margin-right:auto}
+.ra-pg-c{display:flex;align-items:center;gap:8px}
+.ra-pg-c .dd{width:74px}.ra-pg-c .dd-trig{height:24px;padding:0 8px;gap:4px;font-size:14px;line-height:20px}
+.ra-pg .dd-menu{top:auto;bottom:calc(100% + 4px)}
+.ra-pg-sep{width:1px;height:20px;background:#D1D5DB}
+.ra-pg-in{width:63px;height:24px;padding:0 8px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font:inherit;font-size:14px;line-height:20px;color:#1F2937;text-align:left;box-sizing:border-box}
+.ra-pg-in:focus{outline:0;border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE}
+.ra-pg-in.is-err{border-color:#B91C1C;box-shadow:0 0 0 3px #FEE2E2}
+.ra-pg #raGo{margin:0}
+.ra-pul{display:flex;align-items:center;margin:0;padding:0;list-style:none}
+.ra-pi{display:flex}
+.ra-pl{display:flex;align-items:center;justify-content:center;min-width:23px;min-height:24px;margin:0 0 0 8px;padding:5px 8px;border:0;border-radius:4px;background:transparent;font:inherit;font-size:14px;line-height:1;color:#595959;cursor:pointer}
+.ra-pi:not(.is-off):not(.ra-pe) .ra-pl:hover{color:#1D4ED8}
+.ra-pi.is-on .ra-pl{background:#DBEAFE;color:#1D4ED8}
+.ra-pi.is-off .ra-pl{color:#BFBFBF;cursor:default}
+.ra-pe .ra-pl{cursor:default;padding:0}
+.ra-pl:focus-visible,.ra-pg .dd-trig:focus-visible{outline:2px solid #1D4ED8;outline-offset:1px}
 .ra-empty{margin:0;padding:28px 24px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .ra-empty span{color:#6B7280}
 .ra-foot{padding:12px 24px;border-top:1px solid #F3F4F6;font-size:12px;line-height:16px;color:#6B7280}
@@ -15896,6 +16000,10 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .ra-earlier p{padding:6px 16px 8px 72px}
  .ra-empty{padding:20px 16px}
  .ra-foot{padding:12px 16px}
+ /* change 353: phone, "1-25 of 143" with prev and next, no numbers */
+ .ra-pg{justify-content:space-between;gap:12px;padding:0 8px 0 16px}
+ .ra-pg-m{display:block}
+ .ra-pg-d,.ra-pg-sep,.ra-pn{display:none}
 }
 .modal--450{width:450px}
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-seqnew],.is-preview .page [data-seqlaunchask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}/* change 138: in a preview the owner can open the ask sheet; only Send is held back */.is-preview .page [data-askopen]{opacity:1;pointer-events:auto}
@@ -17072,7 +17180,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="cba99a2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="695363f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
