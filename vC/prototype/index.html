@@ -6373,14 +6373,14 @@ function rMail(c){
        client role never acts on an agency-sourced mailbox, and Viewer has no
        "warmup" verb at all so never gets an enabled button. Your team
        (not asClient) are unaffected. */
-    const mayReconnect=!asClient||(canC(c,"warmup")&&mbSrc(m)!=="agency");
+    const mayReconnect=canC(c,"warmup")&&(agencyFull(c)||mbSrc(m)!=="agency");   /* change 351: Viewer has no warmup verb; only a Workspace Admin reconnects what the agency set up */
     return `<tr class="${focusMb===m[0]?"is-focus":""}"><td>${m[0]}</td>
     <td><span class="chip c-${MB_TONE[m[1]]||"mute"}">${m[1]==="Reconnecting"?"Reconnecting, usually a minute":MB_LABEL(m[1])}</span></td>
     <td class="ar tnum">${m[1]==="Disconnected"||m[1]==="Reconnecting"?'<span class="sub">–</span>':m[2]}</td>
     ${asClient?"":`<td class="ar">${m[1]==="Disconnected"
       ?(mayReconnect
         ?`<button class="shd-button shd-button--primary shd-button--sm" data-reconnect="${m[0]}">Reconnect</button>`
-        :`<span class="sub" aria-disabled="true"${mbSrc(m)==="agency"?` title="Set up by ${AGENCY.name}"`:` title="Your role cannot reconnect mailboxes"`}>Reconnect</span>`)
+        :"")
       :m[1]==="Reconnecting"
       ?`<span class="sub" aria-disabled="true">Reconnecting</span>`
       :""}</td>`}</tr>`;}).join("")
@@ -11621,7 +11621,8 @@ function wlDomainTab(){
    <div class="mt-4 bs-ml-36"><button type="button" class="btn btn-solid-primary" id="wlDomainSetup" ${(d&&!wlDomainErr&&!setup)?"":"disabled"}>Setup Domain</button></div>
    ${setup?`<div class="mt-4 bs-ml-36">${wlBanner("primary","Domain setup is in progress!","It can take up to 48 hours. Explore the product in the meantime, and we'll notify you when your brand domain is ready.")}</div>`:""}</div>`}
 function vWhitelabel(){
- if(!canI("billing")) return denied("set up whitelabel");
+ if(asClient){view={name:"clients"};return vClientSide()}   /* change 351: a client session never reaches Whitelabel */
+ if(!canI("billing")) return denied("set up whitelabel","An Account Owner");
  const tab=(k,l)=>`<div class="bs-tabs-tab${wlTab===k?" bs-tabs-tab-active":""}" data-wltab="${k}"><div class="bs-tabs-tab-btn" role="tab" aria-selected="${wlTab===k}">${l}</div></div>`;
  return `<div class="wlp globalSettings__Wrapper hdr-wl">
   <!-- 5 Oct 2026, change 113 (Changes needed.md #1): the page's own "Whitelabel" header
@@ -12046,11 +12047,11 @@ function readOnly(html,what){
   .replace(/<button class="linkbtn"(?![^>]*\bdisabled\b)([^>]*\bdata-staffremove\b)/g,'<button class="linkbtn" disabled$1')
   .replace(/<button class="shd-button([^"]*)"(?![^>]*\bdisabled\b)/g,'<button class="shd-button$1" disabled');
 }
-function denied(what){
+function denied(what,who){
  return `<div class="panel"><div class="panel-b" style="text-align:center;padding:40px 20px">
    <div style="font-size:14px;font-weight:600;color:var(--gray-800);margin-bottom:6px">Not available to your role</div>
    <p class="sub" style="max-width:420px;margin:0 auto">${ME().name} is ${roleA(ME().role)} and cannot ${what}.
-   An Account Owner or Account Admin can.</p></div></div>`;
+   ${who||"An Account Owner or Account Admin"} can.</p></div></div>`;
 }
 
 /* Pattern A: account default, workspace override, agency lock */
@@ -12451,7 +12452,8 @@ function cSettings(c){
     nc.email||"–") - so Name and Email literally read "–", not empty. Name and
     Email are now blank fields with a "No one invited yet" line instead. */
  const noUser=noClientUserYet(c);
- const u=noUser?"":(c.users&&c.users[0]&&c.users[0][0])||c.email;
+ const au=noUser?null:actingClientUser(c);   /* change 351: the signed-in person, not the first user */
+ const u=noUser?"":(au&&au[0])||c.email;
  const notif=[["A new reply in your workspace",true],["An email account in your workspace disconnected",true],["A limit is close",false],[AGENCY.name+" answers a request",true]];
  /* fix 25 Sep review #4: "Workspace Viewer: every screen read-only, changes
     nothing" is stated as absolute, and accessNote() already tells a Viewer
@@ -12465,7 +12467,7 @@ function cSettings(c){
  return `${cWorkspaceSection(c)}<div class="grid" style="margin-top:16px">
   <div class="panel"><div class="panel-h"><span class="panel-t">Profile</span></div><div class="panel-b">
    ${noUser?`<p class="sub" style="margin:0 0 12px">No one invited yet.</p>`:""}
-   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":(c.users&&c.users[0]&&c.users[0][2])||""}" placeholder="${noUser?"No one invited yet":"Not set"}" ${ro?"disabled":""}></div>
+   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":(au&&au[2])||""}" placeholder="${noUser?"No one invited yet":"Not set"}" ${ro?"disabled":""}></div>
    <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" placeholder="${noUser?"No one invited yet":""}" disabled>
     <p class="sub" style="margin-top:6px">${noUser?"Invite the workspace's first user from People to fill this in.":`Your sign-in. ${AGENCY.name} invited this address; ask them to invite another to change it.`}</p></div>
    <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
@@ -13357,6 +13359,7 @@ function skeletonFor(){
  return `<div class="sk-page">${toolbar(sk("240px",22),"")}<div class="sk-card" style="height:120px">${sk("70%",14)}${sk("50%",14,"margin-top:10px")}${sk("60%",14,"margin-top:10px")}</div>${table(5,["30%","20%","20%","20%"])}</div>`;
 }
 function render(){
+ if(asClient&&view.name!=="clients") view={name:"clients"};   /* change 351: one guard, a client session has no agency view */
  if(PA_ED&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
  if(view.name!=="person") SH_PUSHED=false;
  /* the handover's toolbar line is for this landing only; leaving the
@@ -13646,6 +13649,7 @@ function wire(){
    if(!q||!q.client){qFrom=null;ctx="agency";asClient=false;view=homeView();render();return}
    qFrom={i};gotoClient(q.client,destFor(q),q.mb)});
  q("[data-reconnect]").forEach(b=>b.onclick=()=>{const a=b.dataset.reconnect;
+   {const oc=CLIENTS.find(c=>c.mailboxes.some(m=>m[0]===a)); if(oc&&!(canC(oc,"warmup")&&(agencyFull(oc)||mbSrc(oc.mailboxes.find(m=>m[0]===a))!=="agency"))) return}   /* change 351 */
    let ownerId="";
    CLIENTS.forEach(c=>c.mailboxes.forEach(m=>{if(m[0]===a){m[1]="Reconnecting";m[2]=0;ownerId=c.id}}));
    for(let i=INFRA_ALL.length-1;i>=0;i--) if(INFRA_ALL[i].kind==="Email account disconnected"&&INFRA_ALL[i].detail.indexOf(a)>-1) INFRA_ALL.splice(i,1);
@@ -14766,7 +14770,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
  if(HASHX.p.as){const a=HASHX.p.as;
   if(a.indexOf("t:")===0&&PEOPLE[a.slice(2)]){me_=a.slice(2);ctx="agency";asClient=false;PREVIEW=false;inMod=null;view=homeView()}
   if(a.indexOf("w:")===0){const [id,email]=a.slice(2).split("|"),cc=byId[id];
-   if(cc&&!cc.deletedOn){ctx=id;asClient=true;PREVIEW=false;CLIENT_SESSION=true;ACTING_EMAIL=email||null;openProspect=null;openSeq=null;openReply=null;
+   if(cc&&!cc.deletedOn){ctx=id;asClient=true;PREVIEW=false;CLIENT_SESSION=true;ACTING_EMAIL=email||null;openProspect=null;openSeq=null;openReply=null;view={name:"clients"};   /* change 351: a client session never keeps an agency view from the same link */
     const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);cView=first?first[0]:"settings"}}}
  demoRestoreScreen()}
 render();
@@ -17068,7 +17072,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dfff760";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="cba99a2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
