@@ -3861,11 +3861,19 @@ function homeRow(c,mode){
    sequence-score-tab.tsx) and the factor rows (score-factor-detail-item.tsx). Bands are the doc's (75 and above On
    track, 50 to 74 Check, under 50 Fix now) in production's three colours, never its 30 and 60 cut-offs.
    Phase 1: only the agency sees it; client users get no column and no tab. */
-const WSS_CFG={Z:1.2816,MIN_SENT:200,UNIT_MIN_SENT:100,FAULT_GRACE_H:1,STALL_WINDOWS:2,STALE_H:24,CHECK_MAX_AGE_D:30,
- LAG_MAX_H:{sends:2,replies:30,unsubs:30},COVERAGE_MIN:0.6,MIN_EXPECTED:10,MAX_COHORT_WEEKS:4,BASE_WEEKS:8,LOOKBACK_WEEKS:13,
- CURVES:{lost:[[0,100],[5,75],[25,50],[100,0]],bounce:[[1,100],[2,75],[3,50],[5,0]],unit:[[3,100],[5,75],[10,50],[20,0]],
-  placement:[[30,0],[65,50],[80,75],[90,100]],trend:[[0.5,0],[0.75,50],[0.85,75],[0.95,100]],floor:[[0,25],[0.1,50],[0.3,75],[0.5,100]],unsub:[[1.5,100],[2,75],[4,50]]}};
-const WSS_GROUP={sending:0,delivery:1,replies:2}, WSS_GNAME=["Sending","Delivery","Replies"], WSS_FIRST={1:0,2:1,0:2};
+/* ═══ change 342, 21 Oct 2026: the Workspace score on doc 108 pass 6 ═══
+   Hitesh, 21 Oct 2026: "build this vC", on the model he set: "Lower of Mailbox health and Prospect quality, Sequence
+   setup shown only". The model is ported line for line from experiments/c108/score.mjs pass 6 (scoreWorkspace and its
+   vC seed adapter, readSeed plus fromSeed), so the seed reads as `node score.mjs --seed`: Brightline 27 (Mailbox health
+   91, Prospect quality 27, setup 68), Vertex 47, Northwind 75, Alloy 92, Atlas 94, Summit 95, Pinecrest 89, Cascade New,
+   Oakridge Disabled. The ten questions of pass 5 (change 338) are gone. */
+const WSS_CFG={Z:1.2816,MIN_SENT:200,UNIT_MIN_SENT:100,FAULT_GRACE_H:1,STALL_WINDOWS:2,STALE_H:24,LAG_MAX_H:{sends:2,replies:30},
+ MIN_EXPECTED:10,MAX_COHORT_WEEKS:4,BASE_WEEKS:8,LOOKBACK_WEEKS:13,SETUP_STALE_D:30,
+ CURVES:{health:[[0,0],[50,50],[70,75],[100,100]],warmup:[[30,0],[65,50],[80,75],[90,100]],bounce:[[1,100],[2,75],[3,50],[5,0]],
+  unit:[[3,100],[5,75],[10,50],[20,0]],trend:[[0.5,0],[0.75,50],[0.85,75],[0.95,100]],floor:[[0,25],[0.06,50],[0.15,75],[0.3,100]],
+  connect:[[0,25],[10,50],[20,75],[30,100]]}};
+/* fix first inside 5 points: list and bounce, then mailbox health, then replies, then stopped or disconnected */
+const WSS_RANK={bounce:0,unit:0,health:1,warmup:1,trend:2,floor:2,connect:2,disconnected:3,stopped:3,phone:3,linkedin:3};
 function wssCurve(x,pts){if(x<=pts[0][0]) return pts[0][1];
  for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i]; if(x<=x1) return y0+(y1-y0)*(x-x0)/(x1-x0)}
  return pts[pts.length-1][1]}
@@ -3878,125 +3886,133 @@ function wssRatio(O,E,B,z,side){const o=Math.max(O,0.5), b=Math.max(B,0.5); retu
 const wssPl=(n,w)=>n+" "+w+(n===1?"":"s");
 const wssPct=(x,d)=>(+x.toFixed(d==null?1:d)).toString()+"%";
 const wssMean=a=>a.length?a.reduce((t,x)=>t+x,0)/a.length:0;
-const WSS_PAUSE={1:"fault",2:"fault",3:"plan",4:"choice",5:"limit",6:"plan",7:"plan",8:"gone",9:"fault",10:"plan",11:"plan",12:"choice",13:"fault",14:"fault",99:"limit"};
+const wssWmean=pairs=>{const W=pairs.reduce((t,[,w])=>t+w,0); return W?pairs.reduce((t,[v,w])=>t+v*w,0)/W:null};
+const WSS_PAUSE={1:"fault",2:"fault",3:"plan",4:"choice",5:"limit",6:"plan",7:"plan",8:"gone",9:"fault",10:"plan",11:"plan",12:"choice",13:"fault",14:"fault",15:"fault",99:"limit"};
 function wssStalled(q,nowH){if(q.stalled!=null) return q.stalled; if(!q.schedule||q.due===false) return false;
  const from=Math.max(q.lastSentH??-Infinity,q.dueSinceH??-Infinity); let missed=0;
  for(let d=Math.floor(from/24);d<=Math.floor(nowH/24);d++){const end=d*24+q.schedule.end; if(q.schedule.days.includes((d%7)+1)&&end>from&&end<=nowH) missed++}
  return missed>=WSS_CFG.STALL_WINDOWS}
-/* doc 108 12.0 and 12.2, as score.mjs scoreWorkspace */
+/* doc 108 14.0, as score.mjs scoreWorkspace (pass 6) */
 function wssScore(w){
- const C=WSS_CFG, Z=C.Z, state=(s,why)=>({state:s,why,score:null,band:null,factors:[],missing:[]});
+ const C=WSS_CFG, Z=C.Z, state=(s,why)=>({state:s,why,score:null,band:null,parts:{},problems:[],missing:[]});
  if(w.status==="deleted") return state("Removed","Deleted workspaces leave the Dashboard");
  if(w.status==="disabled") return state("Disabled","This workspace is disabled");
+ if(w.viewer==="client") return state("Hidden","Phase 1: only the agency sees the score");
  if(w.accountStop) return state("Stopped",w.accountStop);
  if((w.computedAgoH||0)>C.STALE_H) return state("Out of date","Last worked out "+Math.round(w.computedAgoH)+" hours ago");
- if(!w.everSentEmail) return state(w.otherChannels?"No email":"New",w.otherChannels?"The score covers email only":"Nothing sent yet");
+ const calls=w.calls||{made7:0}, li=w.linkedin||{steps7:0};
+ if(!w.everSentEmail&&!calls.made7&&!li.steps7) return state("New","Nothing sent yet");
  const lag=w.lagH||{}, late=k=>(lag[k]||0)>C.LAG_MAX_H[k];
  if(late("sends")) return state("Data delayed","Sending data is "+Math.round(lag.sends)+" hours behind");
- const seqs=(w.sequences||[]).map(q=>Object.assign({},q,{cls:q.pauseReason?WSS_PAUSE[q.pauseReason]:null,stall:wssStalled(q,w.nowH??0)}));
+ const seqs=(w.sequences||[]).map(q=>Object.assign({},q,{cls:q.pauseReason?WSS_PAUSE[q.pauseReason]??"fault":null,stall:wssStalled(q,w.nowH??0)}));
  const accts=w.accounts||[];
  const sent=seqs.reduce((t,q)=>t+(q.sent7||0),0), bounced=seqs.reduce((t,q)=>t+(q.bounced7||0),0);
- const F=[], M=[];
- const add=(key,group,score,label,detail)=>F.push({key,group,score:Math.max(0,Math.min(100,score)),label,detail:detail||{}});
- const miss=(key,group,name,why)=>M.push({key,group,name,why});
- const rate=(key,group,gated,point,label,few,detail)=>add(key,group,gated,label+(wssSev(point)>wssSev(gated)?" (few "+few+")":""),Object.assign({},detail,{point}));
- /* 1 Sending stopped */
+ const P=[], M=[];
+ const add=(key,part,score,label,detail)=>P.push({key,part,score:Math.max(0,Math.min(100,score)),label,detail:detail||{}});
+ const miss=(key,part,name,why)=>M.push({key,part,name,why});
+ const rate=(key,part,gated,point,label,few,detail)=>add(key,part,gated,label+(wssSev(point)>wssSev(gated)?" (few "+few+")":""),Object.assign({},detail,{point}));
  const grace=u=>(u.faultAgeH??99)>=C.FAULT_GRACE_H;
+ /* Mailbox health, email: each account on the app's health scale (0 if disconnected, lowered by warm-up once stored),
+    weighted by its usual sends; then the lower of that and the share of usual sending in stopped sequences */
  const live=seqs.filter(q=>!q.deleted&&(q.cls===null||q.cls==="fault"));
  const stoppedSeq=live.filter(q=>((q.cls==="fault"&&grace(q))||q.stall)&&q.due!==false);
  const runningSeq=live.filter(q=>q.cls===null&&!q.stall);
  const meanSeq=wssMean(runningSeq.map(q=>q.sent7||0).filter(x=>x>0));
- const usualSeq=q=>q.usual7>0?q.usual7:meanSeq||q.dailyLimit*5||1;
+ const usualSeq=q=>q.usual7>0?q.usual7:meanSeq||(q.dailyLimit||0)*5||1;
  const sw=stoppedSeq.reduce((t,q)=>t+usualSeq(q),0), rw=runningSeq.reduce((t,q)=>t+(q.sent7||0),0);
  const seqLost=sw+rw?sw/(sw+rw)*100:0;
- const sendAccts=accts.filter(a=>a.state!=="paused-user"), okAccts=sendAccts.filter(a=>a.state!=="disconnected");
+ const mAccts=accts.filter(a=>a.state!=="paused-user"&&a.health!=null);
+ const okAccts=mAccts.filter(a=>a.state==="sending");
  const meanAcc=wssMean(okAccts.map(a=>a.sent7||0).filter(x=>x>0));
- const usualAcc=a=>a.usual7>0?a.usual7:a.assigned===false?0:meanAcc||(a.dailyLimit||0)*5||1;
- const discAccts=sendAccts.filter(a=>a.state==="disconnected"&&grace(a));
- const dw=discAccts.reduce((t,a)=>t+usualAcc(a),0), cw=okAccts.reduce((t,a)=>t+(a.sent7||0),0);
- let accLost=dw+cw?dw/(dw+cw)*100:0;
- const noSender=runningSeq.some(q=>q.due!==false)&&sendAccts.length&&sendAccts.every(a=>a.state==="disconnected"&&grace(a));
- if(noSender) accLost=100;
- if(live.length||sendAccts.length){
-  const lost=Math.max(seqLost,accLost), bySeq=seqLost>=accLost;
-  const label=!lost?"Nothing stopped":noSender?"No email account can send"
-   :bySeq?wssPl(stoppedSeq.length,"sequence")+(stoppedSeq.every(q=>q.stall)?" stalled":" stopped")
-   :wssPl(discAccts.filter(a=>usualAcc(a)>0).length,"email account")+" disconnected";
-  add("sending",WSS_GROUP.sending,wssCurve(lost,C.CURVES.lost),label,{seqLost,accLost,lost,bySeq:!!lost&&!noSender&&bySeq,stall:stoppedSeq.every(q=>q.stall),
-   disc:discAccts.map(a=>a.email),seqNames:stoppedSeq.map(q=>q.name)});
- } else miss("sending",0,"Sending","no live sequence or email account");
- /* 2 Bounce */
+ const down=a=>(a.state==="disconnected"||a.state==="deleted")&&grace(a);
+ const weightOf=a=>down(a)?(a.usual7>0?a.usual7:a.assigned===false?0:meanAcc||(a.dailyLimit||0)*5||1):a.sent7||0;
+ const acctScore=a=>down(a)?0:Math.min(wssCurve(Math.min(100,a.health),C.CURVES.health),a.warmup!=null?wssCurve(a.warmup,C.CURVES.warmup):100);
+ const pairs=mAccts.map(a=>[acctScore(a),weightOf(a)]).filter(([,wt])=>wt>0);
+ let mbEmail=null;
+ if(pairs.length||live.length){
+  const acctMean=pairs.length?wssWmean(pairs):100;
+  const lossDisc=mAccts.filter(down).reduce((t,a)=>t+weightOf(a)*100,0);
+  const lowH=mAccts.filter(a=>!down(a)&&weightOf(a)>0&&acctScore(a)<75);
+  const lossLow=lowH.reduce((t,a)=>t+weightOf(a)*(100-acctScore(a)),0);
+  const nDisc=mAccts.filter(a=>down(a)&&weightOf(a)>0).length, warmLow=lowH.filter(a=>a.warmup!=null&&wssCurve(a.warmup,C.CURVES.warmup)<wssCurve(Math.min(100,a.health),C.CURVES.health)).length;
+  const acctKey=lossDisc>=lossLow?"disconnected":warmLow>lowH.length/2?"warmup":"health";
+  const acctLabel=acctMean>=99.5?"Email accounts healthy":acctKey==="disconnected"?(nDisc===pairs.length?"No email account can send":wssPl(nDisc,"email account")+" disconnected")
+   :acctKey==="warmup"?"Warm-up low on "+wssPl(warmLow,"email account"):"Low health on "+wssPl(lowH.length,"email account");
+  add(acctKey,"mailbox",acctMean,acctLabel,{acctMean,nDisc,nLow:lowH.length,lossDisc,usualAll:pairs.reduce((t,[,wt])=>t+wt,0)});
+  /* email that usually goes out but now cannot counts as 0, whichever broke: the lower of the two, not the product,
+     because a disconnect also pauses its sequences (reason 2) and must not count twice */
+  const st=100-seqLost;
+  add("stopped","mailbox",st,!seqLost?"Nothing stopped":wssPl(stoppedSeq.length,"sequence")+(stoppedSeq.every(q=>q.stall)?" stalled":" stopped"),
+   {seqLost,names:stoppedSeq.map(q=>q.name),stall:stoppedSeq.every(q=>q.stall),mailboxCaused:stoppedSeq.length>0&&stoppedSeq.every(q=>[2,9,13,14].includes(q.pauseReason))});
+  mbEmail=Math.min(acctMean,st);
+ } else miss("health","mailbox","Email accounts","no live sequence or email account");
+ /* Mailbox health, other channels: phone (an active number or not), LinkedIn (connected, share of automated steps done) */
+ let mbPhone=null, mbLi=null;
+ if(calls.made7>0){mbPhone=calls.activeNumber?100:0; if(!calls.activeNumber) add("phone","mailbox",0,"No active phone number")}
+ if(li.steps7>0){const tot=(li.done||0)+(li.skipped||0)+(li.failed||0);
+  mbLi=!li.connected?0:tot?100*li.done/tot:100;
+  if(mbLi<75) add("linkedin","mailbox",mbLi,!li.connected?"LinkedIn disconnected":"LinkedIn steps failing: "+Math.round(100-mbLi)+"%")}
+ const mailbox=wssWmean([[mbEmail,sent],[mbPhone,calls.made7||0],[mbLi,li.steps7||0]].filter(([v,wt])=>v!=null&&wt>0))??(mbEmail??null);
+ /* Prospect quality, email: the lowest of hard bounce, the worst list, replies against usual and the reply floor */
  if(sent>0){const lo=wssWilson(bounced,sent,Z)[0], b=bounced/sent*100;
-  rate("bounce",WSS_GROUP.delivery,wssCurve(lo*100,C.CURVES.bounce),wssCurve(b,C.CURVES.bounce),"Bounce "+wssPct(b),"emails",{b,lo:lo*100,sent,bounced})}
- else miss("bounce",1,"Bounce","nothing sent in 7 days");
- /* 3 Worst sending unit, two of a kind */
+  rate("bounce","prospect",wssCurve(lo*100,C.CURVES.bounce),wssCurve(b,C.CURVES.bounce),"Hard bounce "+wssPct(b),"emails",{b,lo:lo*100,sent,bounced})}
+ else miss("bounce","prospect","Hard bounce","no email sent in 7 days");
  const judge=(list,kind)=>list.filter(u=>u.n>=C.UNIT_MIN_SENT).map(u=>Object.assign({},u,{kind,r:u.b/u.n*100,lo:wssWilson(u.b,u.n,Z)[0]*100}));
  const pools=[judge(seqs.map(q=>({name:q.name,n:q.sent7||0,b:q.bounced7||0})),"sequence"),judge(accts.map(a=>({name:a.email,n:a.sent7||0,b:a.bounced7||0})),"email account")].filter(p=>p.length>=2);
- if(pools.length){const u=pools.flat().sort((x,y)=>y.lo-x.lo)[0];
-  rate("unit",WSS_GROUP.delivery,wssCurve(u.lo,C.CURVES.unit),wssCurve(u.r,C.CURVES.unit),"1 "+u.kind+" bouncing "+wssPct(u.r),"emails",u)}
- else miss("unit",1,"Worst sequence or email account","needs two sequences or two email accounts with "+C.UNIT_MIN_SENT+" emails");
- /* 4 and 5 */
- const checked=sendAccts.filter(a=>a.checkedAgoD!=null&&a.checkedAgoD<=C.CHECK_MAX_AGE_D&&(a.sent7||0)>0);
- if(checked.length){const tot=checked.reduce((t,a)=>t+a.sent7,0), doms=l=>new Set(l.map(a=>a.domain)).size;
-  const authBad=checked.filter(a=>a.authFail), blBad=checked.filter(a=>a.blacklisted);
-  add("auth",WSS_GROUP.delivery,wssCurve(authBad.reduce((t,a)=>t+a.sent7,0)/tot*100,C.CURVES.lost),authBad.length?"SPF, DKIM or DMARC failing on "+wssPl(doms(authBad),"domain"):"Domains set up");
-  add("blacklist",WSS_GROUP.delivery,wssCurve(blBad.reduce((t,a)=>t+a.sent7,0)/tot*100,C.CURVES.lost),blBad.length?wssPl(doms(blBad),"domain")+" blacklisted":"No domain blacklisted",{domains:[...new Set(blBad.map(a=>a.domain))]})}
- else {miss("auth",1,"SPF, DKIM and DMARC","no check in "+C.CHECK_MAX_AGE_D+" days"); miss("blacklist",1,"Blacklists","no check in "+C.CHECK_MAX_AGE_D+" days")}
- /* 6 Inbox placement */
- if(w.radar&&w.radar.count>0){const p=w.radar.inbox/w.radar.count*100, hi=wssWilson(w.radar.inbox,w.radar.count,Z)[1]*100;
-  rate("placement",WSS_GROUP.delivery,wssCurve(hi,C.CURVES.placement),wssCurve(p,C.CURVES.placement),"Inbox placement "+wssPct(p,0),"seed emails",{p,hi})}
- else miss("placement",1,"Inbox placement","no Inbox Radar test in 14 days");
- /* 7 and 8: emails, with replies that came within 3 days */
+ if(pools.length){const u=pools.flat().sort((x,y)=>y.lo-x.lo)[0]; rate("unit","prospect",wssCurve(u.lo,C.CURVES.unit),wssCurve(u.r,C.CURVES.unit),"1 "+u.kind+" bouncing "+wssPct(u.r),"emails",u)}
+ else miss("unit","prospect","Worst list","needs two sequences or two email accounts with "+C.UNIT_MIN_SENT+" emails");
  const weeks=w.reply?w.reply.weeks:null;
- if(late("replies")) ["trend","floor","positive"].forEach(k=>miss(k,2,k,"reply data is "+Math.round(lag.replies)+" hours behind"));
- else {
-  const sum=(ws,k)=>ws.reduce((t,wk)=>t+wk.steps.reduce((u,s)=>u+s[k],0),0);
-  if(weeks&&weeks.length){
-   const wins=[];
-   for(let c=0;c<Math.min(C.MAX_COHORT_WEEKS,weeks.length);c++){
-    const cohort=weeks.slice(0,c+1), older=weeks.slice(c+1);
-    let base=older.slice(0,C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS), stale=false;
-    if(!base.length){base=older.slice(C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS); stale=base.length>0}
-    const B=sum(base,"replied"), pooled=B/Math.max(1,sum(base,"sent"));
-    const stepRate=s=>{const n=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].sent:0),0), k=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].replied:0),0); return n>=100?k/n:pooled};
-    const E=cohort.reduce((t,x)=>t+x.steps.reduce((u,s,i)=>u+s.sent*stepRate(i),0),0);
-    const r0={c,O:sum(cohort,"replied"),E,B,stale,N:sum(cohort,"sent")};
-    if(B>0&&E>0){r0.raw=r0.O/E; r0.hi=wssRatio(r0.O,E,B,Z,+1); r0.g=wssCurve(r0.hi,C.CURVES.trend); r0.p=wssCurve(r0.raw,C.CURVES.trend);
-     if(stale){r0.g=Math.max(50,r0.g); r0.p=Math.max(50,r0.p)} wins.push(r0)}
-    if(E>=C.MIN_EXPECTED) break}
-   const res=wins.sort((x,y)=>x.g-y.g||x.c-y.c)[0];
-   if(res){const words=(res.raw<1?"Replies down "+Math.round((1-res.raw)*100)+"%":"Replies steady")+(res.c?" over "+(res.c+1)+" weeks":"")+(res.stale&&res.raw<1?", for over 90 days":"");
-    rate("trend",WSS_GROUP.replies,res.g,res.p,words,"replies",res)}
-   else miss("trend",2,"Replies against usual",weeks.slice(1).some(x=>x.healthy===false)?"no healthy week to compare with":"no baseline yet");
-   const fw=weeks.slice(0,4), fs=sum(fw,"sent"), fr=sum(fw,"replied");
-   if(fs>0){const rr=fr/fs*100, hi=wssWilson(fr,fs,Z)[1]*100;
-    rate("floor",WSS_GROUP.replies,wssCurve(hi,C.CURVES.floor),wssCurve(rr,C.CURVES.floor),"Very few replies: "+wssPct(rr,2)+" of emails","emails",{rr,hi,fs,fr})}
-   else miss("floor",2,"Reply floor","no emails 31 to 3 days old")}
-  else {miss("trend",2,"Replies against usual","no baseline yet"); miss("floor",2,"Reply floor","no emails 31 to 3 days old")}
-  const p=w.positive;
-  if(!p||!p.timestamped) miss("positive",2,"Positive replies","needs the date each outcome was set");
-  else if(p.cohortClassified/Math.max(1,p.cohortReplies)<C.COVERAGE_MIN||p.baseClassified/Math.max(1,p.baseReplies)<C.COVERAGE_MIN) miss("positive",2,"Positive replies","fewer than "+C.COVERAGE_MIN*100+"% of replies have an outcome");
-  else if(p.basePositive>0&&p.cohortClassified>0){const E=p.cohortClassified*p.basePositive/p.baseClassified, raw=p.cohortPositive/E, hi=wssRatio(p.cohortPositive,E,p.basePositive,Z,+1);
-   rate("positive",WSS_GROUP.replies,Math.max(50,wssCurve(hi,C.CURVES.trend)),Math.max(50,wssCurve(raw,C.CURVES.trend)),raw<1?"Positive replies down "+Math.round((1-raw)*100)+"%":"Positive replies steady","replies",{raw,hi})}
-  else miss("positive",2,"Positive replies","no baseline yet")}
- const u=w.unsub;
- if(late("unsubs")) miss("unsub",2,"Unsubscribes","unsubscribe data is behind");
- else if(u&&u.cohortSent>0&&u.baseSent>0){const E=u.cohortSent*Math.max(u.baseUnsub,0.5)/u.baseSent, raw=u.cohortUnsub/E, lo=wssRatio(u.cohortUnsub,E,u.baseUnsub,Z,-1);
-  const label=u.baseUnsub===0?u.cohortUnsub+" unsubscribes, none usual":"Unsubscribes "+(u.cohortUnsub/(u.cohortSent*u.baseUnsub/u.baseSent)).toFixed(1)+"x usual";
-  rate("unsub",WSS_GROUP.replies,Math.max(50,wssCurve(lo,C.CURVES.unsub)),Math.max(50,wssCurve(raw,C.CURVES.unsub)),label,"emails",{raw,lo})}
- else miss("unsub",2,"Unsubscribes","no baseline yet");
- const flagged=F.some(f=>f.score<75);
- if(sent<C.MIN_SENT&&!flagged){
+ if(late("replies")){miss("trend","prospect","Replies against usual","reply data is "+Math.round(lag.replies)+" hours behind"); miss("floor","prospect","Reply floor","reply data is behind")}
+ else if(weeks&&weeks.length){
+  const sum=(ws,k)=>ws.reduce((t,x)=>t+x.steps.reduce((u,s)=>u+s[k],0),0);
+  const wins=[];
+  for(let c=0;c<Math.min(C.MAX_COHORT_WEEKS,weeks.length);c++){
+   const cohort=weeks.slice(0,c+1), older=weeks.slice(c+1);
+   let base=older.slice(0,C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS), stale=false;
+   if(!base.length){base=older.slice(C.LOOKBACK_WEEKS-c-1).filter(x=>x.healthy).slice(0,C.BASE_WEEKS); stale=base.length>0}
+   const B=sum(base,"replied"), pooled=B/Math.max(1,sum(base,"sent"));
+   const stepRate=s=>{const n=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].sent:0),0), k=base.reduce((t,x)=>t+(x.steps[s]?x.steps[s].replied:0),0); return n>=100?k/n:pooled};
+   const E=cohort.reduce((t,x)=>t+x.steps.reduce((u,s,i)=>u+s.sent*stepRate(i),0),0), O=sum(cohort,"replied");
+   if(B>0&&E>0){const raw=O/E, hi=wssRatio(O,E,B,Z,+1); let g=wssCurve(hi,C.CURVES.trend), p=wssCurve(raw,C.CURVES.trend); if(stale){g=Math.max(50,g); p=Math.max(50,p)} wins.push({c,O,E,B,raw,hi,g,p,stale})}
+   if(E>=C.MIN_EXPECTED) break}
+  const res=wins.sort((x,y)=>x.g-y.g||x.c-y.c)[0];
+  if(res) rate("trend","prospect",res.g,res.p,(res.raw<1?"Replies down "+Math.round((1-res.raw)*100)+"%":"Replies steady")+(res.c?" over "+(res.c+1)+" weeks":"")+(res.stale&&res.raw<1?", for over 90 days":""),"replies",res);
+  else miss("trend","prospect","Replies against usual",weeks.slice(1).some(x=>x.healthy===false)?"no healthy week to compare with":"no baseline yet");
+  const fw=weeks.slice(0,4), fs=sum(fw,"sent"), fr=sum(fw,"replied");
+  if(fs>0){const rr=fr/fs*100, hi=wssWilson(fr,fs,Z)[1]*100; rate("floor","prospect",wssCurve(hi,C.CURVES.floor),wssCurve(rr,C.CURVES.floor),"Very few replies: "+wssPct(rr,2)+" of emails","emails",{rr,hi,fs,fr})}
+  else miss("floor","prospect","Reply floor","no emails 31 to 3 days old")}
+ else {miss("trend","prospect","Replies against usual","no baseline yet"); miss("floor","prospect","Reply floor","no emails 31 to 3 days old")}
+ const pqE=P.filter(p=>p.part==="prospect").map(p=>p.score);
+ const pqEmail=pqE.length?Math.min(...pqE):null;
+ /* calls: only once "connect" is defined; LinkedIn has no outcome data and is left out */
+ let pqCall=null;
+ if(calls.made7>0&&calls.connectDefined){const lo=wssWilson(calls.connected7,calls.made7,Z)[1]*100; pqCall=wssCurve(lo,C.CURVES.connect); if(pqCall<75) add("connect","prospect",pqCall,"Calls connecting "+wssPct(calls.connected7/calls.made7*100,0))}
+ else if(calls.made7>0) miss("connect","prospect","Calls","needs a definition of a connected call");
+ const prospect=wssWmean([[pqEmail,sent],[pqCall,calls.made7||0]].filter(([v,wt])=>v!=null&&wt>0))??pqEmail;
+ /* Sequence setup, shown only: (setup + writing) / 2, weighted by emails */
+ const sq=seqs.filter(q=>q.setup!=null&&(q.sent7||0)>0);
+ const setup=sq.length?Math.round(wssWmean(sq.map(q=>[(q.setup+q.writing)/2,q.sent7]))):null;
+ const setupStale=sq.length?sq.filter(q=>(q.scoreAgeD||0)>C.SETUP_STALE_D).reduce((t,q)=>t+q.sent7,0)/sq.reduce((t,q)=>t+q.sent7,0):0;
+ const parts={mailbox:mailbox==null?null:Math.round(mailbox),prospect:prospect==null?null:Math.round(prospect),setup,setupStale};
+ const flagged=P.some(p=>p.score<75)||(mailbox!=null&&mailbox<75);
+ if(sent<C.MIN_SENT&&!flagged&&!calls.made7&&!li.steps7){
   const active=seqs.filter(q=>!q.deleted&&q.cls===null&&q.due!==false);
   if(!active.length&&seqs.some(q=>["choice","limit","plan"].includes(q.cls)))
-   return Object.assign(state("Not sending",seqs.some(q=>q.cls==="limit")?"Stopped at a limit; see Highest usage":seqs.some(q=>q.cls==="plan")?"Paused by the plan; see Billing":"Every sequence is paused by a person"),{missing:M});
-  return Object.assign(state("Not enough data","Scores start at "+C.MIN_SENT+" emails sent in 7 days; "+f(sent)+" sent"),{factors:F,missing:M})}
- const low=Math.min(...F.map(x=>x.score)), score=Math.round(low), band=wssBand(score);
- const cands=F.filter(x=>x.score-low<=5&&wssBand(Math.round(x.score))===wssBand(Math.round(low)));
- const first=cands.sort((a,b)=>WSS_FIRST[a.group]-WSS_FIRST[b.group]||a.score-b.score)[0];
- const shares=x=>(x.key==="unit"&&first.key==="bounce")||(x.key==="bounce"&&first.key==="unit");
- const more=F.filter(x=>x!==first&&x.score<75&&!shares(x)).length;
- return {state:null,score,band,fixFirst:band==="On track"?null:first,more:band==="On track"?0:more,factors:F,missing:M,sent}}
+   return Object.assign(state("Not sending",seqs.some(q=>q.cls==="limit")?"Stopped at a limit; see Highest usage":seqs.some(q=>q.cls==="plan")?"Paused by the plan; see Billing":"Every sequence is paused by a person"),{parts,missing:M});
+  return Object.assign(state("Not enough data","Scores start at "+C.MIN_SENT+" emails sent in 7 days; "+sent+" sent"),{parts,problems:P,missing:M})}
+ /* the lower of the two parts; fix first: the lowest problem of the lower part, or of both when within 5 points and in one band */
+ const avail=[["mailbox",mailbox],["prospect",prospect]].filter(([,v])=>v!=null);
+ const low=Math.min(...avail.map(([,v])=>v));
+ const score=Math.round(low), band=wssBand(score);
+ const near=avail.filter(([,v])=>v-low<=5&&wssBand(Math.round(v))===band).map(([k])=>k);
+ const pool=P.filter(p=>near.includes(p.part)), minP=Math.min(...pool.map(p=>p.score));
+ const cands=pool.filter(p=>p.score-minP<=5&&wssBand(Math.round(p.score))===wssBand(Math.round(minP)));
+ const first=cands.sort((a,b)=>WSS_RANK[a.key]-WSS_RANK[b.key]||a.score-b.score)[0];
+ const shares=f=>first&&((f.key==="unit"&&first.key==="bounce")||(f.key==="bounce"&&first.key==="unit")
+  ||(f.key==="stopped"&&first.key==="disconnected"&&f.detail.mailboxCaused)||(f.key==="disconnected"&&first.key==="stopped"&&first.detail.mailboxCaused));
+ const more=P.filter(p=>p!==first&&p.score<75&&!shares(p)).length;
+ const trend=w.prevScore==null?null:wssBand(w.prevScore)!==band?(score>w.prevScore?"up":"down"):null;
+ return {state:null,score,band,parts,fixFirst:band==="On track"?null:first,more:band==="On track"?0:more,problems:P,missing:M,trend,sent}}
 /* the vC seed adapter, as score.mjs readSeed and fromSeed: the last 7 days whatever the Dashboard's period */
 function wssInput(c){
  const keep=HOME_WIN; HOME_WIN="7d";
@@ -4006,31 +4022,38 @@ function wssInput(c){
  const SW=sq.map(q=>c.sent?Math.round(q.sent*W.sent/c.sent):0);
  if(SW.length){const d=W.sent-SW.reduce((a,x)=>a+x,0); SW[SW.indexOf(Math.max(...SW))]+=d}
  const rates=SW.length?hpBounce(M,SW):[];
- const sentAll=c.sent, sent7=W.sent, bounce=M.bounce, chan=(typeof CHAN!=="undefined"&&CHAN[c.id])||{};
- const infra=INFRA_ALL.filter(a=>a.client===c.id);
- const S=sq.map((q,i)=>({name:q.name,state:q.state,sent7:SW[i],rate:rates[i]}));
+ const sent7=W.sent, bounce=M.bounce, infra=INFRA_ALL.filter(a=>a.client===c.id);
+ const S=sq.map((q,i)=>({name:q.name,state:q.state,sent7:SW[i],rate:rates[i],sq:seqStats(c,q).score}));
  const order=[...S.filter(q=>q.state==="Paused"),...S.filter(q=>q.state==="Active")];
  const sysSet=new Set(order.slice(0,M.sysPaused||0).map(q=>q.name));
  const stalled=infra.filter(a=>a.kind==="Sequence stalled").map(a=>a.detail.split(" has ")[0]);
  const actives=S.filter(q=>q.state==="Active");
- const sequences=S.map(q=>({name:q.name,sent7:q.sent7,bounced7:Math.round(q.sent7*q.rate/100),pauseReason:sysSet.has(q.name)?99:q.state==="Paused"?4:null,faultAgeH:72,due:true,stalled:false}));
+ /* vC's Sequence Score is random (seqStats) and has no sub-scores: it stands in for both setup and writing */
+ const sequences=S.map(q=>({name:q.name,sent7:q.sent7,bounced7:Math.round(q.sent7*q.rate/100),pauseReason:sysSet.has(q.name)?99:q.state==="Paused"?4:null,faultAgeH:72,due:true,stalled:false,setup:q.sq,writing:q.sq,scoreAgeD:5}));
  stalled.forEach(n=>{const hit=sequences.find(q=>q.name===n)||sequences.find(q=>q.name===actives.map(x=>x.name)[actives.length>>1]); if(hit) hit.stalled=true});
  let mp=M.paused||0;
  const accounts=(c.mailboxes||[]).map(x=>{let st=x[1]==="Disconnected"?"disconnected":"sending";
   if(st==="sending"&&x[1]==="Healthy"&&mp>0){mp--; st="paused-user"}
-  return {email:x[0],domain:x[0].split("@")[1],state:st,faultAgeH:72,warming:x[1]==="Warming",assigned:x[1]!=="Warming"}});
+  /* vC's health runs to 120: read as at most 100. vC's "Warming" accounts send no cold email here. */
+  return {email:x[0],domain:x[0].split("@")[1],state:st,faultAgeH:72,health:Math.min(100,x[2]),warming:x[1]==="Warming",assigned:x[1]!=="Warming"}});
  const senders=accounts.filter(a=>a.state!=="paused-user"&&!a.warming), per=senders.length?sent7/senders.length:0;
  accounts.forEach(a=>{const cold=senders.includes(a); a.usual7=cold?Math.round(per):0; a.sent7=cold&&a.state==="sending"?Math.round(per):0; a.bounced7=Math.round(a.sent7*bounce/100)});
  infra.filter(a=>a.kind==="Bounce rate rising").forEach(a=>{const m=a.detail.match(/^(\S+) at ([\d.]+)%/), x=m&&accounts.find(y=>y.email===m[1]); if(x) x.bounced7=Math.round(x.sent7*+m[2]/100)});
  const totB=Math.round(sent7*bounce/100), sb=sequences.reduce((t,q)=>t+q.bounced7,0);
  if(sb){sequences.forEach(q=>(q.bounced7=Math.round(q.bounced7*totB/sb))); sequences[0].bounced7+=totB-sequences.reduce((t,q)=>t+q.bounced7,0)}
  const prevSent=W.prev.sent||sent7, prevRep=Math.round((W.prev.cont||W.cont)*c.prev/100);
- return {id:c.id,status:c.deletedOn?"deleted":c.disabled?"disabled":"active",everSentEmail:sentAll>0,otherChannels:!!(chan.li||chan.call),sequences,accounts,radar:null,
-  reply:c.prev?{weeks:[{steps:[{sent:sent7,replied:W.rep}]},{steps:[{sent:Math.round(prevSent),replied:prevRep}],healthy:true}]}:null,positive:null,unsub:null}}
+ /* vC has calls but no number status or outcomes: calls read as having an active number, connect not defined. LinkedIn
+    has no step results in vC, so it is left out of the score (score.mjs fromSeed) */
+ return {id:c.id,status:c.deletedOn?"deleted":c.disabled?"disabled":"active",viewer:"agency",everSentEmail:c.sent>0,sequences,accounts,
+  calls:{made7:W.calls||0,activeNumber:true,connectDefined:false},
+  reply:c.prev?{weeks:[{steps:[{sent:sent7,replied:W.rep}]},{steps:[{sent:Math.round(prevSent),replied:prevRep}],healthy:true}]}:null,
+  /* for the detail screen only (never read by wssScore) */
+  _seed:{infra,stalledDays:(infra.find(a=>a.kind==="Sequence stalled")||{detail:""}).detail.match(/in (\d+) days?/),chan:(typeof CHAN!=="undefined"&&CHAN[c.id])||{}}}}
 /* one result per workspace per render; Refresh clears it */
-let WSS_C=null, WSS_UPD=10, WSS_SUB={}, WSS_HC=null;
+let WSS_C=null, WSS_UPD=10, WSS_SUB={}, WSS_HC=null, WSS_OPEN={};
 function wssOf(c){if(!WSS_C){WSS_C={}; setTimeout(()=>{WSS_C=null},0)}
- if(!WSS_C[c.id]){let r; try{r=wssScore(wssInput(c))}catch(e){r={state:"Data delayed",why:"The score could not be worked out",score:null,band:null,factors:[],missing:[]}} WSS_C[c.id]=r}
+ if(!WSS_C[c.id]){let r, w=null; try{w=wssInput(c); r=wssScore(w)}catch(e){r={state:"Data delayed",why:"The score could not be worked out",score:null,band:null,parts:{},problems:[],missing:[]}}
+  r.input=w; WSS_C[c.id]=r}
  return WSS_C[c.id]}
 /* phase 1 (doc 108 question 7): the agency only; a client user, signed in or previewed, sees no column and no tab */
 const wssOn=()=>ctx==="agency"&&!asClient&&!CLIENT_SESSION;
@@ -4065,30 +4088,54 @@ function wssGauge(score,sm){const G=sm?{w:182,h:100,cx:91,cy:63.333,r:58.625,sw:
   +'<path d="'+arc(-120,120)+'" fill="none" stroke="#F1F2F5" stroke-width="'+G.sw+'" stroke-linecap="round"/>'+bar
   +'<text class="wss-g-num" x="'+G.cx+'" y="'+G.cy+'" style="fill:'+WSS_NUM[k]+'">'+(score==null?"&ndash;":score)+'</text></svg>'
   +mk("zero","0")+mk("tf","25",1)+mk("fifty","50",1)+mk("sf","75",1)+mk("hundred","100")+'</div>'}
-/* the Dashboard cell: production's pill, its tooltip and its click; a dash for every state (doc 108 4.5) */
-function wssCell(c){const r=wssOf(c);
- if(r.score==null){const t=r.state+(r.why&&r.why!==r.state?". "+r.why+".":"");
-  return '<span class="is-none wss-none u-tip" title="" data-uwtip="'+wssEa(t)+'" tabindex="0" aria-label="Workspace score: '+wssEa(t)+'">&ndash;</span>'}
- const k=wssCls(r);
- return '<button type="button" class="wss-pill '+k+' u-tip" title="" data-uwlg data-uwtip="Your workspace score is '+r.band+'. Click to know more." data-wssgo="'+c.id+'" aria-label="Workspace score '+r.score+', '+r.band+'. Open the Workspace score tab"><span>'+r.score+'</span></button>'}
+/* ═══ change 342: what the score shows (doc 108 pass 6, "Shown as" and part 9) ═══
+   The Dashboard cell: production's Sequence Score list pill with the number only, coloured by band, on every scored row;
+   Check and Fix now add the problem named under it ("Hard bounce 4.2%, +1"); New, Disabled and the other states as grey
+   words. The tooltip is 108's hover: the score, both parts with their problems, setup shown only, what is not checked. */
+const wssSetupLabel=s=>s==null?"":s<=30?"Poor":s<=50?"Below average":s<=60?"Average":s<=70?"Good":s<=85?"Very good":"Excellent";   /* getSequenceScoreBasedContent */
+const wssChan=r=>{const w=r.input||{}, ch=(w._seed||{}).chan||{}; return {calls:(w.calls||{}).made7||0,li:ch.li||0}};
+/* one name per concept (board round 11): 108, the hover and the tab all say Mailbox health; phone and LinkedIn count inside it by activity */
+const wssNames=r=>["Mailbox health","Prospect quality","Sequence setup"];
+const wssNotChecked=r=>["warm-up"].concat(r.missing.some(m=>m.key==="connect")?["calls"]:[]);
+const wssProbs=(r,part)=>r.problems.filter(p=>p.part===part&&p.score<75).sort((a,b)=>(b===r.fixFirst)-(a===r.fixFirst)||a.score-b.score).map(p=>p.label);   /* the problem named first */
+function wssTipText(r){
+ if(r.score==null) return r.state+(r.why&&r.why!==r.state?". "+r.why+".":"");
+ const N=wssNames(r), line=(n,v,ps)=>n+" "+v+(ps.length?": "+ps.join(", "):"");
+ return [r.band+" "+r.score,line(N[0],r.parts.mailbox,wssProbs(r,"mailbox")),line(N[1],r.parts.prospect,wssProbs(r,"prospect")),
+  r.parts.setup==null?null:N[2]+" "+r.parts.setup+", "+wssSetupLabel(r.parts.setup).toLowerCase()+", shown only",
+  "Not checked: "+wssNotChecked(r).join(", "),"Click to know more."].filter(Boolean).join("\n")}
+const wssProbText=r=>r.fixFirst?r.fixFirst.label+(r.more?", +"+r.more:""):"";
+function wssCell(c){const r=wssOf(c), t=wssEa(wssTipText(r));
+ if(r.score==null)
+  return '<span class="wss-word u-tip" title="" data-uwlg data-uwtip="'+t+'" tabindex="0" aria-label="Workspace score: '+t+'">'+r.state+'</span>';
+ /* production's Sequence Score list pill (sequence-list-table.tsx 1265-1295): the number only, coloured by band; the band word
+    lives in the tooltip and the hover card (Hitesh: "exactly like sequence score in sequence list column") */
+ const k=wssCls(r), pill='<button type="button" class="wss-pill '+k+' u-tip" title="" data-uwlg data-uwtip="'+t+'" data-wssgo="'+c.id+'" aria-label="Workspace score '+r.score+', '+r.band+(r.band==="On track"?"":", "+wssEa(wssProbText(r)))+'. Open the Workspace score tab"><span>'+r.score+'</span></button>';
+ if(r.band==="On track") return pill;
+ return '<span class="wss-cell">'+pill+'<span class="cs wss-prob">'+wssProbText(r)+'</span></span>'}
 const wssEa=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 const wssSortVal=c=>{const r=wssOf(c); return r.score==null?null:r.score};
 /* the record's tab label: production's 28px ring and "Sequence Score" text in their hover container */
 function wssTabLabel(c){const r=wssOf(c);
  return '<span class="wss-tab'+(r.score==null?' is-off':'')+'" data-wsshc="'+c.id+'"><span class="wss-tab-r">'+wssRing(r.score,28,"2.5rem")+'</span><span class="wss-tab-t">Workspace score</span></span>'}
-const wssGroups=r=>[0,1,2].map(g=>{const x=r.factors.filter(y=>y.group===g); return x.length?Math.round(Math.min(...x.map(y=>y.score))):null});
-const WSS_ADVICE={poor:"This workspace is unlikely to get good results until you fix what the Workspace score tab shows.",
- average:"This workspace may get fewer results, so look at what the Workspace score tab shows.",
- excellent:"This workspace is sending, reaching the inbox and getting replies as usual."};
+/* the three parts: the two scored ones in the band colours, Sequence setup never coloured as a band */
+const wssGroups=r=>[r.parts.mailbox??null,r.parts.prospect??null,r.parts.setup??null];
+function wssRingN(score,size,fs){const r=46, d=Math.PI*2*r, off=((100-(score||0))/100)*d, P="M 50,50 m 0,-46 a 46,46 0 1 1 0,92 a 46,46 0 1 1 0,-92";
+ return '<svg class="wss-cpb wss-cpb--n" viewBox="0 0 100 100" width="'+size+'" height="'+size+'" aria-hidden="true" focusable="false">'
+  +'<path d="'+P+'" stroke-width="8" fill-opacity="0" style="stroke:#F3F4F6"/>'
+  +'<path class="wss-cpb-p" d="'+P+'" stroke-width="8" fill-opacity="0" style="stroke:#9CA3AF;stroke-linecap:round;stroke-dasharray:'+d.toFixed(3)+'px '+d.toFixed(3)+'px;stroke-dashoffset:'+off.toFixed(3)+'px"/>'
+  +'<text x="50" y="50" style="fill:#4B5563;font-size:'+fs+';font-weight:600;dominant-baseline:central;text-anchor:middle">'+(score==null?"&ndash;":score)+'</text></svg>'}
+const wssPartRing=(i,s,size,fs)=>i===2?wssRingN(s,size,fs):wssRing(s,size,fs);
 const WSS_DESC={poor:"This indicates a problem that is costing this workspace results, so fix it first.",
  average:"This suggests something in this workspace is slipping and is worth a look this week.",
- excellent:"This indicates the emails are going out, reaching the inbox and getting replies as usual."};
-/* production's hover card (SequenceScoreCard): three rings, the gauge, "Your sequence score is", the advice line; no emoji */
-function wssCardHTML(c){const r=wssOf(c), k=wssCls(r), G=wssGroups(r);
+ excellent:"This indicates the email accounts can send and the prospects reply as usual."};
+/* production's hover card (SequenceScoreCard): three rings, the gauge, "Your workspace score is", one line; no emoji */
+function wssAdvice(r){return (r.fixFirst?"Fix first: "+wssProbText(r)+".":"Nothing needs you.")+" Not checked: "+wssNotChecked(r).join(", ")+"."}
+function wssCardHTML(c){const r=wssOf(c), k=wssCls(r), G=wssGroups(r), N=wssNames(r);
  return '<div class="wss-hc" id="wssHc" role="tooltip"><div class="wss-hc-items '+k+'"><div class="wss-hc-l">'
-  +WSS_GNAME.map((n,i)=>'<div class="wss-hc-i">'+wssRing(G[i],32,"2.5rem")+'<div class="wss-hc-n">'+n+'</div></div>').join("")+'</div>'
+  +N.map((n,i)=>'<div class="wss-hc-i">'+wssPartRing(i,G[i],32,"2.5rem")+'<div class="wss-hc-n">'+n+(i===2&&G[2]!=null?', '+wssSetupLabel(G[2]).toLowerCase():'')+'</div></div>').join("")+'</div>'
   +'<div class="wss-hc-r">'+wssGauge(r.score,true)+'<div class="wss-hc-b"><span class="wss-hc-bt">Your workspace score is</span><span class="wss-hc-bv '+k+'">'+r.band+'</span></div></div></div>'
-  +'<div class="wss-hc-a"><span>'+WSS_ADVICE[k]+'</span></div></div>'}
+  +'<div class="wss-hc-a"><span>'+wssAdvice(r)+'</span></div></div>'}
 function wssHcClose(){WSS_HC=null; const p=el("wssHc"); if(p) p.remove()}
 function wssHcOpen(t){const id=t.dataset.wsshc, c=byId[id]; if(!c||!wssOn()) return; const r=wssOf(c); if(r.score==null) return;
  if(WSS_HC===id&&el("wssHc")) return; wssHcClose(); WSS_HC=id;
@@ -4104,51 +4151,280 @@ const WSS_MARK={valid:'<svg width="18" height="18" viewBox="0 0 20 20" fill="non
  partial:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M15.5303 4.72529C15.8232 5.01818 15.8232 5.49305 15.5303 5.78595L8.03033 13.2859C7.73744 13.5788 7.26256 13.5788 6.96967 13.2859L3.21967 9.53594C2.92678 9.24305 2.92678 8.76818 3.21967 8.47529C3.51256 8.18239 3.98744 8.18239 4.28033 8.47529L7.5 11.695L14.4697 4.72529C14.7626 4.43239 15.2374 4.43239 15.5303 4.72529Z" fill="#FB923C"/></svg>',
  invalid:'<svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99992 5.33337C8.36811 5.33337 8.66659 5.63185 8.66659 6.00004V7.33337C8.66659 7.70156 8.36811 8.00004 7.99992 8.00004C7.63173 8.00004 7.33325 7.70156 7.33325 7.33337V6.00004C7.33325 5.63185 7.63173 5.33337 7.99992 5.33337ZM7.99992 9.33337C8.36811 9.33337 8.66659 9.63185 8.66659 10V10.0067C8.66659 10.3749 8.36811 10.6734 7.99992 10.6734C7.63173 10.6734 7.33325 10.3749 7.33325 10.0067V10C7.33325 9.63185 7.63173 9.33337 7.99992 9.33337Z" fill="#C2410C"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.98436 1.58708C7.29212 1.40563 7.64286 1.30994 8.00012 1.30994C8.35738 1.30994 8.70812 1.40563 9.01587 1.58708C9.32217 1.76766 9.57476 2.02663 9.74766 2.33726L14.4123 10.5003C14.427 10.5261 14.44 10.5528 14.4511 10.5802C14.5712 10.8758 14.6188 11.1958 14.59 11.5135C14.5611 11.8313 14.4567 12.1375 14.2855 12.4066C14.1142 12.6758 13.881 12.9001 13.6054 13.0607C13.3298 13.2214 13.0197 13.3138 12.7011 13.3302C12.6897 13.3308 12.6782 13.3311 12.6668 13.3311H3.38012C3.37246 13.3311 3.36484 13.331 3.35725 13.3307C3.33805 13.3314 3.31867 13.3312 3.29913 13.3302C2.98052 13.3138 2.67047 13.2214 2.39485 13.0607C2.11924 12.9001 1.88606 12.6758 1.71478 12.4066C1.5435 12.1375 1.43909 11.8313 1.41028 11.5135C1.38146 11.1958 1.42907 10.8758 1.54913 10.5802C1.56028 10.5528 1.57325 10.5261 1.58796 10.5003L6.25257 2.33726C6.42547 2.02663 6.67806 1.76766 6.98436 1.58708ZM3.35853 11.9981C3.36569 11.9979 3.37289 11.9978 3.38012 11.9978H12.6467C12.7479 11.9904 12.8461 11.96 12.9339 11.9088C13.0258 11.8553 13.1035 11.7805 13.1606 11.6908C13.2177 11.6011 13.2525 11.499 13.2621 11.3931C13.2706 11.2995 13.2591 11.2052 13.2287 11.1165L8.58339 2.98722C8.52574 2.88302 8.44129 2.79613 8.3387 2.73565C8.23612 2.67517 8.1192 2.64327 8.00012 2.64327C7.88103 2.64327 7.76412 2.67517 7.66153 2.73565C7.55895 2.79613 7.47444 2.88299 7.41678 2.98719L7.41233 2.99523L2.77151 11.1166C2.74109 11.2052 2.72967 11.2995 2.73816 11.3931C2.74776 11.499 2.78257 11.6011 2.83966 11.6908C2.89675 11.7805 2.97448 11.8553 3.06635 11.9088C3.15555 11.9608 3.25558 11.9914 3.35853 11.9981Z" fill="#C2410C"/></svg>',
  none:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="6.75" stroke="#ddd" stroke-width="1.5"/></svg>'};
-/* the ten questions, in chain order, each with its plain question, its fix and its button (doc 108 part 8) */
-const WSS_Q=[["sending",0,"Is any sequence or email account stopped by a fault?"],["bounce",1,"Are emails bouncing?"],["unit",1,"Is one sequence or email account bouncing?"],
- ["auth",1,"Do the sending domains pass SPF, DKIM and DMARC?"],["blacklist",1,"Is a sending domain blacklisted?"],["placement",1,"Are emails landing in the inbox?"],
- ["trend",2,"Are replies at their usual level?"],["floor",2,"Do enough emails get a reply?"],["positive",2,"Are positive replies at their usual level?"],["unsub",2,"Are unsubscribes at their usual level?"]];
-const WSS_FAULT={sending:1,auth:1,blacklist:1};
-function wssRow(c,q,r){const [key,,question]=q, x=r.factors.find(y=>y.key===key), m=r.missing.find(y=>y.key===key), D=x&&x.detail||{};
- if(!x) return {mark:"none",question,desc:"Not checked: "+(m?m.why:"no data")+"."};
- const s=Math.round(x.score), prob=s<75||(WSS_FAULT[key]&&s<100), mark=s<50?"invalid":prob?"partial":"valid";
- let res=x.label+".", fix="", act=null;
- if(key==="sending"){ if(!D.lost) res="Nothing is stopped by a fault.";
-  else {res=x.label+", about "+Math.round(D.lost)+"% of usual sending.";
-   if(D.disc&&D.disc.length&&!D.bySeq){fix="Reconnect it so its emails send again."; act=["Reconnect",c.id+"|accounts|"+D.disc[0]]}
-   else {fix=D.stall?"Open it and check why it has not sent.":"Resume it, or fix what stopped it."; act=["Open sequences",c.id+"|sequences"]}}}
- if(key==="bounce"){res=x.label+": "+f(D.bounced)+" of "+f(D.sent)+" emails in the last 7 days."; if(prob){fix="Verify the prospects before more emails go out."; act=["Verify prospects",c.id+"|verify"]}}
- if(key==="unit"){res=s<100?x.label+": "+D.name+", "+f(D.b)+" of "+f(D.n)+" emails.":"The highest is "+D.name+" at "+wssPct(D.r)+".";
-  if(prob){fix=D.kind==="sequence"?"Clean that sequence's list before it sends more.":"Check that email account before it sends more."; act=D.kind==="sequence"?["Open sequence",c.id+"|sequences"]:["Open email account",c.id+"|accounts|"+D.name]}}
- if(key==="trend"){res=x.label+": "+f(D.O)+" against "+f(Math.round(D.E))+" usual for this many emails."; if(prob){fix="Check the copy and the list of the sequences that slowed."; act=["Open sequences",c.id+"|sequences"]}}
- if(key==="floor"){res=prob?x.label+".":wssPct(D.rr,2)+" of emails got a reply in the last month."; if(prob){fix="Change the copy, the list or the offer."; act=["Open sequences",c.id+"|sequences"]}}
- if((key==="auth"||key==="blacklist")&&prob){fix="Fix the domain's records, or move its email accounts."; act=["Open email accounts",c.id+"|accounts"]}
- if(key==="placement"&&prob){fix="Test again after the fixes, or change the domain."; act=["Open Inbox Radar",c.id+"|radar"]}
- if(key==="positive"&&prob){fix="Read the latest replies for what changed."; act=["Open replies",c.id+"|inbox"]}
- if(key==="unsub"&&prob){fix="Check who the sequences are sending to."; act=["Open sequences",c.id+"|sequences"]}
- return {mark,question,desc:res+(fix?" "+fix:""),act}}
-const WSS_TIP=["This score asks whether the emails are going out. A sequence or email account stopped by a fault lowers it; a pause by a person or a limit does not.",
- "This score asks whether the emails reach the inbox: bounces across the workspace and in its worst sequence or email account, SPF, DKIM and DMARC, blacklists and Inbox Radar tests.",
- "This score asks whether people reply: replies against this workspace's usual, how many emails get a reply, positive replies and unsubscribes."];
+/* ── the detail data. Every number the rows and tables show comes from the same seed input as the score (wssInput).
+   INVENTED for the demo, never read by wssScore (change 342 docstring lists them): each account's health score parts,
+   the Warming accounts' health, pause and fault since-dates, the per-sequence split of replies and their usual week,
+   the Sequence setup findings, phone numbers and LinkedIn accounts. ── */
+const wssHash=s=>[...String(s)].reduce((a,ch)=>(a*31+ch.charCodeAt(0))>>>0,7);
+const WSS_DAY=d=>Math.max(1,9-d)+" Sep";   /* the demo clock is 9 Sep 2026 */
+/* production's Email Account Health parts and their maxima (email-account-setup-score/enums.ts; PTR 3): 100 in all.
+   The domain checks (SPF, DKIM, DMARC, domain blacklist, MX) are per domain, so a gap in one account's score is taken
+   from its own parts: sending interval, daily quota and email age first (an orange check), then custom domain, PTR and
+   its IP's listings (a red cross or count) only when those cannot carry it. */
+const WSS_HMAX={spf:20,dkim:11,cd:8,quota:10,dmarc:10,ptr:3,dbl:12,ibl:8,mx:5,age:3,interval:10};
+function wssParts(health,h,warming){const p=Object.assign({},WSS_HMAX); let d=Math.max(0,100-Math.round(health));
+ const bin=[["cd",8],["ptr",3],["ibl",6],["ibl",2]], need=Math.max(0,d-23); let got=0;
+ for(const [k,v] of bin){if(got>=need) break; p[k]-=v; got+=v}
+ d-=got; const rot=warming?["age","interval","quota"]:[["interval","quota","age"],["quota","age","interval"],["age","interval","quota"]][h%3];
+ rot.forEach(k=>{const x=Math.min(d,p[k]); p[k]-=x; d-=x});
+ return p}
+function wssDetail(c){const r=wssOf(c); if(r.detail) return r.detail; const w=r.input;
+ if(!w){r.detail={acc:[],seq:[],ph:[],li:[]}; return r.detail}
+ const Z=WSS_CFG.Z, raw=Object.fromEntries((c.mailboxes||[]).map(x=>[x[0],x]));
+ const acc=w.accounts.map(a=>{const h=wssHash(a.email), x=raw[a.email]||[];
+  /* vC's third mailbox field is a Warming account's daily ramp, not a health score (growMailboxes); those accounts send
+     no cold email and are never weighted, so the table shows an INVENTED 80 to 89 for them */
+  const health=a.warming?80+h%10:a.state==="disconnected"?(x[2]||0):a.health;
+  const parts=health<10?Object.assign({},WSS_HMAX):wssParts(health,h,a.warming);
+  const lo=a.sent7?wssWilson(a.bounced7,a.sent7,Z)[0]*100:0;
+  /* low as the score reads it (108 3.1): a counted account whose health answers under 75, that is under 70 */
+  const low=!a.warming&&a.state!=="disconnected"&&a.state!=="paused-user"&&(a.sent7||0)>0&&wssCurve(Math.min(100,a.health),WSS_CFG.CURVES.health)<75;
+  return {email:a.email,health,parts,sent:a.sent7,bounced:a.bounced7,lo,low,conn:a.state==="disconnected"?"Disconnected":a.state==="paused-user"?"Paused":"Connected",
+   since:a.state==="disconnected"?WSS_DAY(Math.round(a.faultAgeH/24)):null,warming:a.warming,usual:a.usual7}});
+ /* sequences: the score's own sends and bounces; replies split by vC's per-sequence reply rate; the usual week INVENTED
+    around it so the workspace's usual stays the seed's */
+ const all=(c.sequences||[]).filter(q=>q.state!=="Draft"), wk=w.reply?w.reply.weeks:null;
+ const O=wk?wk[0].steps[0].replied:0, sentW=wk?wk[0].steps[0].sent:0, uS=wk?wk[1].steps[0].sent:0, uR=wk?wk[1].steps[0].replied:0;
+ const Ews=uS?sentW*uR/uS:0;
+ const g=all.map((q,i)=>w.sequences[i].sent7*Math.max(0.1,q.reply||1)), G=g.reduce((a,b)=>a+b,0)||1;
+ const u=all.map((q,i)=>w.sequences[i].sent7*Math.max(0.1,q.reply||1)*(0.75+(wssHash(q.name)%6)/10)), U=u.reduce((a,b)=>a+b,0)||1;
+ const Oi=g.map(x=>Math.round(O*x/G)); if(Oi.length){const dd=O-Oi.reduce((a,b)=>a+b,0); Oi[Oi.indexOf(Math.max(...Oi))]+=dd}
+ const seq=all.map((q,i)=>{const s=w.sequences[i], st=seqStats(c,q), E=Ews*u[i]/U, usualSent=Math.round(uS*s.sent7/Math.max(1,sentW)), usualRep=Math.round(usualSent*E/Math.max(1,s.sent7));
+  const lo=s.sent7?wssWilson(s.bounced7,s.sent7,Z)[0]*100:0, hi=E>0?wssRatio(Oi[i],E,usualRep,Z,+1):null;
+  const status=s.stalled?"Stalled":s.pauseReason===4?"Paused manually":s.pauseReason===99?"Paused at a limit":s.pauseReason?"Stopped":"Active";
+  const days=s.stalled?(w._seed.stalledDays?+w._seed.stalledDays[1]:3):s.pauseReason===99?2:s.pauseReason?2+wssHash(q.name)%5:null;
+  return {name:q.name,status,since:days==null?null:WSS_DAY(days),sent:s.sent7,bounced:s.bounced7,lo,score:st.score,O:Oi[i],E,hi,
+   trend:hi==null?null:wssCurve(hi,WSS_CFG.CURVES.trend),weeks:[{sent:s.sent7,replied:Oi[i]},{sent:usualSent,replied:usualRep}],
+   opened:st.opened,contacted:st.contacted,usual:s.usual7,stalled:s.stalled,pause:s.pauseReason}});
+ /* phone numbers and LinkedIn accounts: INVENTED, only when the workspace uses the channel; calls are the seed's 7 days,
+    LinkedIn steps the same 7-day window of vC's cycle total (as the board, winTot(CHAN.li) at 7 days) */
+ const ch=wssChan(r), ph=[], li=[], li7=Math.round((ch.li||0)/CYCLE.day*7);
+ /* LinkedIn done share (110b 5.2): INVENTED, since vC holds step volumes only and score.mjs leaves LinkedIn out. The board's
+    shares where it has them; others 88 to 95 by a hash. Each is moved toward the part until counting it would still round
+    to the seed's Mailbox health, so the ring stays score.mjs's number */
+ let liDone=null;
+ if(li7){const P=k=>r.problems.find(p=>p.key===k), af=P("disconnected")||P("health")||P("warmup"), st=P("stopped");
+  const mbE=Math.min(af?af.score:100,st?st.score:100), W0=r.sent+(ch.calls||0), base=(mbE*r.sent+100*(ch.calls||0))/Math.max(1,W0), part=r.parts.mailbox;
+  const m=N=>Math.round((base*W0+N*li7)/(W0+li7));
+  let N=({nw:94,vx:83,at:93,bl:92})[c.id]??88+wssHash(c.id)%8;
+  for(let k=0;k<100&&m(N)!==part;k++) N+=N>part?-1:1;
+  liDone=N}
+ if(ch.calls){const n=Math.min(4,Math.max(1,Math.ceil(ch.calls/500))); let left=ch.calls;
+  for(let i=0;i<n;i++){const k=i<n-1?Math.round(ch.calls/n):left; left-=k; ph.push({num:"+1 415 555 0"+String(100+(wssHash(c.id+i)%90)).slice(1),status:"Active",calls:k})}}
+ if(ch.li){const NM=["Maya Chen","Tom Reyes","Leo Park","Nina Shah","Sam Ortiz","Ava Brooks"], n=Math.min(3,Math.max(1,Math.ceil(ch.li/4000))), o=wssHash(c.id)%NM.length;
+  const dv=n===1?[0]:n===2?[-2,2]:[-2,0,2]; let left=li7;
+  for(let i=0;i<n;i++){const k=i<n-1?Math.round(li7/n):left; left-=k; li.push({name:NM[(o+i)%NM.length],conn:"Connected",steps:k,done:Math.min(100,(liDone??100)+dv[i])})}}
+ /* Sequence setup findings: INVENTED from each sequence's Sequence Score, lower scores carrying more findings */
+ const sent=seq.filter(q=>q.sent>0), F={spam:[],unv:[],steps:[],var:[]};
+ sent.forEach(q=>{const h=wssHash(q.name); if(q.score<=55) F.spam.push([q.name,3+h%4]); if(q.score<=65) F.unv.push([q.name,120+(h%9)*55]); if(q.score<=60) F.steps.push([q.name,2]); if(q.score<=50) F.var.push([q.name,1])});
+ r.detail={acc,seq,ph,li,li7,liDone,find:F,nSent:sent.length};
+ return r.detail}
+/* ── production's ScoreFactorDetailItem (score-factor-detail-item.tsx 83-186): mark, title, description, the actionable
+   list (a name and one link button per unit), a row-level link button on the right ── */
+const wssBtn=(t,go)=>'<button type="button" class="wsx-bl" data-goto="'+go+'"><span>'+t+'</span></button>';
+function wssRowHTML(x){
+ return '<div class="wss-f'+(x.mark==="blank"?' is-blank':x.mark==="none"?' is-none':'')+'" data-wssf="'+x.mark+'" data-wsskey="'+(x.key||"")+'"><div class="wss-f-c"><div class="wss-f-t">'
+  +(x.mark==="blank"?'<span class="wsx-nomark" aria-hidden="true"></span>':WSS_MARK[x.mark])+'<p>'+x.title+'</p></div><div class="wss-f-d"><p>'+x.desc+'</p></div>'
+  +(x.items&&x.items.length?'<div class="wsx-al">'+x.items.map(([n,t,go])=>'<div class="wsx-li"><h3>'+n+'</h3><div class="wsx-la">'+wssBtn(t,go)+'</div></div>').join("")+'</div>':'')+'</div>'
+  +(x.act?'<div class="wss-f-a">'+wssBtn(x.act[0],x.act[1])+'</div>':'')+'</div>'}
+const WSS_SEV={invalid:0,partial:1,valid:2,none:3,blank:4};
+/* passing checks roll into one row (board round 12): "N other checks pass", each named with its figure and its line */
+function wssRoll(L){const ok=L.filter(x=>x.mark==="valid"&&x.pass); if(!ok.length) return L;
+ const other=L.some(x=>x.mark==="invalid"||x.mark==="partial"), n=ok.length;
+ const roll={key:"pass",mark:"valid",title:n+(other?" other":"")+(n===1?" check passes":" checks pass"),desc:ok.map(x=>x.pass+".").join(" ")};
+ return L.filter(x=>!ok.includes(x)).concat([roll])}
+/* worst first; within a mark, the score's "Fix first" problem leads (as the Dashboard cell and the hover card name it) */
+const wssRows=(L,ff)=>'<div class="wss-rows">'+wssRoll(L).map((x,i)=>[x,i]).sort((a,b)=>(a[0].fixed||WSS_SEV[a[0].mark])-(b[0].fixed||WSS_SEV[b[0].mark])||(b[0].key===ff)-(a[0].key===ff)||(a[0].sc??100)-(b[0].sc??100)||a[1]-b[1]).map(([x])=>wssRowHTML(x)).join("")+'</div>';
+const wssMk=s=>s<50?"invalid":s<75?"partial":"valid";
+const wssN=x=>Number(x).toLocaleString("en-US");
+/* ── production's DataTable (data-table.tsx 62-100, _data-table.scss) under a title line, contracted to the rows with a
+   wrong cell, worst first (Hitesh, 21 Oct 2026: "show table contracted form and give option to expand – on contracted
+   form focus only on what is wrong"). Fine rows stay in the table with visibility:collapse, so every column keeps the
+   width of the full set and "Show all" never moves a column. ── */
+const WSS_P={check:"M20.707 6.3a1 1 0 0 1 0 1.415l-10 10a1 1 0 0 1-1.414 0l-5-5A1 1 0 0 1 5.707 11.3L10 15.593 19.293 6.3a1 1 0 0 1 1.414 0Z",
+ info:["M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Z","M11 7.993a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v3a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1-1-1Z"],
+ cross:["M18.707 5.293a1 1 0 0 1 0 1.414l-12 12a1 1 0 0 1-1.414-1.414l12-12a1 1 0 0 1 1.414 0Z","M5.293 5.293a1 1 0 0 1 1.414 0l12 12a1 1 0 0 1-1.414 1.414l-12-12a1 1 0 0 1 0-1.414Z"]};
+const wssSvg=(cls,paths,w,label)=>'<svg class="'+cls+'" width="'+w+'" height="'+w+'" viewBox="0 0 24 24" fill="none" role="img"'+(label?' aria-label="'+label+'"':' aria-hidden="true"')+'>'+paths.map(d=>'<path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="'+d+'"/>').join("")+'</svg>';
+/* get-health-score-columns.tsx: HealthScoreIcon, the blacklist count colours, HealthScoreField, the sequence score pill */
+function wssCellHTML(v){
+ if(v==null) return "-";
+ if(typeof v!=="object") return String(v);
+ if(v.ok===true) return wssSvg("wsx-ck",[WSS_P.check],16,"Pass");
+ if(v.ok===false) return wssSvg("wsx-ck wsx-cx",WSS_P.cross,16,"Fails");
+ if(v.qc!=null) return wssSvg("wsx-ck"+(v.qc?"":" wsx-cko"),[WSS_P.check],16,v.qc?"Ideal":"Below ideal");
+ if(v.count!=null) return '<div class="'+(v.count===0?"wsx-g":v.count<=2?"wsx-o":"wsx-r")+'"><span>'+v.count+'</span></div>';
+ if(v.pill!==undefined&&v.warm) return '<div class="wsx-hp neutral"><span>'+v.pill+'</span></div>';
+ if(v.pill!==undefined) return v.pill<10?'<button type="button" class="wsx-bl wsx-cns"><span>Check New Score</span></button>'
+  :'<div class="wsx-hp '+(v.pill>70?"excellent":v.pill>50?"average":"poor")+'"><span>'+v.pill+'</span></div>';
+ if(v.spill!==undefined) return '<div class="wsx-spc"><div class="wsx-sp '+(v.spill<=30?"poor":v.spill<=60?"average":"excellent")+'"><span>'+v.spill+'</span></div></div>';
+ if(v.rd) return '<div class="outreach-readiness-status wsx-warm u-tip" title="" data-uwtip="Your email is still warming up. Keep going before starting outreach." tabindex="0"><span class="badge-icon">'+WSS_FLAME+'</span><span class="badge-label">Warming Up</span></div>';
+ if(v.hl) return '<div class="'+(v.hl==="partial"?"wsx-o":"wsx-r")+'"><span>'+v.t+'</span></div>';
+ if(v.tip) return '<div class="u-tip" title="" data-uwtip="'+wssEa(v.tip)+'" tabindex="0"><span>'+v.t+'</span></div>';
+ return ""}
+/* production's Flame (email-warmup-outreach-readiness.tsx 25), 14px */
+const WSS_FLAME='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M15.3616 5.21342C17.0865 5.98419 18.4947 7.32349 19.3509 9.00757C20.2071 10.6916 20.4595 12.6185 20.066 14.4663C19.6725 16.3141 18.6568 17.9709 17.1887 19.16C15.7206 20.3491 13.8889 20.9984 11.9996 20.9994C10.3837 20.9994 8.80327 20.5247 7.45467 19.6344C6.10607 18.744 5.04863 17.4772 4.41363 15.9912C3.77863 14.5052 3.59403 12.8655 3.88274 11.2755C4.17145 9.6855 4.92076 8.21531 6.03765 7.04742C6.80731 8.12215 7.8229 8.99717 8.99965 9.59942C9.02026 8.27805 9.33217 6.9775 9.91313 5.79051C10.4941 4.60352 11.3298 3.55934 12.3606 2.73242C13.1474 3.78761 14.1763 4.63818 15.3606 5.21242L15.3616 5.21342Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.0005 18.0002C12.9519 17.9998 13.8676 17.6379 14.5621 16.9877C15.2566 16.3374 15.678 15.4476 15.7409 14.4983C15.8038 13.549 15.5036 12.6112 14.901 11.875C14.2984 11.1388 13.4385 10.6591 12.4955 10.5332C11.4631 11.457 10.7828 12.7102 10.5705 14.0792C9.80019 13.8908 9.0751 13.5508 8.43752 13.0792C8.25237 13.6425 8.20343 14.2416 8.2947 14.8275C8.38597 15.4133 8.61486 15.9692 8.96258 16.4494C9.3103 16.9297 9.76694 17.3206 10.295 17.5902C10.8231 17.8598 11.4076 18.0003 12.0005 18.0002V18.0002Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/* wrong levels: severe is a unit that cannot send at all (disconnected), shown first and scrolled to first (board round 11) */
+const WSS_LV={partial:1,invalid:2,severe:3};
+function wssTable(c,key,T){
+ const id=c.id+"|"+key, open=!!WSS_OPEN[id], lvl=x=>Object.values(x.bad||{}).reduce((a,b)=>Math.max(a,WSS_LV[b]||0),0);
+ const rows=T.rows.map((x,k)=>Object.assign({},x,{k,l:lvl(x)})).sort((a,b)=>(b.l>0)-(a.l>0)||(T.order?0:b.l-a.l)||a.k-b.k);
+ const nBad=rows.filter(x=>x.l).length, hidden=!open&&nBad<rows.length;
+ const btn=hidden?'Show all '+wssN(rows.length):open&&nBad<rows.length?'Show less':'';
+ const line='<div class="wsx-tl"><p class="wsx-tlt">'+T.name+' ('+wssN(rows.length)+')</p>'+(btn?'<div class="wsx-tla"><button type="button" class="wsx-bl" data-wsstbl="'+id+'" aria-expanded="'+open+'"><span>'+btn+'</span></button></div>':'')+'</div>';
+ if(!open&&!nBad) return '<div class="wsx-tw" data-wsst="'+key+'">'+line+'</div>';
+ const cls=i=>"wsx-c"+(i===0?" wsx-sc":i===1?" wsx-nbl":"");
+ const head=T.cols.map((h,i)=>'<th class="'+cls(i)+'" scope="col">'+(h.info?'<div class="wsx-hd"><span>'+h.t+'</span><span class="wsx-iw u-tip" title="" tabindex="0" data-uwtip="'+wssEa(h.info)+'" aria-label="'+wssEa(h.t+": "+h.info)+'">'+wssSvg("wsx-ii",WSS_P.info,16)+'</span></div>':h.t)+'</th>').join("");
+ const body=rows.map(x=>'<tr'+(!open&&!x.l?' class="wsx-hide" aria-hidden="true"':'')+'>'+x.cells.map((v,i)=>'<td class="'+cls(i)+'"'+(x.bad&&x.bad[i]?' data-bad="'+x.bad[i]+'"':'')+'>'+wssCellHTML(v)+'</td>').join("")+'</tr>').join("");
+ return '<div class="wsx-tw" data-wsst="'+key+'">'+line+'<div class="wsx-tc"><div class="wsx-tr"'+(open?'':' data-wssscroll="1"')+' role="region" tabindex="0" aria-label="'+wssEa(T.name)+'"><table class="wsx-t"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div></div></div>'}
+/* production's column titles and popover copy (email-account-health-score/helpers.ts POPOVER_CONTENT) */
+const WSS_ACOLS=[["Sender Account"],["Email Account Health"],["SPF Setup","Ensures that only authorized servers can send emails on behalf of your domain. Prevents spoofing."],
+ ["DKIM Setup","Adds a digital signature to emails to confirm they're sent by an authorized sender and haven't been altered."],
+ ["Custom Domain Setup","A custom tracking domain ensures that tracking links match your domain, preventing spam filters from flagging mismatched domains."],
+ ["Daily Sending Quota","The maximum number of emails an email account can send per day. Exceeding it may cause delivery issues or restrictions."],
+ ["DMARC Setup","Aligns SPF and DKIM policies, instructing mail servers on how to handle emails that fail authentication. Provides reports for visibility."],
+ ["PTR (rDNS) Set-up","Helps mail servers verify that the IP and domain are aligned, reducing spam suspicion and improving overall deliverability."],
+ ["Domain Blacklist","Occurs when a domain is flagged for spam, leading to its emails being blocked or sent to spam folders."],
+ ["IP Blacklist","Occurs when an IP address is flagged for suspicious activity, preventing it from sending emails or accessing services."],
+ ["MX Record","Determines which mail servers are responsible for handling incoming emails for your domain."],
+ ["Email Age","The amount of time an email address has been active and used, influencing its reputation and deliverability."],
+ ["Sending Interval","The time gap between two emails being sent, helping to manage email flow and avoid triggering spam filters."],
+ ["Emails sent (7 days)"],["Hard bounce"],["Connection"],["Warm-up"]].map(([t,info])=>({t,info}));
+const wssBl=p=>p.ibl===8?0:p.ibl>=2?1:3;
+/* wrong cells (board round 11): a low account's health and its failing parts only when the workspace's account health
+   answers under 75 (otherwise the contracted table would list accounts the rows call fine); warming accounts send no cold
+   email, so none of their cells is flagged; hard bounce red only above its line, 5%, at the certain figure as the score
+   reads it; a disconnected account is the most severe */
+function wssAccTable(c,d,lowAns){
+ return wssTable(c,"acc",{name:"Email accounts",cols:WSS_ACOLS,rows:d.acc.map(a=>{const p=a.parts, bad={}, hb=a.sent?a.bounced/a.sent*100:null, ibl=wssBl(p);
+  if(lowAns&&a.low){bad[1]=a.health<=50?"invalid":"partial";
+   [["spf",2],["dkim",3],["cd",4],["dmarc",6],["ptr",7],["mx",10]].forEach(([k,i])=>{if(p[k]<WSS_HMAX[k]) bad[i]="invalid"});
+   if(ibl) bad[9]=ibl>2?"invalid":"partial"}
+  if(!a.warming&&hb!=null&&a.lo>5) bad[14]="invalid";
+  if(a.conn==="Disconnected") bad[15]="severe";
+  return {bad,cells:[a.email,a.warming?{pill:a.health,warm:1}:{pill:a.health},{ok:p.spf===20},{ok:p.dkim===11},{ok:p.cd===8},{qc:p.quota>=10},{ok:p.dmarc===10},{ok:p.ptr===3},{count:0},{count:ibl},{ok:p.mx===5},
+   {qc:p.age>=3},{qc:p.interval>=10},wssN(a.sent||0),hb==null?"-":bad[14]?{hl:bad[14],t:wssPct(hb)}:wssPct(hb),
+   a.conn==="Disconnected"?{hl:"invalid",t:"Disconnected"}:a.conn,a.warming?{rd:2}:"-"]}})})}
+/* ── 1. Mailbox health (board round 11): the account health answer (disconnected first), stopped sending, phone and
+   LinkedIn by their share of activity, warm-up not checked; then the tables ── */
+function wssMailbox(c,r,d){const A=d.acc, ch=wssChan(r), out=[], P=k=>r.problems.find(p=>p.key===k);
+ const af=P("disconnected")||P("health")||P("warmup"), st=P("stopped");
+ const disc=A.filter(a=>a.conn==="Disconnected"), low=A.filter(a=>a.low).sort((x,y)=>x.health-y.health);
+ const sit=low.length?low.length+(low.length===1?" sits":" sit")+(low.every(a=>a.health===low[0].health)?" at "+low[0].health:" under 70"):"";
+ const am=af?Math.round(af.detail.acctMean):null, lowAns=am!=null&&af.score<75;
+ if(af&&disc.length) out.push({key:"disconnected",sc:af.score,mark:af.score<50?"invalid":"partial",title:wssPl(disc.length,"email account")+" disconnected",
+  desc:(disc.length===1?"It counts as 0, so":"With them at 0,")+" email account health is "+am+". Fine from 75.",items:disc.map(a=>[a.email,"Reconnect Now",c.id+"|accounts|"+a.email])});
+ else if(af&&lowAns) out.push({key:"health",sc:af.score,mark:wssMk(af.score),title:"Email account health "+am,
+  desc:sit.replace(/^(\d+)/,"$1 "+(low.length===1?"account":"accounts"))+". Fine from 75.",items:low.map(a=>[a.email,"Open email account",c.id+"|accounts|"+a.email])});
+ else if(af) out.push({key:"health",mark:"valid",title:"Email account health "+am,desc:"Weighted by usual emails. Fine from 75.",
+  pass:"Email account health "+am+", fine from 75"});   /* round 13: no account figure beside the workspace's line */
+ if(st&&st.detail.seqLost>0){const q=d.seq.filter(x=>st.detail.names.includes(x.name)), run=Math.round(st.score);
+  out.push({key:"stopped",sc:st.score,mark:wssMk(st.score)==="valid"?"partial":wssMk(st.score),title:st.label,
+   desc:(st.detail.stall?"Prospects due, no email since "+q[0].since+".":"Stopped by a fault since "+q[0].since+".")+" "+run+"% of usual sending still runs. Fine from 75%.",
+   items:q.map(x=>[x.name,"Open sequence",c.id+"|sequences|"+x.name])})}
+ else if(st) out.push({key:"stopped",mark:"valid",title:"No sequence stopped",desc:"100% of usual sending is running. Fine from 75%.",pass:"No sequence stopped"});
+ const act=r.sent+(ch.calls||0)+d.li7, share=x=>Math.round(x/act*100);
+ if(ch.calls) out.push({key:"phone",mark:"valid",title:wssPl(d.ph.length,"phone number")+" active",desc:wssN(ch.calls)+" calls in 7 days, "+share(ch.calls)+"% of activity. Fine with an active number.",
+  pass:wssPl(d.ph.length,"phone number")+" active"});
+ if(d.li7) out.push({key:"linkedin",mark:d.liDone<75?wssMk(d.liDone):"valid",title:"LinkedIn steps "+d.liDone+"% done",desc:wssN(d.li7)+" automated steps in 7 days, "+share(d.li7)+"% of activity. Fine from 75% done.",
+  pass:"LinkedIn steps "+d.liDone+"% done, fine from 75%"});
+ out.push({key:"warmup",mark:"none",title:"Warm-up not checked",desc:"Warm-up data not stored yet."});
+ return wssRows(out,r.fixFirst&&r.fixFirst.key)+wssAccTable(c,d,lowAns)
+  +(d.ph.length?wssTable(c,"ph",{name:"Phone numbers",cols:[{t:"Phone number"},{t:"Status"},{t:"Calls (7 days)"}],rows:d.ph.map(x=>({bad:x.status!=="Active"?{1:"invalid"}:{},cells:[x.num,x.status!=="Active"?{hl:"invalid",t:x.status}:x.status,wssN(x.calls)]}))}):"")
+  +(d.li.length?wssTable(c,"li",{name:"LinkedIn accounts",cols:[{t:"LinkedIn account"},{t:"Connection"},{t:"Steps (7 days)"},{t:"Done"}],
+   rows:d.li.map(x=>({bad:x.conn!=="Connected"?{1:"invalid"}:x.done<75?{3:"invalid"}:{},cells:[x.name,x.conn!=="Connected"?{hl:"invalid",t:x.conn}:x.conn,wssN(x.steps),x.done<75?{hl:"invalid",t:x.done+"%"}:x.done+"%"]}))}):"")}
+/* ── 2. Prospect quality (board rounds 11 and 12): the workspace's hard bounce against 2% (its row lists the sequences above
+   2%), the worst single sequence or account against 5% in its own row, replies against usual on a named window at the certain
+   figure, the reply floor, calls; open rate shown only. Passing checks roll into one row ── */
+const WSS_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const wssDago=n=>{const t=new Date(2026,8,9-n); return t.getDate()+" "+WSS_MON[t.getMonth()]};   /* the demo clock is 9 Sep 2026 */
+function wssProspect(c,r,d){const P=k=>r.problems.find(p=>p.key===k), M=k=>r.missing.find(m=>m.key===k), out=[];
+ const sure=x=>x.toFixed(2)+"%";
+ const b=P("bounce"), wsBad=!!(b&&b.score<75); if(b){const D=b.detail;
+  if(b.score<75) out.push({key:"bounce",sc:b.score,mark:wssMk(b.score),title:b.label,desc:wssN(D.bounced)+" of "+wssN(D.sent)+" emails in the last 7 days, at least "+sure(D.lo)+" for sure. Fine under 2%.",
+   items:d.seq.filter(q=>q.sent&&q.bounced/q.sent*100>2).sort((x,y)=>y.bounced/y.sent-x.bounced/x.sent).map(q=>[q.name,"Verify Now",c.id+"|verify"])});
+  else out.push({key:"bounce",mark:"valid",title:"Hard bounce "+wssPct(D.b),desc:wssN(D.bounced)+" of "+wssN(D.sent)+" emails in the last 7 days. Fine under 2%.",pass:"Hard bounce "+wssPct(D.b)+", fine under 2%"})}
+ const u=P("unit"); if(u){const D=u.detail, few=/\(few/.test(u.label), kind=D.kind==="sequence"?"sequence":"email account";
+  if(u.score<75||few) out.push({key:"unit",sc:u.score,mark:u.score<75?wssMk(u.score):"partial",title:u.label,
+   desc:D.name+": "+wssN(D.b)+" of "+wssN(D.n)+" emails"+(u.score<75?", at least "+sure(D.lo)+" for sure":", too few to be sure")+". Fine under 5%.",
+   items:[[D.name,D.kind==="sequence"?"Open sequence":"Open email account",c.id+(D.kind==="sequence"?"|sequences|":"|accounts|")+D.name]]});
+  /* while the workspace's 2% row is failing it names the sequences and their cells colour at 2%, so the passing 5% check
+     drops out of the roll-up (round 13): one verdict per figure */
+  else if(!wsBad) out.push({key:"unit",mark:"valid",title:"Worst "+kind+" hard bounce "+wssPct(D.r),desc:D.name+", "+wssN(D.b)+" of "+wssN(D.n)+" emails. Fine under 5%.",pass:"Worst "+kind+" hard bounce "+wssPct(D.r)+", fine under 5%"})}
+ else if(M("unit")) out.push({key:"unit",mark:"none",title:"Worst sequence not checked",desc:"Needs two sequences or two email accounts with 100 emails."});
+ const t=P("trend"); if(t){const D=t.detail, win="emails sent "+wssDago(10+7*D.c)+" to "+wssDago(3), dn=Math.round((1-D.raw)*100), sureDn=Math.round((1-D.hi)*100);
+  if(t.score<75){const fl=d.seq.filter(q=>q.hi!=null&&q.hi<0.85).sort((x,y)=>x.O/x.E-y.O/y.E);
+   out.push({key:"trend",sc:t.score,mark:wssMk(t.score),title:t.label,desc:wssN(D.O)+" replies to "+win+", against "+wssN(Math.round(D.E))+" usual, down at least "+sureDn+"% for sure. Fine under 15% down.",
+    items:fl.length?fl.map(q=>[q.name,"Open sequence",c.id+"|sequences|"+q.name]):null,act:fl.length?null:["Open sequences",c.id+"|sequences"]})}
+  else out.push({key:"trend",mark:"valid",title:t.label,desc:wssN(D.O)+" replies to "+win+", against "+wssN(Math.round(D.E))+" usual. Fine under 15% down.",
+   pass:(dn>0?"Replies down "+dn+"%":"Replies steady")+", fine under 15% down"})}
+ else if(M("trend")) out.push({key:"trend",mark:"none",title:"Replies against usual not checked",desc:M("trend").why.replace(/^./,x=>x.toUpperCase())+"."});
+ const f=P("floor"); if(f){if(f.score<75) out.push({key:"floor",sc:f.score,mark:wssMk(f.score),title:f.label,desc:"Over the last month. Fine from 0.15%."});
+  else out.push({key:"floor",mark:"valid",title:"Reply rate "+wssPct(f.detail.rr),desc:"Over the last month. Fine from 0.15%.",pass:"Reply rate "+wssPct(f.detail.rr)+" over the last month, fine from 0.15%"})}   /* 108's Check line (75), 0.15% (round 13) */
+ if(M("connect")) out.push({key:"connect",mark:"none",title:"Calls not checked",desc:"Needs a definition of a connected call."});
+ const op=d.seq.reduce((a,q)=>[a[0]+(q.opened||0),a[1]+(q.contacted||0)],[0,0]);
+ if(op[1]) out.push({key:"open",mark:"blank",fixed:9,title:"Open rate "+Math.round(op[0]/op[1]*100)+"%",desc:"Shown only. It does not change the score."});
+ /* the Sequences table, worst drop first. A cell is red only above the line of the row that lists it (round 13): hard bounce
+    over 2% while the workspace's 2% row is failing (the contracted table then holds every sequence that row names), else at
+    its certain figure over 5%; against usual at its certain drop over 15% (the 90% rule) */
+ const T={name:"Sequences",cols:["Sequence","Sequence Score","Status","Emails sent (7 days)","Hard bounce","Reply rate","Against usual","Open rate"].map(t=>({t})),
+  rows:d.seq.filter(q=>q.sent>0).sort((x,y)=>(x.E?x.O/x.E:9)-(y.E?y.O/y.E:9)||y.bounced/y.sent-x.bounced/x.sent).map(q=>{const bad={}, hb=q.bounced/q.sent*100, dn=q.E?Math.round((1-q.O/q.E)*100):null;
+   if(wsBad?hb>2:q.lo>5) bad[4]="invalid";
+   if(q.hi!=null&&q.hi<0.85) bad[6]="invalid";
+   const dv=dn==null?"-":dn>0?"Down "+dn+"%":dn<0?"Up "+(-dn)+"%":"Same";
+   return {bad,cells:[q.name,{spill:q.score},q.since?{t:q.status,tip:"Since "+q.since}:q.status,wssN(q.sent),bad[4]?{hl:"invalid",t:wssPct(hb)}:wssPct(hb),
+    wssPct(q.O/q.sent*100),bad[6]?{hl:"invalid",t:dv}:dv,q.contacted?Math.round(q.opened/q.contacted*100)+"%":"-"]}})};
+ return wssRows(out,r.fixFirst&&r.fixFirst.key)+wssTable(c,"pq",T)}
+/* ── 3. Sequence setup, shown only: production's setup and writing factor titles and buttons, across the sequences that
+   sent; production's info alert above them ── */
+/* production's 16 factors: sequence-setup-factors.tsx (Link Tracking, Open tracking, Disconnected email accounts in the
+   sequence, Number of active email accounts linked in the sequence, Sequence Status, Unverified prospects, Number of
+   follow-ups added, Number of variants used) and email-writing-factors.tsx (merge tag in the subject, merge tags in the body,
+   spintax, spammy words, plain text vs HTML, merge tags that don't exist, words in the body, characters in the subject) */
+function wssSetup(c,r,d){const F=d.find, n=d.nSent, out=[], it=(L,t)=>L.map(([q])=>[q,t,c.id+"|sequences|"+q]);
+ const one=(L,s1,sn)=>L.length===1?L[0][0]+" "+s1(L[0][1]):wssPl(L.length,"sequence")+" "+sn;
+ const disc=d.acc.filter(a=>a.conn==="Disconnected");
+ if(F.spam.length) out.push({mark:"invalid",title:"Number of spammy words used (first email step)",desc:one(F.spam,x=>"uses "+x+" spammy words.","use spammy words.")+" Fine at 0.",items:it(F.spam,"Open sequence")});
+ if(F.unv.length) out.push({mark:"partial",title:"Unverified prospects",desc:wssN(F.unv.reduce((t,x)=>t+x[1],0))+" prospects not verified, in "+F.unv.length+" of the "+wssPl(n,"sequence")+" that sent. Fine at 0.",items:it(F.unv,"Verify Now")});
+ if(F.steps.length) out.push({mark:"partial",title:"Number of follow-ups added (total email steps)",desc:one(F.steps,x=>"has "+x+" email steps.","have fewer than 3 email steps.")+" Fine from 3.",items:it(F.steps,"Add Steps")});
+ if(F.var.length) out.push({mark:"partial",title:"Number of variants used (first email step)",desc:one(F.var,x=>"has "+x+" variant.","have 1 variant.")+" Fine from 2.",items:it(F.var,"Add Variants")});
+ const pz=d.seq.filter(q=>q.sent>0&&q.pause);
+ if(pz.length) out.push({mark:"partial",title:"Sequence Status",desc:(pz.length===1?pz[0].name+" is "+pz[0].status.toLowerCase():wssPl(pz.length,"sequence")+" are paused")+". Fine when active.",items:it(pz.map(q=>[q.name]),"Open sequence")});
+ if(disc.length) out.push({mark:"partial",title:"Disconnected email accounts in the sequence",desc:wssPl(disc.length,"email account")+" disconnected. Fine at 0.",items:disc.map(a=>[a.email,"Reconnect Now",c.id+"|accounts|"+a.email])});
+ /* the roll-up names the passing factors in short, so it fits one line (board round 12) */
+ const okNames=["tracking",disc.length?"active email accounts":"email accounts"].concat(pz.length?[]:["sequence status"],F.unv.length?[]:["prospects verified"],
+  F.steps.length?[]:["follow-ups"],F.var.length?[]:["variants"],["merge tags","spintax"],F.spam.length?[]:["spammy words"],["plain text","body and subject length"]);
+ const nOk=16-out.length;
+ out.push({mark:"valid",title:nOk+" other checks pass",desc:(okNames.join(", ")+".").replace(/^./,x=>x.toUpperCase())});   /* board round 13 */
+ const T={name:"Sequences",cols:["Sequence","Sequence Score","Emails sent (7 days)","Status"].map(t=>({t})),order:1,
+  rows:d.seq.filter(q=>q.sent>0).sort((a,b)=>a.score-b.score).map(q=>({bad:q.score<=60?{1:q.score<=30?"invalid":"partial"}:{},cells:[q.name,{spill:q.score},wssN(q.sent),q.since?{t:q.status,tip:"Since "+q.since}:q.status]}))};
+ return '<div class="wsx-note" role="note"><svg class="wsx-ni" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">'+WSS_P.info.map(p=>'<path fill="#1D4ED8" fill-rule="evenodd" clip-rule="evenodd" d="'+p+'"/>').join("")+'</svg><span>Shown for setup advice. It does not change the workspace score. Sequence Score is fine from 61.</span></div>'
+  +wssRows(out)+wssTable(c,"ss",T)}
+const WSS_TIP=["Can this workspace send? Each email account's health score, weighted by its emails, with a disconnected account as 0; the share of usual sending still running; phone numbers and LinkedIn by their share of activity.",
+ "Do the emails reach real people, and do they reply? The lowest of hard bounce, the worst sequence or email account, replies against usual and the reply rate.",
+ "The setup and writing parts of Sequence Score, weighted by emails. Shown for advice: it never changes the workspace score."];
 const WSS_INFO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M11 7.993a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v3a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1-1-1Z"/></svg>';
-/* the weakest group opens first (getActiveScoreScoreTab picks the lowest); a tie keeps chain order */
-const wssWeakest=G=>{let b=0; G.forEach((s,i)=>{if(s!=null&&(G[b]==null||s<G[b])) b=i}); return b};
-/* production's tab body (sequence-score.tsx 205 to 287): gauge, headline, one-sentence description, three sub-score tabs, factor rows */
+/* the weaker scored part opens first (getActiveScoreScoreTab picks the lowest); Sequence setup never opens first */
+const wssWeakest=G=>G[1]!=null&&(G[0]==null||G[1]<G[0])?1:0;
+/* production's tab body (sequence-score.tsx 205 to 287): gauge, headline, one sentence, three part tabs, the pane */
 function wssBody(c){const r=wssOf(c);
- if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score shows how this workspace\'s email is doing this week: sending, delivery and replies.</h1><p>'+r.state+'. '+r.why+'.</p></div>';
- const k=wssCls(r), G=wssGroups(r), cur=WSS_SUB[c.id]!=null?WSS_SUB[c.id]:wssWeakest(G);
- const rows=WSS_Q.filter(q=>q[1]===cur).map(q=>wssRow(c,q,r));
+ if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score is the lower of mailbox health and prospect quality this week.</h1><p>'+r.state+'. '+r.why+'.</p></div>';
+ const k=wssCls(r), G=wssGroups(r), N=wssNames(r), cur=WSS_SUB[c.id]!=null?WSS_SUB[c.id]:wssWeakest(G), d=wssDetail(c);
  return '<div class="wss-content"><div class="wss-chart">'+wssGauge(r.score,false)+'</div>'
   +'<h2 class="wss-title">Your workspace score is <span class="'+k+'">'+r.band+'</span></h2>'
   +'<p class="wss-desc">'+WSS_DESC[k]+'</p>'
-  +'<div class="wss-tabs"><div class="wss-nav" role="tablist" aria-label="Workspace score groups">'
-  +WSS_GNAME.map((n,i)=>'<button type="button" class="wss-st'+(i===cur?' is-on':'')+'" role="tab" aria-selected="'+(i===cur)+'" data-wsssub="'+c.id+'|'+i+'">'
-    +'<span class="wss-st-p '+wssSCls(G[i])+'">'+wssRing(G[i],54,"1.6875rem")+'</span>'
-    +'<span class="wss-st-m"><span class="wss-st-t">'+n+'</span><span class="wss-st-i u-tip" title="" data-uwtip="'+wssEa(WSS_TIP[i])+'" aria-label="'+wssEa(WSS_TIP[i])+'">'+WSS_INFO+'</span></span></button>').join("")+'</div>'
-  +'<div class="wss-pane" role="tabpanel" aria-label="'+WSS_GNAME[cur]+'"><div class="wss-rows">'
-  +rows.map(x=>'<div class="wss-f'+(x.mark==="none"?' is-none':'')+'" data-wssf="'+x.mark+'"><div class="wss-f-c"><div class="wss-f-t">'+WSS_MARK[x.mark]+'<p>'+x.question+'</p></div><div class="wss-f-d"><p>'+x.desc+'</p></div></div>'
-    +(x.act?'<div class="wss-f-a"><button type="button" class="wss-link" data-goto="'+x.act[1]+'">'+x.act[0]+'</button></div>':'')+'</div>').join("")
-  +'</div></div></div></div>'}
+  +'<div class="wss-tabs"><div class="wss-nav" role="tablist" aria-label="Workspace score parts">'
+  +N.map((n,i)=>'<button type="button" class="wss-st'+(i===cur?' is-on':'')+'" role="tab" aria-selected="'+(i===cur)+'" data-wsssub="'+c.id+'|'+i+'">'
+    +'<span class="wss-st-p '+(i===2?"neutral":wssSCls(G[i]))+'">'+wssPartRing(i,G[i],54,"1.6875rem")+'</span>'
+    +'<span class="wss-st-m"><span class="wss-st-t">'+n+'</span>'+(i===2&&G[2]!=null?'<span class="wss-st-l">'+wssSetupLabel(G[2])+'</span>':'')
+    +'<span class="wss-st-i u-tip" title="" data-uwtip="'+wssEa(WSS_TIP[i])+'" aria-label="'+wssEa(WSS_TIP[i])+'">'+WSS_INFO+'</span></span></button>').join("")+'</div>'
+  +'<div class="wss-pane" role="tabpanel" aria-label="'+N[cur]+'">'+(cur===0?wssMailbox(c,r,d):cur===1?wssProspect(c,r,d):wssSetup(c,r,d))+'</div></div></div>'}
+/* contracted tables open scrolled so the most severe wrong column meets the sticky first column, never past the table's end;
+   not on phone, where the 200px sticky column leaves too little to see */
+function wssScrollTables(){if(document.documentElement.clientWidth<600) return;
+ document.querySelectorAll(".wsx-tr[data-wssscroll]").forEach(s=>{const t=s.querySelector("table"), tl=t.getBoundingClientRect().left, s0=t.rows[0].cells[0].getBoundingClientRect().width;
+  const cs=[...t.querySelectorAll("tr:not(.wsx-hide) td[data-bad]")], top=Math.max(0,...cs.map(x=>WSS_LV[x.dataset.bad]||0)), bad=cs.filter(x=>(WSS_LV[x.dataset.bad]||0)===top).map(x=>x.getBoundingClientRect()); if(!bad.length) return;
+  const L=Math.min(...bad.map(x=>x.left-tl)), R=Math.max(...bad.map(x=>x.right-tl)), W=s.clientWidth;
+  if(R>W) s.scrollLeft=Math.max(0,Math.min(L-s0,s.scrollWidth-W))})}
 /* production's header action on the score tab (sequence-single-header-actions.tsx 265 to 274): Refresh, a ghost button
    with the 20px icon; the "Updated" time sits before it. In vC Refresh only works the score out again. */
 const WSS_REF='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M4 3.008a1 1 0 0 1 1 1V6.28a9.1 9.1 0 0 1 15.99 4.59 1 1 0 0 1-1.98.275A7.1 7.1 0 0 0 6.19 8.008H9a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1ZM3.862 12.017a1 1 0 0 1 1.129.853 7.1 7.1 0 0 0 12.818 3.138H15a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-2.273a9.1 9.1 0 0 1-15.99-4.59 1 1 0 0 1 .852-1.128Z"/></svg>';
@@ -4292,7 +4568,7 @@ const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* chang
 let HSORT={home:null,ws:null};
 const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- home:[["name","Workspace","width:252px"],["status","Status","width:117px"],["score","Workspace score","width:127px","How this workspace's email is doing this week: sending, delivery and replies"],["pa","Prospects added","width:123px"],["cont","Contacted","width:116px","Prospects reached on any channel in the period: email, calls or LinkedIn. Counted once across channels"],["repd","Replied","width:108px","Prospects who replied by email or answered a call. Counted once across channels. LinkedIn replies aren't tracked"],["sent","Emails sent","width:116px"],   /* change 340 */
+ home:[["name","Workspace","width:252px"],["status","Status","width:117px"],["score","Workspace score","width:127px","The lower of mailbox health and prospect quality this week. Sequence setup is shown, never scored"],["pa","Prospects added","width:123px"],["cont","Contacted","width:116px","Prospects reached on any channel in the period: email, calls or LinkedIn. Counted once across channels"],["repd","Replied","width:108px","Prospects who replied by email or answered a call. Counted once across channels. LinkedIn replies aren't tracked"],["sent","Emails sent","width:116px"],   /* change 340 */
   ["bounce","Bounce rate","width:97px","Emails that bounced, as a share of emails sent"],["rep","Email reply rate","width:126px","Prospects who replied by email, as a share of prospects contacted by email"],
   ["calls","Calls made","width:106px"],["conn","Calls connected","width:119px","Calls the prospect answered (Dialer Call Reports: Calls Connected)"],   /* change 338: widths from each column's measured need */
   ["li","LinkedIn steps","width:112px","LinkedIn steps done in the period: connection requests, messages, InMails, profile views and post interactions"],["usage","Highest usage","width:166px",HS_TIP_U]],   /* change 322; change 327: Highest usage 166px (board L's 187px at 1,440 is 158px), so "Lead Finder 100%" stays whole where the table sits at its floor (a phone, LinkedIn steps on). Status gives 16px and Emails sent 8px, the two with room at the floor; the table's floor grows 8px (1,138px), so no other column or header is tighter than before */
@@ -13618,6 +13894,9 @@ function wire(){
  q("[data-wssgo]").forEach(b=>b.onclick=e=>{e.stopPropagation();uwHide();const id=b.dataset.wssgo;delete WSS_SUB[id];gotoClient(id,"score")});
  q("[data-wsssub]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.wsssub.split("|");WSS_SUB[id]=+i;uwHide();render()});
  q("[data-wssref]").forEach(b=>b.onclick=()=>{WSS_C=null;WSS_UPD=0;render()});
+ /* change 342: a contracted table's Show all and Show less; contracted tables open scrolled to the wrong column */
+ q("[data-wsstbl]").forEach(b=>b.onclick=()=>{const k=b.dataset.wsstbl; WSS_OPEN[k]=!WSS_OPEN[k]; uwHide(); render()});
+ wssScrollTables();
  raBind();   /* change 294: the record's Activity tab */
  /* the setup strip embedded in Home's one-client row carries rcSetup's own
     "Set up" buttons, generic data-tab links that only make sense once a
@@ -16408,6 +16687,106 @@ body.tour-on .home-tbl .crow:hover .ws-sub,body.tour-on .home-tbl .crow:focus-wi
  .wss-f-a{margin-left:1.875rem}
  .wss-upd{display:none}
 }
+/* ═══ change 342: the Workspace score on doc 108 pass 6. The numbers are production's, transcribed and measured on the
+   board (experiments/board/wsd10-gen.mjs, wsd-10-log.md rounds 8 to 10); comments name the source ═══ */
+/* the Dashboard cell: production's Sequence Score list pill, number only (338's pill: min-width 2rem, 6px sides inside its
+   1px border, so 7px to the text), max-content so "100" fits; Check and Fix now add the problem under it at the row's
+   sub-line size, the pill on the name line and the problem on the email line; states as grey words */
+.wss-pill{width:max-content}
+.wss-cell{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0;margin:-2px 0 0}
+.wss-cell .wss-pill{margin:0}
+.wss-cell .wss-prob{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wss-word{font-size:14px;line-height:20px;color:var(--gray-15);white-space:nowrap}
+/* Sequence setup: the app's label beside the name; its ring is grey, never a band colour */
+.wss-st-l{font-weight:500;font-size:14px;line-height:1.25rem;color:#6B7280;margin-left:.25rem}
+.wss-st-p.neutral{background:transparent}
+/* bootstrap 4.6 _reboot.scss 101-104 p{margin-bottom:1rem}: production's factor description keeps it (no rule resets it) */
+.wss-f .wss-f-d p{margin-bottom:1rem}
+.wss-f.is-blank .wss-f-t p{color:#1F2937}
+.wsx-nomark{display:block;flex:none;width:18px;height:18px}
+/* production Button variant="link" (design-system.css .shd-button, .shd-button--link); row level p-0 */
+.wsx-bl{box-sizing:border-box;height:2rem;padding:0;margin:0;border:none;border-radius:.25rem;display:flex;justify-content:center;align-items:center;gap:.5rem;cursor:pointer;font-family:inherit;font-size:.875rem;line-height:1.25rem;font-weight:500;color:#1D4ED8;background-color:transparent;text-transform:none;overflow:visible;white-space:nowrap}
+.wsx-bl span{display:flex;justify-content:center;align-items:center}
+.wsx-bl:hover,.wsx-bl:focus-visible{color:#1E40AF;text-decoration:underline}
+.wsx-bl:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px}
+/* the unit list: _score-factor-detail-item.scss 66-127 */
+.wsx-al{display:flex;flex-direction:column;align-items:flex-start;max-width:31.25rem;margin-left:1.875rem;min-width:auto}
+.wsx-li{box-sizing:border-box;display:flex;align-items:center;gap:1rem;height:28px;padding:.25rem .5rem}
+.wsx-li:hover{background:#EFF6FF}
+.wsx-li h3{padding:0;margin:0;font-style:normal;font-weight:500;font-size:.75rem;line-height:1.25rem;color:#1F2937;display:flex;align-items:center;gap:.5rem;min-width:auto}
+.wsx-la{min-width:auto}
+.wsx-li .wsx-bl{padding:0;font-size:.75rem;line-height:1.25rem}
+/* each table 24px below the rows (the pane's own 1.5rem rhythm); the title line: _sequence-setup-score.scss 74-81 */
+.wsx-tw{width:100%;margin-top:1.5rem}
+.wsx-tl{display:flex;justify-content:space-between;align-items:center;width:100%}
+.wsx-tlt{margin:0;font-weight:600;font-size:14px;line-height:1.0625rem;color:#1F2937}
+.wsx-tla{flex:none}
+.wsx-tl+.wsx-tc{margin-top:12px}
+/* DataTable: _data-table.scss 1-123 over bootstrap .table (reactstrap Table responsive, mb-0); the table scrolls in its own box */
+.wsx-tc{width:100%;padding:0;position:relative}
+.wsx-tr{display:block;width:100%;overflow-x:auto}
+.wsx-tr:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px}
+.wsx-t{width:max-content;min-width:100%;margin-bottom:0;border-collapse:collapse;color:#212529;background-color:transparent}
+.wsx-t .wsx-c{box-sizing:border-box;font-size:14px;font-weight:500;color:#1F2937;line-height:20px;padding:8px 16px;vertical-align:middle;border:.0625rem solid #E5E7EB;white-space:nowrap;height:40px;min-width:120px;max-width:300px;overflow:hidden;text-overflow:ellipsis;background-clip:padding-box;text-align:center}
+.wsx-t thead .wsx-c{font-size:12px;color:#6B7280;font-weight:700;line-height:20px;height:46px}
+.wsx-t .wsx-c>*{vertical-align:middle;margin:0 auto;text-align:center}
+.wsx-t .wsx-c>div{display:flex;justify-content:center;align-items:center}
+.wsx-t .wsx-c.wsx-sc{position:sticky;left:0;z-index:1;background-color:#fff;min-width:200px;border-left:none;border-right:none;text-align:left}
+.wsx-t .wsx-c.wsx-sc>*{margin:0;text-align:left}
+.wsx-t .wsx-c.wsx-sc>div{justify-content:flex-start}
+.wsx-t .wsx-c.wsx-sc::before{content:'';position:absolute;top:0;left:0;bottom:0;width:.0625rem;background-color:#E5E7EB;z-index:3}
+.wsx-t .wsx-c.wsx-sc::after{content:'';position:absolute;top:0;right:0;height:100%;width:8px;background:linear-gradient(90deg,#e2e6f5 0%,rgba(226,230,245,0) 108.33%);pointer-events:none;z-index:3}
+.wsx-t .wsx-c.wsx-nbl{border-left:none}
+.wsx-t tr.wsx-hide{visibility:collapse}
+.wsx-hd{display:flex;align-items:center}
+.wsx-iw{display:inline-flex;cursor:pointer}
+.wsx-ii{width:.875rem;height:.875rem;color:#6B7280;margin-left:.25rem;margin-bottom:.125rem;vertical-align:middle;overflow:hidden}
+.wsx-ck{width:1.25rem;height:1.25rem;color:#059669;vertical-align:middle;overflow:hidden}
+.wsx-g{color:#059669}.wsx-r{color:#DC2626}.wsx-o{color:#D97706}
+.wsx-o,.wsx-r{font-weight:500}
+/* HealthScoreIcon colours (health-score-icon.tsx 20-39): Cross #DC2626, a number under its max an orange check */
+.wsx-ck.wsx-cx{color:#DC2626}.wsx-ck.wsx-cko{color:#D97706}
+/* vC sets svg{display:block}; production's are inline (bootstrap reboot svg{vertical-align:middle}) */
+.wsx-t svg{display:inline;vertical-align:middle;overflow:hidden}
+/* Email Account Health pill: health-score-field.tsx, _email-account-health-score.scss 46-91 (poor to 50, average 51 to 70, excellent above);
+   max-content, min-width 2rem, 7px sides, so "100" stays inside its border (board round 12; the Sequence Score pill the same) */
+.wsx-hp{box-sizing:border-box;display:flex;justify-content:center;align-items:center;padding:.125rem .4375rem;min-width:2rem;width:max-content;height:1.5rem;border:1px solid transparent;border-radius:20px}
+.wsx-hp span{font-weight:600;font-size:.75rem;line-height:1.25rem}
+.wsx-hp.poor{background:#FEF2F2;border-color:#DC2626}.wsx-hp.poor span{color:#DC2626}
+.wsx-hp.average{background:#FFFBEB;border-color:#F59E0B}.wsx-hp.average span{color:#F59E0B}
+.wsx-hp.excellent{background:#ECFDF5;border-color:#2DB482}.wsx-hp.excellent span{color:#2DB482}
+/* a warming account sends no cold email: production has no neutral variant, so the design system's grey (board round 12) */
+.wsx-hp.neutral{background:#F3F4F6;border-color:#D1D5DB}.wsx-hp.neutral span{color:#4B5563}   /* about 7:1; not production, so not exempt (round 13) */
+/* Check New Score is the design system's link Button (health-score-field.tsx 29-34), 2rem tall as in production */
+.wsx-t .wsx-cns{margin:0 auto}
+/* Sequence Score pill: sequence-list-table.tsx 1265-1295, _sequence.scss 5862-5913 (poor to 30, average to 60, excellent above) */
+.wsx-sp{box-sizing:border-box;display:flex;justify-content:center;align-items:center;padding:.125rem .4375rem;min-width:2rem;width:max-content;height:1.5rem;border:1px solid transparent;border-radius:20px}
+.wsx-sp span{font-weight:600;font-size:.75rem;line-height:1.25rem}
+.wsx-sp.poor{background:#FEF2F2;border-color:#EF4444}.wsx-sp.poor span{color:#EF4444}
+.wsx-sp.average{background:#FFFBEB;border-color:#F59E0B}.wsx-sp.average span{color:#F59E0B}
+.wsx-sp.excellent{background:#ECFDF5;border-color:#10B981}.wsx-sp.excellent span{color:#10B981}
+/* warm-up: production's Warming Up readiness badge (email-warmup-outreach-readiness.tsx 22-27, _email-account-content.scss 2328-2346) */
+.wsx-warm{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:122px;border-radius:200px;padding:4px 12px;font-size:12px;font-weight:500;color:#B45309;background-color:#FFFBEB;border:1px solid #FEF3C7;cursor:default;margin:0 auto}
+.wsx-warm .badge-icon{display:flex;color:#B45309}
+/* the info alert above the rows (custom-domain dns-info-alert) */
+.wsx-note{display:flex;align-items:flex-start;gap:8px;width:100%;box-sizing:border-box;margin:0 0 16px;padding:10px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:4px;font-size:14px;line-height:20px;font-weight:400;color:#1F2937}
+.wsx-ni{flex:none;margin-top:2px}
+/* phone: vC's change 338 phone rules. List items keep production's inline layout: a long name wraps inside the item and the
+   button never moves under it (board round 13). "Updated 10 min ago" shows on its own line above Refresh */
+@media (max-width:720px){
+ .wsx-li{height:auto;min-height:28px}
+ .wsx-li h3{white-space:normal;min-width:0}
+ .wsx-li .wsx-la{flex:none}
+ .wsx-li .wsx-bl{white-space:nowrap}
+ .wss-upd{display:block;flex:0 0 100%;margin-right:0}
+ /* the three part tabs keep one height, so their rings line up when a label wraps */
+ .wss-nav{align-items:stretch}
+ .wss-st{justify-content:flex-start}
+ .wss-st .wss-st-t{text-align:center}
+ .wss-st .wss-st-i{display:none}
+ .wss-st-m{flex-wrap:wrap}
+ .wss-st-l{margin-left:0;width:100%;text-align:center}
+}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -16689,7 +17068,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="171dfe7";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="dfff760";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
