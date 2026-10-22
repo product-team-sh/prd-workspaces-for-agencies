@@ -646,6 +646,11 @@ table.organism tr.att>td{background:transparent}
 .c-mute{background:var(--st-neutral-bg);border-color:var(--st-neutral-bd)}
 .avatar{display:flex;align-items:center;justify-content:center;font-weight:500;border-radius:50%;flex:none;font-size:11px;width:28px;height:28px;box-sizing:border-box;background:var(--st-accent-bg);border:1px solid var(--avatar-ring);color:var(--blue-11)}
 .avatar.av-tint{background:color-mix(in srgb,var(--c,#1d4ed8) 12%,#fff);border-color:color-mix(in srgb,var(--c,#1d4ed8) 28%,#fff);color:var(--c,#1d4ed8)}
+/* change 358: a workspace logo sits on white inside a Gray 200 ring, so dark and light marks both read; same size and shape as the initials it replaces */
+.avatar.av-logo,.pp-av.av-logo,.xs-av.av-logo{background:#fff!important;border:1px solid #E5E7EB!important;color:transparent;overflow:hidden}
+.av-logo>img,.av-logo-s>img{display:block;width:72%;height:72%;object-fit:contain;flex:none;pointer-events:none}
+.nc-tile.is-logo{cursor:default}
+.rc-logo{display:inline-flex;align-items:center;gap:8px}
 .meter{display:flex;flex-direction:column;gap:5px;min-width:120px}
 .track{height:5px;border-radius:var(--radius-control);background:var(--gray-16);overflow:hidden}
 .track>span{display:block;height:100%;border-radius:var(--radius-control)}
@@ -1825,7 +1830,7 @@ function renderXform(){
     one here would describe something the user has not done. */
  const nw=xformLand;
  const theirs='<div class="xs-ws xs-new'+(b>=1?" in xs-on":"")+'" style="border-style:'+(nw?"solid":"dashed")+'">'
-   +'<div class="xs-nm"><span class="xs-av" style="background:'+(nw?nw.colour:"var(--gray-11)")+'">'+(nw?initials(nw.name):"?")+'</span>'+(nw?nw.name:"Your first workspace")+'</div>'
+   +'<div class="xs-nm"><span class="xs-av'+wsAvCls(nw)+'" style="background:'+(nw?nw.colour:"var(--gray-11)")+'">'+(nw?wsAvIn(nw):"?")+'</span>'+(nw?nw.name:"Your first workspace")+'</div>'
    +item("Sequences","0")+item("Prospects","0")+item("Email accounts","0")+item("Replies","0")+'</div>';
  L.innerHTML='<div class="xs"><div class="xs-stage">'
   +'<div class="xs-top'+(b>=3?" in":"")+'">'
@@ -1886,7 +1891,7 @@ const wsForTag=forClient=>forClient===false?"Yours":"For a client";
 function clientTileHTML(c){
  /* 29 Sep 2026: wide enough for the subtitle on one line, and left-aligned inside the centred beat */
  return `<div class="nc-prev" style="max-width:460px;margin:0 auto;text-align:left">
-    <span class="avatar av-tint" style="--c:${c.colour}">${initials(c.name)}</span>
+    <span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour}">${wsAvIn(c)}</span>
     <span style="min-width:0;flex:1"><b>${c.name}</b>
      <i>${wsPreviewSub()}</i></span>
     <span class="chip c-mute" style="flex:none">${wsForTag(c.forClient)}</span></div>`;
@@ -2099,12 +2104,18 @@ const reachNote=(shown,total,what)=>isATM()&&shown<total?`<p class="sub" style="
    company, not a person, and gave the client nobody to actually reply to. */
 const clientContact=()=>Object.values(PEOPLE).find(p=>p.role==="Owner"&&p.email)
   ||Object.values(PEOPLE).find(p=>p.role==="Admin"&&p.email);
+/* change 358: INVENTED DEMO DATA. Stand-in logos for three seed workspaces (their domains are fictional,
+   so the live lookup finds nothing for them): simple made-up marks, not real brands. */
+const WS_DEMO_LOGO={
+ nw:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4 54 58 32 46 10 58Z' fill='%231E3A8A'/%3E%3Cpath d='M32 4v42L10 58Z' fill='%233B82F6'/%3E%3C/svg%3E",
+ vx:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 12h13l13 30 13-30h13L38 58H26Z' fill='%230F766E'/%3E%3Cpath d='M29.5 6h5v6h6v5h-6v6h-5v-6h-6v-5h6Z' fill='%2314B8A6'/%3E%3C/svg%3E",
+ at:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4 56 18v28L32 60 8 46V18Z' fill='%23111827'/%3E%3Ccircle cx='32' cy='32' r='11' fill='%23F97316'/%3E%3C/svg%3E"};
 const CLIENTS=[
- {id:"nw",name:"Northwind Logistics",company:"Northwind Logistics Ltd",email:"ops@northwind.co",colour:"#B45309",
+ {id:"nw",name:"Northwind Logistics",company:"Northwind Logistics Ltd",email:"ops@northwind.co",colour:"#B45309",logo:WS_DEMO_LOGO.nw,
   seq:12,mbx:54,prospects:8900,sent:41300,reply:6.2,prev:6.0,pos:2.1,created:"12 Jun, 2026",limitsReviewed:true,
   users:[["ops@northwind.co","Workspace Admin"],["finance@northwind.co","Workspace Collaborator"]],overrides:{priority:"Balanced Sending"},
   mailboxes:[["outreach@northwind-go.com","Disconnected",0,"agency"],["hello@northwind-go.com","Healthy",100,"agency"],["team@nw-reach.com","Warning",60,"agency"]]},
- {id:"vx",name:"Vertex Health",company:"Vertex Health Inc",email:"growth@vertexhealth.io",colour:"#0F766E",
+ {id:"vx",name:"Vertex Health",company:"Vertex Health Inc",email:"growth@vertexhealth.io",colour:"#0F766E",logo:WS_DEMO_LOGO.vx,
   seq:9,mbx:69,prospects:7350,sent:52800,reply:4.8,prev:6.9,pos:1.4,created:"03 Jul, 2026",limitsReviewed:true,
   users:[["growth@vertexhealth.io","Workspace Collaborator"]],overrides:{dupes:"Off"},
   mailboxes:[["hi@vertex-reach.com","Healthy",100,"agency"],["care@vertex-reach.com","Healthy",100,"client"]]},
@@ -2124,7 +2135,7 @@ const CLIENTS=[
     60 sequences); Summit is paused at its email limit today; Oakridge churned
     and was disabled on 28 Aug with its data kept; Pinecrest carries its own
     limits rather than a share of the plan (absent from SHARE0, no c.share). */
- {id:"at",name:"Atlas Manufacturing",company:"Atlas Manufacturing plc",email:"marketing@atlasmfg.com",colour:"#047857",
+ {id:"at",name:"Atlas Manufacturing",company:"Atlas Manufacturing plc",email:"marketing@atlasmfg.com",colour:"#047857",logo:WS_DEMO_LOGO.at,
   seq:60,mbx:40,prospects:38500,sent:54000,reply:5.4,prev:5.1,pos:1.6,created:"15 May, 2026",limitsReviewed:true,
   users:[["marketing@atlasmfg.com","Workspace Admin"],["reports@atlasmfg.com","Workspace Viewer"],["finance@northwind.co","Workspace Viewer"]],overrides:{priority:"Balanced Sending"},
   mailboxes:[["outbound@atlas-reach.com","Healthy",100,"agency"],["plants@atlas-reach.com","Healthy",100,"agency"],["connect@atlasmfg-go.com","Healthy",90,"client"]]},
@@ -3115,7 +3126,23 @@ const srchI=`<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><pa
    that tells a viewer they are looking at a mock.                          */
 const initials=n=>{const w=n.replace(/[^A-Za-z0-9 ]/g," ").split(/\s+/).filter(Boolean);
  return((w[0]||"")[0]+((w[1]||"")[0]||(w[0]||"")[1]||"")).toUpperCase()};
-const av=(c,s)=>`<span class="avatar av-tint" style="--c:${c.colour};width:${s||28}px;height:${s||28}px;font-size:11px">${initials(c.name)}</span>`;
+/* change 358: a workspace with a logo (c.logo, found from its website) shows the logo in every avatar;
+   without one, today's initials on its colour. wsAvPaint repaints a fixed node (the sidebar ones). */
+const wsLogo=c=>(c&&c.logo)||"";
+const wsLogoImg=c=>`<img class="av-logo-i" src="${wsLogo(c)}" alt="" draggable="false">`;
+const wsAvCls=c=>wsLogo(c)?" av-logo":"";
+const wsAvIn=(c,ini)=>wsLogo(c)?wsLogoImg(c):(ini!=null?ini:initials(c.name));
+function wsAvPaint(n,c,ini,col){if(!n)return; const on=!!wsLogo(c); n.classList.toggle("av-logo",on); n.innerHTML=on?wsLogoImg(c):ini; n.style.setProperty("--c",col)}
+/* the lookup: the domain off a typed website, then Google's public favicon service (prototype only; see
+   the change 358 note for production). A failed load or Google's 16px default globe is "no logo". */
+const WS_LOGO_SEEN={};
+const wsLogoDom=s=>{const d=String(s||"").trim().toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split(/[\/?#:]/)[0];return /^([a-z0-9-]+\.)+[a-z]{2,}$/.test(d)?d:""};
+function wsLogoFind(site,cb){const d=wsLogoDom(site); if(!d){cb(null,d);return}
+ if(Object.prototype.hasOwnProperty.call(WS_LOGO_SEEN,d)){cb(WS_LOGO_SEEN[d],d);return}
+ const url="https://www.google.com/s2/favicons?domain="+encodeURIComponent(d)+"&sz=128", im=new Image(); let done=false;
+ const end=(v,keep)=>{if(done)return; done=true; if(keep)WS_LOGO_SEEN[d]=v; cb(v,d)};
+ im.onload=()=>end(im.naturalWidth>16?url:null,true); im.onerror=()=>end(null,true); setTimeout(()=>end(null,false),8000); im.src=url}
+const av=(c,s)=>`<span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour};width:${s||28}px;height:${s||28}px;font-size:11px">${wsAvIn(c)}</span>`;
 
 /* ═══ shell ═══ */
 function renderRail(){
@@ -3555,7 +3582,7 @@ function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hi
 function hdrWsRows(q,here){const t=(q||"").trim().toLowerCase(), cur=here!==undefined?here:ctx==="agency"?view.name==="record"?view.id:view.from:ctx;   /* here: the rail's current workspace (change 356) */
  const L=hdrWsList().filter(c=>!t||c.name.toLowerCase().includes(t)||(c.company||"").toLowerCase().includes(t));
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
- return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint" style="--c:${c.colour||AGENCY.colour}">${initials(c.name)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
+ return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
   :`<p class="sub hdr-wsnone">No workspaces found</p>`}
 function hdrWsOpen(trig){
  if(HDR_WS&&HDR_WS.trig===trig){hdrWsClose(true); return}
@@ -3666,7 +3693,7 @@ function renderShell(){
       label, not a trigger (no button, no chevron, no popover). */
    const w=solo?byId[ctx]:c;
    if(!el("wsStatic")) el("sbWs").insertAdjacentHTML("afterbegin",`<div class="ws-btn ws-static" id="wsStatic"><span class="avatar av-tint" id="wsStaticAv"></span><span style="min-width:0;flex:1"><span class="nm" id="wsStaticNm"></span><span class="ws-ctx" id="wsStaticCtx"></span></span></div>`);
-   el("wsStaticAv").textContent=initials(w.name); el("wsStaticAv").style.setProperty("--c",w.colour||AGENCY.colour);
+   wsAvPaint(el("wsStaticAv"),w,initials(w.name),w.colour||AGENCY.colour);   /* change 358 */
    el("wsStaticNm").textContent=w.name; el("wsStaticCtx").textContent="Workspace";
  }
  else {const st=el("wsStatic"); if(st) st.remove();
@@ -3692,8 +3719,7 @@ function renderShell(){
  /* wsAv/wsNm live inside wsBtn, which does not exist in the DOM for a
     client-role or solo session (fix #20 above) - nothing to set them to. */
  if(!solo&&el("wsBtn")){
-   el("wsAv").textContent=inC?initials(c.name):AGENCY.initials;
-   el("wsAv").style.setProperty("--c",inC?c.colour:AGENCY.colour);
+   wsAvPaint(el("wsAv"),inC?c:null,inC?initials(c.name):AGENCY.initials,inC?c.colour:AGENCY.colour);   /* change 358 */
    el("wsNm").textContent=inC?c.name:AGENCY.name;
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
@@ -3763,14 +3789,14 @@ function renderPop(q=""){
  const gridI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
  const checkI='<span class="pop-cur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
  const row=(id,lead,name,tag,cur)=>`<button class="pop-r" data-go="${id}" aria-current="${cur}">${lead}<span class="t">${name}</span>${cur?checkI:tag?`<span class="pop-tag${tag.tone?" pop-tag--"+tag.tone:""}">${tag.text}</span>`:""}</button>`;
- const av=(ini,col)=>`<span class="avatar av-tint" style="--c:${col}">${ini}</span>`;
+ const av=(ini,col,c)=>`<span class="avatar av-tint${wsAvCls(c)}" style="--c:${col}">${c?wsAvIn(c,ini):ini}</span>`;
  const attention=c=>{const st=lf(c.id).s; if(c.sent===0) return {text:"Not set up"}; if(st.tone==="bad") return {text:"At limit",tone:"bad"}; if(st.tone==="warn") return {text:"Near limit",tone:"warn"}; return null};
  /* change 155: a client user on two or more workspaces gets a switcher of those
     only (PRD §2.2): no account row, no Add. One workspace keeps the identity
     tile and no trigger at all. */
  if(asClient){const mine=clientWsOf().filter(c=>!t||c.name.toLowerCase().includes(t));
   if(clientWsOf().length<2){el("popL").innerHTML="";return}
-  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">No workspaces found</p>`);
+  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour,c),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">No workspaces found</p>`);
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{const id=b.dataset.go,cc=byId[id]; if(!cc) return; ctx=id;openProspect=null;openSeq=null;openReply=null;
    const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1); cView=first?first[0]:"settings"; closePop();render()});
   return}
@@ -4908,8 +4934,9 @@ const COLOUR_NAMES={"#B45309":"Amber","#0F766E":"Teal","#C2410C":"Orange","#6D28
 const colourName=h=>COLOUR_NAMES[String(h||"").toUpperCase()]||"Custom";
 /* change 298 (audit P2-20): dates on prototype-made screens: no comma, no leading zero ("2 Jun 2026") */
 const hsDate=s=>String(s||"").replace(/^0/,"").replace(/,/g,"");
-const siteOf=c=>c.site||(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:"–");
-let REC_EDIT=null, REC_COL=null;   /* the client whose Details card is being edited in place, and the colour picked while editing */
+/* change 358: a website cleared in Details stays cleared ("–"), rather than falling back to the email's domain */
+const siteOf=c=>c.site!=null?(c.site||"–"):(c.email&&c.email.indexOf("@")>-1?c.email.split("@")[1]:"–");
+let REC_EDIT=null, REC_COL=null, REC_LOGO=null;   /* change 358: REC_LOGO, the logo looked up for the website being typed ({dom,logo}); null while it is unchanged */   /* the client whose Details card is being edited in place, and the colour picked while editing */
 function recAccessRows(c){
  const rows=[];
  (c.users||[]).forEach(u=>rows.push({ini:ppIni(u[2],u[0]),col:PP_AV,name:ppName(u[0],u),sub:u[2]?u[0]:"",role:u[1],kind:"client"}));
@@ -4939,18 +4966,25 @@ function recLimitsCard(c,ro){
  const req=ask&&!ro?`<div class="msg dn-req rc-req2" role="status">${infoI}<span class="dn-req-t"><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)}</span><button type="button" class="linkbtn dn-req-go" ${canI("limits")?`data-rqcgo="${ask.id}"`:`data-tab="limits"`}>Review request</button></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
 }
+/* change 358: the logo Details shows while editing: the one found for a changed website, else the saved one */
+const recLogoNow=c=>REC_LOGO?REC_LOGO.logo:wsLogo(c);
+function recPaintLogo(c){const u=recLogoNow(c);
+ ["rdColDt","rdColDd"].forEach(id=>{const n=el(id); if(n) n.style.display=u?"none":""});
+ ["rdLogoDt","rdLogoDd"].forEach(id=>{const n=el(id); if(n) n.style.display=u?"":"none"});
+ const i=el("rdLogoImg"); if(i&&u) i.src=u}
 function recDetailsCard(c,ro){
  const sw=`<span class="rc-swatch" style="background:${c.colour}"></span> ${colourName(c.colour)}`;
  if(REC_EDIT===c.id&&!ro){
   const inp=(id,v,label)=>`<dt><label for="${id}">${label}</label></dt><dd><input type="text" id="${id}" value="${String(v||"").replace(/"/g,"&quot;")}" aria-label="${label}"></dd>`;
   return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span></div><div class="panel-b"><dl class="dl rc-dl">
    ${inp("rdName",c.name,"Name")}${inp("rdCompany",c.own?AGENCY.name:c.company,"Company")}${inp("rdEmail",c.email==="–"?"":c.email,"Email")}${inp("rdSite",siteOf(c)==="–"?"":siteOf(c),"Website")}
-   <dt>Created on</dt><dd>${hsDate(c.created)}</dd><dt><span id="rdColLab">Profile icon colour</span></dt><dd><div class="nc-swatches rc-swatches" role="group" aria-labelledby="rdColLab">${(()=>{const cur=(REC_COL||c.colour).toUpperCase(), pal=CLIENT_PAL.map(x=>x.toUpperCase()); if(pal.indexOf(cur)<0) pal.unshift(cur);
-     return pal.map(x=>`<button type="button" class="nc-swatch${x===cur?" is-on":""}" data-rdswatch="${x}" style="--c:${x}" aria-label="${colourName(x)}" aria-pressed="${x===cur?"true":"false"}"></button>`).join("")})()}<span class="sub rc-swname" id="rdColName">${colourName(REC_COL||c.colour)}</span></div></dd></dl>
+   <dt>Created on</dt><dd>${hsDate(c.created)}</dd><dt id="rdColDt"${recLogoNow(c)?' style="display:none"':""}><span id="rdColLab">Profile icon colour</span></dt><dd id="rdColDd"${recLogoNow(c)?' style="display:none"':""}><div class="nc-swatches rc-swatches" role="group" aria-labelledby="rdColLab">${(()=>{const cur=(REC_COL||c.colour).toUpperCase(), pal=CLIENT_PAL.map(x=>x.toUpperCase()); if(pal.indexOf(cur)<0) pal.unshift(cur);
+     return pal.map(x=>`<button type="button" class="nc-swatch${x===cur?" is-on":""}" data-rdswatch="${x}" style="--c:${x}" aria-label="${colourName(x)}" aria-pressed="${x===cur?"true":"false"}"></button>`).join("")})()}<span class="sub rc-swname" id="rdColName">${colourName(REC_COL||c.colour)}</span></div></dd>
+   <dt id="rdLogoDt"${recLogoNow(c)?"":' style="display:none"'}>Profile icon</dt><dd id="rdLogoDd"${recLogoNow(c)?"":' style="display:none"'}><span class="rc-logo"><span class="avatar av-logo" style="width:20px;height:20px"><img id="rdLogoImg" class="av-logo-i" ${recLogoNow(c)?`src="${recLogoNow(c)}"`:""} alt="" draggable="false"></span>Website logo</span></dd></dl>
    <div class="rc-dact"><button class="shd-button shd-button--tertiary shd-button--sm" data-rdcancel>Cancel</button><button class="shd-button shd-button--primary shd-button--sm" data-rdsave="${c.id}">Save</button></div></div></div>`;
  }
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Details</span>${ro||!canI("members")?"":`<span class="c-a"><button class="linkbtn" data-rdedit="${c.id}">Edit</button></span>`}</div>
-  <div class="panel-b"><dl class="dl rc-dl"><dt>Company</dt><dd>${c.own?AGENCY.name:c.company}</dd><dt>Email</dt><dd>${c.email&&c.email!=="–"?c.email:'<span class="sub">None yet</span>'}</dd><dt>Website</dt><dd>${siteOf(c)}</dd><dt>Created on</dt><dd>${hsDate(c.created)}</dd><dt>Profile icon colour</dt><dd>${sw}</dd></dl></div></div>`;
+  <div class="panel-b"><dl class="dl rc-dl"><dt>Company</dt><dd>${c.own?AGENCY.name:c.company}</dd><dt>Email</dt><dd>${c.email&&c.email!=="–"?c.email:'<span class="sub">None yet</span>'}</dd><dt>Website</dt><dd>${siteOf(c)}</dd><dt>Created on</dt><dd>${hsDate(c.created)}</dd>${wsLogo(c)?`<dt>Profile icon</dt><dd><span class="rc-logo">${av(c,20)}Website logo</span></dd>`:`<dt>Profile icon colour</dt><dd>${sw}</dd>`}</dl></div></div>`;
 }
 function rOverview(c){
  const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
@@ -6583,6 +6617,8 @@ const ppName=(email,u)=>(u&&u[2])||email;
 const ppIni=(nm,email)=>initials(nm||email.split("@")[0].replace(/[._-]+/g," "));
 const PP_AV="#F3F4F6";   /* change 309: the neutral People avatar, Gray 100 fill, Gray 700 initials (CSS) */
 const ppAv=(ini,col,size,dashed)=>`<span class="pp-av" style="--c:${col};width:${size}px;height:${size}px;font-size:${Math.round(size*.37)}px${dashed?";background:#fff;border:1.5px dashed var(--gray-11);color:var(--gray-15)":""}">${ini}</span>`;
+/* change 358: a workspace in People keeps its logo; a person keeps ppAv */
+const ppAvWs=(c,size)=>wsLogo(c)?`<span class="pp-av av-logo" style="width:${size}px;height:${size}px">${wsLogoImg(c)}</span>`:ppAv(initials(c.name),c.colour,size);
 const ppWsRole=(p,id)=>(p.roles&&p.roles[id])||"Workspace Collaborator";
 function ppTeam(){
  return Object.keys(PEOPLE).map(k=>{const P=PEOPLE[k]; const email=P.email||(k+"@"+AGENCY.name.toLowerCase().replace(/[^a-z]/g,"")+".com");
@@ -6604,11 +6640,11 @@ function ppAccess(r){
  /* change 345: at most 2 workspace chips, then a +N chip; its tooltip lists the rest (change 266's fixed tooltip) */
  const PP_MAX=2, atm=isATM(), esc=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
  let L;
- if(r.ws===null) L=all.map(c=>({n:c.name,c:c.colour,role:"Workspace Admin"}));
+ if(r.ws===null) L=all.map(c=>({n:c.name,c:c.colour,w:c,role:"Workspace Admin"}));
  else if(!r.ws.length) return `<span class="sub">Not in any workspace yet</span>`;
- else L=r.ws.map(id=>({n:byId[id].name,c:byId[id].colour,role:ppWsRole(r.P,id)}));
+ else L=r.ws.map(id=>({n:byId[id].name,c:byId[id].colour,w:byId[id],role:ppWsRole(r.P,id)}));
  /* change 157: under ATM a Member has no level per workspace; the chip names the workspace only */
- const chip=x=>`<span class="pp-chip">${ppAv(initials(x.n),x.c,18)}<span class="pp-chip-n">${x.n.split(" ")[0]}</span>${atm?"":`<span class="pp-chip-r">${ppShort(x.role)}</span>`}</span>`;
+ const chip=x=>`<span class="pp-chip">${ppAvWs(x.w,18)}<span class="pp-chip-n">${x.n.split(" ")[0]}</span>${atm?"":`<span class="pp-chip-r">${ppShort(x.role)}</span>`}</span>`;
  const rest=L.slice(PP_MAX);
  const more=rest.length?(()=>{const lines=(r.ws===null?["All "+L.length+" workspaces"+(atm?"":", Workspace Admin")]:[]).concat(rest.map(x=>x.n+(atm||r.ws===null?"":", "+ppShort(x.role))));
   return `<span class="pp-chip pp-chip--more u-tip" tabindex="0" title="" data-uwlg data-uwtip="${esc(lines.join("\n"))}" aria-label="${esc(lines.join("; "))}">+${rest.length}</span>`})():"";
@@ -6644,7 +6680,7 @@ function vPeople(){
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person${r.named?"":" is-addr"}">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}</b>${r.named?`<i>${r.email}</i>`:""}</span></span>
    ${typeCell("Client user")}<span class="pp-roletxt">${roleName(r.role)}</span>
-   <span class="pp-access"><span class="pp-chip">${ppAv(initials(r.c.name),r.c.colour,18)}<span class="pp-chip-n">${r.c.name}</span><span class="pp-chip-r">${ppShort(r.role)}</span></span></span>
+   <span class="pp-access"><span class="pp-chip">${ppAvWs(r.c,18)}<span class="pp-chip-n">${r.c.name}</span><span class="pp-chip-r">${ppShort(r.role)}</span></span></span>
    <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":rmCap(r.seen)}</span>
    <span class="pp-status">${ppStatus(r)}</span>
    <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key&&rowByKey(r.key)?peopleMenuHTML(rowByKey(r.key)):""}</span></div>`;
@@ -6690,7 +6726,7 @@ function ppPanelHTML(){
  const k=modal.k, P=PEOPLE[k]; if(!P) return "";
  const r=ppTeam().find(x=>x.k===k), all=myClients(), inWs=r.ws===null?all:r.ws.map(id=>byId[id]), notIn=r.ws===null?[]:all.filter(c=>r.ws.indexOf(c.id)<0);
  const roleCard=(role,title,line)=>`<label class="pp-rcard${P.role===role?" is-on":""}"><span><input type="radio" name="ppacct" value="${role}" ${P.role===role?"checked":""} ${P.role==="Owner"?"disabled":""} data-ppacct>${title}</span><i>${line}</i></label>`;
- const wsRow=c=>`<div class="pp-wsrow">${ppAv(initials(c.name),c.colour,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+roleName(P.role)+" role":"Since "+(c.created||"the start")+", "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequence"+(((c.sequences||[]).filter(q=>q.owner===P.name).length)===1?"":"s")+" owned"}</i></span>
+ const wsRow=c=>`<div class="pp-wsrow">${ppAvWs(c,28)}<span class="pp-wsrow-t"><b>${c.name}</b><i>${r.ws===null?"Through the "+roleName(P.role)+" role":"Since "+(c.created||"the start")+", "+((c.sequences||[]).filter(q=>q.owner===P.name).length||0)+" sequence"+(((c.sequences||[]).filter(q=>q.owner===P.name).length)===1?"":"s")+" owned"}</i></span>
    ${r.ws===null?`<span class="sub">Workspace Admin</span>`:ddHTML("ppwsrole-"+c.id,ppWsRole(P,c.id),[{items:PP_WS_ROLES.map(x=>({value:x,label:ppShort(x),desc:roleLine(x)}))}])+`<button class="ubtn" data-ppwsremove="${c.id}" aria-label="Remove from ${c.name}" title="Remove from ${c.name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>`;
  return `<div class="mscrim" id="mscrim"><aside class="pp-drawer" role="dialog" aria-modal="true" aria-label="${P.name}">
   <div class="pp-dr-h">${ppAv(r.initials,"#DBEAFE",44)}<span class="pp-dr-t"><b>${P.name}${r.me?' <span class="sub">(you)</span>':""}</b><i>${r.email}</i><i>${r.invited?"Invited "+r.invited+", not signed in yet":"On your team, last active "+r.seen}</i></span><button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -11900,9 +11936,10 @@ function drawerHTML(){
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
    <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${ncNameMsg()?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${ncNameMsg()?"true":"false"}" aria-describedby="ncnMsg"></div></div>
   ${ncNameMsgHTML()}
-  <div class="field"><span class="flabel" id="ncColLab">Profile icon colour</span>
-   <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" class="${ncSiteMsg()?"is-err":""}" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%" aria-invalid="${ncSiteMsg()?"true":"false"}" aria-describedby="ncsiteMsg">${ncSiteMsgHTML()}</div>
+  <!-- change 358: a website with a logo replaces the colour, so Website comes first and the colour hides while a logo shows -->
+  <div class="field" id="ncColField"${nc.logo?" hidden":""}><span class="flabel" id="ncColLab">Profile icon colour</span>
+   <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
@@ -12112,6 +12149,8 @@ function ncAccessSentence(){
    keeps showing the same next-in-line colour it always did, so an untouched
    tile looks exactly as before. */
 function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
+ /* change 358: a logo found from the website replaces the tile; it is not a colour control then */
+ if(nc.logo) return `<span class="nc-tile is-logo" id="ncPrev" role="img" aria-label="Logo from ${nc.logoFor}" title="Logo from ${nc.logoFor}"><span class="avatar av-tint av-logo" style="--c:${col}"><img class="av-logo-i" src="${nc.logo}" alt="" draggable="false"></span></span>`;
  return `<button type="button" class="nc-tile${nm?"":" is-empty"}" id="ncPrev" data-nccol aria-label="Change colour" title="Click to try the next colour"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></button>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
    and the swatch click never scrolls the drawer. Rebinds the swatch's own
@@ -12122,6 +12161,17 @@ function paintPrev(){const old=el("ncPrev");if(!old)return;
  const b=node.matches("[data-nccol]")?node:node.querySelector("[data-nccol]");if(b)b.onclick=e=>{e.stopPropagation();cycleColour()}}
 function syncSwatches(){const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  document.querySelectorAll("[data-ncswatch]").forEach(b=>{const on=b.dataset.ncswatch===col;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false")})}
+/* change 358: the website's logo, looked up as it is typed (debounced) and at once on leaving the field */
+let NC_LOGO_T=null;
+function ncPaintLogo(){const d=document.querySelector(".drawer.nc-modal"), t0=d?d.getBoundingClientRect().top:0;
+ paintPrev(); const f=el("ncColField"); if(f) f.hidden=!!nc.logo;
+ /* the pop-up is centred, so a shorter body would move every field; its top stays where it was instead */
+ if(d&&d.getBoundingClientRect().height<innerHeight-32){const dy=d.getBoundingClientRect().top-t0; if(dy) d.style.top=(parseFloat(getComputedStyle(d).top)-dy)+"px"}}
+function ncLogoSoon(ms){clearTimeout(NC_LOGO_T);
+ const d=ncSiteBad()?"":wsLogoDom(nc.site);
+ if(!d){if(nc.logo||nc.logoFor){nc.logo=null;nc.logoFor="";ncPaintLogo()}return}
+ if(d===nc.logoFor) return;
+ NC_LOGO_T=setTimeout(()=>wsLogoFind(d,(u,dd)=>{if(!drawer||(ncSiteBad()?"":wsLogoDom(nc.site))!==dd)return; nc.logo=u; nc.logoFor=dd; ncPaintLogo()}),ms)}
 function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
  nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev();syncSwatches()}
 function shellInert(){const on=!!(drawer||modal);["sb","page","topbar"].forEach(k=>{const e=document.querySelector(k==="sb"?".sb":k==="page"?"#page":".topbar");if(e){if(on)e.setAttribute("inert","");else e.removeAttribute("inert")}});
@@ -12167,7 +12217,7 @@ function renderDrawer(){
   /* Escape dismisses the popover (pinned or shown by focus) before it would close the pop-up */
   b.onkeydown=e=>{const w=el("ncInfo");if(e.key==="Escape"&&w&&!w.classList.contains("is-quiet")){e.preventDefault();e.stopPropagation();if(nc.learn)b.click();w.classList.add("is-quiet")}};
   b.onblur=()=>{const w=el("ncInfo");if(w)w.classList.remove("is-quiet")}}}
- {const s=el("ncsite");if(s){s.addEventListener("input",()=>{nc.site=s.value;if(nc.siteShown)ncPaintSite()});s.addEventListener("blur",()=>{nc.site=s.value;nc.siteShown=true;ncPaintSite()})}}
+ {const s=el("ncsite");if(s){s.addEventListener("input",()=>{nc.site=s.value;if(nc.siteShown)ncPaintSite();ncLogoSoon(500)});s.addEventListener("blur",()=>{nc.site=s.value;nc.siteShown=true;ncPaintSite();ncLogoSoon(0)})}}
  L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap;
   i.onfocus=()=>{i.dataset.was=ncIsSet(k)?String(nc.custom[k]):"";setTimeout(()=>{try{i.select()}catch(e){}},0)};
   i.oninput=()=>{nc.custom=nc.custom||{};if(i.value.trim()==="")delete nc.custom[k];else nc.custom[k]=num(i.value);ncPaintUsage()};
@@ -12206,6 +12256,9 @@ function create(){
  const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",
   users:[],mailboxes:[],limitsReviewed:true,forClient:nc.forClient!==false,site:(nc.site||"").trim()};
+ /* change 358: the logo found in the pop-up; a lookup still in flight lands when it returns */
+ c.logo=nc.logo&&nc.logoFor===wsLogoDom(c.site)?nc.logo:null;
+ if(!c.logo&&wsLogoDom(c.site)) wsLogoFind(c.site,(u,d)=>{if(!u||c.logo||wsLogoDom(c.site)!==d) return; c.logo=u; if(!handover&&!drawer&&!modal&&!document.querySelector(".xs")) render()});
  CLIENTS.push(c);byId[id]=c;
  /* teammates chosen in the modal become members of the new workspace */
  (nc.team||[]).forEach(k=>{const p=PEOPLE[k];if(p&&Array.isArray(p.ws)&&p.ws.indexOf(id)<0)p.ws.push(id)});
@@ -13492,7 +13545,7 @@ function vComingSoon(key){
  const s=COMING_SOON[key]; if(!s) return vClients();
  if(CS_PAGES[key]){
   const wss=myClients(), n=wss.length;
-  const av=wss.slice(0,3).map((c,i)=>`<span style="width: 24px; height: 24px; border-radius: 999px; background: ${c.colour}; color: #FFFFFF; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF${i?"; margin-left: -8px":""}">${initials(c.name)}</span>`).join("");
+  const av=wss.slice(0,3).map((c,i)=>`<span style="width: 24px; height: 24px; border-radius: 999px; background: ${wsLogo(c)?"#FFFFFF; box-shadow: inset 0 0 0 1px #E5E7EB":c.colour}; color: #FFFFFF; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF${i?"; margin-left: -8px":""}"${wsLogo(c)?' class="av-logo-s"':""}>${wsAvIn(c)}</span>`).join("");
   const text=CS_PAGES[key].pill.replace(/\b3\b/,String(n)).replace(/14 mailboxes/,f(wss.reduce((t,c)=>t+(c.mbx||0),0))+" mailboxes");
   return `<div class="cs-wrap">${receiptBar("soon")}${CS_PAGES[key].html.replace("__WS_AVATARS__",`<span style="display: flex">${av}</span>`).replace("__WS_TEXT__",text).replace("__ME_EMAIL__",ME().email||"you")}</div>`;
  }
@@ -14190,16 +14243,28 @@ function wire(){
    receipt("client:"+c.id,`${c.name} restored. Everything is as it was.`,()=>{c.deletedOn=on;c.deletedBy=by;render()},`restored ${c.name}`); logAct(c.id,"Workspace restored"); render()});
  q("[data-goanalytics]").forEach(b=>b.onclick=()=>{ctx="agency";asClient=false;view={name:"analytics"};render()});
  q("[data-addteam]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:{[b.dataset.addteam]:"Workspace Collaborator"}}));
- q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;REC_COL=null;render();const i=el("rdName");if(i)i.focus()});
- q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;REC_COL=null;render()});
+ q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;REC_COL=null;REC_LOGO=null;render();const i=el("rdName");if(i)i.focus()});
+ q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;REC_COL=null;REC_LOGO=null;render()});
+ /* change 358: Website runs the same lookup as Add a workspace; the Details card shows what Save will apply */
+ {const s=el("rdSite"), c=REC_EDIT&&byId[REC_EDIT]; if(s&&c){let t=null;
+  const go=ms=>{clearTimeout(t); const v=s.value.trim(), orig=siteOf(c)==="–"?"":siteOf(c);
+   if(v===orig){REC_LOGO=null;recPaintLogo(c);return}
+   const d=wsLogoDom(v); if(!d){REC_LOGO={dom:"",logo:null};recPaintLogo(c);return}
+   t=setTimeout(()=>wsLogoFind(d,(u,dd)=>{const s2=el("rdSite"); if(!s2||wsLogoDom(s2.value)!==dd) return; REC_LOGO={dom:dd,logo:u}; recPaintLogo(c)}),ms)};
+  s.addEventListener("input",()=>go(500)); s.addEventListener("blur",()=>go(0))}}
  /* the swatch repaints itself, not the card, so typed fields keep their text */
  q("[data-rdswatch]").forEach(b=>b.onclick=()=>{REC_COL=b.dataset.rdswatch; q("[data-rdswatch]").forEach(x=>{const on=x===b;x.classList.toggle("is-on",on);x.setAttribute("aria-pressed",on?"true":"false")}); const n=el("rdColName"); if(n) n.textContent=colourName(REC_COL)});
  q("[data-rdsave]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.rdsave]; if(!c) return;
-   const was={name:c.name,company:c.company,email:c.email,site:c.site,colour:c.colour};
+   const was={name:c.name,company:c.company,email:c.email,site:c.site,colour:c.colour,logo:c.logo}, orig=siteOf(c)==="–"?"":siteOf(c);
    const v=id=>(el(id)&&el(id).value.trim())||"";
    const em=v("rdEmail"); if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash(el("rdEmail"),"That is not an email address");return}
-   c.name=v("rdName")||c.name; c.company=v("rdCompany")||c.company; if(em) c.email=em; const st=v("rdSite"); if(st) c.site=st; if(REC_COL) c.colour=REC_COL;
-   REC_EDIT=null; REC_COL=null;
+   c.name=v("rdName")||c.name; c.company=v("rdCompany")||c.company; if(em) c.email=em; if(REC_COL) c.colour=REC_COL;
+   /* change 358: a changed website takes the logo found for it (or none); cleared, it goes back to initials and colour */
+   const st=v("rdSite");
+   if(st!==orig){c.site=st; const d=wsLogoDom(st);
+    if(REC_LOGO&&REC_LOGO.dom===d) c.logo=REC_LOGO.logo;
+    else {c.logo=null; if(d) wsLogoFind(d,(u,dd)=>{if(u&&wsLogoDom(c.site)===dd&&!c.logo){c.logo=u;render()}})}}
+   REC_EDIT=null; REC_COL=null; REC_LOGO=null;
    receipt("client:"+c.id,`Details saved for ${c.name}.`,()=>{Object.assign(c,was);render()},`edited ${c.name}'s details`); logAct(c.id,"Details edited"); render()});
  Object.keys(RC_DDMAP).forEach(id=>wireDD(document,id,v=>{const m=RC_DDMAP[id], c=byId[m.c], r=rowByKey(m.key); if(!c||!r) return;
    if(id.indexOf("rcwsrole")===0){const P=PEOPLE[m.key.slice(2)], was=ppWsRole(P,c.id); if(v===was) return; P.roles=P.roles||{}; P.roles[c.id]=v;
@@ -17287,7 +17352,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7ecf319";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3ab7002";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
