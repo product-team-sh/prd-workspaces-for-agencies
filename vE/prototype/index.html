@@ -7758,7 +7758,7 @@ document.addEventListener("click",e=>{
    UR.open=null; UR.busy=false; clearTimeout(receiptTimer);
    RECEIPT={scope:"ur",text:txt,short:txt,undo:null,entry:null}; receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast();render()},8000);
    render(); renderToast(); const tr=document.getElementById("urT-"+id); if(tr) tr.focus({preventScroll:true})},700); return}
- if(!e.target.closest(".ur")){urClose(false); const a=document.activeElement; if(!a||a===document.body){const tr=document.querySelector(".ur-t"); if(tr) tr.focus({preventScroll:true})}}
+ if(!e.target.closest(".ur")){const was=UR.open; urClose(false); const a=document.activeElement; if(!a||a===document.body){const tr=document.getElementById("urT-"+was)||document.querySelector(".ur-t"); if(tr) tr.focus({preventScroll:true})}}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UR.open){e.stopPropagation(); e.preventDefault(); urClose(true)}},true);
 document.addEventListener("change",e=>{const s=e.target.closest&&e.target.closest("[data-urper]"); if(!s) return;
@@ -7814,22 +7814,105 @@ function bpPaintErr(k,e){if(e) BILL.ce[k]=e; else delete BILL.ce[k]; const i=el(
  i.classList.toggle("is-err",!!e); i.setAttribute("aria-invalid",String(!!e)); let s=el("bpCe-"+k);
  if(e){if(!s){s=document.createElement("span"); s.className="bp-fe"; s.id="bpCe-"+k; i.after(s); i.setAttribute("aria-describedby",s.id)} s.textContent=e}
  else if(s){s.remove(); i.removeAttribute("aria-describedby")}}
+/* vE E006: every Billing page is production's Platform-cohort page (saleshandy-webui c9feb458b3); numbers are vE's.
+   Helpers first, then one function per page. */
+const BSX={sel:null,ok:false};   /* the Purchase Credits modal: the chosen pack, the agreement ticked */
+const bsxPct=v=>Math.round(v)!==v?v.toFixed(2):String(v);   /* filter-decimal.tsx:1-7 */
+/* "DD MMM, yyyy" (getBillOverview) or, with ord, "Do MMM, YYYY" (account-plan-usage.tsx:478) */
+const bsxD=(s,ord)=>{const m=/^(\d{1,2}) ([A-Za-z]{3})[a-z]*,? (\d{4})$/.exec(String(s).trim()); if(!m) return s; const d=+m[1];
+ if(!ord) return String(d).padStart(2,"0")+" "+m[2]+", "+m[3];
+ const x=d%10===1&&d!==11?"st":d%10===2&&d!==12?"nd":d%10===3&&d!==13?"rd":"th"; return d+x+" "+m[2]+", "+m[3]};
+const BSX_IC={
+ rf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.9L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14.9 3.9L20 15"/><path d="M20 20v-5h-5"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+ wallet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a1 1 0 0 1 1 1v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/><path d="M21 11h-4a2 2 0 0 0 0 4h4a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1Z"/></svg>',
+ check:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'};
+/* production's DownloadUsageReport trigger reads "Download Usage Report"; the popover is vE's (283) */
+const bsxDl=id=>urCtl(id,"").replace(">Download usage report<",">Download Usage Report<");
+/* plan-details.tsx:330-551 + plan-billing-summary.tsx:46-71. o.pay: paymentActionRequired disables both buttons,
+   Modify with production's tooltip (shared-helper.tsx:59-73), Manage Billing plain disabled (plan-details.tsx:487). */
+function bsxPlanDetails(name,ov,o){o=o||{}; const g=!!o.pay;
+ const menu=["Update Card / Invoices","Cancel Subscription"].map(x=>`<button role="menuitem" data-flash="${x==="Update Card / Invoices"?"Opens the billing portal":"Not in this prototype"}">${x}</button>`).join("");
+ return `<div class="bsx-pd"><div class="bsx-info"><div><span class="bsx-k">Plan Details</span><h3 class="bsx-pn">${name}</h3></div>
+  <div class="bsx-act">${g?`<span class="bsx-tip" title="Complete Existing Payment to Continue"><button type="button" class="shd-button shd-button--primary" disabled>Modify Subscription</button></span>`:`<button type="button" class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button>`}<span class="bs-mb"><button type="button" class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false"${g?" disabled":""}>Manage Billing</button><div class="bs-mb-menu" role="menu" hidden>${menu}</div></span></div></div>
+  <div class="bsx-ov">${ov.map(([t,v])=>`<div><span>${t}</span><b>${v}</b></div>`).join("")}</div></div>`}
+/* one usage item (account-plan-usage.tsx:573-631): label, "used of total (x% used)", the bar, "N (y%) Remaining" */
+function bsxUse(label,used,total,unl,full){
+ if(unl) return `<div class="bsx-use${full?" is-full":""}"><div class="bsx-use-h"><span class="bsx-use-l">${label}</span><span class="bsx-use-n">${f(used)} of Unlimited</span></div></div>`;
+ const p=total>0?Math.min(100,used/total*100):0, rem=Math.max(0,total-used);
+ return `<div class="bsx-use${full?" is-full":""}"><div class="bsx-use-h"><span class="bsx-use-l">${label}</span><span class="bsx-use-n">${f(used)} of ${f(total)} <span>(${bsxPct(p)}% used)</span></span></div>
+  <div class="bsx-pb" role="img" aria-label="${bsxPct(p)}% used"><span${p>=100?' class="is-up"':""} style="width:${p}%"></span></div><span class="bsx-use-r">${f(rem)} (${bsxPct(100-p)}%) Remaining</span></div>`}
+function bsxUsage(reset,items,cls){return `<div class="bsx-ap${cls?" "+cls:""}"><div class="bsx-info"><div class="bsx-col"><span class="bsx-st">Account Plan Usage</span><span class="bsx-rs">${reset}</span></div>
+  <div class="bsx-tools"><button type="button" class="bsx-tool bsx-tool--rf" data-flash="Not in this prototype">${BSX_IC.rf}<span>Refresh</span></button></div></div><div class="bsx-uses">${items.join("")}</div></div>`}
+/* Total Lead Finder Credits (account-plan-usage.tsx:485-943; subscription-details.tsx:644-652): what is left of the
+   plan's Lead Finder credits, the bucket bar (plan credits; vE has no free-credit bucket) and the reset sentence */
+function bsxLF(){const k="lead_finder", R=RES[k]; if(!R) return ""; const left=Math.max(0,R.pool-compute(k).used);
+ return `<div class="bsx-lf"><div class="bsx-info bsx-info--0"><span class="bsx-lft">Total Lead Finder Credits</span>
+  <div class="bsx-tools"><button type="button" class="bsx-tool" data-flash="Not in this prototype">${BSX_IC.rf}<span>Refresh</span></button>${bsxDl("lf")}<button type="button" class="bsx-tool" data-flash="Not in this prototype" title="By purchasing credits, you can reveal both emails and phone numbers of leads">${BSX_IC.plus}<span>Add More Credits</span></button></div></div>
+  <span class="bsx-lfn">${f(left)}</span><div class="bsx-bk" role="img" aria-label="Plan credits ${f(left)}"><span style="width:100%"></span></div>
+  <p class="bsx-lfr">On ${bsxD(PLAN.next,1)}, your current Plan Credits will reset and you'll receive ${f(creditIncl(k))} Plan Credits</p></div>`}
 function vPlatform(){
- const seats=Object.keys(PEOPLE).length;
- /* change 238 (item 23): production's Plan Details (plan-details.tsx, getBillOverview): the
-    label, the plan name, Modify Subscription then Manage Billing; Start Date, Next Billing Date,
-    Next Billing Amount ("DD MMM, yyyy", "$0.00"). The agency's "Covers ..." stays under the name. */
- const dd=s=>s.replace(/^(\d) /,"0$1 ");
- return `${bpHead()}<div class="panel plancard bs-plan">
-   <div class="bs-plan-info"><div><span class="bs-plan-k">Plan Details</span><h3 class="bs-plan-n">${PLAN.name}</h3><span class="bs-plan-d">15 team seats, ${seats} used.${AGENCY.whitelabel?" Whitelabel included.":""}</span></div>
-    <div class="bs-plan-act"><button class="shd-button shd-button--primary" data-flash="Not in this prototype">Modify Subscription</button><span class="bs-mb"><button class="shd-button shd-button--secondary" data-bsmb aria-haspopup="menu" aria-expanded="false">Manage Billing</button><div class="bs-mb-menu" role="menu" hidden><button role="menuitem" data-flash="Opens the billing portal">Update Card / Invoices</button><button role="menuitem" data-flash="Not in this prototype">Cancel Subscription</button></div></span></div></div>
-   ${bpPlanRows()/* change 285.1 */}
-  </div>
-  ${isNormal()?"":`<div class="panel bp-panel" id="bpGoes">
-   <div class="panel-h"><span class="panel-t">Where your plan goes</span><span class="c-a">${urCtl("bill","")}<button class="linkbtn ul3-l" data-ulgo>Open Usage &amp; limits</button></span></div>
-   ${bpTable(RK.filter(k=>RES[k].pool>0&&!BS_BUY[k]))}</div>`}
-  ${bpAddons()}`;
+ /* Account Plan Usage lists the plan's monthly and level items in RES order (E004 adds Active prospects) */
+ const LBL={sends:"Monthly Emails sent",active_prospects:"Active Prospects"};
+ const ks=(typeof RKA!=="undefined"?RKA:RK).filter(k=>RES[k]&&(RES[k].kind==="monthly"||RES[k].kind==="level"));
+ const items=ks.map(k=>bsxUse(LBL[k]||RES[k].label,compute(k).used,RES[k].pool,typeof isUnl==="function"&&isUnl(k)));
+ return `<div class="bsx-eoc"><div class="bsx-ec">${bsxPlanDetails(PLAN.name,[["Start Date",bsxD(PLAN.start)],["Next Billing Date",bsxD(PLAN.next)],["Next Billing Amount",PLAN.amount]],{pay:grace()})}</div>
+  ${bsxUsage("Email quota resets on "+bsxD(PLAN.next,1),items)}${bsxLF()}</div>
+  ${isNormal()?"":`<div class="bsx-card bsx-goes" id="bpGoes">
+   <div class="bsx-info"><h3 class="bsx-h">Where your plan goes</h3><span class="bsx-tools">${bsxDl("bill")}<button type="button" class="linkbtn bsx-link" data-ulgo>Open Usage &amp; limits</button></span></div>
+   ${bpTable(RK.filter(k=>RES[k].pool>0&&!BS_BUY[k]))}</div>`}`;
 }
+/* crm-subscription.tsx:7-29: production's CRM page is a static card (no API): the plan, a start date, $0 with $19 struck */
+function bsxCRM(){return `<div class="bsx-crm"><div class="bsx-k bsx-crm-k">Plan Details</div><div class="bsx-crm-n">CRM Starter (Monthly)</div>
+ <div class="bsx-crm-r"><div class="bsx-crm-c"><span class="bsx-k">Start Date</span><b>27 Nov, 2023</b></div><div class="bsx-crm-c"><span class="bsx-k">Billing Amount</span><span><b>$0</b><s>$19</s></span></div></div></div>`}
+/* dialer-info.tsx:425-689: Plan Details with the bill row, a divider, Account Plan Usage (Refresh, Download Usage
+   Report, Add More Credits), Monthly Free Credits and Available Add-on Credits. vE: the credits that came with the
+   add-on are the month's (CREDIT_SRC), used first; what was bought is add-on credit. No phone numbers bought, so
+   production's Phone Numbers Purchase History is absent. */
+function bsxDialer(){const k="dialer", R=RES[k]; if(!R) return "";
+ const used=compute(k).used, mon=creditIncl(k), mu=Math.min(used,mon), add=Math.max(0,R.pool-mon-(used-mu));
+ return `<div class="bsx-card bsx-dl">${bsxPlanDetails("Dialer Starter (Monthly)",[["Start Date",bsxD(PLAN.start)],["Next Billing Date",bsxD(PLAN.next)],["Next Billing Amount","$29"]])}
+  <hr class="bsx-hr"><div class="bsx-info bsx-info--16"><div class="bsx-col"><span class="bsx-st">Account Plan Usage</span><span class="bsx-rs">Monthly credits resets on ${bsxD(PLAN.next)}</span></div>
+  <div class="bsx-tools"><button type="button" class="bsx-tool" data-flash="Not in this prototype">${BSX_IC.rf}<span>Refresh</span></button>${bsxDl("dl")}<button type="button" class="bsx-tool" data-bsxbuy="dialer">${BSX_IC.plus}<span>Add More Credits</span></button></div></div>
+  <div class="bsx-uses">${bsxUse("Monthly Free Credits",mu,mon,false,true)}</div>
+  <div class="bsx-adc"><span class="bsx-adc-k">Available Add-on Credits</span><span class="bsx-adc-v">${f(add)}</span></div></div>`}
+/* ai-credits-info.tsx + billing-card/card.tsx (AI) and ev-credits-details.tsx (EV): the balance, Download Usage
+   Report, the buy button, then the feature list. RewardEVCredits is a third-party widget and is left out. */
+const BSX_FEAT={ai:["Smarter AI Credit. Along with tracking usage, get insights that help you optimize your credit spending like:","",["AI Column","AI Sequence Generation"]],
+ verification:["Along with valid emails, get insights that will boost your deliverability like:","Enhanced email verification. ",["Verification sub status","MX records","Free email detection","AI Catch-All score"]]};
+function bsxCredits(k){const R=RES[k]; if(!R) return ""; const left=Math.max(0,R.pool-compute(k).used), F=BSX_FEAT[k];
+ const rf=`<button type="button" class="bsx-rf" aria-label="Refresh credits" data-flash="Not in this prototype">${BSX_IC.rf}</button>`;
+ const foot=`<hr class="bsx-chr"><div class="bsx-eev">${F[1]?`<span class="bsx-eev-b">${F[1]}</span>`:""}<span>${F[0]}</span><ul class="bsx-fl">${F[2].map(x=>`<li>${BSX_IC.check}<span>${x}</span></li>`).join("")}</ul></div>`;
+ if(k==="ai") return `<div class="bsx-card bsx-ai"><div class="bsx-ch"><span class="bsx-ct">AI Credits</span><div class="bsx-tools">${bsxDl("ai")}<button type="button" class="shd-button shd-button--primary bsx-pbtn" data-bsxbuy="ai">${BSX_IC.plus}<span>Add More Credits</span></button></div></div>
+  <div class="bsx-cb"><div><div class="bsx-ach"><span>Available Credits</span>${rf}</div><span class="bsx-acv">${f(left)}</span></div></div>${foot}</div>`;
+ return `<div class="bsx-card bsx-ev"><div class="bsx-cb"><div class="bsx-evd"><div class="bsx-evh"><span>Available Credits</span>${rf}</div><span class="bsx-evv">${f(left)}</span>
+  <span class="bsx-evf">For more Information, Please visit Email Verification <a href="https://docs.saleshandy.com/en/articles/6921774-prospect-verification-why-should-i-use-email-verification-to-validate-the-prospects" target="_blank" rel="noopener">FAQ Page</a></span></div>
+  <div class="bsx-tools bsx-tools--top">${bsxDl("ev")}<button type="button" class="shd-button shd-button--primary bsx-pbtn" data-bsxbuy="${k}">${BSX_IC.plus}<span>Purchase Credits</span></button></div></div>${foot}</div>`}
+/* SubscriptionDetails for INBOX_RADAR (subscription-details.tsx:549-634): Plan Details with the bill row, then
+   Account Plan Usage with Tests Launched This Month; no Invoices card on Paddle */
+function bsxRadar(){const k="radar", R=RES[k]; if(!R) return "";
+ return `<div class="bsx-eoc"><div class="bsx-ec">${bsxPlanDetails("Inbox Scale (Monthly)",[["Start Date",bsxD(PLAN.start)],["Next Billing Date",bsxD(PLAN.next)],["Next Billing Amount","$49.00"]])}</div>
+  ${bsxUsage("Test quota resets on "+bsxD(PLAN.next,1),[bsxUse("Tests Launched This Month",compute(k).used,R.pool)])}</div>`}
+/* purchase-credits-modal.tsx with ev-credit-plans.tsx: eight packs, Best Value preselected, the agreement, the
+   price of the pack, Buy Now. Open while BILL.buy names a resource this page sells. */
+const BSX_PACKS={ai:[5000,10000,25000,50000,100000,250000,500000,1000000],verification:[5000,10000,25000,50000,100000,250000,500000,1000000],
+ dialer:[1000,2500,5000,10000,15000,30000,50000,100000]};
+const BSX_BEST={ai:25000,verification:25000,dialer:5000};
+const BSX_AGREE={ai:"By purchasing credits, I agree that AI credits are non-refundable.",
+ verification:"By purchasing credits, I agree that email verification credits are non-refundable.",
+ dialer:"By purchasing minutes, I agree that calling credits are non-refundable."};
+const bsxK=n=>(n>=1e6?(n/1e6).toFixed(1)+"M":(n/1e3).toFixed(1)+"K").replace(/\.0([KM])$/,"$1");   /* formatNumber */
+const bsxUsd=n=>"$"+(Math.round(n*100)/100).toLocaleString("en-US");
+function bsxModal(){const k=BILL.buy; if(!k||!BSX_PACKS[k]||billTab!==BS_BUY[k]) return "";
+ const sel=BSX.sel||BSX_BEST[k], g=grace();
+ return `<div class="mscrim bsx-scrim" data-bsxscrim><div class="bsx-pm" role="dialog" aria-modal="true" aria-labelledby="bsxPmT">
+  <div class="bsx-pm-h"><span class="bsx-pm-t" id="bsxPmT">${BSX_IC.wallet}<span>${k==="dialer"?"Calling credits":"Purchase Credits"}</span></span><button type="button" class="ubtn bsx-pm-x" data-bsxx aria-label="Close">${BSX_IC.x}</button></div>
+  <div class="bsx-pm-b"><div class="bsx-packs" role="radiogroup" aria-label="Credits">${BSX_PACKS[k].map(n=>`<button type="button" role="radio" aria-checked="${n===sel}" class="bsx-pack${n===sel?" is-sel":""}" data-bsxpack="${n}">${n===BSX_BEST[k]?'<span class="bsx-best">Best Value</span>':""}<span>${bsxK(n)}</span></button>`).join("")}</div>
+   <label class="bsx-agree"><input type="checkbox" data-bsxok${BSX.ok?" checked":""}><span>${BSX_AGREE[k]}</span></label></div>
+  <div class="bsx-pm-f"><p class="bsx-amt">${bsxUsd(sel*BP_PRICE[k])}</p><button type="button" class="shd-button shd-button--primary bsx-buy" data-bsxgo="${k}"${!BSX.ok||g?" disabled":""}${g?' title="Complete Existing Payment to Continue"':""}>Buy Now</button></div></div></div>`}
+function bsxClose(){const k=BILL.buy; BILL.buy=null; BILL.amt=null; BILL.from=null; BSX.sel=null; BSX.ok=false; render(); const t=document.querySelector(`[data-bsxbuy="${k}"]`); if(t) t.focus({preventScroll:true})}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.querySelector(".bsx-pm")){e.preventDefault(); e.stopPropagation(); bsxClose()}},true);
 /* one row per resource: Used (of the plan), Available to give, the largest share, one action.
    The renewal is under the name. Rows are plain (change 283: the row expansion went).
    `single` is a credits page: one resource, where its total came from (CREDIT_SRC) and its price always shown. */
@@ -9176,12 +9259,12 @@ function vBilling(){
     blue left edge. No hover state, as production. */
  const nav=`<div class="setnav bsnav">${groups.map((g,i)=>`<div class="bsnav-sec">${i?'<hr class="bsnav-hr">':''}<div class="bsnav-cat">${g}</div>${tabs.filter(t=>t[2]===g).map(t=>
    `<button data-billtab="${t[0]}" aria-current="${billTab===t[0]}">${BS_IC[t[0]]||""}<span class="bsnav-l">${t[1]}</span>${t[3]?`<span class="bsnav-new">${t[3]}</span>`:""}</button>`).join("")}</div>`).join("")}</div>`;
- const page=billTab==="plan"?vPlatform()
-  :billTab==="crm"?vAddons("CRM")
-  :billTab==="dialer"?vAddons("Dialer")+vCreditsBuy("dialer")
-  :billTab==="ai"?vCreditsBuy("ai")
-  :billTab==="ev"?vCreditsBuy("verification")
-  :billTab==="radar"?vAddons("Inbox Radar")+vCreditsBuy("radar")
+ const page=billTab==="plan"?vPlatform()   /* vE E006: production's pages (subscription-info.tsx:329-414) */
+  :billTab==="crm"?bsxCRM()
+  :billTab==="dialer"?bsxDialer()
+  :billTab==="ai"?bsxCredits("ai")
+  :billTab==="ev"?bsxCredits("verification")
+  :billTab==="radar"?bsxRadar()
   :billTab==="credits"?vCreditsBuy()
   :billTab==="addons"?vAddons()
   :vCredits().replace('<div class="wrap">','<div class="billpage">');
@@ -9189,7 +9272,7 @@ function vBilling(){
     Invoices, Add Capacity) goes; the page starts with its left nav and the panel, as production's
     Billing & Subscription does. Invoices live under Manage Billing on the Platform panel. */
  return `<div class="wrap billwrap">
-   ${billTab==="plan"?"":graceBanner()/* change 271; change 285: on Platform the headline and the Payment panel say it */}<div class="setwrap bswrap">${nav}<div class="billpage">${billTab!=="plan"?bpLinkHead():""}${page}</div></div></div>`;
+   ${graceBanner()/* vE E006: the app's payment-failed banner on every Billing page, as production's page-header banner */}<div class="setwrap bswrap">${nav}<div class="billpage">${page}</div></div>${bsxModal()}</div>`;
 }
 
 function blReceipt(k,before,prev,cid){
@@ -14505,6 +14588,15 @@ function wire(){
  /* a view change paints a skeleton first, so focus waits for the bind that follows the real page */
  if(BILL.focusCard){const i=el("bpC-num"); if(i){BILL.focusCard=false; i.scrollIntoView({block:"center"}); i.focus({preventScroll:true})}}
  q("[data-bsmb]").forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.parentNode.querySelector(".bs-mb-menu");m.hidden=!m.hidden;b.setAttribute("aria-expanded",String(!m.hidden))});
+ /* vE E006: the Purchase Credits modal */
+ q("[data-bsxbuy]").forEach(b=>b.onclick=()=>{BILL.buy=b.dataset.bsxbuy; BILL.amt=null; BILL.from=null; BSX.sel=null; BSX.ok=false; render(); const x=document.querySelector(".bsx-pack.is-sel"); if(x) x.focus({preventScroll:true})});
+ q("[data-bsxx]").forEach(b=>b.onclick=()=>bsxClose());
+ q("[data-bsxscrim]").forEach(s=>s.onclick=e=>{if(e.target===s) bsxClose()});
+ q("[data-bsxpack]").forEach(b=>b.onclick=()=>{BSX.sel=+b.dataset.bsxpack; render(); const x=document.querySelector(`[data-bsxpack="${BSX.sel}"]`); if(x) x.focus({preventScroll:true})});
+ q("[data-bsxok]").forEach(i=>i.onchange=()=>{BSX.ok=i.checked; const g=document.querySelector("[data-bsxgo]"); if(g) g.disabled=!BSX.ok||grace()});
+ q("[data-bsxgo]").forEach(b=>b.onclick=()=>{const k=b.dataset.bsxgo, a=BSX.sel||BSX_BEST[k]; if(!BSX.ok||grace()) return;
+  RES[k].pool+=a; CREDIT_SRC[k].buys.push([a,"today"]); BILL.charged+=a*BP_PRICE[k];
+  receipt("bill","Credits purchased successfully!",null,`bought ${f(a)} ${RES[k].label}`); bsxClose()});
  /* 18 Sep, delight pass: Email Accounts charge expander and the limits receipt */
  q("[data-blwhy]").forEach(b=>b.onclick=()=>{BL_WHY=BL_WHY===b.dataset.blwhy?null:b.dataset.blwhy;render()});
  q("[data-blundo]").forEach(b=>b.onclick=()=>{if(BLR){BLR.undo();BLR=null;clearTimeout(blrTimer)}render()});
@@ -16600,6 +16692,118 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .bs-plan-ov>div{display:flex;flex-direction:column;gap:5px}
 .bs-plan-ov span{font-size:12px;font-weight:600;line-height:20px;color:var(--gray-12)}
 .bs-plan-ov b{font-size:14px;font-weight:600;line-height:22px;color:var(--gray-17)}
+/* vE E006: Billing as production draws it. SPD = _subscription-plan-details.scss, S = settings/_settings.scss */
+.bsx-eoc{padding:20px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;box-shadow:0 2px 4px 0 rgba(234,237,239,.65);overflow-wrap:break-word}   /* SPD:59-65 */
+.bsx-ec{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #e8e8e8}   /* SPD:67-71 */
+.bsx-info{display:flex;justify-content:space-between;flex-wrap:wrap;row-gap:12px;margin-bottom:20px}   /* SPD:132-136 */
+.bsx-k{display:block;font-size:12px;line-height:20px;font-weight:600;color:#4b5563}
+.bsx-pn{margin:0;font-size:16px;line-height:24px;font-weight:700;color:#1f2937}
+.bsx-act{display:flex;align-items:flex-start}
+.bsx-act .bs-mb{margin-left:16px}   /* ml-3 */
+.bsx-tip{display:inline-flex;cursor:not-allowed}
+.bsx-act .shd-button:disabled{pointer-events:none}
+.bsx-ov{display:flex;justify-content:space-between;width:80%;margin-bottom:16px}   /* SPD:329-334 */
+.bsx-ov>div{display:flex;flex-direction:column;gap:5px}   /* SPD:711-713 */
+.bsx-ov span{font-size:12px;line-height:20px;font-weight:600;color:#4b5563}
+.bsx-ov b{font-size:14px;line-height:22px;font-weight:600;color:#111827}
+.bsx-col{display:flex;flex-direction:column}
+.bsx-st{font-size:14px;line-height:22px;font-weight:700;color:#1f2937}
+.bsx-rs{padding-top:2px;font-size:12px;line-height:20px;font-weight:500;color:#4b5563}
+.bsx-tools{display:flex;align-items:center;gap:16px}
+.bsx-tools--top{align-self:flex-start}
+.bsx-tool{display:inline-flex;align-items:center;gap:8px;padding:0;border:0;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#6b7280;cursor:pointer;white-space:nowrap}   /* SPD:267-289, 514-523 */
+.bsx-tool:hover{color:#1d4ed8}
+.bsx-tool svg{width:20px;height:20px;flex:none}
+.bsx-tool--rf{font-size:16px;line-height:24px}
+.bsx-tool--rf:hover{color:#6b7280}
+.bsx-tools .ur-t{gap:8px;font-size:14px;line-height:20px;font-weight:500;color:#6b7280}   /* download-usage-report.scss trigger */
+.bsx-tools .ur-t:hover,.bsx-tools .ur-t[aria-expanded=true],.bsx-tools .ur-t[aria-expanded=true]:hover{color:#1d4ed8;text-decoration:none}
+.bsx-tools .ur-t svg{width:20px;height:20px}
+.bsx-uses{display:flex;justify-content:space-between;gap:24px}
+.bsx-use{display:flex;flex-direction:column;width:47.6133%;min-width:0}   /* SPD:101-103 */
+.bsx-use.is-full{width:100%}
+.bsx-use-h{display:flex;justify-content:space-between;gap:8px}
+.bsx-use-l,.bsx-use-n{font-size:12px;line-height:20px;font-weight:600;color:#1f2937}
+.bsx-use-n{white-space:nowrap}
+.bsx-use-n span{font-weight:500}
+.bsx-pb{height:10px;margin-top:12px;border-radius:30px;background:#e5e7eb;overflow:hidden}   /* design-system ProgressBar */
+.bsx-pb span{display:block;height:100%;background:#9ca3af}
+.bsx-pb span.is-up{background:#f87171}
+.bsx-use-r{margin-top:4px;font-size:12px;line-height:20px;font-weight:500;color:#6b7280}
+.bsx-lf{margin-top:24px;padding-top:24px;border-top:1px solid #e8e8e8}   /* SPD:86-90 */
+.bsx-info--0{margin-bottom:0}
+.bsx-info--16{margin-bottom:16px}
+.bsx-lft{display:block;margin-bottom:4px;font-size:14px;line-height:20px;font-weight:700;color:#1f2937}
+.bsx-lfn{display:block;font-size:16px;line-height:20px;font-weight:600;color:#111827}
+.bsx-bk{display:flex;height:10px;margin-top:12px;border-radius:30px;background:#e5e7eb;overflow:hidden}   /* SPD:367-391 */
+.bsx-bk span{height:100%;background:#2563eb}
+.bsx-lfr{margin:8px 0 0;font-size:12px;line-height:20px;font-weight:500;color:#4b5563}
+.bsx-card{padding:24px;background:#fff;border:1px solid #eaedef;border-radius:4px;box-shadow:0 2px 4px rgba(234,237,239,.65)}   /* _card.scss:102-105 */
+.billpage>.bsx-goes{margin-top:8px}   /* mt-4 (24px) with the page's 16px gap */
+.bsx-h{margin:0;font-size:16px;line-height:24px;font-weight:700;color:#1f2937}
+.bsx-goes .bsx-info{align-items:center}
+.bsx-link{font-size:14px;line-height:20px;font-weight:500;color:#1d4ed8}
+.bsx-goes .bp-t{border:1px solid #f3f4f6;border-radius:4px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.bsx-goes .bp-t th{background:#fff;font-size:12px;line-height:16px;font-weight:700;color:#6b7280;border-bottom:1px solid #f3f4f6}
+.bsx-goes .bp-t td{border-top-color:#f3f4f6}
+.bsx-dl .bsx-pd .bsx-info{margin-bottom:0}
+.bsx-dl .bsx-ov{margin:20px 0 0}   /* S:2919-2930 */
+.bsx-hr{margin:24px 0;border:0;border-top:1px solid #e5e7eb}
+.bsx-adc{display:flex;flex-direction:column;margin-top:24px}
+.bsx-adc-k{margin-bottom:4px;font-size:12px;line-height:20px;font-weight:600;color:#1f2937}
+.bsx-adc-v{font-size:12px;line-height:20px;font-weight:600;color:#111827}
+.bsx-crm{padding:24px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;box-shadow:0 2px 4px 0 rgba(234,237,239,.65)}   /* S:2886-2912 */
+.bsx-crm .bsx-k{line-height:18px}
+.bsx-crm-k{margin-bottom:8px}
+.bsx-crm-n{margin-bottom:20px;font-size:16px;line-height:24px;font-weight:700;color:#1f2937}
+.bsx-crm-r{display:flex;align-items:center}
+.bsx-crm-c{display:flex;flex-direction:column;margin-right:24px}
+.bsx-crm-c .bsx-k{margin-bottom:4px}
+.bsx-crm-c b{font-size:14px;line-height:21px;font-weight:600;color:#111827}
+.bsx-crm-c s{margin-left:4px;font-size:12px;line-height:18px;font-weight:400;color:#4b5563}
+.bsx-ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}   /* S:3274-3290 */
+.bsx-ct{font-size:14px;line-height:21px;font-weight:700;color:#1f2937}
+.bsx-pbtn{display:inline-flex;align-items:center;gap:8px}
+.bsx-pbtn svg{width:20px;height:20px;flex:none}
+.bsx-cb{display:flex;justify-content:space-between;gap:16px;padding:4px 0}   /* _card.scss .card-body */
+.bsx-ach,.bsx-evh{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.bsx-ach span{font-size:14px;line-height:20px;font-weight:600;color:#1f2937}
+.bsx-evh span{font-size:12px;line-height:20px;font-weight:600;color:#1f2937}
+.bsx-rf{display:inline-flex;padding:0;border:0;background:none;color:#6b7280;cursor:pointer}
+.bsx-rf svg{width:16px;height:16px}
+.bsx-acv{display:block;font-size:14px;line-height:21px;font-weight:700;color:#111827}
+.bsx-evv{display:block;margin-bottom:12px;font-size:16px;line-height:24px;font-weight:700;color:#111827}
+.bsx-evf{display:block;font-size:12px;line-height:20px;color:#4b5563}
+.bsx-evf a{color:#1d4ed8}
+.bsx-chr{height:1px;margin:12px 0 16px;border:0;background:#e8e8e8}   /* S:3568-3573 */
+.bsx-eev{font-size:12px;line-height:18px;color:#111827}
+.bsx-eev-b{font-weight:500}
+.bsx-fl{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 0;padding:0;list-style:none}
+.bsx-fl li{display:flex;align-items:center;gap:4px}
+.bsx-fl svg{display:block;width:16px;height:16px;color:#6b7280}
+.bsx-fl span{font-size:12px;color:#1f2937}
+.mscrim.bsx-scrim{display:flex;align-items:center;justify-content:center;padding:16px}
+.bsx-pm{width:392px;max-width:100%;background:#fff;border-radius:4px;box-shadow:2px 2px 16px -3px rgba(4,21,76,.16),8px 16px 56px -24px rgba(156,157,161,.24)}   /* S:4402-4420 */
+.bsx-pm-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 0}
+.bsx-pm-t{display:flex;align-items:center;gap:8px;font-size:16px;line-height:24px;font-weight:700;color:#1f2937}
+.bsx-pm-t svg{width:24px;height:24px}
+.bsx-pm-x svg{width:20px;height:20px}
+.bsx-pm-b{padding:20px 24px}
+.bsx-packs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:16px 8px;width:100%;padding-top:8px}
+.bsx-pack{position:relative;flex:1 1 calc(25% - 8px);width:80px;height:40px;display:flex;align-items:center;justify-content:center;padding:6px 16px;border:1px solid #d1d5db;border-radius:4px;background:#fff;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#1f2937;cursor:pointer;transition:all .2s ease}
+.bsx-pack:hover{border-color:#1d4ed8}
+.bsx-pack.is-sel{border-color:#1d4ed8;box-shadow:0 0 0 2px #dbeafe;color:#1d4ed8;font-weight:600}
+.bsx-pack:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+.bsx-best{position:absolute;top:-15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;width:66px;height:18px;padding:4px 6px;border:1px solid #6ee7b7;border-radius:12px;background:#e6f8ef;color:#059367;font-size:10px;line-height:10px;font-weight:500;white-space:nowrap}
+.bsx-agree{display:flex;align-items:flex-start;gap:8px;margin-top:20px;font-size:12px;line-height:16px;font-weight:500;color:#6b7280;cursor:pointer}
+.bsx-agree input{margin:1px 0 0;accent-color:#1d4ed8}
+.bsx-pm-f{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-top:1px solid #f3f4f6}
+.bsx-amt{margin:0;font-size:24px;line-height:24px;font-weight:600;color:#1f2937}
+.bsx-buy{min-width:92px}
+@media (max-width:760px){.bsx-ov{width:100%;flex-wrap:wrap;justify-content:flex-start;gap:12px 32px}.bsx-uses{flex-direction:column;gap:20px}.bsx-use{width:100%}
+ .bsx-use-h{flex-wrap:wrap;column-gap:8px;row-gap:0}.bsx-use-n{white-space:normal}
+ .bsx-info--0{margin-bottom:12px}
+ .bsx-tools{flex-wrap:wrap;gap:12px 16px}.bsx-cb{flex-direction:column}.bsx-act{flex-wrap:wrap;gap:12px}.bsx-act .bs-mb{margin-left:0}}
 .bill-amt{font-size:20px;line-height:28px;font-weight:600;color:#111827}.bill-sub{font-size:14px;color:#6b7280}.bill-sub .linkbtn{font-size:14px}
 .plancard .plan-kv{border-top:0;padding-top:16px}.plan-kv b{font-size:20px;line-height:24px;font-weight:600;color:#111827;display:block;margin-top:4px}
 .pg-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#6b7280;margin-bottom:6px}.pg-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
@@ -17497,7 +17701,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="40e8619";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="cae4d3e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
