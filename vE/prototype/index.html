@@ -3475,8 +3475,8 @@ function agencyUsage(c){
     without any option"): the client's table as it is, no action column; the actions sit right-aligned in the tab
     row (auActs). Someone with neither permission reads the table as the client does. */
  return `${top}${tabs.replace(/<\/div>$/,`${auActs(c)}</div>`)}<div class="panel cx-pn" data-auallow>
-  <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col></colgroup>
-   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>Status</th></tr></thead><tbody>${cuRows(c,{own})}</tbody></table></div>`;
+  <table class="cx-ut cx-urw"><colgroup><col style="width:24%"><col style="width:14%"><col style="width:24%"><col style="width:12%"><col></colgroup>
+   <thead><tr><th>Resource</th><th>Renews</th><th>Used</th><th>Left</th><th>Status</th></tr></thead><tbody>${cuRows(c,{own})}</tbody></table></div>`;
 }
 /* E003: Change limits for whoever holds the limits permission: this workspace's limits editor, the record's
    Limits tab in edit (your own workspace's limits live on Billing's allocation, as before). Buy more for
@@ -4727,7 +4727,7 @@ const HS_COLS={
  ws:[["name","Workspace","width:29%"],["status","Status","width:10%"],["client","Client users","width:13%"],["team","Your team","width:16%"],["acts","","width:322px"]],   /* vE E023: no Highest usage; percent widths fill the card */
  ul:[["name","Workspace",""],["used","Used",""],["limit","Limit",""]]};   /* vE E018: the actions column. vE E022: the Limits table */
 /* name A to Z and status New first start ascending; every figure starts highest first */
-const HS_FIRST={name:1,status:1};   /* change 338: worst score first */
+const HS_FIRST={name:1,status:1,pace:1};   /* vE E033: the pace column starts soonest first */   /* change 338: worst score first */
 /* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
 const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hidden="true" focusable="false">'
  +'<path class="hs-up" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 -2.44)" d="M11.293 8.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1-1.414 1.414L12 10.414l-5.293 5.293a1 1 0 0 1-1.414-1.414l6-6Z"/>'
@@ -5887,18 +5887,21 @@ function cuRows(c,ag){const yr=ag&&!ag.own?"its":"your";
   const pc=stop?`<span class="cx-ul"><span class="cx-mk is-out">Used up</span></span>`
    :ro?`<span class="cx-ul"><span class="cx-mk">${ro}</span></span>`
    :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to ${yr} limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`;
-  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():resSub(k,"Does not renew")}</span></td>
+  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span></td>${cuRwHTML(k)}
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> left</span></td>
    <td class="cx-c-pc">${pc}</td></tr>`}).join("")}
+/* vE E033: the client's Renews cell, the refresh date only (126 section 4); a level has none */
+const cuRwHTML=k=>{const v=ulrRule(k).cli; return v==null?'<td class="cx-c-rw is-none"><span aria-label="No refresh">&ndash;</span></td>'
+ :'<td class="cx-c-rw">'+(v==="Doesn't renew"?v:'<span class="ulr-ph">Renews </span>'+v)+'</td>'};
 function cUsage(c){
  const AG=AGENCY.name;
  /* vE E015: Download usage report sits at the right end of the tab row (no row of its own) */
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Limits"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}<span class="ub-act">${urCtl("cu","Covers "+c.name+" only.")}</span></div>`;
  if(UB_TAB==="buy") return `${tabs}${mailPurchasesHTML(c,true)||`<div class="panel"><div class="panel-b"><span class="sub">No email accounts set up by ${AG} yet.</span></div></div>`}`;
  return `${tabs}<div class="panel cx-pn" data-cuallow>
-  <table class="cx-ut"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:12%"><col></colgroup>
-   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>Status</th></tr></thead><tbody>${cuRows(c)}</tbody></table></div>`;
+  <table class="cx-ut cx-urw"><colgroup><col style="width:24%"><col style="width:14%"><col style="width:24%"><col style="width:12%"><col></colgroup>
+   <thead><tr><th>Resource</th><th>Renews</th><th>Used</th><th>Left</th><th>Status</th></tr></thead><tbody>${cuRows(c)}</tbody></table></div>`;
 }
 /* limits are edited as a draft and applied together. Typing a number used to
    change the pool on the spot, so a slip of the finger reallocated a client
@@ -7874,21 +7877,59 @@ function ulrBarHTML(){const ch=ulChanges(), n=ch.length; if(!n) return "";
   :low.length?`Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}. Raise it to review.`:"";
  return `<div class="ulr-sb" role="region" aria-label="Unsaved changes"><p class="ulr-sbt">${ul3N(n,"change")}.${av}${av?".":""}${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>`
   +`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ul3rv${why?` disabled title="${why}"`:""}>Review ${ul3N(n,"change")}</button></div>`}
+/* ═══ vE E033, 23 Oct 2026: 126's rules on the page (Hitesh's pick "H The 1 Oct row", on top of the table). Per
+   resource and demo plan: Scale monthly, or (plan=pro) Pro annual with a yearly Lead Finder add-on. head: the panel
+   header line. act: how to get more. term: the cycle the pace reads (day of days, from, to); none when it doesn't
+   renew. on/lost: the row on top. keep: what a resource that doesn't renew keeps. cli: the client's Renews cell. The
+   Dialer is its own subscription, monthly on the 14th; Inbox Radar on the 1st. ═══ */
+function ulrRule(k){const pro=PLAN_TIER==="pro", nx=PLAN.next.split(",")[0], M={day:CYCLE.day,days:CYCLE.days,from:"1 Sep",to:nx}, on=(T,lost)=>({term:T,on:"On "+T.to,lost});
+ if(k==="sends") return Object.assign({head:"Renews "+nx,act:"Change plan",cli:nx},on(M,"Unused is lost"));
+ if(k==="lead_finder") return pro?Object.assign({head:"Renews 1 May 2027",act:"Add-on or upgrade",cli:"1 May 2027"},on({day:132,days:365,from:"1 May 2026",to:"1 May 2027"},"Unused is lost, add-on too"))
+  :Object.assign({head:"Renews "+nx,act:"Add-on or upgrade",cli:nx},on(M,"Unused is lost"));
+ if(k==="dialer") return Object.assign({head:pro?"Renews monthly, next 14 Sep":"Renews with your Dialer plan on 14 Sep",act:"Buy more",cli:"14 Sep"},on({day:27,days:31,from:"14 Aug",to:"14 Sep"},"Plan credits lost, bought kept"));
+ if(k==="radar") return pro?{head:"Doesn't renew",keep:"Tests are kept",act:"Get an Inbox Radar plan",cli:"Doesn't renew"}
+  :Object.assign({head:"Renews with your Inbox Radar plan on 1 Oct",act:"Change Inbox Radar plan",cli:"1 Oct"},on(Object.assign({},M,{to:"1 Oct"}),"Unused is lost"));
+ if(RES[k]&&RES[k].kind==="level") return {head:"Plan limit",act:"Change plan",cli:null};
+ return {head:"Doesn't renew",keep:"Never expires",act:"Buy more",cli:"Doesn't renew"}}
+const ulrTerm=k=>isUnl(k)?null:ulrRule(k).term||null;
+const ulrSig2=x=>{if(x<100) return Math.round(x/10)*10||Math.round(x); const p=Math.pow(10,Math.floor(Math.log10(x))-1); return Math.round(x/p)*p};
+/* the pace at the typed limit: days from today while it runs out before the renewal, else what is left on that day */
+function ulrPaceHTML(k,c){const T=ulrTerm(k), r=RES[k].rows[c.id], v=ulDv(k,c.id), s=(t,x)=>`<span class="ulr-pace${x?" is-"+x:""}">${t}</span>`;
+ if(c.disabled) return s(f(Math.max(0,v-r.used))+" unused","q");
+ if(!(v>0)||r.used>=v) return r.used>0||v>0?s("Used up","out"):s("Nothing used yet","q");
+ if(!r.used) return s("Nothing used yet","q");
+ const pd=r.used/T.day, n=(v-r.used)/pd;
+ if(n<T.days-T.day){const m=Math.max(1,Math.round(n)); return s(`Runs out in about ${m} day${m===1?"":"s"}`)}
+ return s(`About ${f(ulrSig2(v-r.used-pd*(T.days-T.day)))} unused<span class="ulr-ph"> on ${T.to}</span>`,"q")}
+/* the sort reads saved figures (as ulfVal): days left, used up first, nothing used after, disabled last */
+const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!T||!r||c.disabled) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return (r.cap-r.used)/(r.used/T.day)};
+function ulrGaugeHTML(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), lv=ulrLv(c,r.used,v), p=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0;
+ return `<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${[UL3_GREY,ULR_AMB,ULR_RED][lv]}"></span></span>`}
+/* hsHead's markup for the pace table's own five columns; the bar's column has no sort */
+function ulrHeadP(T){const S=HSORT.ul, th=(c,l,x)=>{const on=!!S&&S.col===c, up=on&&S.dir>0;
+  return '<th class="th-s'+(x?" "+x:"")+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="ul|'+c+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'};
+ return '<thead><tr class="th-one">'+th("name","Workspace")+th("used","Used since "+T.from,"ulr-r")+'<th class="ulr-gh" aria-label="Used of limit"></th>'+th("limit","Limit","ulr-r")+th("pace","By "+T.to+", at this pace","ulr-p")+'</tr></thead>'}
+/* H's row, pinned in the header (a second thead row of td cells, after the sort row): never sorted, filtered or paged. None for a level */
+function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
+ if(T) return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.on}</span></td><td class="ulr-ur"><span class="ulr-ww">Back to 0</span><span class="ulr-nw">Used goes back to 0</span></td><td class="ulr-gc"></td><td class="ulr-cl"><span class="ulr-ww">Stays the same</span><span class="ulr-nw">Limit stays the same</span></td><td class="ulr-pc">${P.lost}</td></tr>`;
+ if(!P.keep) return "";
+ return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.head}</span></td><td>${P.keep}</td><td class="ulr-cl">Limits and used stay</td></tr>`}
 function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
  const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span><span>You can give</span></div>${RK_SHOW(UL_K()).map(x=>{const n=ulrOut(x);
   return `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}"${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${n?`<span class="ulr-lab"><i aria-hidden="true"></i>${n} used up</span>`:""}<span class="ulr-ra" data-ulrav="${x}">${ulrAvHTML(x)}</span></button>`}).join("")}</nav>`;
- const rn=bpRenew(k), sub=unl?`No limits on ${PLAN.name.replace(/\s*\(.*\)$/,"")}`:`${f(R.pool)} in plan${/^Renews /.test(rn)?", r"+rn.slice(1):""}`;
- const act=ulRo()||unl?"":canI("billing")?`<button type="button" class="linkbtn ul3-lk" data-ulbuy="${k}">${byPlan(k)?"Change plan":"Buy more"}</button>`:`<button type="button" class="linkbtn ul3-lk" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
+ const RU=ulrRule(k), T=ulrTerm(k), sub=RU.head;   /* vE E033: 126's header line */
+ const act=ulRo()||unl?"":canI("billing")?`<button type="button" class="linkbtn ul3-lk" data-ulbuy="${k}">${RU.act}</button>`:`<button type="button" class="linkbtn ul3-lk" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:c.id===OWN_ID?' title="Your workspace keeps the rest of the plan"':""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ulr-tag">Yours</span>':""}${c.disabled?'<span class="ulr-tag">Disabled</span>':""}</div></td>`
-  +`<td data-ulru="${c.id}">${ulrUseHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${unl?`<span class="ulr-lv">${UNL_TXT}</span>`:ulrLimHTML(k,c,ro)}</td></tr>`).join("");
+  +(T?`<td class="ulr-ur"><span class="ulr-num">${f(R.rows[c.id].used)}</span></td><td class="ulr-gc" data-ulru="${c.id}">${ulrGaugeHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`
+  :`<td data-ulru="${c.id}">${ulrUseHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${unl?`<span class="ulr-lv">${UNL_TXT}</span>`:ulrLimHTML(k,c,ro)}</td></tr>`)).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${ulfToolbar()}${ulfChips()}
-  <table class="ulr-t" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col><col class="ulr-c3"></colgroup>${hsHead("ul")}<tbody>${rows||ulfNone()}</tbody></table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t${T?" ulr-tp":""}" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup>${T?'<col class="ulr-c1"><col class="ulr-cu"><col class="ulr-cg"><col class="ulr-cv"><col>':'<col class="ulr-c1"><col><col class="ulr-c3">'}</colgroup>${(T?ulrHeadP(T):hsHead("ul")).replace("</thead>",ulrOnHTML(k)+"</thead>")}<tbody>${rows||ulfNone(T?5:3)}</tbody></table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
  P.querySelectorAll("[data-ulrav]").forEach(s=>{s.innerHTML=ulrAvHTML(s.dataset.ulrav)});
- if(!isUnl(k)) ul3E2Rows(k).forEach(c=>{const u=P.querySelector(`[data-ulru="${c.id}"]`); if(u&&(!id||id===c.id||c.id===OWN_ID)) u.innerHTML=ulrUseHTML(k,c);
+ if(!isUnl(k)) ul3E2Rows(k).forEach(c=>{const u=P.querySelector(`[data-ulru="${c.id}"]`); if(u&&(!id||id===c.id||c.id===OWN_ID)){const pc=P.querySelector(`[data-ulrp="${c.id}"]`); u.innerHTML=pc?ulrGaugeHTML(k,c):ulrUseHTML(k,c); if(pc) pc.innerHTML=ulrPaceHTML(k,c)}   /* vE E033: the bar and the pace follow the typed limit */
   const l=P.querySelector(`[data-ulrl="${c.id}"]`); if(!l) return; const i=l.querySelector("[data-ulri]"), bad=ulrBad(k,c.id);
   if(i){i.setAttribute("aria-invalid",String(!!bad)); if(bad) i.setAttribute("aria-describedby","ulrWhy"); else i.removeAttribute("aria-describedby");
    if(!bad&&UL.ce!==k+"|"+c.id&&document.activeElement!==i){UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,c,ro); UL.ceBusy=false}}
@@ -13630,7 +13671,7 @@ function wslRead(){const raw=location.hash.replace(/^#/,"").split("&"), g=k=>{co
  /* vE E022: the Limits table */
  const uq=g("ulq"); if(uq!=null){try{ulQ=decodeURIComponent(decodeURIComponent(uq))}catch(e){ulQ=""}}
  ULF_DEF.forEach(([k,,O])=>{const v=g("ul"+k); if(v){ULF[k]=v.split(",").map(x=>{try{return decodeURIComponent(x)}catch(e){return ""}}).filter(x=>x&&O.some(o=>o[0]===x))}});
- const us=g("ulsort"); if(us){const [c,d]=us.split("-"); if(HS_COLS.ul.some(x=>x[0]===c)) HSORT.ul={col:c,dir:d==="asc"?1:-1}}
+ const us=g("ulsort"); if(us){const [c,d]=us.split("-"); if(c==="pace"||HS_COLS.ul.some(x=>x[0]===c)) HSORT.ul={col:c,dir:d==="asc"?1:-1}}
  const uz=+g("ulsize"); if(RA_SIZES.indexOf(uz)>-1) UL_SIZE=uz;
  const up=+g("ulpage"); if(up>0) PAGE.ul=Math.floor(up);
  WSL_LAST=wslSnap()}
@@ -13677,7 +13718,7 @@ const ulfOn=()=>ULF_DEF.some(([k])=>ULF[k].length);
 const ulfUse=(k,c)=>{const r=RES[k].rows[c.id]; return !r||isUnl(k)?"fine":["fine","near","out"][ulrLv(c,r.used,r.cap)]};
 const ulfPass=(k,c)=>(!ULF.status.length||ULF.status.indexOf(wsStatus(c))>-1)&&(!ULF.usage.length||ULF.usage.indexOf(ulfUse(k,c))>-1);
 /* the sort reads what the cells show: the workspace name, used, and the saved limit; Unlimited has no limit to sort */
-const ulfVal=k=>(col,c)=>{const r=RES[k].rows[c.id]; return col==="name"?String(c.name):col==="used"?(isUnl(k)?unlUsed(k,c.id):r.used):isUnl(k)?null:r.cap};
+const ulfVal=k=>(col,c)=>{const r=RES[k].rows[c.id]; return col==="pace"?ulrPaceV(k,c):col==="name"?String(c.name):col==="used"?(isUnl(k)?unlUsed(k,c.id):r.used):isUnl(k)?null:r.cap};
 const ulfRows=k=>hsApply(ul3E2Rows(k).filter(c=>wsMatch(c,ulQ)&&ulfPass(k,c)),"ul",null,ulfVal(k));
 const ulfPageRows=k=>{const W=ulfRows(k), g=pageOf("ul",W.length,UL_SIZE); return W.slice(g.from,g.to)};
 function ulfDD(k,l){const S=ULF[k], O=wsfOpts(k), open=ULF_OPEN===k;
@@ -13693,7 +13734,7 @@ function ulfChips(){if(!ulfOn()) return "";
    return '<span class="wsf-chip"><span class="wsf-cn">'+l+':</span><span class="wsf-cv" title="'+wsfEsc(v)+'">'+wsfEsc(v)+'</span>'
     +'<button type="button" class="wsf-x" data-ulfx="'+k+'" aria-label="Remove the '+l+' filter">'+WSF_X+'</button></span>'}).join("")
   +'<button type="button" class="linkbtn wsf-clr" data-ulfclear>Clear all</button></div>'}
-const ulfNone=()=>'<tr class="ws-none"><td colspan="3"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-ulfnone>Clear</button></span></td></tr>';
+const ulfNone=n=>'<tr class="ws-none"><td colspan="'+(n||3)+'"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-ulfnone>Clear</button></span></td></tr>';
 function ulfPager(N){if(N<=RA_SIZES[0]) return ""; const g=pageOf("ul",N,UL_SIZE); return pgBar("ul",N,UL_SIZE,g.p,g.n)}
 function ulfClose(focus){const k=ULF_OPEN; if(!k) return; ULF_OPEN=null; render(); if(focus){const t=document.querySelector('[data-ulft="'+k+'"]'); if(t) t.focus()}}
 document.addEventListener("mousedown",e=>{if(ULF_OPEN&&!(e.target.closest&&e.target.closest(".wsf.is-open"))) ulfClose(false)},true);
@@ -13941,7 +13982,7 @@ function demoSync(){
  const esc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
  const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
   <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
-  <div class="dp-g"><div class="dp-t">Plan</div>${[["scale","Scale: Active prospects Unlimited"],["pro","Pro: 30,000 Active prospects"]].map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpplan" value="${k}"${PLAN_TIER===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
+  <div class="dp-g"><div class="dp-t">Plan</div>${[["scale","Scale: Active prospects Unlimited"],["pro","Pro annual, yearly Lead Finder add-on: 30,000 Active prospects"]].map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpplan" value="${k}"${PLAN_TIER===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">Product guide</div>
    <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON}" data-dpguide aria-label="Guide after the first workspace"></button></div>
    <div class="dp-row" style="margin-top:6px"><span class="sub">Five steps</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay?"":" disabled"} title="${replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
@@ -13979,7 +14020,7 @@ function rlUnlRow(k,c){if(!unlHas(c.id)) return ""; const R=RES[k];
    <td class="rlt-c3">${UNL_TXT}</td><td class="rlt-c4"><span class="rlt-av">${UNL_TXT}</span></td></tr>`}
 /* a workspace's Usage & billing, the client's and the agency's: Resource, Used, Left, Status (and the agency's action cell, empty) */
 function cuUnlRow(k,c,ag){if(!unlHas(c.id)) return ""; const R=RES[k];
- return `<tr data-curow="${k}" data-unl="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${R.nature}</span></td>
+ return `<tr data-curow="${k}" data-unl="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span></td>${cuRwHTML(k)}
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw" style="visibility:hidden" aria-hidden="true"><i style="width:0"></i></span><span>${f(unlUsed(k,c.id))}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${UNL_TXT}</span></td>
    <td class="cx-c-pc"><span class="cx-ul cx-g">No limit</span></td></tr>`}
@@ -16565,7 +16606,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="38c4a77";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="029139d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -17051,6 +17092,45 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .ulr-t thead .th-one th:last-child{margin-left:auto}
  .ulr-t thead .th-one th:last-child .hs-b{margin-right:0}
  .ulr-t tr.ws-none{display:block}
+}
+/* ═══ vE E033: the pace table is round 1's C (x-usage-clarity/frame.css, frame-inline.css): Workspace 30%, Used since
+   160px (right, its label pulled 14px onto the figures' edge), the bar (16px in), Limit, pace (32px in). Frame widths were
+   30%, 120px, 136px; Workspace 28%, the bar 96px and Limit 176px here so an edited limit ("was 200,000" beside the new
+   figure, 142px; the field, 119px) stays inside its cell. Pace words wrap below 1440 rather than overflow.
+   H's row sits under the header on the header's Gray 50 #F9FAFB, label 500 Gray 800, words Gray 700, the rows' 1px
+   Gray 200 rule below; no hover. Phone: the row stacks (12px 16px, 8px apart) with the long wording. ═══ */
+.ulr-t.ulr-tp col.ulr-c1{width:28%}.ulr-t.ulr-tp col.ulr-cu{width:160px}.ulr-t.ulr-tp col.ulr-cg{width:96px}.ulr-t.ulr-tp col.ulr-cv{width:176px}
+.ulr-t.ulr-tp th.ulr-r .hs-b{margin-right:-14px}
+.ulr-t.ulr-tp td.ulr-ur{text-align:right}
+.ulr-t.ulr-tp td.ulr-gc{padding:0 0 0 16px}
+.ulr-t.ulr-tp td.ulr-gc .ulr-bar{width:100%}
+.ulr-t.ulr-tp thead th:last-child{text-align:left}
+.ulr-t.ulr-tp thead th:last-child .hs-b{margin-right:0}
+.ulr-t.ulr-tp th.ulr-p,.ulr-t.ulr-tp td.ulr-pc{padding-left:32px}
+.ulr-pace{color:#1F2937}.ulr-pace.is-q{color:#6B7280}.ulr-pace.is-out{font-weight:500}
+.ulr-t tr.is-off .ulr-pace{color:#9CA3AF}
+.ulr-ph,.ulr-nw{display:none}
+.ulr-t thead tr.ulr-onr td{background:#F9FAFB;border-bottom:1px solid #E5E7EB;color:#374151;white-space:nowrap}
+.ulr-t thead tr.ulr-onr td.ulr-pc{white-space:normal}
+.ulr-onl{font-weight:500;color:#1F2937}
+.cx-ut td.cx-c-rw{color:#1F2937;white-space:nowrap}
+.cx-ut td.cx-c-rw.is-none{color:#9CA3AF}
+@media (max-width:760px){
+ .ulr-t.ulr-tp thead th.ulr-gh,.ulr-t.ulr-tp thead th.ulr-p{display:none}
+ .ulr-t.ulr-tp thead th.ulr-r .hs-b{margin-right:0}
+ .ulr-t.ulr-tp tr{grid-template-columns:auto minmax(0,1fr) auto}
+ .ulr-t.ulr-tp td:nth-child(1){grid-column:1/-1;grid-row:1}
+ .ulr-t.ulr-tp td:nth-child(2){grid-column:1;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(3){grid-column:2;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(4){grid-column:3;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(5){grid-column:1/-1;grid-row:3}
+ .ulr-ph,.ulr-nw{display:inline}.ulr-ww{display:none}
+ .ulr-t thead tr.ulr-onr{display:flex;flex-direction:column;gap:8px;padding:12px 16px;background:#F9FAFB;border-bottom:1px solid #E5E7EB}
+ .ulr-t thead tr.ulr-onr td{background:none;text-align:left!important;white-space:normal;align-self:stretch!important}
+ .ulr-t thead tr.ulr-onr td.ulr-gc{display:none}
+ .cx-ut.cx-urw tr{grid-template-areas:"rn av" "rw rw" "us us" "pc pc"}
+ .cx-ut td.cx-c-rw{grid-area:rw;font-size:12px;line-height:16px;color:#6B7280;margin-top:-4px}
+ .cx-ut td.cx-c-rw.is-none{display:none}
 }
 .ul3-e2s .ul3-e2c{color:#1F2937}
 .ul3-e2s .ul3-e2d{position:sticky;bottom:12px;margin:0 12px 12px;padding:12px 16px 12px 20px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
