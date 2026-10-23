@@ -1927,6 +1927,9 @@ function endHandover(){
  if(!handover) return;
  const id=handover.id;
  handover=null; renderXform();
+ /* change E002: a workspace with no limits yet lands on its record, where Set limits leads */
+ if(limGate(byId[id])&&canI("limits")){ORIGIN=null; ctx="agency"; asClient=false; view={name:"record",id}; tab="overview"; RL=null; render();
+  const g=document.querySelector(".sl-card [data-rledit]"); if(g) g.focus({preventScroll:true}); return}
  ctx=id; asClient=false; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; view={name:"clients"};
  justCreatedWs=id;
  render();
@@ -2909,6 +2912,8 @@ function compute(k){const R=RES[k],ids=Object.keys(R.rows);let used=0,res=0,held
 function rowState(k,i,m){const r=RES[k].rows[i],R=m.R;
  /* no row means the agency does not fund this workspace, not that it sits at zero */
  if(!r) return{pct:0,room:Infinity,draw:Infinity,state:"Own plan",tone:"info",unfunded:true};
+ /* change E002: no limits yet is not used up: nothing is paused by the system and no bar turns red */
+ if(limGate(byId[i])) return{pct:0,room:Infinity,draw:Infinity,state:"Not set",tone:"info",unset:true};
  const pct=r.cap>0?r.used/r.cap:1;
  /* a limit is always backed by the plan, so what a workspace can still use is its own room */
  const room=Math.max(0,r.cap-r.used),floor=Math.max(0,r.res-r.used),draw=room;
@@ -2951,7 +2956,8 @@ function paceOf(k,id){const r=RES[k].rows[id]; if(!r||CYCLE.day<3||!r.used) retu
  const dayHit=left<=0?CYCLE.day:CYCLE.day+left/perDay, hits=dayHit<=CYCLE.days, d=Math.min(CYCLE.days,Math.ceil(dayHit));
  return {proj,hits,atLimit:left<=0,soon:left<=0||(hits&&dayHit-CYCLE.day<=3),when:d+" "+CYCLE.month.slice(0,3)}}
 /* 2 Oct 2026 (S2, doc 65 §6): the step names match what the action was */
-const steps=c=>[["Workspace created",true],["First user invited",c.users.length>0],
+const steps=c=>c.limPending?[["Workspace created",true],["Limits set",!limGate(c)],["Email account connected",c.mailboxes.length>0],["First user invited",c.users.length>0]]   /* change E002: Set limits leads */
+ :[["Workspace created",true],["First user invited",c.users.length>0],
  ["Email account connected",c.mailboxes.length>0],["Limits reviewed",!!c.limitsReviewed]];
 const doneN=c=>steps(c).filter(x=>x[1]).length;
 const lf=i=>{const m=compute("lead_finder");return{r:RES.lead_finder.rows[i]||{res:0,cap:0,used:0},s:rowState("lead_finder",i,m)}};
@@ -4910,7 +4916,7 @@ const rcStepDate=(c,i)=>{const d=(c.setupDates||[])[i]; if(d) return d;
  const d2=new Date(t+[0,2,5,8][i]*864e5); return d2.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d2.getMonth()]};
 function rcSetup(c,S,done){
  if(done<S.length) return `<div class="rc-setup" role="list" aria-label="Setup"><span class="rc-setup-t">Setup: ${done} of ${S.length}</span>${S.map(([t,ok],i)=>`
-   <span class="rc-step${ok?" is-on":""}" role="listitem"><span class="tick ${ok?"on":""}">${ok?"✓":""}</span><span>${t}${ok?`<i>${rcStepDate(c,i)}</i>`:""}</span>${ok?"":t.includes("Email")?`<button class="linkbtn" data-goto="${c.id}|accounts">Set up</button>`:`<button class="linkbtn" data-tab="${t.includes("user")?"members":"limits"}">Set up</button>`}</span>`).join("")}</div>`;
+   <span class="rc-step${ok?" is-on":""}" role="listitem"><span class="tick ${ok?"on":""}">${ok?"✓":""}</span><span>${t}${ok?`<i>${rcStepDate(c,i)}</i>`:""}</span>${ok||t==="Limits set"/* change E002: the Set limits card above carries it */?"":t.includes("Email")?`<button class="linkbtn" data-goto="${c.id}|accounts">Set up</button>`:`<button class="linkbtn" data-tab="${t.includes("user")?"members":"limits"}">Set up</button>`}</span>`).join("")}</div>`;
  /* 2 Oct 2026 (S2): gone at 4 of 4, nothing takes its place */
  return "";
  if(RC_LIVE_SEEN[c.id]) return "";
@@ -4963,6 +4969,8 @@ function recLimitsCard(c,ro){
      (UW_NEAR, the Dashboard's needs-you line), red only when used up; whole percents, and never "100%" before it is */
   const out=r.cap>0&&r.used>=r.cap, pw=r.cap>0?(out?100:Math.min(99,Math.round(r.used/r.cap*100))):0;
   return apuItem(R.label,r.used,r.cap,{cls:"rc-apu",whole:pw,barHTML:pbar(r.cap>0?Math.min(100,r.used/r.cap*100):0,out?PB_COL[2]:pw>=UW_NEAR?PB_COL[1]:UL3_GREY),rem:f(Math.max(0,r.cap-r.used))+" left ("+(100-pw)+"%)"})   /* change 297 (audit P1-9) */}).join("");
+ /* change E002: no limits yet is said as such, never as six empty bars */
+ if(limGate(c)) return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span>${canI("limits")&&!ro?`<span class="c-a"><button class="linkbtn" data-rledit="${c.id}">Set limits</button></span>`:""}</div><div class="panel-b"><dl class="dl rc-dl sl-dl">${RK.filter(k=>RES[k].rows[c.id]).map(k=>`<dt>${RES[k].label}</dt><dd><span class="sub">Not set</span></dd>`).join("")}</dl></div></div>`;
  const ask=askOf(c.id);
  const req=ask&&!ro?`<div class="msg dn-req rc-req2" role="status">${infoI}<span class="dn-req-t"><b>Requested by ${askerOf(ask.lines,c.id)}, ${AGE(ask.when).toLowerCase()}:</b> ${linesText(ask.lines)}</span><button type="button" class="linkbtn dn-req-go" ${canI("limits")?`data-rqcgo="${ask.id}"`:`data-tab="limits"`}>Review request</button></div>`:"";
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}${req}</div></div>`;
@@ -4989,7 +4997,7 @@ function recDetailsCard(c,ro){
 }
 function rOverview(c){
  const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
- return `${ro||c.own?"":rcSetup(c,S,done)}${recStrip(c)}<div class="rc-cards"><div class="rc-stack">${recDetailsCard(c,ro)}${recAccessCard(c,ro)}</div>${recLimitsCard(c,ro)}</div>`;
+ return `${!ro&&limGate(c)?slCardHTML(c):""}${ro||c.own?"":rcSetup(c,S,done)}${recStrip(c)}<div class="rc-cards"><div class="rc-stack">${recDetailsCard(c,ro)}${recAccessCard(c,ro)}</div>${recLimitsCard(c,ro)}</div>`;
 }
 /* ═══ Activity, 2 Oct 2026 (S2): fed only by events the workspaces feature
    itself writes (created, invited, role changed, limit changed, request
@@ -6277,8 +6285,10 @@ function recAskBanner(c,ro){
 /* emails renew monthly, so a pace is known (used so far / day of cycle); credits are a balance: no pace */
 /* change 292: the one pace line (paceLine); "None left" is already the cell's own text */
 function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
-function rlSheetHTML(c){
+function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet reads "Not set", never "None left" */
  const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
+  if(gate) return `<tr class="rlt-row" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":"Does not renew"}</span></td>
+   <td class="rlt-c2"><span class="sub">Not set</span></td><td class="rlt-c3">&ndash;</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`;
   return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":"Does not renew"}</span></td>
    <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${pbar(p,UL3_GREY)}</span><span class="rlt-uv">${ul3Mk(ul3Lv(r),`<b>${f(r.used)}</b> of ${f(r.cap)}`)}</span></span></td>
    <td class="rlt-c3">${left>0?f(left):"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
@@ -6337,6 +6347,9 @@ function rLimits(c){
  const ask=askOf(c.id), aIds=ask?new Set(ask.lines.map(x=>x.ask||x.id)):null, answered=ANSWERS.filter(a=>a.client===c.id&&ansLive(a)&&(!aIds||aIds.has(a.ask||a.id)));
  const ansLine=answered.length?`<p class="rlt-p rlt-ans lm-answered">${ask?"":`Last request, answered ${answered[0].on||TODAY_D}. `}${[answered.filter(a=>a.state==="approved"),answered.filter(a=>a.state!=="approved")].map((L,i)=>!L.length?"":i?`Declined: ${listAnd(L.map(a=>`${f(a.amount)} ${RES[a.res].short}${a.dnote?" (&ldquo;"+a.dnote+"&rdquo;)":""}`))}.`:`Gave${ask?" so far":""}: ${listAnd(L.map(a=>ansPart(a)?`${f(a.amount)} of ${f(a.asked)} ${RES[a.res].short}`:`${f(a.amount)} ${RES[a.res].short}, limit now ${f(a.to||RES[a.res].rows[c.id].cap)}`))}.`).filter(Boolean).join(" ")}</p>`:"";
  const ed=!!RL&&can;
+ /* change E002: no limits yet: the Set limits card over the sheet, or the Set limits editor */
+ if(RL&&RL.set&&!limGate(c)) RL=null;
+ if(limGate(c)&&!ro) return `<div class="rlt">${grace()?rlGraceHTML():""}${RL&&RL.set&&can?slEditorHTML(c):slCardHTML(c)+rlSheetHTML(c)}</div>`;
  return `<div class="rlt">${grace()?rlGraceHTML():""}${recAskBanner(c,ro)}
   ${/* change 333: no "Limits" heading and no "Day 9 of 30"; a row only for what it still carries */
    (ro||(can&&!ed)||ansLine)?`<div class="rlt-head rlt-tb">${ro||(can&&!ed)?`<div class="rlt-h">${ro?`<p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>`:""}${can&&!ed?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>`:""}${ansLine}</div>`:""}
@@ -6347,7 +6360,7 @@ function rLimits(c){
 document.addEventListener("click",e=>{if(view.name!=="record") return;
  const t=e.target.closest("[data-rledit],[data-rlcancel],[data-rlsave],[data-rlmove],[data-rlraise],[data-askld],[data-askldx]"); if(!t||t.disabled) return;
  const d=t.dataset, c=byId[view.id]; if(!c) return;
- if(d.rledit!=null){if(!canI("limits")) return; RL={id:c.id,D:{}}; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("rlin-sends")||document.querySelector("[data-rlin]"); if(i){i.focus(); i.select()} return}
+ if(d.rledit!=null){if(!canI("limits")) return; RL=limGate(c)?slNew(c.id)/* change E002 */:{id:c.id,D:{}}; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("slin-sends")||el("rlin-sends")||document.querySelector("[data-rlin],[data-slin]"); if(i){i.focus(); i.select()} return}
  if(d.rlcancel!=null){RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus(); return}
  if(d.rlsave!=null&&RL){if(rlpParts(RL.D,RL.id).length){if(RLP&&RLP.kind==="save"){RLP=null; rlpPaint(); return} RLP={kind:"save",keep:true,note:RLP_NOTE}; rlpPaint(); rlpFocus(); return}
   if(rlSave(false,"")) RL=null; render(); return}
@@ -6364,6 +6377,129 @@ document.addEventListener("keydown",e=>{if(view.name!=="record"||!RL) return; co
 /* change 292 (audit P0-3): on the record, a give below the ask and a Change limits raise below the ask ask
    what happens to the rest, in 282's words and look: "Keep N waiting" (default) or "Close the rest" with a
    note. Kept: the request stays in REQUESTS with the remaining amount, `given` and `asked0`, as 282 does. */
+/* ═══ change E002, 23 Oct 2026. Hitesh, on the Add a workspace pop-up's Limits section: "We need to remove limits
+   allocation from here – perspective: 1st workspace will always start with 100% of the resources when no other
+   workspace is created, so we should ask them to set limits or allocate resources inside of the workspace". Asked what
+   a new workspace holds until then, he picked "Nothing yet, must allocate". So a new workspace starts at 0 for every
+   resource and cannot send (limGate) until its limits are set here: the record's Overview leads with one card, and
+   Set limits opens this editor on the Limits tab. A limit what is available covers is taken from there; past that,
+   donor rows fill the rest by pace (change 355's look and fill, own code), your own workspace first. One confirm,
+   Undo in the toast. Never above the plan, never below what is used. Uses no request-panel (rqc) code (E003). ═══ */
+function limGate(c){return !!(c&&c.limPending&&!c.deletedOn)&&RK.every(k=>{const r=RES[k].rows[c.id]; return !r||!(r.cap>0)})}
+const SL_LINE="Set limits before this workspace sends.";
+const SL_STOP={sends:"sending",lead_finder:"revealing leads",verification:"verifying emails",ai:"using AI",dialer:"calling",radar:"running inbox placement tests"};
+const SL_SHOW=4;
+function slCardHTML(c){const can=canI("limits");
+ return `<div class="msg dn-req sl-card" role="status">${infoI}<span class="dn-req-t">${can?SL_LINE:"Nothing sends from this workspace until an Account Owner or Account Admin sets its limits."}</span>${can?`<button type="button" class="shd-button shd-button--primary shd-button--sm sl-go" data-rledit="${c.id}">Set limits</button>`:""}</div>`}
+/* the line on every place that would send */
+function slSendLine(c){const can=canI("limits")&&!asClient;
+ return `<div class="msg m-info sl-sendln" role="status">${infoI}<span>${can?SL_LINE:"Nothing sends from this workspace until its limits are set."} Sequences can be drafted until then.</span>${can?`<button type="button" class="linkbtn sl-sendgo" data-slgo="${c.id}">Set limits</button>`:""}</div>`}
+const slNew=id=>({id,D:{},set:true,tch:{},all:{}});
+const slR=(k,id)=>RES[k].rows[id];
+const slV=(D,k,id)=>{const x=D[k+"|"+id]; return x==null?slR(k,id).cap:x};
+const slFree=(D,k)=>RES[k].pool-Object.keys(RES[k].rows).reduce((t,id)=>t+slV(D,k,id),0);
+const slRoom=(k,id)=>Math.max(0,slR(k,id).cap-slR(k,id).used);
+const slNum=s=>{const n=parseInt(String(s).replace(/[^\d]/g,""),10); return isNaN(n)?0:n};
+/* days the rest lasts at this cycle's pace; a disabled or unused workspace never runs out */
+const slDays=(k,id,cap)=>{const r=slR(k,id); return byId[id].disabled||!r.used?Infinity:Math.max(0,cap-r.used)/(r.used/CYCLE.day)};
+/* what a workspace can give and still last the cycle at its pace (all of its room before day 3, or unused) */
+const slSpare=(k,id)=>{const r=slR(k,id), room=slRoom(k,id); return byId[id].disabled||!r.used||CYCLE.day<3?room:Math.max(0,room-Math.ceil(r.used/CYCLE.day*(CYCLE.days-CYCLE.day)))};
+/* donors: your own workspace first, then every other workspace with room, most runway first */
+function slDonors(k,W){const key=id=>byId[id].disabled?1e9:!slR(k,id).used?1e8:slDays(k,id,slR(k,id).cap);
+ const rest=CLIENTS.filter(c=>c.id!==W&&slR(k,c.id)&&slRoom(k,c.id)>0).map(c=>c.id).sort((a,b)=>key(b)-key(a));
+ return (slR(k,"own")&&"own"!==W?["own"]:[]).concat(rest)}
+const slMax=(k,W)=>compute(k).free+slDonors(k,W).reduce((t,id)=>t+slRoom(k,id),0);
+/* the fill: your own workspace up to what it can spare at its pace; then 355's order: disabled first, the one workspace
+   that covers the rest and still lasts longest (else the largest room), a workspace that has used nothing last */
+function slByPace(k,W,R){const t={}; if(R<=0) return t; const take=(id,x)=>{if(x>0){t[id]=(t[id]||0)+x; R-=x}}, O=slDonors(k,W).filter(id=>id!=="own");
+ if(slR(k,"own")&&W!=="own") take("own",Math.min(R,slSpare(k,"own")));
+ O.filter(id=>byId[id].disabled).forEach(id=>{if(R>0) take(id,Math.min(R,slRoom(k,id)))});
+ let C=O.filter(id=>!byId[id].disabled&&slR(k,id).used>0);
+ while(R>0&&C.length){const can=CYCLE.day<3?[]:C.filter(id=>slRoom(k,id)>=R);
+  const p=can.length?can.slice().sort((a,b)=>slDays(k,b,slR(k,b).cap-R)-slDays(k,a,slR(k,a).cap-R))[0]:C.slice().sort((a,b)=>slRoom(k,b)-slRoom(k,a))[0];
+  take(p,Math.min(R,slRoom(k,p))); C=C.filter(id=>id!==p)}
+ O.filter(id=>!byId[id].disabled&&!slR(k,id).used).forEach(id=>{if(R>0) take(id,Math.min(R,slRoom(k,id)))});
+ if(R>0&&slR(k,"own")&&W!=="own") take("own",Math.min(R,slRoom(k,"own")-(t.own||0)));
+ return t}
+/* a typed limit refills its donor rows until one of them is typed over */
+function slFill(k){const E=RL, W=E.id, D=E.D; if(E.tch[k]) return;
+ Object.keys(D).forEach(x=>{const [kk,id]=x.split("|"); if(kk===k&&id!==W) delete D[x]});
+ const v=Math.min(slV(D,k,W),slMax(k,W)), t=slByPace(k,W,v-compute(k).free); Object.keys(t).forEach(id=>D[k+"|"+id]=slR(k,id).cap-t[id])}
+/* the consequence line of one limit */
+function slFx(D,k,W){const v=slV(D,k,W), a=compute(k).free, mx=slMax(k,W);
+ if(v>mx) return {bad:true,html:`<span class="ul3-mk">More than your plan has.</span> Up to ${f(mx)}.`};
+ if(!v) return {html:`${f(a)} available.`};
+ if(v<=a) return {html:`Takes ${f(v)} of the ${f(a)} available; ${f(a-v)} after.`};
+ return {short:v-a,html:a?`Takes the ${f(a)} available and ${f(v-a)} from the workspaces below.`:`Takes ${f(v)} from the workspaces below.`}}
+/* a donor's Change cell: refused below use; a lowered limit says by how much, a stop, and the new pace against the old */
+function slChg(D,k,id){const r=slR(k,id), v=slV(D,k,id), d=r.cap-v;
+ if(v<r.used) return `<span class="ul3-mk">Below the ${f(r.used)} used</span> <span class="ul3-g">A limit can't go below what is used.</span>`;
+ const was=paceLine(k,r), now=paceLine(k,{used:r.used,cap:v}), n=s=>(s.match(/about (\d+) day/)||[])[1];
+ if(d>0){const stop=!byId[id].disabled&&v<=r.used, p=!stop&&n(now)?now+(n(was)&&n(was)!==n(now)?`, not ${n(was)}`:"")+".":"";
+  return `&minus;${f(d)}${stop?` <span class="ul3-mk">Stops ${SL_STOP[k]}</span>`:""}${p?`. ${p}`:""}`}
+ if(d<0) return `+${f(-d)}`;
+ return was&&was!=="None left"?`<span class="ul3-g">${was}</span>`:""}
+function slRow(D,k,id){const c=byId[id], r=slR(k,id), v=slV(D,k,id), p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
+ return `<tr class="sl-lrw${c.disabled?" is-off":""}" data-slrow="${k}|${id}"><td><div class="ul-ws">${av(c,28)}<span class="ul-wsn"><span class="ul-nm" title="${ncEscH(c.name)}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${c.disabled?'<span class="sub">Disabled</span>':""}</span></div></td>
+  <td class="ul3-num"><span class="ul3-ub">${pbar(p,"#9CA3AF")}<span>${f(r.used)} of ${f(r.cap)}</span></span></td>
+  <td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-sldon="${k}|${id}" value="${f(v)}" aria-label="${ncEscH(c.name)} ${RES[k].label} limit" aria-invalid="${v<r.used}"></td><td class="sl-lc" data-slchg="${k}|${id}">${slChg(D,k,id)}</td></tr>`}
+/* the donor rows under a limit that what is available does not cover */
+function slLendHTML(D,k,W){if(slV(D,k,W)<=compute(k).free) return "";
+ const ch=Object.keys(D).map(x=>x.split("|")).filter(([kk,id])=>kk===k&&id!==W).map(([,id])=>id), ids=[...new Set(slDonors(k,W).concat(ch))];
+ if(!ids.length) return "";
+ const many=ids.length>SL_SHOW+1&&!RL.all[k], shown=many?ids.filter((id,i)=>i<SL_SHOW||slV(D,k,id)!==slR(k,id).cap):ids;
+ const more=many&&shown.length<ids.length?`<tr class="sl-lmore"><td colspan="4"><button type="button" class="linkbtn" data-slmore="${k}">Show ${ids.length-shown.length} more</button></td></tr>`:"";
+ return `<div class="sl-ls" role="group" aria-label="Lower other limits for ${RES[k].label}"><table class="ul-t sl-lt"><colgroup><col class="sl-c1"><col class="sl-c2"><col class="sl-c3"><col></colgroup><thead><tr><th>Workspace</th><th>Used</th><th>Limit</th><th>Change</th></tr></thead>
+  <tbody>${shown.map(id=>slRow(D,k,id)).join("")}${more}</tbody></table></div>`}
+function slCalc(D,W){const ks=RK.filter(k=>slR(k,W)), set=ks.filter(k=>slV(D,k,W)>0), bad=ks.filter(k=>slFx(D,k,W).bad), over=ks.filter(k=>slFree(D,k)<0);
+ const E=Object.keys(D).map(x=>x.split("|")).filter(([k,id])=>id!==W&&slR(k,id)), low=[...new Set(E.filter(([k,id])=>slV(D,k,id)<slR(k,id).used).map(([,id])=>id))],
+  lowered=[...new Set(E.filter(([k,id])=>slV(D,k,id)<slR(k,id).cap).map(([,id])=>id))];
+ return {set,bad,over,low,lowered,ok:set.length>0&&!bad.length&&!over.length&&!low.length}}
+function slDockHTML(c){const D=RL.D, C=slCalc(D,c.id), nm=id=>byId[id].name, told=C.lowered.filter(id=>!byId[id].own).map(nm);
+ const msg=C.bad.length?`<span class="ul3-mk">More than your plan has: ${listAnd(C.bad.map(k=>RES[k].label))}.</span> Lower ${C.bad.length>1?"them":"it"} to set limits.`
+  :C.low.length?`<span class="ul3-mk">Below what is used: ${listAnd(C.low.map(nm))}.</span> Raise it to set limits.`
+  :C.over.length?`<span class="ul3-mk">Above your plan by ${f(-slFree(D,C.over[0]))} in ${RES[C.over[0]].label}.</span> Lower a limit to set this one.`
+  :C.lowered.length?`Lowers ${listAnd(C.lowered.map(nm))}${!told.length?".":told.length===C.lowered.length?`; ${told.length===1?"its":"their"} admins are told.`:`; ${listAnd(told)} admins are told.`}`:"";
+ const n=C.set.length;
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-slx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-slok${C.ok?"":" disabled"}>${n?`Set ${n===1?"1 limit":n+" limits"}`:"Set limits"}</button></span>`}
+function slEditorHTML(c){const W=c.id, D=RL.D;
+ const res=RK.filter(k=>slR(k,W)).map(k=>{const R=RES[k], r=slR(k,W), v=slV(D,k,W), e=slFx(D,k,W);
+  return `<div class="sl-res" data-slres="${k}"><div class="ul3-el rlt-el" data-slel="${k}"><label class="ul3-elab" for="slin-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
+   <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v?" is-ch":""}" id="slin-${k}" data-slin="${k}" value="${f(v)}" aria-invalid="${!!e.bad}" aria-describedby="slfx-${k}">
+   <div class="ul3-efx" id="slfx-${k}" data-slfx="${k}">${e.html}</div></div><div class="sl-lw" data-slls="${k}">${slLendHTML(D,k,W)}</div></div>`}).join("");
+ return `<div class="panel rlt-edp sl-edp"><div class="panel-h rlt-edh"><span class="panel-t" id="slEdT">Set limits</span></div>
+  <div class="ul3-ed rlt-ed" data-sledbox="${W}" role="group" aria-labelledby="slEdT">${res}<div class="ul3-dock rlt-dock" data-sldock>${slDockHTML(c)}</div></div></div>`}
+/* typing repaints what depends on it, not the page, so the caret stays; a typed limit redraws its donor rows */
+function slPaint(k,rows){if(!RL||!RL.set) return; const W=RL.id, D=RL.D, box=document.querySelector(`[data-sledbox="${W}"]`); if(!box) return;
+ RK.filter(x=>slR(x,W)).forEach(x=>{const e=slFx(D,x,W), fx=box.querySelector(`[data-slfx="${x}"]`), i=box.querySelector(`[data-slin="${x}"]`); if(fx) fx.innerHTML=e.html; if(i){i.classList.toggle("is-ch",slV(D,x,W)>0); i.setAttribute("aria-invalid",String(!!e.bad))}});
+ if(rows){const w=box.querySelector(`[data-slls="${k}"]`); if(w) w.innerHTML=slLendHTML(D,k,W)}
+ box.querySelectorAll("[data-sldon]").forEach(i=>{const [kk,id]=i.dataset.sldon.split("|"), v=slV(D,kk,id); i.classList.toggle("is-ch",v!==slR(kk,id).cap); i.setAttribute("aria-invalid",String(v<slR(kk,id).used)); if(document.activeElement!==i) i.value=f(v)});
+ box.querySelectorAll("[data-slchg]").forEach(td=>{const [kk,id]=td.dataset.slchg.split("|"); td.innerHTML=slChg(D,kk,id)});
+ box.querySelector("[data-sldock]").innerHTML=slDockHTML(byId[W])}
+/* the confirm: lowered limits first through setLimit (each workspace's notice and Activity), then this workspace's
+   limits; one toast whose Undo puts every limit back */
+function slDo(){if(!RL||!RL.set) return; const W=RL.id, c=byId[W], D=RL.D; if(!slCalc(D,W).ok) return;
+ const ch=Object.keys(D).map(x=>{const [k,id]=x.split("|"); return {k,id,was:slR(k,id).cap,v:D[x]}}).filter(x=>x.v!==x.was).sort((a,b)=>(a.v-a.was)-(b.v-b.was));
+ const prev=ch.map(x=>({k:x.k,id:x.id,was:x.was,custom:slR(x.k,x.id).custom}));
+ const restore=()=>prev.forEach(p=>{const r=slR(p.k,p.id); r.cap=p.was; if(p.custom==null) delete r.custom; else r.custom=p.custom; syncRes(p.k,r)});
+ for(const x of ch){if(!setLimit(x.k,x.id,x.v,x.id===W?"set on its Limits tab":`moved to ${c.name}`)){restore(); const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; RL=null; receipt("client:"+W,t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; render(); return}}
+ const low=[...new Set(ch.filter(x=>x.id!==W).map(x=>x.id))], n=ch.filter(x=>x.id===W).length;
+ receipt("client:"+W,`Set ${n===1?"1 limit":n+" limits"} for ${c.name}.${low.length?` Lowered ${listAnd(low.map(id=>byId[id].name))}.`:""}`,()=>{restore(); render()},`set ${c.name}'s limits`);
+ RL=null; render(); const b=document.querySelector('[data-tab="limits"]'); if(b) b.focus({preventScroll:true})}
+document.addEventListener("click",e=>{const g=e.target.closest("[data-slgo]"); if(g){const id=g.dataset.slgo; if(!byId[id]||!canI("limits")) return;
+  ORIGIN=null; ctx="agency"; asClient=false; view={name:"record",id}; tab="limits"; RL=limGate(byId[id])?slNew(id):null; render(); const i=el("slin-sends"); if(i){i.focus(); i.select()} return}
+ if(view.name!=="record"||!RL||!RL.set) return; const t=e.target.closest("[data-slok],[data-slx],[data-slmore]"); if(!t||t.disabled) return;
+ if(t.dataset.slok!=null){slDo(); return}
+ if(t.dataset.slx!=null){RL=null; render(); const b=document.querySelector(".sl-card [data-rledit]"); if(b) b.focus(); return}
+ if(t.dataset.slmore){RL.all[t.dataset.slmore]=true; slPaint(t.dataset.slmore,true)}});
+document.addEventListener("input",e=>{if(view.name!=="record"||!RL||!RL.set) return; const t=e.target, d=t.dataset||{};
+ if(d.slin){RL.D[d.slin+"|"+RL.id]=slNum(t.value); slFill(d.slin); slPaint(d.slin,true); return}
+ if(d.sldon){const [k,id]=d.sldon.split("|"); RL.D[d.sldon]=slNum(t.value); RL.tch[k]=true; slPaint(k,false)}});
+document.addEventListener("focusout",e=>{const t=e.target, d=t.dataset||{}; if(!RL||!RL.set||!t.isConnected) return;
+ if(d.slin) t.value=f(slV(RL.D,d.slin,RL.id)); if(d.sldon){const [k,id]=d.sldon.split("|"); t.value=f(slV(RL.D,k,id))}});
+document.addEventListener("keydown",e=>{if(view.name!=="record"||!RL||!RL.set) return; const t=e.target, d=t.dataset||{}; if(!d.slin&&!d.sldon) return;
+ if(e.key==="Enter"){e.preventDefault(); const all=[...document.querySelectorAll("[data-slin],[data-sldon]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-slok]:not(:disabled)"); if(n) n.focus(); return}
+ if(e.key==="Escape"&&!Object.keys(RL.D).some(x=>RL.D[x]!==slR(...x.split("|")).cap)){e.preventDefault(); e.stopPropagation(); RL=null; render(); const b=document.querySelector(".sl-card [data-rledit]"); if(b) b.focus()}},true);
 let RLP=null;
 const RLP_NOTE="We gave what was available today. Request again next cycle if you still need it.";
 const rlpNoun=k=>k==="sends"?"emails":RES[k].short;
@@ -8217,7 +8353,7 @@ function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=u
  if(ul3E2Low(k,c.id)) s=`<span class="ul3-mk">Below the ${f(U)} used</span> <span class="ul3-g">A limit can't go below what is used.</span>`;
  else if(d&&ul3Below({k,id:c.id,v})) s=`<span class="ul3-mk">${r.cap<=U?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`Below the ${f(U)} used.`:"The limit is 0."}`;
  else if(d) s=`${d>0?"+":"&minus;"}${f(Math.abs(d))}${q&&d>0?(d>=q.amount?". Fills the request.":`. Part of the ${f(q.amount)} requested.`):""}`;
- else s=`${r.cap>0?ul3Mk(ul3Lv(r),ul3Lv(r)===2?"Used up":`${ulPct(U,r.cap)}% used`):"No limit"}${q?`${ul3Lv(r)===2?" ":". "}${ask}`:""}`;   /* no full stop after a solid mark */
+ else s=`${r.cap>0?ul3Mk(ul3Lv(r),ul3Lv(r)===2?"Used up":`${ulPct(U,r.cap)}% used`):limGate(c)?"Not set"/* change E002 */:"No limit"}${q?`${ul3Lv(r)===2?" ":". "}${ask}`:""}`;   /* no full stop after a solid mark */
  return s}
 function ul3PoolHTML(k){const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;   /* change 290: the draft is UL.draft (282's Adjust pop-up and its own draft are gone) */
  return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
@@ -8876,7 +9012,7 @@ function vLimits(){
  const W=ulRows(), ro=ulRo(), cl=W.filter(c=>!c.own);
  const sub=`<p class="ul-sub">${PLAN.name.replace(/\s*\(.*\)$/,"")} plan, day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}</p>`;
  if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
-   <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the requests they send you. Add a workspace and give it limits from what your plan has available.</p>
+   <p class="sub">Usage &amp; limits shows what each workspace uses of its limits, and the requests they send you. Add a workspace, then set its limits from what your plan has available.</p>
    ${canI("limits")?`<button class="shd-button shd-button--primary" data-uladd>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
  return `<div class="wrap ul-wrap">${graceBanner()}${rqcHTML(ro)/* change 282 */}${ulLimitsHTML(!canI("limits"))/* change 290: Your plan and the roster are one panel *//* change 230: limits stay editable while the payment has failed */}</div>`}
 
@@ -10515,20 +10651,20 @@ const CLIENT_STEPS=[["Connect an email account","accounts",
   /* 3 Oct 2026, Hitesh: no user at creation; the invite is the last step of the handover */
   ["Invite their people","invite","When it is ready for them. They sign in to this workspace only, in the role you give them."]];
 function clientSetupBlock(c){
- const done=0;
+ const done=0, gate=limGate(c)&&canI("limits");   /* change E002: Set limits leads while there are none */
  return '<div class="card" style="margin-bottom:16px;border-color:var(--blue-11)"><div class="c-b">'
   +'<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
    +'<span class="semibold-3">'+c.name+'\u2019s workspace is ready. Here is how to fill it.</span>'
    +'<button class="linkbtn" data-skipclientsetup>Skip for now</button></div>'
   +'<div style="display:flex;flex-direction:column;gap:8px;max-width:640px;margin-top:12px">'
-  +CLIENT_STEPS.map(function(x,i){
+  +(gate?[["Set limits","slgo",""]]:[]).concat(CLIENT_STEPS).map(function(x,i){
     var label=x[0], go=x[1], why=x[2], next=i===done;
     return '<div class="list-row" style="border:1px solid var(--gray-13);border-radius:6px;padding:10px 12px;align-items:center'
       +(next?';border-color:var(--blue-11)':'')+'">'
       +'<span style="display:flex;align-items:flex-start;gap:9px;min-width:0">'
        +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"/></svg>'
        +'<span style="min-width:0"><span style="font-size:14px;line-height:20px;font-weight:500;color:var(--gray-17);display:block">'+label+'</span></span></span>'
-      +'<button class="linkbtn" data-cstep="'+go+'">'+["Connect","Import","Create","Launch","Invite"][i]+'</button></div>'}).join("")   /* change 298 (audit P2-4) */
+      +(go==="slgo"?'<button class="linkbtn" data-slgo="'+c.id+'">Set limits</button></div>':'<button class="linkbtn" data-cstep="'+go+'">'+["Connect","Import","Create","Launch","Invite"][i-(gate?1:0)]+'</button></div>')}).join("")   /* change 298 (audit P2-4) */
   +'</div></div></div>';
 }
 function onboardBlock(){
@@ -11988,8 +12124,7 @@ function drawerHTML(){
    <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
-  <!-- 3 Oct 2026, Hitesh: one step; the usage block sits on the same page, exactly as the former step 2 drew it -->
-  <div class="nc-limhead nc-limhead--264" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-16)"><h3 class="nc-limtitle" id="ncLimTitle">Limits</h3></div>${ncUsageHTML()}`;
+  <!-- change E002, 23 Oct 2026 (Hitesh): no limits here. A new workspace starts with none and sets them inside its record. -->`;
  return `<div class="scrim" id="scrim"></div>
  <aside class="drawer nc-modal" role="dialog" aria-labelledby="ncTitle" style="width:min(560px,calc(100vw - 32px))">
   <div class="dr-h"><div style="min-width:0"><span class="semibold-3" id="ncTitle">Add a workspace</span></div>
@@ -11999,45 +12134,12 @@ function drawerHTML(){
    <div class="tools"><button class="shd-button shd-button--secondary" id="drCancel">Cancel</button><button class="shd-button shd-button--primary" id="drDone"${ncAddWhy()?" disabled":""}>Add a workspace</button></div></div>
  </aside>`;
 }
-/* 18 Sep, delight pass: a new client's default limit is a share that leaves
-   room, never the whole free pool: floor(free / max(2, clients + 1)), rounded
-   down to 500, at least 500. With no clients the newcomer gets half. One
-   function, so the row, the sentence and create() can not disagree. */
-/* 2 Oct 2026, Hitesh (board row 03, C2): a new workspace gets one share of the
-   plan, 10% by default, moved with a slider; every resource follows the share
-   until its own number is typed over. The share is of the PLAN, not of what is
-   available, so it means the same thing for every workspace; the slider's top
-   is the largest share whose reservations still fit what is available today. */
+/* change E002: Add a workspace sets no limits, so its share slider and tiles are gone. NC_SHARE_DEFAULT and ncStep
+   stay for change 220's Edit limits and the share modal. */
 const NC_SHARE_DEFAULT=10;
 const ncStep=k=>{const p=RES[k].pool;return p>=100000?500:p>=5000?50:p>=1000?10:5};
-/* change 126: the slider runs to 100%; a resource that cannot cover the share is capped at what is available today */
-function ncShareMax(){return 100}
-function ncTightest(){let b=null;RK.forEach(k=>{const m=compute(k),v=m.free/RES[k].pool;if(!b||v<b.v)b={k,v}});return b?RES[b.k].label.replace(/ \/ month$/,""):""}
-function ncShare(){const mx=ncShareMax();return Math.max(1,Math.min(mx,nc.share==null?NC_SHARE_DEFAULT:nc.share))}
-/* change 162, 9 Oct 2026, Hitesh (feedback on the slider: "too many things we are
-   trying to convey; just how much of available you're assigning, with learn more
-   for the rest"): the share is now a share of what is AVAILABLE, per resource, so
-   the one number shown is the one the slider sets and no limit can be capped.
-   Replaces the share-of-plan rule of 2 Oct (board row 03, C2) and change 130. */
-function ncDerived(k){const free=compute(k).free;return Math.max(0,Math.floor(free*ncShare()/100))} /* 289d: exactly the share of what's available, in whole units ("10% should exactly 10% of what is available") */
-function ncCapFor(k){return nc.custom&&nc.custom[k]!=null?nc.custom[k]:ncDerived(k)}
-const ncDefaultCap=ncDerived;
 function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.rows[sc.id];if(!r)return;const st=R.step||1,want=Math.max(st,Math.floor(R.pool*sh/100/st)*st),left=R.pool-(allocOf(k)-r.cap);if(left>0){m=Math.max(m,want/left);if(want>left&&!first)first=k}});
  return "<b>"+sh+"%</b><span class=\"sub\"> of your plan, "+(first?"past what is left for "+RES[first].label.replace(/ \/ month$/,"").replace(/^Lead Finder credits$/,"Lead Finder"):Math.round(m*100)+"% of what is left")+"</span>"}
-/* change 130: the share stays a share of the plan; beside it the form says what that
-   is of what is left, and the track greys the part of the plan already given away. */
-const ncUncapped=k=>ncDerived(k);
-const ncCapped=k=>false;
-function ncLeftPct(){let m=0,first=null;RK.forEach(k=>{const free=compute(k).free,u=ncUncapped(k);if(ncCapped(k)&&!first)first=k;if(free>0)m=Math.max(m,u/free);else if(u>0)m=Math.max(m,2)});return {pct:Math.round(m*100),capped:first}}
-function ncGivenPct(){let g=0;RK.forEach(k=>{const m=compute(k);g=Math.max(g,Math.round((1-m.free/RES[k].pool)*100))});return Math.min(99,Math.max(0,g))}
-const ncIsSet=k=>!!nc.custom&&nc.custom[k]!=null;
-const ncOver=k=>ncIsSet(k)&&nc.custom[k]>compute(k).free;
-const ncSetCount=()=>RK.filter(ncIsSet).length;
-/* change 205: "N available" under every field while editing (was "of N available", which crowded the labels) */
-const ncHintText=k=>`${f(compute(k).free)} available`;
-const ncBarW=k=>{const a=compute(k).free;return a>0?Math.min(100,Math.max(0,ncCapFor(k))/a*100):0};
-/* change 264: an over value says so on its own line under the tile, never in the footer */
-const ncErrText=k=>ncOver(k)?`Only ${f(compute(k).free)} available.`:"";
 const ncEscH=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 /* change 264: a name already in use (any workspace, the agency's own included, case-insensitive) */
 function ncDupName(){const nm=(nc.name||"").trim().toLowerCase();if(!nm)return null;
@@ -12052,10 +12154,8 @@ function ncPaintName(){const i=el("ncn"),p=el("ncnMsg"),m=ncNameMsg();if(i){i.cl
 function ncPaintSite(){const i=el("ncsite"),p=el("ncsiteMsg"),m=ncSiteMsg();if(i){i.classList.toggle("is-err",!!m);i.setAttribute("aria-invalid",m?"true":"false")}if(p)p.outerHTML=ncSiteMsgHTML();ncPaintAdd()}
 function ncPaintAdd(){const why=ncAddWhy(),dn=el("drDone"),aw=el("ncAddWhy");if(dn){dn.disabled=!!why;dn.title=why}if(aw)aw.textContent=""}
 const NC_SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
-function ncSetLine(){const ks=RK.filter(ncIsSet);return ks.length===1?`${NC_SUM_L[ks[0]]||RES[ks[0]].label} set by hand; the rest follow the slider.`:`${ks.length} set by hand; the rest follow the slider.`}
-function ncAddWhy(){const ks=RK.filter(ncOver);if(ks.length)return `${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(compute(ks[0]).free)} available. Lower it to add the workspace.`;
+function ncAddWhy(){
  if(ncDupName())return "Use a name no other workspace has.";if(ncSiteMsg())return "Fix the website to add the workspace.";return ""}
-function ncPctText(){if(nc.edit) return '<span class="nc-off">Off while you edit values</span>';const n=ncSetCount();return "<b>"+ncShare()+"%</b>"+(n?`<span class="sub"> &middot; ${n} set by hand</span>`:"")}
 /* change 205, 12 Oct 2026 (Hitesh): "give explicit button which enables edit with pencil icon ... one will be
    disabled ... if you want to change individual then slider will not available to use ... how we can define which
    values to keep same". Two modes, one at a time. The slider sets every value and the values are plain text; Edit
@@ -12063,51 +12163,7 @@ function ncPctText(){if(nc.edit) return '<span class="nc-off">Off while you edit
    on the slider's share. Replaces change 164's click-a-number-while-the-slider-runs. */
 const NC_PEN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const NC_SLI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><circle cx="9" cy="12" r="3" fill="#fff"/></svg>';
-function ncModeBtnHTML(){return nc.edit
- ?`<button type="button" class="linkbtn nc-modebtn nc-modelink" id="ncEditVals" aria-pressed="true" title="Every value goes back to ${ncShare()}% of what is available">${NC_SLI}Use the slider</button>`
- :`<button type="button" class="linkbtn nc-modebtn nc-modelink" id="ncEditVals" aria-pressed="false">${NC_PEN}Edit values</button>`}
-/* change 264: the production InfoCircle (@saleshandy/icons) */
-const NC_INFO='<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Z"/><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M11 7.993a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1ZM10 12a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v3a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1-1-1Z"/></svg>';
-/* the context the slider used to carry on its face, now behind Learn more */
-/* change 165, 9 Oct 2026 (Hitesh): shorter and crisper. Two lines: what
-   available means and what the slider does; then how each kind renews. */
-function ncLearnHTML(){const who=ncEscH((nc.name||"").trim()||"This workspace"), sh=ncShare();
- /* change 272: available is the plan minus every limit already given, own workspace included */
- return `<p>Available is what your plan hasn't given to any workspace yet.</p>
-  <p>${who} gets ${sh}% of what's available, for each resource.</p>`}
-const ncIsCustom=()=>!!nc.custom&&Object.keys(nc.custom).length>0;
-function ncUsageHTML(){
- const who=(nc.name||"this workspace").trim(), mx=ncShareMax(), share=ncShare(), custom=ncIsCustom(), fill=mx>1?Math.round((share-1)/(mx-1)*100):100;
- /* change 164, 9 Oct 2026, Hitesh picked "click a number to change it" from the
-    usage-row exploration (experiments/create/tiles-inline.html). One panel lists
-    every resource the slider sets, two per row. Each number is plain text with a
-    dashed underline; click or Tab into it to type, with what is left of it shown
-    under the field. A typed number keeps a dot and stops following the slider;
-    the slider label counts them; one "Reset to N%" appears; a number above what
-    is left says so as you type and holds Add back. There is no Edit limits mode. */
- const SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
- const sumKeys=RK.filter(k=>RES[k].pool>0);
- const sumRow=k=>`<div class="nc-sum-r${ncIsSet(k)?" is-set":""}${ncOver(k)?" is-over":""}" data-sumr="${k}"><label for="ncv_${k}">${SUM_L[k]||RES[k].label}</label><span class="nc-sum-v"><span class="nc-sum-in"><i class="nc-dot" title="Set by hand"></i><input type="text" inputmode="numeric" id="ncv_${k}" class="nc-num" data-cap="${k}" value="${f(ncCapFor(k))}" aria-describedby="ncvh_${k} ncve_${k}" autocomplete="off"${nc.edit?"":' readonly tabindex="-1"'}${ncOver(k)?' aria-invalid="true"':""}></span><span class="nc-sum-h" id="ncvh_${k}">${ncHintText(k)}</span></span><span class="nc-sum-e" id="ncve_${k}">${ncErrText(k)}</span></div>`;
- const anyCapped=RK.some(ncCapped);
- const row=k=>{const R=RES[k],m=compute(k);return `<div class="nc-urow2" data-capfor="${k}"><span class="l">${R.label}</span><span class="sub"><b>${f(m.free)}</b> available</span>${numIn(ncCapFor(k),R.unit,`data-cap="${k}" aria-label="${R.label} limit"${nc.custom&&nc.custom[k]!=null?' class="is-custom"':''}`)}</div>`};
- return `<div class="nc-usage ${nc.edit?"is-edit":"is-slider"}" id="ncUsage">
-  ${`<div class="nc-urow${nc.edit?" is-off":""}"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><span class="nc-info${nc.learn?" is-on":""}" id="ncInfo"><button type="button" class="nc-info-b" id="ncLearn" aria-label="What available means" aria-expanded="${nc.learn?"true":"false"}" aria-describedby="ncLearnBox">${NC_INFO}</button><span class="nc-pop" role="tooltip" id="ncLearnBox">${ncLearnHTML()}</span></span></span><span class="nc-upct" id="ncPct">${ncPctText()}</span></div>
-  <input type="range" id="ncShare" min="1" max="${mx}" step="1" value="${share}" style="--p:${fill}%;--g:100%" aria-label="Share of what's available"${nc.edit?' disabled title="The slider is off while you edit values. Use the slider to turn it back on."':""}>`}
-  <div class="nc-moderow">${ncModeBtnHTML()}</div>
-  <div class="nc-sum">${sumKeys.map(sumRow).join("")}${sumKeys.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
- </div>`;
-}
-/* repaints only the values, so the slider keeps the drag and a row keeps its caret */
-function ncPaintUsage(){
- const mx=ncShareMax(), share=ncShare(), custom=ncIsCustom();
- const sl=el("ncShare"); if(sl){sl.style.setProperty("--p",(mx>1?Math.round((share-1)/(mx-1)*100):100)+"%")}
- const pct=el("ncPct"); if(pct)pct.innerHTML=ncPctText();
- document.querySelectorAll("[data-tile]").forEach(b=>b.textContent=f(ncCapFor(b.dataset.tile)));
- document.querySelectorAll("[data-tilel]").forEach(b=>b.innerHTML=b.dataset.l);{const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}
- document.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap; if(document.activeElement!==i)i.value=f(ncCapFor(k)); i.classList.toggle("is-custom",ncIsSet(k))});
- document.querySelectorAll("#ncUsage [data-sumr]").forEach(r=>{const k=r.dataset.sumr;r.classList.toggle("is-set",ncIsSet(k));r.classList.toggle("is-over",ncOver(k));{const bi=r.querySelector(".nc-sum-bar i");if(bi)bi.style.width=ncBarW(k)+"%"}const h=r.querySelector(".nc-sum-h");if(h)h.textContent=ncHintText(k);const e=r.querySelector(".nc-sum-e");if(e)e.textContent=ncErrText(k);const i=r.querySelector("input");if(i){if(ncOver(k))i.setAttribute("aria-invalid","true");else i.removeAttribute("aria-invalid")}});
- ncPaintAdd();
-}
+
 /* 23 Sep 2026: what used to say what the toggles meant now says what the role
    means, reusing the same slot (id="ncAccSay") so the wizard's live "what they
    will get" line lives in the same place it always did.
@@ -12239,7 +12295,7 @@ function renderDrawer(){
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
- {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev();const who=(nc.name||"this workspace").trim();const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML()}}
+ {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
  /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
     then paintPrev() rebinds it on every repaint after */
  L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
@@ -12250,26 +12306,11 @@ function renderDrawer(){
 
  /* the reserve switch changes what the column means, so the step repaints */
  /* the sentence follows every keystroke; only it repaints, so the field keeps its caret */
- /* 2 Oct 2026: the share slider, the tiles and the per-resource rows */
- {const sl=el("ncShare");if(sl)sl.oninput=()=>{nc.share=+sl.value;nc.err=null;ncPaintUsage()}}
- {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);const lb=el("ncLearnBox");if(lb)lb.innerHTML=ncLearnHTML();
+ {const a=el("ncn");if(a){const prev=a.oninput;a.oninput=e=>{if(prev)prev(e);
   /* the empty-name error clears as soon as a name is typed; a duplicate name says so as it is typed (change 264) */
   if(nc.nameErr&&a.value.trim())nc.nameErr=null; ncPaintName()}}}
  {const b=el("ncEdit");if(b)b.onclick=()=>{cap();nc.open=!nc.open;renderDrawer()}}
- /* change 205: Edit values and Use the slider swap the mode; leaving Edit puts every value back on the slider */
- {const b=el("ncEditVals");if(b)b.onclick=()=>{cap();if(nc.edit){nc.edit=false;nc.custom={}}else nc.edit=true;nc.err=null;renderDrawer();
-  const go=nc.edit?document.querySelector("#ncUsage input.nc-num"):el("ncShare");if(go)go.focus()}}
- {const b=el("ncLearn");if(b){b.onclick=()=>{nc.learn=!nc.learn;const w=el("ncInfo");if(w)w.classList.toggle("is-on",nc.learn);b.setAttribute("aria-expanded",nc.learn?"true":"false")};
-  /* Escape dismisses the popover (pinned or shown by focus) before it would close the pop-up */
-  b.onkeydown=e=>{const w=el("ncInfo");if(e.key==="Escape"&&w&&!w.classList.contains("is-quiet")){e.preventDefault();e.stopPropagation();if(nc.learn)b.click();w.classList.add("is-quiet")}};
-  b.onblur=()=>{const w=el("ncInfo");if(w)w.classList.remove("is-quiet")}}}
  {const s=el("ncsite");if(s){s.addEventListener("input",()=>{nc.site=s.value;if(nc.siteShown)ncPaintSite();ncLogoSoon(500)});s.addEventListener("blur",()=>{nc.site=s.value;nc.siteShown=true;ncPaintSite();ncLogoSoon(0)})}}
- L.querySelectorAll("#ncUsage [data-cap]").forEach(i=>{const k=i.dataset.cap;
-  i.onfocus=()=>{i.dataset.was=ncIsSet(k)?String(nc.custom[k]):"";setTimeout(()=>{try{i.select()}catch(e){}},0)};
-  i.oninput=()=>{nc.custom=nc.custom||{};if(i.value.trim()==="")delete nc.custom[k];else nc.custom[k]=num(i.value);ncPaintUsage()};
-  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();i.blur()}
-   if(e.key==="Escape"){e.preventDefault();e.stopPropagation();nc.custom=nc.custom||{};if(i.dataset.was==="")delete nc.custom[k];else nc.custom[k]=+i.dataset.was;i.value=f(ncCapFor(k));ncPaintUsage();i.blur()}};
-  i.onblur=()=>{if(!ncIsSet(k))i.value=f(ncCapFor(k));else i.value=f(nc.custom[k]);ncPaintUsage()}});
  el("scrim").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
  el("drX").onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()};
  /* Skip always finishes now, on any step. 16 §4: "Create is live from step 1."
@@ -12281,9 +12322,6 @@ function renderDrawer(){
    nc.nameErr=!nc.name.trim()?"Give the workspace a name.":null;
    if(nc.nameErr||ncDupName()){renderDrawer();const i=el("ncn");if(i)i.focus();return}
    nc.siteShown=true; if(ncSiteMsg()){renderDrawer();const i=el("ncsite");if(i)i.focus();return}
-   /* a typed-over credit amount above what is available today is refused here, naming both numbers (PRD FL-6) */
-   const bad=RK.filter(k=>nc.custom&&nc.custom[k]!=null&&nc.custom[k]>compute(k).free);
-   if(bad.length){ncPaintUsage();const first=document.querySelector('#ncUsage [data-cap="'+bad[0]+'"]');if(first)first.focus();return}
    create()};
 }
 function create(){
@@ -12309,9 +12347,11 @@ function create(){
  /* teammates chosen in the modal become members of the new workspace */
  (nc.team||[]).forEach(k=>{const p=PEOPLE[k];if(p&&Array.isArray(p.ws)&&p.ws.indexOf(id)<0)p.ws.push(id)});
  if(nc.email) LASTSEEN[nc.email]="never";
- RK.forEach(k=>{const cap=ncCapFor(k);
-  RES[k].rows[id]={res:RES[k].floors?cap:0,cap,used:0}});
- c.share=ncShare();
+ /* change E002, 23 Oct 2026 (Hitesh: "Nothing yet, must allocate"): every limit starts at 0, so nothing is taken from
+    the plan or from another workspace, and it cannot send until its limits are set on its record (limGate). Setup
+    steps done today carry today's date. */
+ RK.forEach(k=>{RES[k].rows[id]={res:0,cap:0,used:0}});
+ c.limPending=true; c.setupDates=[TODAY_D,TODAY_D,TODAY_D,TODAY_D];
  nc=NC_INIT();
  drawer=null;renderDrawer();
  /* change 123: the first workspace plays the four-beat conversion after the form,
@@ -12907,11 +12947,12 @@ const seqStLabel=(q,st)=>st==="Draft"&&q.ask?(asClient?"Waiting for "+AGENCY.nam
    for a role with draft and without editseq, which no fixed role is since 215 */
 function seqActs(c,q,may,mayDraft,big){
  if(q.state!=="Draft") return "";
+ const gl=limGate(c)?` disabled title="${SL_LINE}"`:"";   /* change E002 */
  const key=c.id+"|"+q.name, B=(cls,attr,l)=>big?`<button class="shd-button shd-button--sm shd-button--${cls}" ${attr}>${l}</button>`:`<button class="linkbtn linkbtn--sm" ${attr}>${l}</button>`;
- if(may&&q.ask) return `<span class="sq-acts">${B("tertiary",`data-seqreturn="${key}"`,"Send back")}${B("primary",`data-seqlaunch="${key}"`,"Launch")}</span>`;
+ if(may&&q.ask) return `<span class="sq-acts">${B("tertiary",`data-seqreturn="${key}"`,"Send back")}${B("primary",`data-seqlaunch="${key}"${gl}`,"Launch")}</span>`;
  /* change 215: a draft nobody asked about can be launched by whoever holds editseq, so running a sequence is
     something a Collaborator can see and do, not only a tick on the roles sheet */
- if(may) return `<span class="sq-acts">${B("primary",`data-seqlaunch="${key}"`,"Launch")}</span>`;
+ if(may) return `<span class="sq-acts">${B("primary",`data-seqlaunch="${key}"${gl}`,"Launch")}</span>`;
  if(!may&&mayDraft) return `<span class="sq-acts">${q.ask?B("tertiary",`data-seqwithdraw="${key}"`,"Withdraw"):B("primary",`data-seqlaunchask="${key}"`,`Ask ${AGENCY.name} to launch`)}</span>`;
  return "";
 }
@@ -12972,7 +13013,7 @@ function seqTable(c,owner){
        <span>${st==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
        <span class="tools"><button class="shd-button shd-button--sm shd-button--${st==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${st==="Paused"?"Resume":"Pause"} sequence</button>
        <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></td></tr>`:""}`}).join("");
- return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
+ return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${limGate(c)?slSendLine(c)/* change E002 */:""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
    <thead><tr><th class="c1"><input type="checkbox" aria-label="Select all" ${may?"":"disabled"}></th><th class="c2"></th><th>Sequence Name</th><th>Sequence Progress ${I.info}</th><th>Score</th><th>${I.ppl}Prospect</th><th>${I.mail}Contacted</th><th>${I.open}Opened</th><th>${I.reply}Replied</th><th>${I.thumb}Positive</th><th>Email Accounts</th><th>Inbox Score</th><th></th></tr></thead>
    <tbody>${c.seq&&rows?rows:'<tr><td colspan="13" style="height:56px"><span class="sub">No sequences yet.</span></td></tr>'}</tbody></table></div></div>`;
 }
@@ -13811,9 +13852,9 @@ const TOUR_STEPS={
     head:c=>`Invite ${tourNm(c)}'s people.`,body:c=>"They see only this workspace. You can do this later.",act:c=>"Click Invite.",
     sec:"Later",done:c=>!!(modal&&modal.kind==="invite")||!!(TOUR&&TOUR.secDone)},
  3:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c,"limits"),
-    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector("[data-rledit],[data-rlsave]")||document.querySelector('.rlt-row[data-rl="sends"]')):document.querySelector('.tabbar [data-tab="limits"]'),
+    target:c=>!tourOnRec(c)?null:tab==="limits"?(document.querySelector("[data-slok],[data-rledit],[data-rlsave]")||document.querySelector('.rlt-row[data-rl="sends"]')):document.querySelector('.tabbar [data-tab="limits"]'),
     sub:c=>tourOnRec(c)&&tab!=="limits"?"Open the Limits tab.":"",
-    head:c=>`What ${tourNm(c)} can use.`,body:c=>`Change limits sets them in place, the same numbers as when you added it; ${tourNm(c)} requests more from its side.`,act:c=>"Click Change limits and save a change.",
+    head:c=>limGate(c)?`Set what ${tourNm(c)} can use.`:`What ${tourNm(c)} can use.`,body:c=>limGate(c)?"Nothing sends until its limits are set.":`Change limits sets them in place; ${tourNm(c)} requests more from its side.`,act:c=>limGate(c)?"Click Set limits, type them and confirm.":"Click Change limits and save a change.",   /* change E002 */
     sec:"Got it",done:c=>!!(TOUR&&(TOUR.limitDone||TOUR.secDone))},
  4:{where:c=>`${tourNm(c)}'s record`,go:c=>tourGoRec(c),
     target:c=>tourOnRec(c)?document.querySelector(`.toolbar [data-enter="${c.id}"]`):null,
@@ -14275,7 +14316,7 @@ function wire(){
  q("[data-seqcancel]").forEach(b=>b.onclick=()=>{seqConfirm=null;render()});
  q("[data-seqconfirm]").forEach(b=>b.onclick=()=>{const [id,name]=b.dataset.seqconfirm.split("|");
    const s=(byId[id].sequences||[]).find(x=>x.name===name); if(!s) return;
-   const was=s.state, wasBy=s.pausedBy, c=byId[id]; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
+   const was=s.state, wasBy=s.pausedBy, c=byId[id]; if(was==="Paused"&&limGate(c)) return; s.state=was==="Paused"?"Active":"Paused"; seqConfirm=null;
    /* change 204: a pause from outside the agency's Workspace Admins is news to the agency (change 215: a client
       Collaborator can launch now, and their pause is still flagged, as every client pause is) */
    if(s.state==="Paused"&&!agencyFull(c)) {s.pausedBy={by:seqWho(c),client:asClient}; seqAct(c,`paused ${s.name}`)} else delete s.pausedBy;
@@ -14290,7 +14331,7 @@ function wire(){
    const s={name:n>1?"New sequence "+n:"New sequence",state:"Draft",prospects:0,contacted:0,sent:0,reply:0,owner:seqWho(c)};
    c.sequences.unshift(s); c.seq=(c.seq||0)+1; const full=agencyFull(c)||canC(c,"editseq");
    seqAct(c,`created ${s.name}`);
-   receipt("client:"+c.id,full?`${s.name} created as a draft. Write the steps, add prospects, then launch it.`:`${s.name} created as a draft. Write the steps, then ask ${AGENCY.name} to launch it.`,
+   receipt("client:"+c.id,full?(limGate(c)?`${s.name} created as a draft. Write the steps and add prospects; it can launch once this workspace's limits are set.`:`${s.name} created as a draft. Write the steps, add prospects, then launch it.`):`${s.name} created as a draft. Write the steps, then ask ${AGENCY.name} to launch it.`,
      ()=>{c.sequences=c.sequences.filter(x=>x!==s);c.seq--;render()},"created a sequence");
    render()});
  q("[data-seqlaunchask]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunchask); if(!s) return;
@@ -14299,7 +14340,7 @@ function wire(){
    render()});
  q("[data-seqwithdraw]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqwithdraw); if(!s) return; const was=s.ask;
    delete s.ask; receipt("client:"+c.id,`Withdrawn. ${s.name} is a draft you can keep working on.`,()=>{s.ask=was;render()}); render()});
- q("[data-seqlaunch]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunch); if(!s) return; const was=s.ask;
+ q("[data-seqlaunch]").forEach(b=>b.onclick=()=>{const {c,s}=seqOf(b.dataset.seqlaunch); if(!s||limGate(c)) return; const was=s.ask;
    s.state="Active"; delete s.ask; seqAct(c,`launched ${s.name}`);
    receipt("client:"+c.id,was?`${s.name} launched. ${was.by} sees it running.`:`${s.name} launched. ${s.prospects?f(s.prospects)+" prospects starting.":"It sends once prospects are added."}`,()=>{s.state="Draft";if(was)s.ask=was;render()},"launched a sequence");
    render()});
@@ -17456,7 +17497,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="a63b4c9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="40e8619";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18438,6 +18479,50 @@ button.hdr-chip{cursor:pointer}
  .wlp.hdr-wl .bs-tabs-content{padding:0 16px}
  .wlp.hdr-wl .bs-tabs-tab{margin-right:16px}
 }
+/* change E002: the Set limits card, the line where sending would start, and the donor rows (change 355's look, own classes) */
+.nc-modal .dr-b>.field:last-child,.nc-modal .dr-b>.field:has(+ .field[hidden]:last-child){margin-bottom:0}
+.drawer.nc-modal{min-height:0}   /* the body ends 24px above the footer, as it did under the tiles; the 417px floor (production's Add client) would pad it 15px */
+.msg.sl-card{margin-bottom:16px}
+.rc-dl.sl-dl{grid-template-columns:minmax(0,1fr) auto}.sl-dl dd{text-align:right}
+.sq-acts .linkbtn:disabled{color:#9CA3AF;cursor:not-allowed;text-decoration:none}.sl-card .sl-go{flex:none}
+.rlt .nc-modal .dr-b>.field:last-child,.nc-modal .dr-b>.field:has(+ .field[hidden]:last-child){margin-bottom:0}
+.drawer.nc-modal{min-height:0}   /* the body ends 24px above the footer, as it did under the tiles; the 417px floor (production's Add client) would pad it 15px */
+.msg.sl-card{margin-bottom:16px}
+.rc-dl.sl-dl{grid-template-columns:minmax(0,1fr) auto}.sl-dl dd{text-align:right}
+.sq-acts .linkbtn:disabled{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
+.msg.sl-sendln{margin-bottom:12px;font-size:13px;line-height:20px;font-weight:400;padding:10px 16px;align-items:center}.sl-sendln>span{flex:1;min-width:0}.sl-sendln .sl-sendgo{flex:none;margin-left:auto;font-size:13px;line-height:20px;font-weight:600}
+.sl-edp{container:slp/inline-size}
+.sl-res+.sl-res{border-top:1px solid #E5E7EB}
+.sl-ls{border-top:1px solid #E5E7EB}
+.sl-lt col.sl-c1{width:300px}.sl-lt col.sl-c2{width:216px}.sl-lt col.sl-c3{width:172px}
+.sl-lt td{vertical-align:middle;color:#1F2937;border-top:1px solid #E5E7EB}
+.sl-lt tbody tr:first-child td{border-top:0}
+.sl-lt .ul-ws{align-items:center}
+.sl-lt tr.is-off .ul-ws{opacity:.55}
+.sl-lt .ul3-in{width:136px}
+.sl-lt .ul3-in.is-ch{background:#EFF6FF;border-color:#93C5FD;box-shadow:none}
+.sl-lt .ul3-in[aria-invalid="true"]{border-color:#B91C1C;background:#fff}
+.sl-lt .ul3-in[aria-invalid="true"]:focus{box-shadow:0 0 0 2px #FEE2E2}
+.sl-lt tr.sl-lmore td{padding-top:8px;padding-bottom:8px}
+.sl-lc{font-variant-numeric:tabular-nums}
+.sl-edp .rlt-dock .shd-button--primary:disabled{opacity:1;background:#E5E7EB;border-color:#E5E7EB;color:#9CA3AF;cursor:not-allowed}
+@container slp (max-width:819px){
+ .sl-lt,.sl-lt tbody{display:block}
+ .sl-lt thead,.sl-lt colgroup{display:none}
+ .sl-lt tr{display:grid;grid-template-columns:minmax(0,1fr) 136px;gap:6px 12px;align-items:center;padding:12px 24px;border-top:1px solid #E5E7EB}
+ .sl-lt tbody tr:first-child{border-top:0}
+ .sl-lt td{display:block;padding:0!important;border:0!important}
+ .sl-lt td:nth-child(1){grid-column:1;grid-row:1}.sl-lt td:nth-child(3){grid-column:2;grid-row:1}
+ .sl-lt td:nth-child(2){grid-column:1/-1;grid-row:2;padding-left:38px!important}.sl-lt td:nth-child(4){grid-column:1/-1;grid-row:3;padding-left:38px!important}
+ .sl-lt td:empty{display:none}
+ .sl-lt .ul3-in{width:100%}
+ .sl-lt tr.sl-lmore{display:block;padding-top:8px;padding-bottom:8px}
+}
+@container slp (max-width:639px){
+ .sl-lt tr{grid-template-columns:minmax(0,1fr) 96px;padding:12px 16px}
+ .sl-lt .ul-nm{white-space:normal;overflow:visible}
+}
+@media (max-width:640px){.msg.sl-card,.msg.sl-sendln{flex-wrap:wrap;align-items:flex-start}.msg.sl-card>svg,.msg.sl-sendln>svg{margin-top:2px}.sl-card .dn-req-t,.sl-sendln>span{flex:1 1 calc(100% - 28px)}.sl-card .sl-go,.sl-sendln .sl-sendgo{margin-left:26px}}
 </style>
 </body>
 </html>
