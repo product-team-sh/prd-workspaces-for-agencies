@@ -4644,10 +4644,11 @@ function hcLi(c){const key=me_;
 /* ═══ change 267, 14 Oct 2026 (Hitesh: "Also add ability sort based by clicking on column header") ═══
    One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
-let HSORT={ws:null};
+let HSORT={ws:null,ul:null};   /* vE E022: ul, the Limits table */
 const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- ws:[["name","Workspace","width:260px"],["status","Status","width:110px"],["client","Client users","width:215px"],["team","Your team","width:205px"],["usage","Highest usage","width:190px",HS_TIP_U],["acts","","width:270px"]]};   /* vE E018: the actions column */
+ ws:[["name","Workspace","width:260px"],["status","Status","width:110px"],["client","Client users","width:215px"],["team","Your team","width:205px"],["usage","Highest usage","width:190px",HS_TIP_U],["acts","","width:270px"]],
+ ul:[["name","Workspace",""],["used","Used",""],["limit","Limit",""]]};   /* vE E018: the actions column. vE E022: the Limits table */
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};   /* change 338: worst score first */
 /* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
@@ -4673,8 +4674,8 @@ function hsVal(k,c){
 const wsNeedTier=c=>{if(c.own) return 0; if(c.disabled||c.deletedOn) return 4; const N=usageNeed(c);
  return N&&N.tone==="bad"?1:N&&N.first?2:3};
 function wsOrder(list,get){get=get||(x=>x); return list.slice().sort((a,b)=>{const A=get(a),B=get(b); return wsNeedTier(A)-wsNeedTier(B)||A.name.localeCompare(B.name,undefined,{sensitivity:"base"})})}
-function hsApply(list,t,get){const S=HSORT[t]; if(!S) return list;
- const rows=list.map((x,i)=>({x,i,v:hsVal(S.col,get?get(x):x)}));
+function hsApply(list,t,get,val){const S=HSORT[t]; if(!S) return list;   /* vE E022: val(col,x) reads a table's own figures */
+ const rows=list.map((x,i)=>({x,i,v:val?val(S.col,get?get(x):x):hsVal(S.col,get?get(x):x)}));
  rows.sort((a,b)=>{const ea=a.v==null,eb=b.v==null; if(ea||eb) return ea&&eb?a.i-b.i:ea?1:-1;
   const d=typeof a.v==="string"?a.v.localeCompare(b.v,undefined,{sensitivity:"base"}):a.v-b.v; return d*S.dir||a.i-b.i});
  return rows.map(r=>r.x)}
@@ -7968,7 +7969,7 @@ const ulrAvHTML=k=>{if(isUnl(k)) return UNL_TXT; const a=ulDfree(k); return a<0?
 /* below what is used (282's rule), or a raise while the resource is above the plan */
 const ulrBad=(k,id)=>ul3E2Low(k,id)?"below":ulDfree(k)<0&&ulDv(k,id)>RES[k].rows[id].cap?"over":"";
 function ulrSet(k,id,v){if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v}
-const ulrEdRows=k=>isUnl(k)?[]:ul3E2Rows(k).filter(c=>ul3CanEd(c,ulRo())&&c.id!==OWN_ID);
+const ulrEdRows=k=>isUnl(k)?[]:ulfPageRows(k).filter(c=>ul3CanEd(c,ulRo())&&c.id!==OWN_ID);   /* vE E022: the rows on the page, in the order shown */
 function ulrUseHTML(k,c){
  if(isUnl(k)) return `<span class="ulr-use"><span class="ulr-bar is-none"></span><span class="ulr-num">${f(unlUsed(k,c.id))}</span><span class="ulr-w"></span></span>`;
  const r=RES[k].rows[c.id], v=ulDv(k,c.id), lv=ulrLv(c,r.used,v), p=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0, wd=lv===2?"Used up":p+"%";
@@ -7989,7 +7990,7 @@ function ulrBarHTML(){const ch=ulChanges(), n=ch.length; if(!n) return "";
   :low.length?`Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}. Raise it to review.`:"";
  return `<div class="ulr-sb" role="region" aria-label="Unsaved changes"><p class="ulr-sbt">${ul3N(n,"change")}.${av}${av?".":""}${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>`
   +`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ul3rv${why?` disabled title="${why}"`:""}>Review ${ul3N(n,"change")}</button></div>`}
-function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W=ul3E2Rows(k);
+function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
  const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span><span>You can give</span></div>${RK_SHOW(UL_K()).map(x=>{const n=ulrOut(x);
   return `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}"${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${n?`<span class="ulr-lab"><i aria-hidden="true"></i>${n} used up</span>`:""}<span class="ulr-ra" data-ulrav="${x}">${ulrAvHTML(x)}</span></button>`}).join("")}</nav>`;
  const rn=bpRenew(k), sub=unl?`No limits on ${PLAN.name.replace(/\s*\(.*\)$/,"")}`:`${f(R.pool)} in plan${/^Renews /.test(rn)?", r"+rn.slice(1):""}`;
@@ -7997,8 +7998,8 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W=ul3E2Rows(k);
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:c.id===OWN_ID?' title="Your workspace keeps the rest of the plan"':""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ulr-tag">Yours</span>':""}${c.disabled?'<span class="ulr-tag">Disabled</span>':""}</div></td>`
   +`<td data-ulru="${c.id}">${ulrUseHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${unl?`<span class="ulr-lv">${UNL_TXT}</span>`:ulrLimHTML(k,c,ro)}</td></tr>`).join("");
- return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}
-  <table class="ulr-t" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col><col class="ulr-c3"></colgroup><thead><tr><th>Workspace</th><th>Used</th><th class="ulr-r">Limit</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+ return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${ulfToolbar()}${ulfChips()}
+  <table class="ulr-t" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col><col class="ulr-c3"></colgroup>${hsHead("ul")}<tbody>${rows||ulfNone()}</tbody></table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -8046,7 +8047,7 @@ document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency") r
  if(E&&d.ul3cancel!=null){ul3EdClose(); return}
  if(d.ul3buy){ctx="agency"; view={name:"credits"}; billTab=BS_BUY[d.ul3buy]||"plan"; render(); return}
  if(d.ul3owner){const [k,n]=d.ul3owner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast(); return}
- if(d.ul3tab){UL.focusK=d.ul3tab; UL.drill=true; UL.ce=null; UL.ul3f=ulrPhone()?"[data-ulrback]":"#ul3tab-"+d.ul3tab; render(); return}
+ if(d.ul3tab){if((PAGE.ul||1)>1){PAGE.ul=1; wslSync("replace")} UL.focusK=d.ul3tab; UL.drill=true; UL.ce=null;   /* vE E022: search, filters and sort stay; the page starts again */ UL.ul3f=ulrPhone()?"[data-ulrback]":"#ul3tab-"+d.ul3tab; render(); return}
  if(d.ul3rv!=null){UL.rv2=true; UL.ul3f="[data-ul3apply]"; render(); const P=el("ulLimits"); if(P&&P.getBoundingClientRect().top<0) P.scrollIntoView({block:"start"}); return}
  if(d.ul3back!=null){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
  if(d.ul3apply!=null){const k=ul3E2K(); if(ul3Commit(UL.draft,"Applied")){ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k} render(); return}
@@ -8133,6 +8134,7 @@ function ulWire(){const L=ulLayer();
  q2("[data-ul3r]").forEach(tr=>tr.onclick=e=>{if(e.target.closest("button,a,input")) return; ul3Toggle(tr.dataset.ul3r)});
  q2("[data-ul3x]").forEach(b=>b.onclick=e=>{e.stopPropagation(); ul3Toggle(b.dataset.ul3x,e.detail===0)});
  ul3Wire();   /* change 263 */
+ ulfWire();   /* vE E022 */
  q2("[data-ulcell]").forEach(b=>b.addEventListener("click",()=>{UL.cellSrc=b},true));
  ulWireBar(); ulPaintLayer()}
 function ulPaintLayer(){const L=ulLayer();
@@ -12858,7 +12860,7 @@ function wire(){
  /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
     puts focus back on the redrawn header; a mouse click leaves no ring behind) */
  q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
-   HSORT[t]=S&&S.col===k?(S.dir===(HS_FIRST[k]||-1)?{col:k,dir:-S.dir}:null):{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws"){PAGE.clients=1; wslSync("push")}   /* change 292: a third click returns to the default order. vE E021: the hash keeps it */
+   HSORT[t]=S&&S.col===k?(S.dir===(HS_FIRST[k]||-1)?{col:k,dir:-S.dir}:null):{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws"){PAGE.clients=1; wslSync("push")} else if(t==="ul"){PAGE.ul=1; wslSync("push")}   /* vE E022: the Limits table. change 292: a third click returns to the default order. vE E021: the hash keeps it */
    render(); const b=kb&&document.querySelector('th[data-hsort="'+t+'|'+k+'"] .hs-b'); if(b) b.focus({preventScroll:true})});
  if(HPOP) hpClose();
  q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
@@ -13596,7 +13598,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E021: the list's state */ if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)||/^ul(q|status|usage|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E022: the Limits table's keys */   /* vE E021: the list's state */ if(!route) route=seg});
  return {route,p}})();
 /* change 154, 8 Oct 2026, Hitesh: "one switch: normal role management as built,
    and ATM-based role management". `model=atm` in the hash applies production's
@@ -13711,17 +13713,24 @@ function pgBar(p,N,size,cur,pages){
 function wslPager(N){if(N<=RA_SIZES[0]) return ""; const g=pageOf("clients",N,WS_SIZE); return pgBar("ws",N,WS_SIZE,g.p,g.n)}
 /* the hash: wsq (encoded twice, since HASHX decodes the whole hash before it splits), wsstatus, wsusage, wsteam,
    wsclient (comma lists), wssort (col-asc or col-desc), wspage and wssize; defaults are left out */
-const WSL_KEYS=["wsq","wsstatus","wsusage","wsteam","wsclient","wssort","wspage","wssize"];
+const WSL_KEYS=["wsq","wsstatus","wsusage","wsteam","wsclient","wssort","wspage","wssize","ulq","ulstatus","ulusage","ulsort","ulpage","ulsize"];   /* vE E022: ul*, the Limits table */
 function wslParts(){const S=HSORT.ws, o=[];
  if(cliQ.trim()) o.push("wsq="+encodeURIComponent(encodeURIComponent(cliQ)));
  WSF_DEF.forEach(([k])=>{if(WSF[k].length) o.push("ws"+k+"="+WSF[k].map(encodeURIComponent).join(","))});
  if(S) o.push("wssort="+S.col+"-"+(S.dir>0?"asc":"desc"));
  if((PAGE.clients||1)>1) o.push("wspage="+PAGE.clients);
  if(WS_SIZE!==25) o.push("wssize="+WS_SIZE);
+ /* vE E022: the Limits table, its own keys (ulq is encoded twice like wsq) */
+ if(ulQ.trim()) o.push("ulq="+encodeURIComponent(encodeURIComponent(ulQ)));
+ ULF_DEF.forEach(([k])=>{if(ULF[k].length) o.push("ul"+k+"="+ULF[k].map(encodeURIComponent).join(","))});
+ if(HSORT.ul) o.push("ulsort="+HSORT.ul.col+"-"+(HSORT.ul.dir>0?"asc":"desc"));
+ if((PAGE.ul||1)>1) o.push("ulpage="+PAGE.ul);
+ if(UL_SIZE!==25) o.push("ulsize="+UL_SIZE);
  return o}
 const wslHash=()=>location.hash.replace(/^#/,"").split("&").filter(s=>s&&WSL_KEYS.indexOf(s.split("=")[0])<0).concat(wslParts()).join("&");
-const wslSnap=()=>({q:cliQ,f:JSON.parse(JSON.stringify(WSF)),sort:HSORT.ws?Object.assign({},HSORT.ws):null,pg:PAGE.clients||1,size:WS_SIZE});
-function wslApply(s){cliQ=s.q||""; wsfReset(); WSF_DEF.forEach(([k])=>{WSF[k]=((s.f||{})[k]||[]).slice()}); HSORT.ws=s.sort||null; PAGE.clients=s.pg||1; WS_SIZE=s.size||25}
+const wslSnap=()=>({q:cliQ,f:JSON.parse(JSON.stringify(WSF)),sort:HSORT.ws?Object.assign({},HSORT.ws):null,pg:PAGE.clients||1,size:WS_SIZE,uq:ulQ,uf:JSON.parse(JSON.stringify(ULF)),us:HSORT.ul?Object.assign({},HSORT.ul):null,up:PAGE.ul||1,uz:UL_SIZE,lim:view.name==="limits"});   /* vE E022: and the Limits table's; lim says which screen the entry is */
+function wslApply(s){cliQ=s.q||""; wsfReset(); WSF_DEF.forEach(([k])=>{WSF[k]=((s.f||{})[k]||[]).slice()}); HSORT.ws=s.sort||null; PAGE.clients=s.pg||1; WS_SIZE=s.size||25;
+ ulQ=s.uq||""; ulfReset(); ULF_DEF.forEach(([k])=>{ULF[k]=((s.uf||{})[k]||[]).slice()}); HSORT.ul=s.us||null; PAGE.ul=s.up||1; UL_SIZE=s.uz||25}   /* vE E022 */
 /* "push" (a filter, a sort, a page): a new history entry; "type": the first keystroke of a search pushes, the rest replace it;
    "replace": the current entry. Before the first push the entry being left keeps the state it had (WSL_LAST). */
 function wslSync(mode){
@@ -13738,12 +13747,19 @@ function wslRead(){const raw=location.hash.replace(/^#/,"").split("&"), g=k=>{co
  const s=g("wssort"); if(s){const [c,d]=s.split("-"); if(c!=="acts"&&HS_COLS.ws.some(x=>x[0]===c)) HSORT.ws={col:c,dir:d==="asc"?1:-1}}
  const z=+g("wssize"); if(RA_SIZES.indexOf(z)>-1) WS_SIZE=z;
  const p=+g("wspage"); if(p>0) PAGE.clients=Math.floor(p);
+ /* vE E022: the Limits table */
+ const uq=g("ulq"); if(uq!=null){try{ulQ=decodeURIComponent(decodeURIComponent(uq))}catch(e){ulQ=""}}
+ ULF_DEF.forEach(([k,,O])=>{const v=g("ul"+k); if(v){ULF[k]=v.split(",").map(x=>{try{return decodeURIComponent(x)}catch(e){return ""}}).filter(x=>x&&O.some(o=>o[0]===x))}});
+ const us=g("ulsort"); if(us){const [c,d]=us.split("-"); if(HS_COLS.ul.some(x=>x[0]===c)) HSORT.ul={col:c,dir:d==="asc"?1:-1}}
+ const uz=+g("ulsize"); if(RA_SIZES.indexOf(uz)>-1) UL_SIZE=uz;
+ const up=+g("ulpage"); if(up>0) PAGE.ul=Math.floor(up);
  WSL_LAST=wslSnap()}
 /* Back and Forward: the entry's list state, on Home */
 window.addEventListener("popstate",e=>{const st=e.state; if(!st||st.sh!=="wsl"||!st.s) return;
  SH_SKIP=true; clearTimeout(window.__wslSkipT); window.__wslSkipT=setTimeout(()=>{SH_SKIP=false},80);
- wslApply(st.s); WSL_LAST=st.s; WSF_OPEN=null; WSF_Q="";
- if(ctx!=="agency"||view.name!==homeView().name){ctx="agency";asClient=false;view=homeView()}
+ wslApply(st.s); WSL_LAST=st.s; WSF_OPEN=null; WSF_Q=""; ULF_OPEN=null;
+ const tv=st.s.lim?{name:"limits"}:homeView();   /* vE E022: Limits or Home, as the entry was made */
+ if(ctx!=="agency"||view.name!==tv.name){ctx="agency";asClient=false;view=tv}
  render()});
 function wsfClose(focus){const k=WSF_OPEN; if(!k) return; WSF_OPEN=null; WSF_Q=""; render(); if(focus){const t=document.querySelector('[data-wsft="'+k+'"]'); if(t) t.focus()}}
 document.addEventListener("mousedown",e=>{if(WSF_OPEN&&!(e.target.closest&&e.target.closest(".wsf.is-open"))) wsfClose(false)},true);
@@ -13763,6 +13779,61 @@ function wslWire(){
  const go=el("wsGo"); if(go) go.onsubmit=e=>{e.preventDefault(); const i=el("wsGoIn"), n=Number(i.value), max=Number(i.max);
   if(!Number.isInteger(n)||n<1||n>max){i.classList.add("is-err");return} PAGE.clients=n; wslSync("push"); render(); top()};
  const gi=el("wsGoIn"); if(gi) gi.oninput=()=>gi.classList.remove("is-err");
+}
+
+/* ═══ vE E022, 23 Oct 2026 (Hitesh: "Workspace List Functionality everywhere in our prototype ... Include pagination,
+   filters, sorting, and search functionality in the workspace list"). The Limits table of Usage & limits, E021's pieces:
+   wsMatch, the Status and Usage dropdowns (wsfOpts, WSF_CHEV, the .wsf styles), applied-filter chips with Clear all,
+   hsHead and hsApply, pgBar, and the hash through wslSync. Search, filters and sort stay when the resource changes. ═══ */
+/* default order: ul3E2Rows (by share used, highest first, disabled last); the own row is not pinned. The draft
+   (UL.draft) is keyed by resource and workspace, so a hidden or off-page row keeps its edit and still counts in
+   ulChanges, ulDfree and the save bar. */
+let ulQ="", ULF={status:[],usage:[]}, ULF_OPEN=null, UL_SIZE=25;
+const ULF_DEF=WSF_DEF.slice(0,2);   /* Status, Usage: the same options as Home's */
+const ulfReset=()=>{ULF={status:[],usage:[]}};
+const ulfOn=()=>ULF_DEF.some(([k])=>ULF[k].length);
+/* Usage here is this resource: used up or 90% or more of the saved limit (the bar's own rule, ulrLv); a disabled
+   workspace and an Unlimited resource are Fine. Saved figures, so a row never leaves the list while its limit is typed. */
+const ulfUse=(k,c)=>{const r=RES[k].rows[c.id]; return !r||isUnl(k)?"fine":["fine","near","out"][ulrLv(c,r.used,r.cap)]};
+const ulfPass=(k,c)=>(!ULF.status.length||ULF.status.indexOf(wsStatus(c))>-1)&&(!ULF.usage.length||ULF.usage.indexOf(ulfUse(k,c))>-1);
+/* the sort reads what the cells show: the workspace name, used, and the saved limit; Unlimited has no limit to sort */
+const ulfVal=k=>(col,c)=>{const r=RES[k].rows[c.id]; return col==="name"?String(c.name):col==="used"?(isUnl(k)?unlUsed(k,c.id):r.used):isUnl(k)?null:r.cap};
+const ulfRows=k=>hsApply(ul3E2Rows(k).filter(c=>wsMatch(c,ulQ)&&ulfPass(k,c)),"ul",null,ulfVal(k));
+const ulfPageRows=k=>{const W=ulfRows(k), g=pageOf("ul",W.length,UL_SIZE); return W.slice(g.from,g.to)};
+function ulfDD(k,l){const S=ULF[k], O=wsfOpts(k), open=ULF_OPEN===k;
+ const val=!S.length?l:l+": "+(S.length===1?wsfName(k,S[0]):S.length+" selected");
+ return '<div class="dd wsf'+(open?' is-open':'')+'" data-ulf="'+k+'"><button type="button" class="dd-trig" data-ulft="'+k+'" aria-haspopup="true" aria-expanded="'+open+'">'
+  +'<span class="dd-val">'+wsfEsc(val)+'</span>'+WSF_CHEV+'</button>'
+  +(open?'<div class="dd-menu wsf-m" role="group" aria-label="'+l+'">'
+   +O.map(([v,t])=>'<label class="dd-opt wsf-o"><input type="checkbox" data-ulfo="'+k+'|'+wsfEsc(v)+'"'+(S.indexOf(v)>-1?' checked':'')+'><span class="dd-lbl">'+wsfEsc(t)+'</span></label>').join("")+'</div>':'')+'</div>'}
+const ulfToolbar=()=>'<div class="ulr-tb"><div class="search">'+srchI+'<input type="text" id="ulSearch" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="'+wsfEsc(ulQ)+'"></div>'
+ +'<div class="wsf-bar" role="group" aria-label="Filters">'+ULF_DEF.map(([k,l])=>ulfDD(k,l)).join("")+'</div></div>';
+function ulfChips(){if(!ulfOn()) return "";
+ return '<div class="wsf-chips">'+ULF_DEF.filter(([k])=>ULF[k].length).map(([k,l])=>{const v=ULF[k].map(x=>wsfName(k,x)).join(", ");
+   return '<span class="wsf-chip"><span class="wsf-cn">'+l+':</span><span class="wsf-cv" title="'+wsfEsc(v)+'">'+wsfEsc(v)+'</span>'
+    +'<button type="button" class="wsf-x" data-ulfx="'+k+'" aria-label="Remove the '+l+' filter">'+WSF_X+'</button></span>'}).join("")
+  +'<button type="button" class="linkbtn wsf-clr" data-ulfclear>Clear all</button></div>'}
+const ulfNone=()=>'<tr class="ws-none"><td colspan="3"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-ulfnone>Clear</button></span></td></tr>';
+function ulfPager(N){if(N<=RA_SIZES[0]) return ""; const g=pageOf("ul",N,UL_SIZE); return pgBar("ul",N,UL_SIZE,g.p,g.n)}
+function ulfClose(focus){const k=ULF_OPEN; if(!k) return; ULF_OPEN=null; render(); if(focus){const t=document.querySelector('[data-ulft="'+k+'"]'); if(t) t.focus()}}
+document.addEventListener("mousedown",e=>{if(ULF_OPEN&&!(e.target.closest&&e.target.closest(".wsf.is-open"))) ulfClose(false)},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ULF_OPEN){e.preventDefault();e.stopPropagation();ulfClose(true)}},true);
+function ulfWire(){
+ const q=s=>document.querySelectorAll(s), top=()=>{const c=document.querySelector(".ulr"); if(c) c.scrollIntoView({block:"start"})}, sf=()=>{const s=el("ulSearch"); if(s) s.focus({preventScroll:true})};
+ q("[data-ulft]").forEach(b=>b.onclick=()=>{const k=b.dataset.ulft; ULF_OPEN=ULF_OPEN===k?null:k; render();
+  const m=document.querySelector('.wsf[data-ulf="'+k+'"] .wsf-m'); if(m){const f=m.querySelector("input"); if(f) f.focus()}});
+ q("[data-ulfo]").forEach(cb=>cb.onchange=()=>{const [k,v]=cb.dataset.ulfo.split("|"), L=ULF[k], i=L.indexOf(v);
+  if(cb.checked&&i<0) L.push(v); if(!cb.checked&&i>-1) L.splice(i,1);
+  PAGE.ul=1; wslSync("push"); render(); const n=document.querySelector('[data-ulfo="'+cb.dataset.ulfo+'"]'); if(n) n.focus()});
+ bindSearch("ulSearch",v=>{ulQ=v; PAGE.ul=1; wslSync("type")});
+ q("[data-ulfx]").forEach(b=>b.onclick=()=>{ULF[b.dataset.ulfx]=[]; PAGE.ul=1; wslSync("push"); render(); sf()});
+ q("[data-ulfclear]").forEach(b=>b.onclick=()=>{ulfReset(); PAGE.ul=1; wslSync("push"); render(); sf()});
+ q("[data-ulfnone]").forEach(b=>b.onclick=()=>{ulQ=""; ulfReset(); PAGE.ul=1; wslSync("push"); render(); sf()});
+ q("[data-ulpg]").forEach(b=>b.onclick=()=>{PAGE.ul=+b.dataset.ulpg; wslSync("push"); render(); top()});
+ wireDD(document,"ulSize",v=>{if(v){UL_SIZE=+v; PAGE.ul=1; wslSync("push"); render(); top()}});
+ const go=el("ulGo"); if(go) go.onsubmit=e=>{e.preventDefault(); const i=el("ulGoIn"), n=Number(i.value), max=Number(i.max);
+  if(!Number.isInteger(n)||n<1||n>max){i.classList.add("is-err");return} PAGE.ul=n; wslSync("push"); render(); top()};
+ const gi=el("ulGoIn"); if(gi) gi.oninput=()=>gi.classList.remove("is-err");
 }
 
 /* ═══ the thread panel: reply from the roll-up without leaving it ════════════ */
@@ -13850,6 +13921,7 @@ function scaleMore(){const A=SCALE_NAMES.map(s=>s.split(" ")[0]), Z=SCALE_NAMES.
  for(let j=0;out.length<200&&j<A.length*Z.length;j++){const nm=A[j%A.length]+" "+Z[(j+Math.floor(j/A.length)+1)%Z.length]; if(!seen.has(nm)){seen.add(nm);out.push(nm)}}
  return out}
 function scaleTo(n){
+ const own0={}; RK.forEach(k=>{const o=RES[k].rows.own; own0[k]=o?o.cap:0});   /* vE E022: your own workspace's room before the extra workspaces */
  const r=rng("scale"), NAMES=SCALE_NAMES.concat(scaleMore()), k0=n>SCALE_NAMES.length+10?40/n:1;   /* vE E021: past 47, limits shrink so they stay inside the plan */
  const pal=["#B45309","#0F766E","#C2410C","#6D28D9","#0E7490","#9333EA","#4B5563","#BE185D","#1D4ED8","#047857","#B91C1C","#7C3AED"];
  let i=0;
@@ -13880,6 +13952,13 @@ function scaleTo(n){
      other one automatically. Sam is a Member and needs adding explicitly. */
   if(r()<.25&&Array.isArray(PEOPLE.sam.ws)&&PEOPLE.sam.ws.indexOf(id)<0){PEOPLE.sam.ws.push(id)}
  }
+ /* vE E022: E020's rule holds at any size. Your own workspace is the plan less every other limit, so the
+    other workspaces shrink in proportion until it keeps what it has used plus half of its old room */
+ RK.forEach(k=>{if(isUnl(k)) return; const R=RES[k], o=R.rows.own; if(!o) return;
+  const ids=Object.keys(R.rows).filter(id=>id!=="own"), all=ids.reduce((a,id)=>a+R.rows[id].cap,0);
+  const room=R.pool-(o.used+Math.round(Math.max(0,own0[k]-o.used)/2));
+  if(!all||all<=room) return; const f=Math.max(0,room-ids.length)/all;
+  ids.forEach(id=>{const w=R.rows[id], cap=Math.max(1,Math.round(w.cap*f)); w.used=Math.min(cap,Math.round(w.used*f)); w.cap=cap})});
  LAST.clients=Math.max(LAST.clients,CLIENTS.length-2);
  SCALE.n=CLIENTS.length;
 }
@@ -16608,7 +16687,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="4306242";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="578beff";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -17035,6 +17114,36 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .ulr-pen{display:none}
  .ulr-t .ulr-in.ul-in{width:112px;margin-right:0}
  .ulr-sb{flex-wrap:wrap;padding:12px 16px}.ulr-sbt{width:100%}.ulr-sb .shd-button{flex:1}
+}
+/* ═══ vE E022: the Limits table's toolbar, sort headers and pager, E021's numbers. The toolbar is the rail panel's
+   second row (12px 24px, as .ulr-ch above it); the search and the .wsf filters are Home's; the sort header is
+   change 267's (.hs-b, 10x16 chevrons), its Limit label pulled 14px so its text ends on the figures' edge. ═══ */
+.ulr-tb{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 24px;border-bottom:1px solid #E5E7EB;box-sizing:border-box}
+.ulr-tb .search{flex:1 1 220px;max-width:320px}
+.ulr-tb .wsf-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:0 1 auto;min-width:0}
+.ulr-main .wsf-chips{padding:12px 24px;border-bottom:1px solid #E5E7EB}
+.ulr-main .ra-pg{margin:0;border:0;border-top:1px solid #d1d5db;border-radius:0;box-shadow:none}
+.ulr-t thead th.th-s{cursor:pointer;transition:background-color .2s ease}
+.ulr-t thead th.th-s:hover{background:var(--gray-100)}
+.ulr-t .hs-b{display:inline-flex;align-items:center;gap:4px;margin:0;padding:0;border:0;border-radius:2px;background:none;font:inherit;line-height:16px;color:inherit;letter-spacing:inherit;text-align:left;white-space:nowrap;cursor:pointer}
+.ulr-t .hs-b:focus-visible{outline:2px solid var(--blue-700);outline-offset:2px}
+.ulr-t .hs-i{display:block;flex:none;width:10px;height:16px;color:var(--gray-500);visibility:hidden}
+.ulr-t th.th-s:hover .hs-i,.ulr-t .hs-b:focus-visible .hs-i,.ulr-t th.is-sorted .hs-i{visibility:visible}
+.ulr-t th.is-sorted .hs-i{color:var(--gray-300)}
+.ulr-t th.is-asc .hs-up,.ulr-t th.is-desc .hs-dn{color:var(--gray-800)}
+.ulr-t thead th:last-child{text-align:right}
+.ulr-t thead th:last-child .hs-b{margin-right:-14px}
+.ulr-t tbody tr.ws-none:hover td{background:none}
+@media (max-width:760px){
+ /* phone: the header row stays as one line of sort buttons (the rows are cards) */
+ .ulr-tb{padding:12px 16px}.ulr-tb .search{max-width:none}.ulr-tb .wsf-bar{order:3;flex:1 1 100%}
+ .ulr-main .wsf-chips{padding:12px 16px}
+ .ulr-t thead{display:block}
+ .ulr-t thead .th-one{display:flex;align-items:center;gap:24px;height:40px;padding:0 16px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;box-sizing:border-box}
+ .ulr-t thead .th-one th{height:auto;padding:0;border:0;background:none;text-align:left}
+ .ulr-t thead .th-one th:last-child{margin-left:auto}
+ .ulr-t thead .th-one th:last-child .hs-b{margin-right:0}
+ .ulr-t tr.ws-none{display:block}
 }
 .ul3-e2s .ul3-e2c{color:#1F2937}
 .ul3-e2s .ul3-e2d{position:sticky;bottom:12px;margin:0 12px 12px;padding:12px 16px 12px 20px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
