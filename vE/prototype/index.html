@@ -6050,7 +6050,7 @@ document.addEventListener("click",e=>{if(view.name!=="record") return;
  if(d.rlcancel!=null){RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus(); return}
  if(d.rlsave!=null&&RL){if(ul3Commit(RL.D,"Saved","set on its Limits tab")) RL=null; render(); return}
  /* more than the plan has: 263's roster editor on Usage & limits takes the draft and offers a donor */
- if(d.rlmove&&RL){UL.ed=null; UL.draft=Object.assign({},RL.D); UL.focusK=d.rlmove; UL.rv2=false; UL.cell=null; UL.ul3f=`[data-uld="${d.rlmove}|${RL.id}"]`; RL=null;   /* change 290 */ ORIGIN=null; ctx="agency"; asClient=false; view={name:"limits"}; render(); return}
+ if(d.rlmove&&RL){UL.ed=null; UL.draft=Object.assign({},RL.D); UL.focusK=d.rlmove; UL.rv2=false; UL.cell=null; UL.ce=`${d.rlmove}|${RL.id}`; UL.drill=true; UL.ul3f=`[data-ulri="${d.rlmove}|${RL.id}"]`; RL=null;   /* vE E016 */   /* change 290 */ ORIGIN=null; ctx="agency"; asClient=false; view={name:"limits"}; render(); return}
  if(d.rlraise){const [k,n]=d.rlraise.split("|"); setLimit(k,c.id,+n,"raised so it can restart"); render(); return}
  if(d.askld){LM_DECL="askl-"+d.askld; render(); const i=document.querySelector(`.askl-note[data-nonote="${d.askld}"]`); if(i) i.focus(); return}
  if(d.askldx!=null){LM_DECL=null; render(); return}});
@@ -7889,7 +7889,7 @@ function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), lo
   :`${ul3N(n,"change")} across ${ul3N(nW,"workspace")}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}`;
  return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db">${n?`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button>`:""}<button type="button" class="shd-button shd-button--primary" data-ul3rv${!n||over.length||low.length?" disabled":""}>${n?`Review ${ul3N(n,"change")}`:"Review changes"}</button></span>`}
 const ul3TabN=x=>{const n=ulChanges().filter(y=>y.k===x).length; return n?`${n} changed`:""};
-function ul3E2Paint(id){const k=ul3E2K(), P=document.querySelector(".ul3-e2"); if(!P) return;
+function ul3E2Paint(id){if(document.querySelector(".ulr")) return ulrPaint(id); const k=ul3E2K(), P=document.querySelector(".ul3-e2"); if(!P) return;
  const pool=P.querySelector("[data-ul3pool]"); if(pool) pool.innerHTML=ul3PoolHTML(k);
  P.querySelectorAll("[data-ul3tabn]").forEach(s=>{s.textContent=ul3TabN(s.dataset.ul3tabn)});
  (id?[byId[id]]:ul3RosterRows()).forEach(c=>{const td=P.querySelector(`[data-ul3chg="${c.id}"]`); if(td) td.innerHTML=ul3E2Chg(k,c); const i=P.querySelector(`[data-uld="${k}|${c.id}"]`); if(i){i.classList.toggle("is-ch",ulDv(k,c.id)!==RES[k].rows[c.id].cap); i.setAttribute("aria-invalid",String(ul3E2Low(k,c.id)))}});
@@ -7918,51 +7918,115 @@ function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRo
  const head=`<div class="ul3-hd"><h2 class="ul3-h" id="ul3E2H">Limits</h2></div>`;
  if(!ro&&UL.rv2&&n&&!ul3E2Over().length&&!ul3E2Lows().length) return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div></section>`;
  UL.rv2=false;
- const W=ul3E2Rows(k);
- const tabs=RK_SHOW(UL_K()).map(x=>`<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}">${RES[x].label}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`).join("");
- const rows=W.map(c=>{if(isUnl(k)) return ul3UnlRow(k,c); const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
-  return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
-   <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit" aria-invalid="${ul3E2Low(k,c.id)}"${!ro&&ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
- return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2" id="ulLimits">
-  <div class="ul3-e2h"><div class="ul3-tabs" role="tablist" aria-label="Resource">${tabs}</div><div class="ul3-pool"><div class="ul3-pn" data-ul3pool aria-live="polite">${ul3PoolHTML(k)}</div>${ul3PaHTML(k)}</div></div>
-  <table class="ul-t ul3-e2t" id="ul3E2T" role="tabpanel" tabindex="-1" aria-labelledby="ul3tab-${k}"><colgroup><col class="ul3-c1"><col class="ul3-c2"><col class="ul3-c3"><col></colgroup>
-   <thead><tr><th>Workspace</th><th>Used</th><th>Limit</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table>
-  ${ro?"":`<div class="ul3-e2d" data-ul3e2dock>${ul3E2DockHTML()}</div>`}</div></section>`}
+ return ulrHTML(k,ro)}   /* vE E016: the resource rail */
+/* ═══ vE E016, 23 Oct 2026 (Hitesh: "let's build – Option C – Resource Rail – what you recommended"; c117-explore C):
+   a resource list on the left with each resource's Available (from the draft) and an SD error Label "N used up";
+   the right side is that resource's workspaces: Workspace, Used, Limit. No stat strip, no Change column, no idle
+   footer. A limit reads as a number and turns into a field on click (Enter or blur keeps it, Esc puts it back, Tab
+   goes to the next row). Highlight J (doc 116): the bar carries the colour (Gray 400, Yellow 500 at 90% or more,
+   Red 500 when used up), the words carry the meaning; no underline, no tint. Phone: the list, then a drill-in. ═══ */
+const ULR_AMB="#F59E0B", ULR_RED="#EF4444";   /* SD LABEL_STATUSES warning and error solids */
+const ULR_PEN='<svg class="ulr-pen" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.1 2.6a1.5 1.5 0 0 1 2.1 0l.2.2a1.5 1.5 0 0 1 0 2.1L6 12.3 3 13l.7-3 7.4-7.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+const ULR_BACK='<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m10 4-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ulrPhone=()=>matchMedia("(max-width:760px)").matches;
+/* J's one threshold, ul3Lv: 2 used up, 1 at 90% or more; a disabled workspace is never flagged */
+const ulrLv=(c,used,cap)=>c.disabled?0:!(cap>0)?(used>0?2:0):ul3Lv({used,cap});
+const ulrOut=k=>isUnl(k)?0:ulRows().filter(c=>!c.disabled&&RES[k].rows[c.id]&&ul3Lv(RES[k].rows[c.id])===2).length;
+const ulrAvHTML=k=>{if(isUnl(k)) return UNL_TXT; const a=ulDfree(k); return (a<0?`<span class="ulr-neg">&minus;${f(-a)}</span>`:f(a))+`<span class="ulr-rs"> available</span>`};
+/* below what is used (282's rule), or a raise while the resource is above the plan */
+const ulrBad=(k,id)=>ul3E2Low(k,id)?"below":ulDfree(k)<0&&ulDv(k,id)>RES[k].rows[id].cap?"over":"";
+function ulrSet(k,id,v){if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v}
+const ulrEdRows=k=>isUnl(k)?[]:ul3E2Rows(k).filter(c=>ul3CanEd(c,ulRo()));
+function ulrUseHTML(k,c){
+ if(isUnl(k)) return `<span class="ulr-use"><span class="ulr-bar is-none"></span><span class="ulr-num">${f(unlUsed(k,c.id))}</span><span class="ulr-w"></span></span>`;
+ const r=RES[k].rows[c.id], v=ulDv(k,c.id), lv=ulrLv(c,r.used,v), p=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0, wd=lv===2?"Used up":p+"%";
+ return `<span class="ulr-use"><span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${[UL3_GREY,ULR_AMB,ULR_RED][lv]}"></span></span><span class="ulr-num">${f(r.used)}</span><span class="ulr-w${lv===2?" is-out":""}">${wd}</span></span>`}
+function ulrLimHTML(k,c,ro){const r=RES[k].rows[c.id], key=k+"|"+c.id, v=ulDv(k,c.id), ch=v!==r.cap, bad=ulrBad(k,c.id);
+ if(ro||!ul3CanEd(c,false)) return `<span class="ulr-lv">${f(v)}</span>`;
+ if(UL.ce===key||bad) return `<input type="text" inputmode="numeric" autocomplete="off" class="ul-in ulr-in" data-ulri="${key}" value="${f(v)}" aria-label="${c.name} ${RES[k].label} limit" aria-invalid="${!!bad}"${bad?' aria-describedby="ulrWhy"':""}>`;
+ return `<button type="button" class="ulr-lb${ch?" is-ch":""}" data-ulce="${key}" aria-label="${c.name}, ${RES[k].label} limit ${f(v)}${ch?", was "+f(r.cap):""}. Change">${ch?`<span class="ulr-was">was ${f(r.cap)}</span>`:ULR_PEN}<span class="ulr-lv">${f(v)}</span></button>`}
+/* the save bar: only once something changed */
+function ulrBarHTML(){const ch=ulChanges(), n=ch.length; if(!n) return "";
+ const over=ul3E2Over(), low=ul3E2Lows(), st=ch.filter(ul3NewStop), ks=UL_K().filter(k=>ch.some(x=>x.k===k));
+ const av=ks.map(k=>{const a=ulDfree(k); return `${a<0?"&minus;"+f(-a):f(a)} ${ul3E2Lab(k)} available, was ${f(compute(k).free)}`}).join("; ");
+ const why=over.length?`Above your plan: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}. Lower a limit to review.`
+  :low.length?`Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}. Raise it to review.`:"";
+ return `<div class="ulr-sb" role="region" aria-label="Unsaved changes"><p class="ulr-sbt">${ul3N(n,"change")}. ${av}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>`
+  +`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ul3rv${why?` disabled title="${why}"`:""}>Review ${ul3N(n,"change")}</button></div>`}
+function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W=ul3E2Rows(k);
+ const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span><span>Available</span></div>${RK_SHOW(UL_K()).map(x=>{const n=ulrOut(x);
+  return `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}"${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${n?`<span class="ulr-lab"><i aria-hidden="true"></i>${n} used up</span>`:""}<span class="ulr-ra" data-ulrav="${x}">${ulrAvHTML(x)}</span></button>`}).join("")}</nav>`;
+ const rn=bpRenew(k), sub=unl?`No limits on ${PLAN.name.replace(/\s*\(.*\)$/,"")}`:`${f(R.pool)} in plan${/^Renews /.test(rn)?", r"+rn.slice(1):""}`;
+ const act=ulRo()||unl?"":canI("billing")?`<button type="button" class="linkbtn ul3-lk" data-ulbuy="${k}">${byPlan(k)?"Change plan":"Buy more"}</button>`:`<button type="button" class="linkbtn ul3-lk" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
+ const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
+ const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ulr-tag">Yours</span>':""}${c.disabled?'<span class="ulr-tag">Disabled</span>':""}</div></td>`
+  +`<td data-ulru="${c.id}">${ulrUseHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${unl?`<span class="ulr-lv">${UNL_TXT}</span>`:ulrLimHTML(k,c,ro)}</td></tr>`).join("");
+ return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}
+  <table class="ulr-t" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col><col class="ulr-c3"></colgroup><thead><tr><th>Workspace</th><th>Used</th><th class="ulr-r">Limit</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
+/* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
+function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
+ P.querySelectorAll("[data-ulrav]").forEach(s=>{s.innerHTML=ulrAvHTML(s.dataset.ulrav)});
+ if(!isUnl(k)) ul3E2Rows(k).forEach(c=>{const u=P.querySelector(`[data-ulru="${c.id}"]`); if(u&&(!id||id===c.id)) u.innerHTML=ulrUseHTML(k,c);
+  const l=P.querySelector(`[data-ulrl="${c.id}"]`); if(!l) return; const i=l.querySelector("[data-ulri]"), bad=ulrBad(k,c.id);
+  if(i){i.setAttribute("aria-invalid",String(!!bad)); if(bad) i.setAttribute("aria-describedby","ulrWhy"); else i.removeAttribute("aria-describedby");
+   if(!bad&&UL.ce!==k+"|"+c.id&&document.activeElement!==i){UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,c,ro); UL.ceBusy=false}}
+  else if(bad) l.innerHTML=ulrLimHTML(k,c,ro)});
+ const d=P.querySelector("[data-ul3e2dock]"); if(d&&!ro) d.innerHTML=ulrBarHTML()}
+function ulrCeOpen(key){const [k,id]=key.split("|"), l=document.querySelector(`[data-ulrl="${id}"]`); if(!l||!byId[id]) return;
+ UL.ce=key; UL.ceWas=ulDv(k,id); UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,byId[id],ulRo()); UL.ceBusy=false;
+ const i=l.querySelector("[data-ulri]"); if(i){i.focus(); i.select()}}
+/* close one field: the number again ("was" beside it once changed), or the field stays while it is in error */
+function ulrCeEnd(key,fb){if(UL.ce===key) UL.ce=null; const [k,id]=key.split("|"), l=document.querySelector(`[data-ulrl="${id}"]`); if(!l||ul3E2K()!==k) return;
+ UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,byId[id],ulRo()); UL.ceBusy=false;
+ if(fb){const n=l.querySelector("button,input"); if(n) n.focus({preventScroll:true})}}
+function ulrKey(e,t){const key=t.dataset.ulri, [k,id]=key.split("|");
+ if(e.key==="Enter"){e.preventDefault(); ulrCeEnd(key,true); return true}
+ if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); if(UL.ceWas!=null&&UL.ce===key) ulrSet(k,id,UL.ceWas); UL.ce=key; ulrPaint(id); ulrCeEnd(key,true); return true}
+ if(e.key==="Tab"){const L=ulrEdRows(k), i=L.findIndex(c=>c.id===id), n=L[i+(e.shiftKey?-1:1)]; if(i<0||!n) return false; e.preventDefault(); ulrCeOpen(k+"|"+n.id); return true}
+ return false}
+document.addEventListener("focusin",e=>{const t=e.target; if(!t.dataset||!t.dataset.ulri) return; const key=t.dataset.ulri; if(UL.ce!==key){const [k,id]=key.split("|"); UL.ce=key; UL.ceWas=ulDv(k,id)}});
+document.addEventListener("focusout",e=>{const t=e.target; if(!t.dataset||!t.dataset.ulri||UL.ceBusy||!t.isConnected) return; const key=t.dataset.ulri;
+ setTimeout(()=>{if(document.activeElement!==t) ulrCeEnd(key,false)},0)});
 /* this panel on one resource, its table in focus */
-function ul3Go(k){UL.focusK=k; UL.rv2=false; render();
+function ul3Go(k){UL.focusK=k; UL.rv2=false; UL.drill=true; render();
  const S=el("ul3E2S"), T=el("ul3E2T"); if(S) S.scrollIntoView({block:"start",behavior:REDUCED()?"auto":"smooth"}); if(T) T.focus({preventScroll:true})}
-function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.focusK=null}
+function ul3E2Close(){UL.edit=false; UL.rv2=false; UL.draft={}; UL.focusK=null; UL.ce=null}
 /* after a render: the locks, and the focus an action asked for */
 function ul3Wire(){if(UL.ed&&!byId[UL.ed.id]) UL.ed=null; ul3Lock();
  if(UL.ul3f){const n=document.querySelector(UL.ul3f); UL.ul3f=null; if(n){n.focus({preventScroll:true}); if(n.select) n.select(); const r=n.getBoundingClientRect(); if(r.top<60||r.bottom>innerHeight-40) n.scrollIntoView({block:"center"})}}}
 /* one listener per event for both flows, so a partial repaint never needs rewiring */
 document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency") return;
- const t=e.target.closest("[data-ul3ed],[data-ul3take],[data-ul3untake],[data-ul3save],[data-ul3cancel],[data-ul3buy],[data-ul3owner],[data-ul3tab],[data-ul3rv],[data-ul3back],[data-ul3apply],[data-ul3discard],[data-uledit]");
+ const t=e.target.closest("[data-ul3ed],[data-ul3take],[data-ul3untake],[data-ul3save],[data-ul3cancel],[data-ul3buy],[data-ul3owner],[data-ul3tab],[data-ul3rv],[data-ul3back],[data-ul3apply],[data-ul3discard],[data-uledit],[data-ulce],[data-ulrback]");
  if(!t||t.disabled) return; const d=t.dataset, E=UL.ed;
  if(d.uledit!=null){UL.ed=null; UL.rv2=false; return}   /* ulWire opens Edit limits */
  e.stopPropagation();
  if(d.ul3ed!=null){const [id,k]=d.ul3ed.split("|"); ul3EdOpen(id,k); return}
+ if(d.ulce){ulrCeOpen(d.ulce); return}   /* vE E016 */
+ if(d.ulrback!=null){UL.drill=false; UL.ce=null; UL.ul3f="#ul3tab-"+ul3E2K(); render(); return}
  if(E&&d.ul3take){const [k,s]=d.ul3take.split("|"), sel=el("ul3dn-"+k), dn=sel&&sel.value; if(!dn) return; ul3Set(E.D,k,dn,ul3Dv(E.D,k,dn)-(+s)); ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
  if(E&&d.ul3untake){const [k,id]=d.ul3untake.split("|"); delete E.D[k+"|"+id]; ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
  if(E&&d.ul3save!=null){const id=E.id; if(ul3Commit(E.D,"Saved")){UL.ed=null; UL.open3=id; UL.ul3f=`[data-ul3x="${id}"]`} render(); return}
  if(E&&d.ul3cancel!=null){ul3EdClose(); return}
  if(d.ul3buy){ctx="agency"; view={name:"credits"}; billTab=BS_BUY[d.ul3buy]||"plan"; render(); return}
  if(d.ul3owner){const [k,n]=d.ul3owner.split("|"); receipt("ul",`Sent to ${listAnd(ulOwners())}: buy ${f(+n)} more ${RES[k].label}.`,null,"asked the Account Owner to buy more "+RES[k].label); RECEIPT.variant="info"; renderToast(); return}
- if(d.ul3tab){UL.focusK=d.ul3tab; UL.ul3f="#ul3tab-"+d.ul3tab; render(); return}
+ if(d.ul3tab){UL.focusK=d.ul3tab; UL.drill=true; UL.ce=null; UL.ul3f=ulrPhone()?"[data-ulrback]":"#ul3tab-"+d.ul3tab; render(); return}
  if(d.ul3rv!=null){UL.rv2=true; UL.ul3f="[data-ul3apply]"; render(); const P=el("ulLimits"); if(P&&P.getBoundingClientRect().top<0) P.scrollIntoView({block:"start"}); return}
  if(d.ul3back!=null){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
  if(d.ul3apply!=null){const k=ul3E2K(); if(ul3Commit(UL.draft,"Applied")){ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k} render(); return}
  if(d.ul3discard!=null){const k=ul3E2K(); ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k; render(); return}},true);   /* change 290: the panel stays on the same tab */
 document.addEventListener("input",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
  if(t.dataset&&t.dataset.ul3in&&UL.ed){ul3Set(UL.ed.D,t.dataset.ul3in,UL.ed.id,ulNum(t.value)); ul3EdPaint(); return}
+ if(t.dataset&&t.dataset.ulri){const [k,id]=t.dataset.ulri.split("|"); ulrSet(k,id,ulNum(t.value)); ulrPaint(id); return}   /* vE E016 */
  if(t.dataset&&t.dataset.uld&&t.closest(".ul3-e2")){const [k,id]=t.dataset.uld.split("|"), v=ulNum(t.value); if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v; ul3E2Paint(id)}});
 document.addEventListener("change",e=>{const t=e.target; if(!t.dataset||!t.dataset.ul3donor||!UL.ed) return; UL.ed.donor[t.dataset.ul3donor]=t.value});
 document.addEventListener("focusout",e=>{const t=e.target; if(t.dataset&&t.dataset.ul3in&&UL.ed&&t.isConnected) t.value=f(ul3Dv(UL.ed.D,t.dataset.ul3in,UL.ed.id))});
 document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency") return; const t=e.target;
+ if(t.dataset&&t.dataset.ulri&&ulrKey(e,t)) return;   /* vE E016 */
  if(t.dataset&&t.dataset.ul3in&&e.key==="Enter"){e.preventDefault(); const all=[...q2("[data-ul3in]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-ul3save]:not(:disabled)"); if(n) n.focus(); return}
  if(e.key==="Escape"&&UL.ed&&t.closest&&t.closest("[data-ul3edbox]")&&!ul3Dirty()&&t.tagName!=="SELECT"){e.stopImmediatePropagation(); ul3EdClose(); return}
  if(e.key==="Escape"&&UL.rv2){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
- if(t.dataset&&t.dataset.ul3tab&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){const K=RK_SHOW(UL_K()), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
+ if(t.dataset&&t.dataset.ul3tab&&/^Arrow(Right|Left|Down|Up)$/.test(e.key)){e.preventDefault(); const K=RK_SHOW(UL_K()), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"||e.key==="ArrowDown"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
 
 function ul3RosterHTML(ro){const W=ul3RosterRows();
  return `<div class="panel ul-panel ul3-roster" id="ulLimits"><div class="panel-h"><span class="panel-t">${W.length===1?"Your workspace":`All ${W.length} workspaces`}</span><span class="sub ul-hsub">Sorted by how close each is to a limit</span>
@@ -8560,7 +8624,7 @@ function dnLand(find,focus){let n=0; const t=()=>{const e=find(); if(!e){if(++n<
   if(DN_HL) clearTimeout(DN_HL.t); document.querySelectorAll(".dn-hl").forEach(x=>x.classList.remove("dn-hl","dn-hl-out"));
   e.classList.add("dn-hl"); DN_HL={t:setTimeout(()=>{e.classList.add("dn-hl-out"); e.classList.remove("dn-hl"); setTimeout(()=>e.classList.remove("dn-hl-out"),700)},2400)}}; t()}
 function dnGo(go){const [kind,a,b]=go.split("|"); bellClose(); ctx="agency"; asClient=false;
- if(kind==="lim"){UL.focusK=a; UL.rv2=false; UL.ul3f=`[data-uld="${a}|${b}"]`; view={name:"limits"}; render(); dnLand(()=>document.querySelector(`#ul3E2T tr[data-ulws="${b}"]`)); return}
+ if(kind==="lim"){UL.focusK=a; UL.rv2=false; UL.ce=`${a}|${b}`; UL.drill=true; UL.ul3f=`[data-ulri="${a}|${b}"]`;   /* vE E016 */ view={name:"limits"}; render(); dnLand(()=>document.querySelector(`#ul3E2T tr[data-ulws="${b}"]`)); return}
  if(kind==="mbx"){ctx=a; inMod="accounts"; openProspect=null; openSeq=null; openReply=null; focusMb=b; render(); dnLand(()=>document.querySelector("tr.is-focus")); return}
  if(kind==="pay"){view={name:"credits"}; billTab="plan"; BILL.card=true; BILL.ce={}; BILL.focusCard=true; render();
   dnLand(()=>{const i=el("bpC-num"); return i&&(i.closest(".panel, .card, section")||i)})}}
@@ -16349,7 +16413,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="84f731a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="6d77a6b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16681,6 +16745,101 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ul3-e2s .ul3-e2t .ul3-in:disabled{background:#F9FAFB;color:#6B7280}
 .ul3-ub{display:flex;align-items:center;gap:10px}
 .ul3-ub .pbw{width:56px;height:4px;flex:none}
+/* vE E016: Resource rail (c117-explore/limits-explore.html, C; its numbers are vE's and SD's) */
+.ulr-s{display:flex;flex-direction:column;gap:16px}
+.ulr-s>.panel{margin:0}
+.ulr-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.panel.ulr{overflow:clip}
+.ulr-split{display:grid;grid-template-columns:360px minmax(0,1fr)}
+.ulr-split>*{min-width:0}
+.ulr-rail{border-right:1px solid #E5E7EB;background:#fff}
+.ulr-rh{display:flex;justify-content:space-between;align-items:center;height:40px;padding:0 16px 0 24px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;font-size:12px;line-height:16px;font-weight:500;color:#6B7280}
+.ulr-ri{font:inherit;font-size:14px;line-height:20px;display:flex;align-items:center;gap:8px;width:100%;min-height:52px;padding:0 16px 0 24px;border:0;border-bottom:1px solid #F3F4F6;background:#fff;text-align:left;cursor:pointer;color:#1F2937;position:relative;box-sizing:border-box}
+.ulr-ri:hover{background:#F9FAFB}
+.ulr-ri.is-on{background:#EFF6FF}
+.ulr-ri.is-on::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:#1D4ED8}
+.ulr-ri:focus-visible{outline:2px solid #1D4ED8;outline-offset:-2px}
+.ulr-rn{font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ulr-ri.is-on .ulr-rn{color:#1D4ED8;font-weight:600}
+.ulr-ra{margin-left:auto;color:#6B7280;flex:none;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}
+.ulr-rs{display:none}
+.ulr-neg{color:#B91C1C;font-weight:500}
+.ulr-lab{margin-left:auto;display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border:1px solid #FECACA;border-radius:4px;background:#FEF2F2;color:#1D1C1C;font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;flex:none;box-sizing:border-box}
+.ulr-lab i{width:6px;height:6px;border-radius:50%;background:#EF4444}
+.ulr-lab+.ulr-ra{margin-left:0}
+.ulr-ch{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 24px;border-bottom:1px solid #E5E7EB;box-sizing:border-box}
+.ulr-ct{margin:0;font-size:16px;line-height:24px;font-weight:600;color:#1F2937}
+.ulr-chr{display:flex;align-items:center;gap:16px;font-size:14px;line-height:20px}
+.ulr-g{color:#6B7280}
+.ulr-back{display:none}
+.ulr-t{width:100%;border-collapse:collapse;table-layout:fixed}
+.ulr-t:focus{outline:none}
+.ulr-t th{height:40px;padding:0 16px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;font-size:12px;line-height:16px;font-weight:500;color:#6B7280;text-align:left;vertical-align:middle;position:static}
+.ulr-t td{height:52px;padding:0 16px;border-bottom:1px solid #E5E7EB;vertical-align:middle;font-size:14px;line-height:20px;color:#1F2937;box-sizing:border-box}
+.ulr-t tbody tr:last-child td{border-bottom:0}
+.ulr-t th:first-child,.ulr-t td:first-child{padding-left:24px}
+.ulr-t th:last-child,.ulr-t td:last-child{padding-right:24px}
+.ulr-t th.ulr-r,.ulr-t td.ulr-cl{text-align:right;white-space:nowrap}
+.ulr-t tbody tr:hover td{background:#F3F4F6}
+.ulr-t col.ulr-c1{width:30%}.ulr-t col.ulr-c3{width:200px}
+.ulr-ws{display:flex;align-items:center;gap:10px;min-width:0}
+.ulr-ws>.avatar{flex:none}
+.ulr-ws .ulr-nm{display:block;font-size:14px;line-height:20px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ulr-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid #E5E7EB;border-radius:4px;background:#F9FAFB;color:#4B5563;font-size:12px;line-height:18px;font-weight:500;flex:none;box-sizing:border-box}
+.ulr-t tr.is-off .ulr-nm,.ulr-t tr.is-off .ulr-num,.ulr-t tr.is-off .ulr-w{color:#9CA3AF}
+.ulr-t tr.is-off .ulr-ws>.avatar{opacity:.35}
+.ulr-use{display:flex;align-items:center;gap:12px}
+.ulr-bar{display:block;height:4px;border-radius:30px;background:#E5E7EB;overflow:hidden;flex:1 1 auto;min-width:64px}
+.ulr-bar>span{display:block;height:100%}
+.ulr-bar.is-none{background:transparent}
+.ulr-num{flex:none;min-width:64px;text-align:right;color:#1F2937;font-variant-numeric:tabular-nums}
+.ulr-w{flex:none;width:56px;color:#6B7280;font-variant-numeric:tabular-nums}
+.ulr-w.is-out{color:#1F2937;font-weight:500}
+.ulr-lv{color:#1F2937;font-variant-numeric:tabular-nums}
+.ulr-lb{font:inherit;font-size:14px;line-height:20px;display:inline-flex;align-items:center;justify-content:flex-end;vertical-align:middle;padding:6px 0;margin:-6px 0;border:0;background:none;color:#1F2937;cursor:pointer}
+.ulr-lb:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.ulr-pen{width:16px;height:16px;flex:none;color:#9CA3AF;margin-right:8px;visibility:hidden}
+.ulr-t tbody tr:hover .ulr-pen,.ulr-lb:focus-visible .ulr-pen{visibility:visible;color:#6B7280}
+.ulr-lb.is-ch .ulr-lv{font-weight:600}
+.ulr-was{color:#6B7280;font-size:12px;line-height:16px;font-weight:400;margin-right:8px}
+.ulr-t .ulr-in.ul-in{width:132px;height:32px;padding:0 12px;margin-right:-13px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font-size:14px;line-height:22px;color:#111827;text-align:right;box-shadow:none}
+.ulr-t .ulr-in.ul-in:focus{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:0}
+.ulr-t .ulr-in.ul-in[aria-invalid="true"]{border-color:#B91C1C;box-shadow:inset 0 0 0 1px #B91C1C}
+.ulr-t .ulr-in.ul-in[aria-invalid="true"]:focus{box-shadow:inset 0 0 0 1px #B91C1C,0 0 0 3px #FEE2E2}
+.ulr-sbw{position:sticky;bottom:0;z-index:4}
+.ulr-sb{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid #E5E7EB;background:#fff;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
+.ulr-sbt{margin:0 auto 0 0;min-width:0;font-size:14px;line-height:20px;color:#1F2937}
+.ulr-why{color:#B91C1C;font-weight:500}
+@media (max-width:1180px){.ulr-split{grid-template-columns:300px minmax(0,1fr)}}
+@media (max-width:760px){
+ .ulr-split{grid-template-columns:minmax(0,1fr)}
+ .ulr:not(.is-drill) .ulr-main{display:none}
+ .ulr.is-drill .ulr-rail{display:none}
+ .ulr-rail{border-right:0}
+ .ulr-rh{padding:0 16px}.ulr-rh span+span{display:none}
+ .ulr-ri{flex-wrap:wrap;gap:4px 8px;padding:10px 16px}
+ .ulr-rn{width:100%}
+ .ulr-ra{margin-left:0;min-width:0;text-align:left}
+ .ulr-ri .ulr-lab{order:2;margin-left:auto}
+ .ulr-rs{display:inline}
+ .ulr-ch{padding:12px 16px;gap:4px 16px}
+ .ulr-back{display:inline-flex;align-items:center;gap:4px;width:100%;margin:0 0 4px -2px;padding:0;border:0;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#1D4ED8;cursor:pointer;text-align:left}
+ .ulr-back:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+ .ulr-chr{flex-wrap:wrap;gap:4px 16px;width:100%}
+ .ulr-t colgroup,.ulr-t thead{display:none}
+ .ulr-t,.ulr-t tbody{display:block}
+ .ulr-t tr{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:8px;padding:12px 16px;border-bottom:1px solid #E5E7EB}
+ .ulr-t tbody tr:last-child{border-bottom:0}
+ .ulr-t td{display:block;height:auto;padding:0!important;border:0!important}
+ .ulr-t td:nth-child(1){grid-column:1;grid-row:1;align-self:center;min-width:0}
+ .ulr-ws .ulr-nm{white-space:normal;overflow:visible;text-overflow:clip}
+ .ulr-t td:nth-child(3){grid-column:2;grid-row:1;align-self:center}
+ .ulr-t td:nth-child(2){grid-column:1/-1;grid-row:2}
+ .ulr-t tbody tr:hover td{background:none}
+ .ulr-pen{display:none}
+ .ulr-t .ulr-in.ul-in{width:112px;margin-right:0}
+ .ulr-sb{flex-wrap:wrap;padding:12px 16px}.ulr-sbt{width:100%}.ulr-sb .shd-button{flex:1}
+}
 .ul3-e2s .ul3-e2c{color:#1F2937}
 .ul3-e2s .ul3-e2d{position:sticky;bottom:12px;margin:0 12px 12px;padding:12px 16px 12px 20px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
 .ul3-e2s .ul3-e2d .shd-button{height:auto;min-height:36px;padding:6px 16px;font-size:14px;line-height:20px}
