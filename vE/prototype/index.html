@@ -3918,7 +3918,7 @@ function homeRow(c,mode){
      +(c.disabled?'':'<button class="ubtn wsgo ws-go" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</span>'
    +'<span class="ws-sub">'+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
-   +(c.disabled?'':'<span class="qa">'+QA.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' for '+c.name+'">'
+   +(c.disabled?'':'<span class="qa">'+WSA_ICO.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+' in '+c.name+'" aria-label="'+l+' in '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>')
    +'</span></div></td>'
    +wsStatusCell(c)   /* change 311: the real state only, on both tables */
@@ -3926,7 +3926,17 @@ function homeRow(c,mode){
    /* change 203, 12 Oct 2026 (Hitesh): Emails sent and Reply rate leave the Workspaces page; the Dashboard has them */
    +'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>'
    +'<td>'+usageHomeCell(c)+'</td>'
+   +wsActsCell(c)
    +'</tr>'}
+/* vE E018: Hitesh, 23 Oct 2026, "provide button to open workspace and other shortcut button in this table". Open workspace is
+   the record's own action (data-enter); each icon lands inside the workspace on that module (data-goto, as the old strip). */
+const WSA_ICO=[["sequences","Sequences",QA[0][2]],["inbox","Unified Inbox",QA[2][2]],["accounts","Email accounts",QA[3][2]],["members","Members",QA[1][2]]];
+function wsActsCell(c){
+ if(c.disabled||c.deletedOn) return '<td class="wsact"><div class="wsact-in"></div></td>';
+ const nm=c.name.replace(/"/g,"&quot;");
+ return '<td class="wsact"><div class="wsact-in"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-enter="'+c.id+'" title="Open workspace" aria-label="Open workspace, '+nm+'">Open workspace</button>'
+  +WSA_ICO.map(([m,l,d])=>'<button type="button" class="wsact-ic" data-goto="'+c.id+'|'+m+'" title="'+l+' in '+nm+'" aria-label="'+l+' in '+nm+'">'
+   +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg></button>').join("")+'</div></td>'}
 /* ═══ change 338, 20 Oct 2026: the Workspace score (doc 108, board option 01) ═══
    Hitesh, approving option 01: "I agree with your recommendation for workspace score implementation but Workspace
    implementation should be exactly like sequence score – I am talking about design implementation".
@@ -4614,7 +4624,7 @@ function hcLi(c){const key=me_;
 let HSORT={ws:null};
 const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- ws:[["name","Workspace","width:300px"],["status","Status","width:130px"],["client","Client users","width:280px"],["team","Your team","width:260px"],["usage","Highest usage","width:200px",HS_TIP_U]]};
+ ws:[["name","Workspace","width:260px"],["status","Status","width:110px"],["client","Client users","width:215px"],["team","Your team","width:205px"],["usage","Highest usage","width:190px",HS_TIP_U],["acts","","width:270px"]]};   /* vE E018: the actions column */
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};   /* change 338: worst score first */
 /* production's ChevronUp and ChevronDown (@saleshandy/icons), the 24px glyphs at 14px, stacked in 10x16 */
@@ -4623,6 +4633,7 @@ const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hi
  +'<path class="hs-dn" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 4.46)" d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>';
 function hsHead(t){const S=HSORT[t];
  return '<thead><tr class="th-one">'+HS_COLS[t].map(([k,l,w,tip])=>{const on=!!S&&S.col===k, up=on&&S.dir>0;
+  if(k==="acts") return '<th style="'+w+'" class="th-acts"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Actions</span></th>';   /* vE E018 */
   return '<th style="'+w+'" class="th-s'+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(tip?' title="'+tip+'"':'')
    +(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="'+t+'|'+k+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'}).join("")
   +'</tr></thead>'}
@@ -4751,7 +4762,7 @@ function vClients(){
   ${seqAskBanner()}
   ${wsOANote()?`<div class="ws-meta">${wsOANote()}</div>`:""}
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
-   <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="5"><span class="sub">No workspace matches "${cliQ}". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
+   <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="6"><span class="sub">No workspace matches "${cliQ}". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
  </div>`;
 }
 
@@ -8409,7 +8420,7 @@ function vDash(){
   +'<div class="search">'+srchI+'<input type="text" id="cliSearch" placeholder="Search workspaces" aria-label="Search workspaces" value="'+cliQ.replace(/"/g,"&quot;")+'"></div>'
   +'<span class="c-a">'+(canI("limits")?'<button class="shd-button shd-button--primary" id="dashAdd">'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
   +wsTableOpen()+wsHeadHTML()
-  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr><td colspan="5"><span class="sub">No workspace matches "'+cliQ+'". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>')+'</tbody></table></div>'
+  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr><td colspan="6"><span class="sub">No workspace matches "'+cliQ+'". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>')+'</tbody></table></div>'
   +pager("clients",wsAll.length,25,"workspaces")
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
@@ -14646,6 +14657,20 @@ td>.cs:only-child{display:block}
 .rs-v>.performance-stats{margin-left:6px;vertical-align:3px}
 .stackb.is-bad{color:var(--red-18)}.stackb.is-warn{color:var(--orange-12)}
 .ws-sub .yours{margin-left:0!important;flex:none}
+/* vE E018: the actions column. opacity (not visibility) so the buttons stay in the tab order; focus-within reveals them. */
+.home-tbl th.th-acts{position:relative;padding:0}.home-tbl td.wsact{text-align:right}
+.wsact-in{display:flex;justify-content:flex-end;align-items:center;gap:2px;height:28px;opacity:0;pointer-events:none}
+.wsact-in .shd-button{white-space:nowrap;margin-right:6px}
+.home-tbl .crow:hover .wsact-in,.home-tbl .crow:focus-within .wsact-in{opacity:1;pointer-events:auto}
+@media(hover:none){.wsact-in{opacity:1;pointer-events:auto}}
+.wsact-ic{width:28px;height:28px;flex:none;border:0;background:none;border-radius:var(--radius-input);color:var(--gray-11);display:grid;place-items:center;padding:0;cursor:pointer}
+.wsact-ic svg{width:15px;height:15px}.wsact-ic:hover{background:var(--blue-17);color:var(--blue-11)}.wsact-ic:focus-visible,.wsact-in .shd-button:focus-visible{outline:2px solid #1D4ED8;outline-offset:1px}
+/* the old hover arrow and the icon strip that replaced the email line moved into the column; they stay as the phone layout */
+.home-tbl .qa{display:none!important}.home-tbl .ws-go{display:none}
+.home-tbl .crow:hover .ws-sub,.home-tbl .crow:focus-within .ws-sub{display:flex}
+@media(max-width:700px){.home-tbl th.th-acts,.home-tbl td.wsact{display:none}
+ .home-tbl .qa{display:flex!important}.home-tbl .ws-go{display:inline-flex;visibility:visible}
+ .home-tbl .crow:hover .ws-sub,.home-tbl .crow:focus-within .ws-sub,.home-tbl .crow .ws-sub{display:flex}}
 /* 2 Oct 2026: the starting point, per Hitesh's board */
 .ob-step.is-locked{color:var(--gray-15);background:#fff}.ob-step.is-locked>span:first-child{color:var(--gray-15);font-weight:500}
 .ob-after{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-11);white-space:nowrap}.ob-after svg{width:12px;height:12px}
@@ -16324,7 +16349,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="043f72a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="84f731a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
