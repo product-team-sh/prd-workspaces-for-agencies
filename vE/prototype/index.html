@@ -3948,7 +3948,6 @@ function homeRow(c,mode){
    /* change 197: the Workspaces page keeps Emails sent and Reply rate and adds who is inside */
    /* change 203, 12 Oct 2026 (Hitesh): Emails sent and Reply rate leave the Workspaces page; the Dashboard has them */
    +'<td>'+wsPeopleCell(c,"client")+'</td><td>'+wsPeopleCell(c,"team")+'</td>'
-   +'<td>'+usageHomeCell(c)+'</td>'
    +wsActsCell(c)
    +'</tr>'}
 /* vE E018: Hitesh, 23 Oct 2026, "provide button to open workspace and other shortcut button in this table". Open workspace is
@@ -4107,7 +4106,7 @@ function wssScore(w){
  if(sent<C.MIN_SENT&&!flagged&&!calls.made7&&!li.steps7){
   const active=seqs.filter(q=>!q.deleted&&q.cls===null&&q.due!==false);
   if(!active.length&&seqs.some(q=>["choice","limit","plan"].includes(q.cls)))
-   return Object.assign(state("Not sending",seqs.some(q=>q.cls==="limit")?"Stopped at a limit; see Highest usage":seqs.some(q=>q.cls==="plan")?"Paused by the plan; see Billing":"Every sequence is paused by a person"),{parts,missing:M});
+   return Object.assign(state("Not sending",seqs.some(q=>q.cls==="limit")?"Stopped at a limit; see Usage & limits":seqs.some(q=>q.cls==="plan")?"Paused by the plan; see Billing":"Every sequence is paused by a person"),{parts,missing:M});
   return Object.assign(state("Not enough data","Scores start at "+C.MIN_SENT+" emails sent in 7 days; "+sent+" sent"),{parts,problems:P,missing:M})}
  /* the lower of the two parts; fix first: the lowest problem of the lower part, or of both when within 5 points and in one band */
  const avail=[["mailbox",mailbox],["prospect",prospect]].filter(([,v])=>v!=null);
@@ -4645,9 +4644,8 @@ function hcLi(c){const key=me_;
    One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
 let HSORT={ws:null,ul:null};   /* vE E022: ul, the Limits table */
-const HS_TIP_U="The highest share used of any limit, this billing cycle. A named resource needs you";   /* change 327 */
 const HS_COLS={
- ws:[["name","Workspace","width:260px"],["status","Status","width:110px"],["client","Client users","width:215px"],["team","Your team","width:205px"],["usage","Highest usage","width:190px",HS_TIP_U],["acts","","width:270px"]],
+ ws:[["name","Workspace","width:29%"],["status","Status","width:10%"],["client","Client users","width:13%"],["team","Your team","width:16%"],["acts","","width:270px"]],   /* vE E023: no Highest usage; percent widths fill the card */
  ul:[["name","Workspace",""],["used","Used",""],["limit","Limit",""]]};   /* vE E018: the actions column. vE E022: the Limits table */
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};   /* change 338: worst score first */
@@ -4665,7 +4663,6 @@ function hsHead(t){const S=HSORT[t];
 function hsVal(k,c){
  if(k==="name") return String(c.name);
  if(k==="status"){const s=wsStatus(c); return s==="Active"?0:s==="Paused"?1:2}   /* change 359: New is Active. vE E021: Active, Paused, Disabled, reversible */
- if(k==="usage") return usageKey(c);
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length+(k==="team"&&c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").length:0)}   /* change 346 */
  return null}
 /* change 292 (audit P1-32): the default order of both tables: your own first, then used up, then 90% or more,
@@ -4786,7 +4783,7 @@ function vClients(){
   ${seqAskBanner()}
   ${wsOANote()?`<div class="ws-meta">${wsOANote()}</div>`:""}
   <div class="panel">${wsTableOpen()}${wsHeadHTML()}
-   <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="6"><span class="sub">No workspace matches "${cliQ}". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
+   <tbody>${all.slice(pg.from,pg.to).map(c=>homeRow(c,"ws")).join("")||`<tr><td colspan="5"><span class="sub">No workspace matches "${cliQ}". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>`}</tbody></table></div>${pager("clients",all.length,25,"workspaces")}</div>
  </div>`;
 }
 
@@ -8525,7 +8522,7 @@ function vDash(){
   +'<span class="c-a">'+(canI("limits")?'<button class="shd-button shd-button--primary" id="dashAdd">'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
   +wsfChips()
   +wsTableOpen()+wsHeadHTML()
-  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="6"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-cliclear>Clear</button></span></td></tr>')+'</tbody></table></div>'
+  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="5"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-cliclear>Clear</button></span></td></tr>')+'</tbody></table></div>'
   +wslPager(wsAll.length)
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
@@ -10543,7 +10540,7 @@ function homeOrderIds(ft){
  const mine=myClients(), flag=mine.map(c=>({c,a:attention(c)}));
  const grpOf=x=>x.c.disabled?"att":x.a&&x.a.pin?"att":x.c.sent>0?"run":"new";
  return (ft==="all"?flag:flag.filter(x=>grpOf(x)===ft))
-   .slice().sort(((o)=>(a,b)=>o.indexOf(a.c)-o.indexOf(b.c))(wsOrder(mine))).map(x=>x.c.id);   /* change 292: the Dashboard's order */
+   .slice().sort(((o)=>(a,b)=>o.indexOf(a.c)-o.indexOf(b.c))(wsHomeOrder(mine))).map(x=>x.c.id);   /* change 292: the Dashboard's order */
 }
 function queueOrderIds(){
  const Q=queueItems(), F=QSEV[qFilter]?Q.filter(x=>QSEV[qFilter].includes(x.sev)):Q, ids=[];
@@ -13654,7 +13651,9 @@ const bindSearch=(id,set)=>{const i=el(id);if(!i)return;i.oninput=()=>{set(i.val
 /* The default order, with no header sort, is wsOrder (change 292): your own workspace first, then used up, then
    90% or more or running out soon, then A to Z; disabled last. Search and filters keep it; a header sort replaces it,
    and a third click on that header returns to it. */
-const wslRows=mine=>hsApply(wsOrder(mine).filter(c=>wsMatch(c,cliQ)&&wsfPass(c)),"ws");
+/* vE E023: with no usage column the default is plain: your own first, then A to Z, disabled and deleted last */
+const wsHomeOrder=list=>list.slice().sort((a,b)=>{const t=c=>c.own?0:c.disabled||c.deletedOn?2:1; return t(a)-t(b)||String(a.name).localeCompare(String(b.name),undefined,{sensitivity:"base"})});
+const wslRows=mine=>hsApply(wsHomeOrder(mine).filter(c=>wsMatch(c,cliQ)&&wsfPass(c)),"ws");
 const WSF_DEF=[
  ["status","Status",[["Active","Active"],["Paused","Paused"],["Disabled","Disabled"]]],   /* the real statuses only (change 359) */
  ["usage","Usage",[["out","Used up"],["near","Near limit"],["fine","Fine"]]],   /* the Highest usage cell's own rule (usageNeed) */
@@ -16687,7 +16686,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="578beff";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3bd2c9d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
