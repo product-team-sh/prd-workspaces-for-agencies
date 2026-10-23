@@ -6457,11 +6457,13 @@ function ppRolesHTML(){
     plain words. Three account roles (your team) and three client roles; Own is an Account Member's
     reach inside the workspaces they are assigned. */
  /* vE E029: a plain Gray 700 check for "can" (colour means "needs you" only), the dash for "cannot" */
- const Y='<span class="rl2-yes" aria-label="Can"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>', N='<span class="rl-no" aria-label="Cannot"></span>';
- const c=v=>`<td class="rl2-c">${v===1?Y:v===0?N:`<span class="rl2-t">${v}</span>`}</td>`;
- const sec=t=>`<tr class="rl2-sec"><td colspan="7">${t}</td></tr>`;
+ const Y='<span class="rl2-yes" aria-label="Can"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>', N='<span class="rl-no rl3-no" aria-label="Cannot"></span>';
+ /* vE E034: two column bands (Your team = cols 0-2, Client users = cols 3-5); the same class runs through header and body */
+ const gc=i=>(i<3?"rl3-gt":"rl3-gc")+(i===3?" rl3-g2":"");
+ const c=(v,i)=>`<td class="rl2-c ${gc(i)}">${v===1?Y:v===0?N:`<span class="rl2-t${v==="Own"?" rl2-own":""}">${v}</span>`}</td>`;
+ const sec=t=>`<tr class="rl2-sec"><td class="rl2-l">${t}</td>${[0,1,2,3,4,5].map(i=>`<td class="${gc(i)}"></td>`).join("")}</tr>`;
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
- const th=b=>`<th class="rl2-th"><b>${b}</b></th>`;   /* vE E029: the role name only, no sub-line */
+ const th=(b,i)=>`<th class="rl2-th ${gc(i)}"><b>${b}</b></th>`;   /* vE E029: the role name only, no sub-line */
  const W=[["Open workspaces",["Every one","Assigned ones","Assigned ones","Their own","Their own","Their own"]]];
  const IN=[["See everything in the workspace",[1,1,"Own",1,1,1]],
   ["Reply to prospects",[1,1,"Own",1,1,0]],
@@ -6479,8 +6481,8 @@ function ppRolesHTML(){
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span></div>
    <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
   <div class="rl2-b">
-   <table class="rl2 rl2--six"><thead><tr class="rl2-grp"><th></th><th colspan="3">Your team</th><th colspan="3">Client users</th></tr>
-    <tr><th class="rl2-can">Can they&hellip;</th>${th("Account Owner")}${th("Account Admin")}${th("Account Member")}${th("Client Admin")}${th("Client Collaborator")}${th("Client Viewer")}</tr></thead>
+   <table class="rl2 rl2--six rl3"><thead><tr class="rl2-grp"><th class="rl2-l"></th><th colspan="3" class="rl3-gt"><span class="rl3-chip rl3-chip-t">Your team</span></th><th colspan="3" class="rl3-gc rl3-g2"><span class="rl3-chip rl3-chip-c">Client users</span></th></tr>
+    <tr><th class="rl2-can">Can they&hellip;</th>${th("Account Owner",0)}${th("Account Admin",1)}${th("Account Member",2)}${th("Client Admin",3)}${th("Client Collaborator",4)}${th("Client Viewer",5)}</tr></thead>
     <tbody>${W.map(([l,v])=>row(l,v)).join("")}${sec("Inside a workspace they open")}${IN.map(([l,v])=>row(l,v)).join("")}${sec("Across the account")}${AC.map(([l,v])=>row(l,v)).join("")}</tbody></table>
   </div>
   <div class="rl2-f"><span><span class="rl-lg">${Y}Can</span><span class="rl-lg">${N}Cannot</span><span class="rl-lg"><b class="rl2-own">Own</b>Only the records they own</span></span><span>An Account Owner can&rsquo;t change, disable or remove another Account Owner.</span></div>
@@ -15480,7 +15482,39 @@ table.rl2--ws{overflow:clip}
 .rl2--atm4 .rl2-th{width:148px}.rl2--atm4 .rl2-l{padding-top:9px;padding-bottom:9px;line-height:20px}
 .rl2-secn{margin-left:10px;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:#6b7280}
 .rl2--six .rl2-th{width:112px;padding:10px 6px}.rl2--six .rl2-th b{white-space:normal}.rl2--six .rl2-c{padding:0 6px}.rl2--six thead th{position:sticky;z-index:2}.rl2--six .rl2-grp th{top:-16px;padding:10px 6px 0;font-size:12px;font-weight:600;color:#6b7280;text-align:center;border-bottom:0}.rl2--six .rl2-grp th+th{border-left:1px solid #e5e7eb}.rl2--six tr:not(.rl2-grp) th{top:16px}table.rl2--six{overflow:clip}.rl2--six tr:not(.rl2-grp) th:nth-child(5){border-left:1px solid #e5e7eb}.rl2--six .rl2-l{white-space:nowrap}.rl2--six .rl2-th b{width:min-content;margin:0 auto}.rl2--six .rl2-th i{white-space:nowrap}.rl2-own{font-weight:600;color:#374151}.rl2-yes{display:inline-flex;width:16px;height:16px;color:#374151;vertical-align:middle}.rl2-yes svg{width:16px;height:16px}.rl-lg .rl2-yes{width:14px;height:14px}.rl-lg .rl2-yes svg{width:14px;height:14px}   /* vE E029 */
-.rl2--acct .rl2-th b{font-size:14px}.rl2--acct .rl2-th i{white-space:nowrap}.rl2--acct .rl2-c{padding:0 8px}.rl2--acct .rl2-c .rl2-t{text-wrap:balance}
+.rl2--acct .rl2-th b{font-size:14px}
+/* vE E034 (Hitesh's pick A, "Two teams, two bands"): Blue 50 / Purple 50 bands, Blue 100 / Purple 100 chips, Gray 500 Cannot mark.
+   SD steps used: Blue 50 #EFF6FF, 100 #DBEAFE, 200 #BFDBFE, 800 #1E40AF; Purple 50 #F5F3FF, 100 #EDE9FE, 200 #DDD6FE, 800 #5B21B6; Gray 100 #F3F4F6, 500 #6B7280 */
+.rl2.rl3 th,.rl2.rl3 td{border-left:0}
+.rl2.rl3 .rl2-grp th{padding:12px 6px 8px;background:#fff;top:-16px}
+.rl2.rl3 .rl2-grp th.rl3-gt,.rl2.rl3 th.rl3-gt{background:#EFF6FF}
+.rl2.rl3 .rl2-grp th.rl3-gc,.rl2.rl3 th.rl3-gc{background:#F5F3FF}
+.rl2.rl3 tr:not(.rl2-grp) th{top:24px}
+.rl2.rl3 th.rl2-can{background:#fff}
+.rl2.rl3 tr:not(.rl2-grp) th.rl3-gt{border-bottom-color:#BFDBFE}.rl2.rl3 tr:not(.rl2-grp) th.rl3-gc{border-bottom-color:#DDD6FE}
+.rl2.rl3 td.rl3-gt{background:#EFF6FF}.rl2.rl3 td.rl3-gc{background:#F5F3FF}
+.rl2.rl3 .rl3-chip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;font-size:12px;line-height:16px;font-weight:500}
+.rl3-chip-t{background:#DBEAFE;color:#1E40AF}.rl3-chip-c{background:#EDE9FE;color:#5B21B6}
+.rl2.rl3 th.rl3-g2,.rl2.rl3 td.rl3-g2,.rl2.rl3 tr:not(.rl2-grp) th.rl3-g2{border-left:1px solid #fff}
+.rl2.rl3 .rl2-r{background:#fff}.rl2.rl3 .rl2-sec{background:#fff}
+.rl2.rl3 .rl2-r td{border-bottom:1px solid #F3F4F6}
+.rl2.rl3 .rl2-r td.rl3-gt{border-bottom-color:#DBEAFE}.rl2.rl3 .rl2-r td.rl3-gc{border-bottom-color:#EDE9FE}
+.rl2.rl3 .rl2-r:last-child td{border-bottom:0}
+.rl2.rl3 .rl2-r:hover td{background:#fff}.rl2.rl3 .rl2-r:hover td.rl3-gt{background:#EFF6FF}.rl2.rl3 .rl2-r:hover td.rl3-gc{background:#F5F3FF}.rl2.rl3 .rl2-r:hover td.rl2-l{background:#F9FAFB}
+.rl2.rl3 .rl2-l,.rl2.rl3 th.rl2-can{position:sticky;left:0;z-index:1;background:inherit}
+.rl2.rl3 th.rl2-can,.rl2.rl3 .rl2-grp th.rl2-l{background:#fff}
+.rl2.rl3 .rl2-sec .rl2-l{height:auto;padding:12px 16px 4px;font-size:12px;line-height:16px;font-weight:600;color:#6b7280}
+.rl3-no{display:inline-block;width:8px;height:2px;border-radius:1px;background:#6B7280;vertical-align:middle}
+@media (max-width:640px){
+ .rl2-b:has(.rl3){padding:0 0 8px}
+ table.rl2.rl3{width:auto;min-width:100%;border-width:0 0 1px;border-radius:0}
+ .rl2.rl3 .rl2-l,.rl2.rl3 th.rl2-can{white-space:normal;min-width:168px;max-width:168px;background:#fff;box-shadow:1px 0 0 #E5E7EB;z-index:3}
+ .rl2.rl3 .rl2-grp th.rl2-l{z-index:4}
+ .rl2.rl3 .rl2-th{width:96px;min-width:96px}
+ .rl2.rl3 .rl2-r .rl2-l{height:auto;padding-top:10px;padding-bottom:10px}
+ .modal.rl:has(.rl3) .rl2-f{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 16px}
+ .modal.rl:has(.rl3) .rl2-f>span:first-child{flex-wrap:wrap;gap:8px 16px}
+}.rl2--acct .rl2-th i{white-space:nowrap}.rl2--acct .rl2-c{padding:0 8px}.rl2--acct .rl2-c .rl2-t{text-wrap:balance}
 
 /* 4 Oct 2026, change 105 (doc 71): the prototype on production's header and type.
    Topbar 50px, 16px vertical rhythm, 16/600/24 title, Gray 200 border and a 1px shadow
@@ -16606,7 +16640,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="029139d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="bc13e7d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
