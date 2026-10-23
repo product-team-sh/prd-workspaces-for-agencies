@@ -940,6 +940,8 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .sqsw[disabled]{opacity:.5;cursor:default}
 .sq-kebab{width:28px;height:28px;border:0;background:none;border-radius:4px;color:var(--gray-15);cursor:pointer;font-size:18px;line-height:1}
 .sq-kebab:hover{background:var(--gray-16)}
+.sq-kebab[disabled]{opacity:.5;cursor:default}
+.sq-kebab[disabled]:hover{background:none}
 .sq-num{color:var(--gray-17)}.sq-num.mute{color:var(--gray-11)}
 .crumb .yt{display:inline-block;width:18px;height:13px;border-radius:3px;background:#ff0000;position:relative;vertical-align:-1px;margin-left:8px}
 .crumb .yt::after{content:"";position:absolute;left:7px;top:3px;border-left:6px solid #fff;border-top:3.5px solid transparent;border-bottom:3.5px solid transparent}
@@ -5218,8 +5220,10 @@ const CLIENT_VERBS=[
  ["modact","Act in these modules","Tasks, Dialer, Email Verifier, Inbox Radar and Refer a Friend's one action each","various"],
 ];
 const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=CLIENT_VERBS.map(v=>v[0]);
-/* vE E029: the modules production gives a client login (doc 81 §17): sequences, replies, email accounts and their warm-up, templates, sequence reports; plus Usage */
-const CLIENT_FULL_MODS=["sequences","inbox","accounts","warmup","tmpl","analytics","usage"];
+/* vE E032 (23 Oct 2026, Hitesh: "everyone can see everything"): every client role sees sequences, replies, email accounts and their warm-up,
+   prospects, tasks, templates, sequence reports and Usage. Roles differ only in verbs. Lead Finder, Dialer, Email Verifier and Inbox Radar are
+   actions (they spend credits), so they stay out of a client login. */
+const CLIENT_FULL_MODS=["sequences","inbox","accounts","warmup","prospects","task","tmpl","analytics","usage"];
 /* the six fixed roles' client-side half. One table: mods and verbs are the
    grant, `desc` is the one-line description a role picker shows, `banner` is
    the orientation sentence a client reads on their own workspace (accessNote,
@@ -5231,21 +5235,21 @@ const CLIENT_ROLE_DEFS={
  /* vE E029, 23 Oct 2026 (Hitesh, final role setup): the three client roles are production's
     client roles under new names (doc 81 §17). Client Admin is "Client Full": sees, edits and
     pauses the workspace's sequences, edits templates, connects and edits email accounts,
-    replies, reads sequence reports; no creating or deleting sequences, no prospects list,
+    replies, reads sequence reports; no creating or deleting sequences, no changing prospects or tasks,
     no buying. Client Collaborator is "Client Limited": the same minus editing sequences and
-    templates. Client Viewer sees what a Client Admin sees and changes nothing. Usage stays:
+    templates. All three see the same things (E032); Client Viewer changes nothing. Usage stays:
     it is this workspace's limits, which every client role reads. */
  "Client Admin":{mods:CLIENT_FULL_MODS, verbs:["reply","pause","editseq","warmup"],
    desc:"Edits and pauses sequences, edits templates, replies and connects email accounts",
    banner:`${AGENCY.name} runs your outreach here. As a Client Admin you can edit and pause sequences, edit templates, reply to prospects and connect email accounts.`,
    wizTail:"can edit and pause sequences, edit templates, reply and connect email accounts."},
- "Client Collaborator":{mods:CLIENT_FULL_MODS.filter(m=>m!=="tmpl"), verbs:["reply","pause","warmup"],
+ "Client Collaborator":{mods:CLIENT_FULL_MODS, verbs:["reply","pause","warmup"],
    desc:"Pauses sequences, replies and connects email accounts; no editing",
    banner:`${AGENCY.name} runs your outreach here. As a Client Collaborator you can pause and resume sequences, reply to prospects and connect email accounts. Editing sequences stays with a Client Admin.`,
    wizTail:"can pause sequences, reply and connect email accounts.",
    wizExtra:`Editing sequences and templates stays with a Client Admin.`},
  "Client Viewer":{mods:CLIENT_FULL_MODS, verbs:[],
-   desc:"Sees what a Client Admin sees and changes nothing",
+   desc:"Sees everything in the workspace and changes nothing",
    banner:`${AGENCY.name} runs your outreach here. As a Client Viewer you can see this workspace and change nothing. Replies and every change stay with ${AGENCY.name}.`,
    wizTail:"sees the workspace and can change nothing."},
 };
@@ -6362,15 +6366,13 @@ function ppRolesHTML(){
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  const th=b=>`<th class="rl2-th"><b>${b}</b></th>`;   /* vE E029: the role name only, no sub-line */
  const W=[["Open workspaces",["Every one","Assigned ones","Assigned ones","Their own","Their own","Their own"]]];
- const IN=[["See sequences, email accounts and replies",[1,1,"Own",1,1,1]],
-  ["See sequence reports",[1,1,"Own",1,1,1]],
-  ["See templates",[1,1,"Own",1,0,1]],
+ const IN=[["See everything in the workspace",[1,1,"Own",1,1,1]],
   ["Reply to prospects",[1,1,"Own",1,1,0]],
   ["Pause and resume sequences",[1,1,"Own",1,1,0]],
   ["Connect and edit email accounts",[1,1,"Own",1,1,0]],
   ["Edit sequences and templates",[1,1,"Own",1,0,0]],
   ["Create and delete sequences",[1,1,"Own",0,0,0]],
-  ["See and change prospects; tasks",[1,1,"Own",0,0,0]],
+  ["Change prospects and tasks",[1,1,"Own",0,0,0]],
   ["Buy or delete email accounts",[1,1,"Own",0,0,0]]];
  const AC=[["Invite people, change roles, disable users",[1,1,0,0,0,0]],
   ["Add workspaces, set limits, admin settings",[1,1,0,0,0,0]],
@@ -11679,7 +11681,7 @@ function seqTable(c,owner){
      <td>${S.positive?f(S.positive):dash}</td>
      <td>${S.accounts?S.accounts:dash}</td>
      <td>${S.inbox!=null?S.inbox+"%":dash}</td>
-     <td class="ar"><button class="sq-kebab" aria-label="More" data-flash="Rename, Duplicate and Delete are not in this prototype">&#8942;</button></td></tr>
+     <td class="ar"><button class="sq-kebab" aria-label="More" ${may?"":"disabled"} data-flash="Rename, Duplicate and Delete are not in this prototype">&#8942;</button></td></tr>
      ${asking?`<tr class="confirmrow"><td colspan="13"><div class="inlineconfirm">
        <span>${st==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
        <span class="tools"><button class="shd-button shd-button--sm shd-button--${st==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${st==="Paused"?"Resume":"Pause"} sequence</button>
@@ -11793,13 +11795,13 @@ function ownTmpl(){
    copies shared to it.</span></div>`}</div>`;
 }
 function cTmpl(c){
- const x=tmplFor(c);
- const row=(name,by,edited,tag,tone,note)=>`<tr>
+ const x=tmplFor(c), ro=asClient&&!canC(c,"editseq");   /* vE E032: every client role sees templates; only editseq changes them */
+ const row=(name,by,edited,tag,tone,note0)=>{const note=ro?"View only":note0;return `<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${name}</span>
      <span class="cs" style="display:block">${by}</span></td>
    <td><span class="chip c-${tone}">${tag}</span></td>
    <td><span class="sub">${note}</span></td>
-   <td><span class="sub">${edited}</span></td></tr>`;
+   <td><span class="sub">${edited}</span></td></tr>`};
  const inh=x.inherited.map(t=>row(t.name,"From "+AGENCY.name,t.edited,
    t.locked?"Locked":"Editable copy",t.locked?"bad":"info",
    t.locked?"Use it as it is. "+AGENCY.name+" maintains it":"Copy it here to change the wording")).join("");
@@ -11812,7 +11814,7 @@ function cTmpl(c){
   <div class="panel-h"><span class="panel-t">${c.name}'s templates</span>
    <span class="sub">${x.inherited.length} from ${AGENCY.name}, ${x.overrides.length+x.ownOnly.length} belonging to this workspace</span></div>
   <div class="tscroll"><table class="organism" style="min-width:800px">
-   <thead><tr><th>Template</th><th>Where it comes from</th><th>What this workspace can do</th><th>Last edited</th></tr></thead>
+   <thead><tr><th>Template</th><th>Where it comes from</th><th>${ro?"What you can do":"What this workspace can do"}</th><th>Last edited</th></tr></thead>
    <tbody>${inh+ovr+own||'<tr><td colspan="4"><span class="sub">No templates in this workspace.</span></td></tr>'}</tbody>
   </table></div>
   <div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
@@ -11827,11 +11829,11 @@ function cPros(c,owner){
     reads false. seqTable already bypasses this for the agency's own staff
     view (`owner`); cPros gets the same bypass, so the agency's Owner and
     other staff never see "Export is with <agency>" about their own data. */
- return `<div class="panel"><div class="panel-h">${/* change 333: the top bar names the module; the footer gives the count */
+ return `<div class="panel"><div class="panel-h"${P.length<PA.length||owner||canC(c,"addpros")||canC(c,"export")?"":' style="display:none"'}>${/* change 333: the top bar names the module; the footer gives the count; E032: no empty bar for a read-only role */
    P.length<PA.length?`<span class="sub">${f(c.prospects)} in your workspace; you see the ones you own (prospect sharing is off)</span>`:""}
    <span class="c-a">${/* change 215: Add Prospects for whoever holds addpros (Client Admin, Collaborator) */owner||canC(c,"addpros")?`<button class="shd-button shd-button--primary shd-button--sm" data-flash="Add by hand or import a CSV: not in this prototype">${ADD_I}Add Prospects</button>`:""}${owner||canC(c,"export")
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Export started">Export CSV</button>'
-     :`<span class="sub" title="Only a Client Admin can export prospects. Ask one if you need a copy.">Export is with a Client Admin</span>`}</span></div>
+     :""}</span></div>
   <div class="tscroll"><table class="organism" style="min-width:760px">
   <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Status</th><th class="colact"></th></tr></thead>
   <tbody>${P.length?P.map(p=>`<tr>
@@ -16466,7 +16468,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="319c13b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="f06f9e2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
