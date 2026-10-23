@@ -3943,7 +3943,7 @@ function homeRow(c,mode){
      +(c.disabled?'':'<button class="ubtn wsgo ws-go" data-enter="'+c.id+'" title="Open workspace" aria-label="Open '+c.name+'\'s workspace">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>')+'</span>'
    +'<span class="ws-sub">'+(c.email&&c.email!=="–"?'<span class="cs">'+c.email+'</span>':c.site?'<span class="cs">'+c.site+'</span>':"")+'</span>'
-   +(c.disabled?'':'<span class="qa">'+WSA_ICO.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+' in '+c.name+'" aria-label="'+l+' in '+c.name+'">'
+   +(c.disabled?'':'<span class="qa">'+WSA_ICO.map(([m,l,d])=>'<button data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' in '+c.name+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg></button>').join("")+'</span>')
    +'</span></div></td>'
    +wsStatusCell(c)   /* change 311: the real state only, on both tables */
@@ -3959,7 +3959,7 @@ function wsActsCell(c){
  if(c.disabled||c.deletedOn) return '<td class="wsact"><div class="wsact-in"></div></td>';
  const nm=c.name.replace(/"/g,"&quot;");
  return '<td class="wsact"><div class="wsact-in"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-enter="'+c.id+'" title="Open workspace" aria-label="Open workspace, '+nm+'">Open workspace</button>'
-  +WSA_ICO.map(([m,l,d])=>'<button type="button" class="wsact-ic" data-goto="'+c.id+'|'+m+'" title="'+l+' in '+nm+'" aria-label="'+l+' in '+nm+'">'
+  +WSA_ICO.map(([m,l,d])=>'<button type="button" class="wsact-ic" data-goto="'+c.id+'|'+m+'" title="'+l+'" aria-label="'+l+' in '+nm+'">'
    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg></button>').join("")+'</div></td>'}
 /* ═══ change 338, 20 Oct 2026: the Workspace score (doc 108, board option 01) ═══
    Hitesh, approving option 01: "I agree with your recommendation for workspace score implementation but Workspace
@@ -4647,7 +4647,7 @@ function hcLi(c){const key=me_;
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
 let HSORT={ws:null,ul:null};   /* vE E022: ul, the Limits table */
 const HS_COLS={
- ws:[["name","Workspace","width:29%"],["status","Status","width:10%"],["client","Client users","width:13%"],["team","Your team","width:16%"],["acts","","width:270px"]],   /* vE E023: no Highest usage; percent widths fill the card */
+ ws:[["name","Workspace","width:29%"],["status","Status","width:10%"],["client","Client users","width:13%"],["team","Your team","width:16%"],["acts","","width:322px"]],   /* vE E023: no Highest usage; percent widths fill the card */
  ul:[["name","Workspace",""],["used","Used",""],["limit","Limit",""]]};   /* vE E018: the actions column. vE E022: the Limits table */
 /* name A to Z and status New first start ascending; every figure starts highest first */
 const HS_FIRST={name:1,status:1};   /* change 338: worst score first */
@@ -4657,7 +4657,7 @@ const HS_I='<svg class="hs-i" viewBox="0 0 10 16" width="10" height="16" aria-hi
  +'<path class="hs-dn" fill="currentColor" fill-rule="evenodd" transform="matrix(.5833 0 0 .5833 -2 4.46)" d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>';
 function hsHead(t){const S=HSORT[t];
  return '<thead><tr class="th-one">'+HS_COLS[t].map(([k,l,w,tip])=>{const on=!!S&&S.col===k, up=on&&S.dir>0;
-  if(k==="acts") return '<th style="'+w+'" class="th-acts"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Actions</span></th>';   /* vE E018 */
+  if(k==="acts") return '<th style="'+w+'" class="th-acts"><span class="th-acts-l">Actions</span></th>';   /* vE E018. vE E027: shown, on the button's left edge */
   return '<th style="'+w+'" class="th-s'+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(tip?' title="'+tip+'"':'')
    +(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="'+t+'|'+k+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'}).join("")
   +'</tr></thead>'}
@@ -14966,8 +14966,8 @@ td>.cs:only-child{display:block}
 .stackb.is-bad{color:var(--red-18)}.stackb.is-warn{color:var(--orange-12)}
 .ws-sub .yours{margin-left:0!important;flex:none}
 /* vE E018: the actions column. vE E019: always visible (Hitesh, 23 Oct 2026, "open workspace button and short static always on table"). */
-.home-tbl th.th-acts{position:relative;padding:0}.home-tbl td.wsact{text-align:right}
-.wsact-in{display:flex;justify-content:flex-end;align-items:center;gap:2px;height:28px}
+.home-tbl th.th-acts{position:relative;text-align:right}.th-acts-l{display:inline-block;width:274px;text-align:left}   /* vE E027: the label starts where Open workspace starts */.home-tbl td.wsact{text-align:right}
+.wsact-in{display:flex;justify-content:flex-end;align-items:center;gap:2px;height:28px}.wsact-in .shd-button{flex:none}   /* vE E027: never squeezed */
 .wsact-in .shd-button{white-space:nowrap;margin-right:6px}
 .wsact-ic{width:28px;height:28px;flex:none;border:0;background:none;border-radius:var(--radius-input);color:var(--gray-11);display:grid;place-items:center;padding:0;cursor:pointer}
 .wsact-ic svg{width:15px;height:15px}.wsact-ic:hover{background:var(--blue-17);color:var(--blue-11)}.wsact-ic:focus-visible,.wsact-in .shd-button:focus-visible{outline:2px solid #1D4ED8;outline-offset:1px}
@@ -16683,7 +16683,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0e1f7e5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="1c58b56";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
