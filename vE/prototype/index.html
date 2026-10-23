@@ -4586,12 +4586,12 @@ function wsFaces(list,col){
  return '<span class="wsp-faces">'+list.slice(0,n).map(face).join("")+(list.length>n?'<span class="wsp-more">+'+(list.length-n)+'</span>':'')+'</span>';
 }
 function wsPeopleCell(c,side){
- const P=wsPeopleOf(c), L=side==="client"?P.client:c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").map(t=>({key:t.k,name:t.name,label:t.name,first:t.name.split(" ")[0],ini:t.initials,
-   invited:!!t.invited,expired:!!t.invited&&invExpired(t.invited),disabled:t.disabled,side:"Your team"})).concat(P.team):P.team;   /* change 346: your own workspace shows its people too */
- if(side==="client"&&c.own) return '<span class="cs">Your own workspace</span>';
+ const P=wsPeopleOf(c), L=side==="client"?P.client:(c.own||!P.team.length)?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").map(t=>({key:t.k,name:t.name,label:t.name,first:t.name.split(" ")[0],ini:t.initials,
+   invited:!!t.invited,expired:!!t.invited&&invExpired(t.invited),disabled:t.disabled,side:"Your team"})).concat(P.team):P.team;   /* change 346: your own workspace shows its people too. vE E025: so does any workspace with no Members (its Owners and Admins) */
+ if(side==="client"&&c.own) return '<span class="cs">–</span>';   /* vE E025: no words, a dash */
  if(!L.length) return side==="client"
-   ?'<span class="wsp-l"><span class="cs">No one invited yet</span>'+(canI("members")&&!c.disabled?'<button type="button" class="linkbtn linkbtn--sm" data-invite="'+c.id+'">Invite</button>':'')+'</span>'
-   :'<span class="cs">Account Owners and Account Admins only</span>';
+   ?(canI("members")&&!c.disabled?'<button type="button" class="linkbtn linkbtn--sm" data-invite="'+c.id+'">Invite</button>':'<span class="cs">–</span>')   /* vE E025: Invite alone */
+   :'<span class="cs">–</span>';
  let line, fix="";
  if(side==="client"){
   const on=L.filter(x=>!x.invited), exp=L.filter(x=>x.expired), inv=L.filter(x=>x.invited&&!x.expired);
@@ -6360,7 +6360,7 @@ function vWorkspacesTab(){
    const last=users.concat(team).map(r=>r.seen).filter(x=>x!=="never")[0]||"never";
    return `<tr><td><div class="cell-main">${av(c,28)}<span style="min-width:0"><span style="font-size:14px;font-weight:500;display:block">${c.name}</span><span class="cs">${c.own?"Your own outreach":c.company}</span></span></div></td>
     <td>${avs(team)}<span class="sub" style="margin-left:12px">${team.length}</span></td>
-    <td>${users.length?avs(users)+`<span class="sub" style="margin-left:12px">${users.length}</span>`:'<span class="sub">No one invited yet</span>'}</td>
+    <td>${users.length?avs(users)+`<span class="sub" style="margin-left:12px">${users.length}</span>`:'<span class="sub">–</span>'}</td>
     <td><span class="sub">${last}</span></td>
     <td class="ar">${canI("members")?`<button class="linkbtn" data-invite="${c.id}">Invite</button>`:""}${c.own?"":` <button class="linkbtn" data-manage="${c.id}" style="margin-left:12px">Members</button>`}</td></tr>`}).join("")}</tbody></table></div></div>`;
 }
@@ -13653,9 +13653,10 @@ const bindSearch=(id,set)=>{const i=el(id);if(!i)return;i.oninput=()=>{set(i.val
 /* vE E023: with no usage column the default is plain: your own first, then A to Z, disabled and deleted last */
 const wsHomeOrder=list=>list.slice().sort((a,b)=>{const t=c=>c.own?0:c.disabled||c.deletedOn?2:1; return t(a)-t(b)||String(a.name).localeCompare(String(b.name),undefined,{sensitivity:"base"})});
 const wslRows=mine=>hsApply(wsHomeOrder(mine).filter(c=>wsMatch(c,cliQ)&&wsfPass(c)),"ws");
+/* vE E025: Home has no Usage filter; Usage & limits keeps it (ULF_DEF) */
+const WSF_USAGE=["usage","Usage",[["out","Used up"],["near","Near limit"],["fine","Fine"]]];   /* the Highest usage cell's own rule (usageNeed) */
 const WSF_DEF=[
  ["status","Status",[["Active","Active"],["Paused","Paused"],["Disabled","Disabled"]]],   /* the real statuses only (change 359) */
- ["usage","Usage",[["out","Used up"],["near","Near limit"],["fine","Fine"]]],   /* the Highest usage cell's own rule (usageNeed) */
  ["team","Your team",null],   /* the teammates added per workspace (wsfTeamOpts) */
  ["client","Client users",[["invites","Has invites waiting"],["none","No client users yet"]]]];
 let WSF={status:[],usage:[],team:[],client:[]}, WSF_OPEN=null, WSF_Q="", WS_SIZE=25, WSL_LAST=null;
@@ -13663,7 +13664,7 @@ const wsfReset=()=>{WSF={status:[],usage:[],team:[],client:[]}};
 /* Used up is the red chip, Near limit the amber one (90% or more, or a renewing resource out in about 3 days), Fine the rest */
 const wsfUse=c=>{const N=!c.disabled&&usageNeed(c); return N&&N.tone==="bad"?"out":N&&N.tone==="warn"?"near":"fine"};
 const wsfTeamOpts=()=>ppTeam().filter(t=>t.role==="Member").map(t=>[t.k,t.name]).sort((a,b)=>a[1].localeCompare(b[1]));
-const wsfOpts=k=>k==="team"?wsfTeamOpts():WSF_DEF.find(d=>d[0]===k)[2];
+const wsfOpts=k=>k==="team"?wsfTeamOpts():WSF_DEF.concat([WSF_USAGE]).find(d=>d[0]===k)[2];   /* vE E025: Usage lives outside Home's list */
 const wsfCli=c=>{if(c.own) return []; const L=wsPeopleOf(c).client; return (L.some(x=>x.invited)?["invites"]:[]).concat(L.length?[]:["none"])};
 function wsfPass(c){
  if(WSF.status.length&&WSF.status.indexOf(wsStatus(c))<0) return false;
@@ -13787,7 +13788,7 @@ function wslWire(){
    (UL.draft) is keyed by resource and workspace, so a hidden or off-page row keeps its edit and still counts in
    ulChanges, ulDfree and the save bar. */
 let ulQ="", ULF={status:[],usage:[]}, ULF_OPEN=null, UL_SIZE=25;
-const ULF_DEF=WSF_DEF.slice(0,2);   /* Status, Usage: the same options as Home's */
+const ULF_DEF=[WSF_DEF[0],WSF_USAGE];   /* vE E025: Home dropped Usage, so it is named here */   /* Status, Usage: the same options as Home's */
 const ulfReset=()=>{ULF={status:[],usage:[]}};
 const ulfOn=()=>ULF_DEF.some(([k])=>ULF[k].length);
 /* Usage here is this resource: used up or 90% or more of the saved limit (the bar's own rule, ulrLv); a disabled
@@ -16687,7 +16688,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e72ef82";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="35f4f46";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
