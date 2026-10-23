@@ -10893,15 +10893,13 @@ function drawerHTML(){
     website, teammates, and the line that says where you land next. The
     Company, "who is this for" and first-user fields are gone; a client's
     people are invited from the record's Members tab. */
- const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
  const SWN={"#0F766E":"Teal","#C2410C":"Orange","#6D28D9":"Violet","#B91C1C":"Red","#0E7490":"Cyan","#A16207":"Amber"};
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
    <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${ncNameMsg()?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${ncNameMsg()?"true":"false"}" aria-describedby="ncnMsg"></div></div>
   ${ncNameMsgHTML()}
   <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" class="${ncSiteMsg()?"is-err":""}" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%" aria-invalid="${ncSiteMsg()?"true":"false"}" aria-describedby="ncsiteMsg">${ncSiteMsgHTML()}</div>
   <!-- change 358: a website with a logo replaces the colour, so Website comes first and the colour hides while a logo shows -->
-  <div class="field" id="ncColField"${nc.logo?" hidden":""}><span class="flabel" id="ncColLab">Profile icon colour</span>
-   <div class="nc-swatches" role="group" aria-labelledby="ncColLab">${CLIENT_PAL.map(c=>`<button type="button" class="nc-swatch${c===col?" is-on":""}" data-ncswatch="${c}" style="--c:${c}" aria-label="${SWN[c]||c}" aria-pressed="${c===col?"true":"false"}"></button>`).join("")}</div></div>
+  <!-- change E014: no colour control; a workspace with no logo gets a random unused colour from ncColour() -->
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
   <!-- 29 Sep 2026, Hitesh: "remove give teammates access". Teammates join a workspace from People or its Members tab. -->
   <!-- change E002, 23 Oct 2026 (Hitesh): no limits here. A new workspace starts with none and sets them inside its record. -->`;
@@ -11030,23 +11028,26 @@ function ncAccessSentence(){
    position in CLIENT_PAL. nc.colour holds it once touched; until then this
    keeps showing the same next-in-line colour it always did, so an untouched
    tile looks exactly as before. */
-function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
+/* change E014: the colour is picked once per pop-up opening (the first time it is needed) and kept in nc.colour, so the
+   preview and create() agree. Prefer a colour no workspace uses; with all six used, the least used. Random among ties. */
+function ncColour(){if(nc.colour) return nc.colour;
+ const n={};CLIENT_PAL.forEach(c=>n[c]=0);CLIENTS.forEach(w=>{if(w.colour in n) n[w.colour]++});
+ const lo=Math.min(...CLIENT_PAL.map(c=>n[c])),pool=CLIENT_PAL.filter(c=>n[c]===lo);
+ return nc.colour=pool[Math.floor(Math.random()*pool.length)]}
+function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=ncColour();
  /* change 358: a logo found from the website replaces the tile; it is not a colour control then */
  if(nc.logo) return `<span class="nc-tile is-logo" id="ncPrev" role="img" aria-label="Logo from ${nc.logoFor}" title="Logo from ${nc.logoFor}"><span class="avatar av-tint av-logo" style="--c:${col}"><img class="av-logo-i" src="${nc.logo}" alt="" draggable="false"></span></span>`;
- return `<button type="button" class="nc-tile${nm?"":" is-empty"}" id="ncPrev" data-nccol aria-label="Change colour" title="Click to try the next colour"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></button>`}
+ return `<span class="nc-tile is-logo${nm?"":" is-empty"}" id="ncPrev" role="img" aria-label="Workspace icon"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></span>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
    and the swatch click never scrolls the drawer. Rebinds the swatch's own
    handler each time, since the node it lived on was just replaced. */
 function paintPrev(){const old=el("ncPrev");if(!old)return;
  const t=document.createElement("div");t.innerHTML=ncPreviewHTML();const node=t.firstElementChild;
- old.replaceWith(node);
- const b=node.matches("[data-nccol]")?node:node.querySelector("[data-nccol]");if(b)b.onclick=e=>{e.stopPropagation();cycleColour()}}
-function syncSwatches(){const col=nc.colour||CLIENT_PAL[CLIENTS.length%CLIENT_PAL.length];
- document.querySelectorAll("[data-ncswatch]").forEach(b=>{const on=b.dataset.ncswatch===col;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false")})}
+ old.replaceWith(node)}
 /* change 358: the website's logo, looked up as it is typed (debounced) and at once on leaving the field */
 let NC_LOGO_T=null;
 function ncPaintLogo(){const d=document.querySelector(".drawer.nc-modal"), t0=d?d.getBoundingClientRect().top:0;
- paintPrev(); const f=el("ncColField"); if(f) f.hidden=!!nc.logo;
+ paintPrev();
  /* the pop-up is centred, so a shorter body would move every field; its top stays where it was instead */
  if(d&&d.getBoundingClientRect().height<innerHeight-32){const dy=d.getBoundingClientRect().top-t0; if(dy) d.style.top=(parseFloat(getComputedStyle(d).top)-dy)+"px"}}
 function ncLogoSoon(ms){clearTimeout(NC_LOGO_T);
@@ -11054,8 +11055,6 @@ function ncLogoSoon(ms){clearTimeout(NC_LOGO_T);
  if(!d){if(nc.logo||nc.logoFor){nc.logo=null;nc.logoFor="";ncPaintLogo()}return}
  if(d===nc.logoFor) return;
  NC_LOGO_T=setTimeout(()=>wsLogoFind(d,(u,dd)=>{if(!drawer||(ncSiteBad()?"":wsLogoDom(nc.site))!==dd)return; nc.logo=u; nc.logoFor=dd; ncPaintLogo()}),ms)}
-function cycleColour(){const pal=CLIENT_PAL,cur=nc.colour||pal[CLIENTS.length%pal.length];
- nc.colour=pal[(pal.indexOf(cur)+1)%pal.length];paintPrev();syncSwatches()}
 function shellInert(){const on=!!(drawer||modal);["sb","page","topbar"].forEach(k=>{const e=document.querySelector(k==="sb"?".sb":k==="page"?"#page":".topbar");if(e){if(on)e.setAttribute("inert","");else e.removeAttribute("inert")}});
  /* a modal over the drawer (the roles sheet from "What each role can do") makes the drawer inert too */
  const L=document.getElementById("layer"); if(L){if(drawer&&modal)L.setAttribute("inert","");else L.removeAttribute("inert")}}
@@ -11071,14 +11070,12 @@ function renderDrawer(){
 
  document.querySelectorAll("[data-ncfor]").forEach(b=>b.onclick=()=>{cap();nc.forClient=b.dataset.ncfor==="client";renderDrawer()});
  /* 29 Sep 2026, the pasted modal: swatches, website, teammates, Cancel */
- L.querySelectorAll("[data-ncswatch]").forEach(b=>b.onclick=()=>{nc.colour=b.dataset.ncswatch;paintPrev();syncSwatches()});
  {const c=el("drCancel");if(c)c.onclick=()=>{drawer=null;nc=NC_INIT();renderDrawer()}}
  /* the preview follows the name keystroke by keystroke; only the tile is
     repainted, so the field keeps focus and the caret */
  {const a=el("ncn");if(a)a.oninput=()=>{nc.name=a.value;paintPrev()}}
  /* the swatch cycles CLIENT_PAL on click; bound here for the first paint,
     then paintPrev() rebinds it on every repaint after */
- L.querySelectorAll("[data-nccol]").forEach(b=>b.onclick=e=>{e.stopPropagation();cycleColour()});
  /* the email field keeps focus and its caret; nc.email is captured on input
     rather than waiting for cap() to run on the next step. */
  /* the email typed here is also who ncAccessSentence names as the subject;
@@ -11117,7 +11114,7 @@ function create(){
     Admin reach every new workspace automatically (their ws is null), so
     there is no staff step here any more: an agency person is added to this
     workspace from the record's own Members tab, once it exists. */
- const c={id,name,company:nc.company||name,email:nc.email||"–",colour:nc.colour||pal[CLIENTS.length%pal.length],
+ const c={id,name,company:nc.company||name,email:nc.email||"–",colour:ncColour(),
   seq:0,mbx:0,prospects:0,sent:0,reply:0,pos:0,created:"09 Sep, 2026",
   users:[],mailboxes:[],limitsReviewed:true,forClient:nc.forClient!==false,site:(nc.site||"").trim()};
  /* change 358: the logo found in the pop-up; a lookup still in flight lands when it returns */
@@ -16328,7 +16325,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="832045e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="ab59b40";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
