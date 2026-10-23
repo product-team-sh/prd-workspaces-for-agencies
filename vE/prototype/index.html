@@ -357,6 +357,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .pop-r .avatar{width:24px;height:24px;font-size:10px;flex:none;border-radius:6px;font-weight:600}
 .pop-r .t{font-weight:500}
 .pop-r .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pop-r{height:auto;min-height:40px;padding-top:4px;padding-bottom:4px}.pop-r .t{white-space:normal;overflow:visible;text-overflow:clip;line-height:20px}   /* vE E024: the longer own name wraps in the switcher */
 .pop-r .pop-ico{flex:none;width:24px;height:24px;border-radius:4px;background:var(--gray-16);color:var(--gray-12);display:grid;place-items:center}
 .pop-r .pop-ico svg{width:14px;height:14px}
 .pop-tag{margin-left:auto;font-size:12px;color:var(--gray-15);white-space:nowrap}
@@ -1093,6 +1094,7 @@ table.sqt .sq-st.on i{background:var(--green-16)}table.sqt .sq-st.pa i{backgroun
 .ac-nm{display:flex;align-items:center;gap:8px;min-width:0}
 .ac-nm .avatar{width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:600;flex:none}
 .ac-nm b{font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-ws .ac-nm b{white-space:normal;overflow-wrap:anywhere}
 .ac-sub{display:block;font-style:normal;font-size:12px;line-height:16px;color:var(--gray-15);margin-top:2px}
 .ac-kv{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
 .ac-kv span{font-size:12px;line-height:18px;color:var(--gray-12);background:var(--gray-16);border-radius:4px;padding:0 6px;white-space:nowrap}
@@ -2729,7 +2731,7 @@ const AGENCY_OWN={
    The open question this does not settle is whether agencies want their own
    outreach on the platform at all. That is topic 11 of the validation panel. */
 const OWN_WS={
- id:"own", name:AGENCY.name, company:AGENCY.name+", own outreach", forClient:false,
+ id:"own", name:AGENCY.name+" (Your workspace)", company:AGENCY.name+", own outreach", forClient:false,
  email:"alex@meridiangrowth.com", colour:AGENCY.colour, own:true,
  seq:AGENCY_OWN.sequences.length, mbx:AGENCY_OWN.mailboxes.length,
  prospects:AGENCY_OWN.prospects, reply:AGENCY_OWN.reply, prev:4.1, pos:AGENCY_OWN.pos,
@@ -8854,7 +8856,7 @@ function ubxCard(r){
   <span class="avatar av-tint" style="--c:${c.colour};width:28px;height:28px;font-size:10px">${initials(r.from.split(",")[0])}</span>
   <span style="min-width:0"><span class="r1"><span class="nm trunc">${r.from.split(",")[0]}</span><span class="dt">${AGE(r.age)}</span></span>
    <span class="sj trunc">${ubxSubject(c,r)}</span><span class="sn trunc">${r.snippet}</span>
-   <span class="chips"><span class="ubx-chip cl" style="--c:${c.colour}">${c.own?AGENCY.name:c.name}</span>
+   <span class="chips"><span class="ubx-chip cl" style="--c:${c.colour}">${c.name}</span>
     <span class="ubx-chip">${r.client==="own"?ubxI.ext:ubxI.seq}${ubxSeq(c,r)}</span>
     ${r.replied?'<span class="ubx-chip ok">Replied</span>':pos?`<span class="ubx-chip ok">${ubxI.up}Interested</span>`:'<span class="ubx-chip">Not interested</span>'}</span></span></button>`;
 }
@@ -8879,7 +8881,7 @@ function ubxListHTML(){
      rather than piling on top of it, so the line stays one line. */
   const metaBits=[]; if(un) metaBits.push(`<b style="color:var(--blue-11)">${un} unread</b>`); if(ic) metaBits.push(`${ic} interested`);
   const meta=metaBits.length?metaBits.join(", "):`${rows.length} thread${rows.length===1?"":"s"}`;
-  return `<div class="ubx-grp">${av(c,20)}<span class="trunc">${c.own?AGENCY.name+"'s own outreach":c.name}</span>
+  return `<div class="ubx-grp">${av(c,20)}<span class="trunc">${c.name}</span>
     <span class="sub">${meta}</span></div>`
    +rows.map(ubxCard).join("")}).join("");
 }
@@ -8913,7 +8915,7 @@ function ubxPaneHTML(){
   const cid=UBX.client, line=cid==="all"
     ?"Every thread is filed under its workspace; only that workspace's members see it."
     :(()=>{const cc=ubxClient({client:cid}), n=UBX_ALL.filter(x=>x.client===cid).length;
-      return "Only people added to "+(cc.own?AGENCY.name:cc.name)+" see these "+n+" thread"+(n===1?"":"s")+".";})();
+      return "Only people added to "+cc.name+" see these "+n+" thread"+(n===1?"":"s")+".";})();
   return `<div class="ubx-empty">${ubxI.bubbles}<span>No conversations selected</span>
    <span class="sub">${line}</span></div>`;
  }
@@ -8921,7 +8923,7 @@ function ubxPaneHTML(){
  const mbx=((c.mailboxes||[]).find(m=>m[1]==="Healthy")||(c.mailboxes||[])[0]||["their mailbox"])[0];
  const first=r.from.split(/[ ,]/)[0], seq=ubxSeq(c,r);
  return `<div class="ubx-ph">${av(c,32)}<span style="min-width:0;flex:1">
-    <span style="display:flex;align-items:center;gap:8px"><span class="semibold-3 trunc">${c.own?AGENCY.name:c.name}</span>
+    <span style="display:flex;align-items:center;gap:8px"><span class="semibold-3 trunc">${c.name}</span>
      ${own?"":`<button class="ubtn wsgo" data-enter="${c.id}" title="Open workspace" aria-label="Open ${c.name}'s workspace">${ubxI.go}</button>`}</span>
     <span class="cs trunc">${r.from}<span class="gapx">${ubxSubject(c,r)}</span><span class="gapx">${own?"external, to your own mailbox":"replying from "+mbx}</span></span></span>
    ${r.replied?'<span class="chip c-ok">Replied</span>':r.positive?'<span class="chip c-ok">Interested</span>':'<span class="chip c-mute">Not interested</span>'}</div>
@@ -8929,15 +8931,15 @@ function ubxPaneHTML(){
    ${own?"":`<div class="tmsg tmsg-out"><span class="cs">${AGENCY.name} for ${c.name}<span class="gapx">${seq}, step 2</span><span class="gapx">3 days ago</span></span>
     <p>Hi ${first}, following up on my note last week. Worth fifteen minutes to see whether this fits how ${c.name.split(" ")[0]}'s buyers work?</p></div>`}
    <div class="tmsg tmsg-in"><span class="cs">${r.from}<span class="gapx">${AGE(r.age)}</span></span><p>${r.snippet}.</p></div>
-   ${r.replied?`<div class="tmsg tmsg-out is-sent"><span class="cs">You, for ${c.own?AGENCY.name:c.name}<span class="gapx">just now</span></span><p>${r.replied}</p>
-    <span class="cs ubx-sentas">Sent from ${mbx} as ${c.own?AGENCY.name:c.name}</span></div>`:""}
+   ${r.replied?`<div class="tmsg tmsg-out is-sent"><span class="cs">You, for ${c.name}<span class="gapx">just now</span></span><p>${r.replied}</p>
+    <span class="cs ubx-sentas">Sent from ${mbx} as ${c.name}</span></div>`:""}
   </div>
   <div class="ubx-pf">${r.replied
-    ?`<div class="msg m-ok" style="margin:0">${infoI}<span>Stored in <strong>${c.own?AGENCY.name:c.name}</strong>'s workspace. Only people with access to ${c.own?AGENCY.name:c.name} can see this thread.</span></div>`
-    :`<textarea id="ubxTxt" aria-label="Your reply" placeholder="Reply as ${c.own?AGENCY.name:c.name}, from ${mbx}">Thanks ${first}, </textarea>
+    ?`<div class="msg m-ok" style="margin:0">${infoI}<span>Stored in <strong>${c.name}</strong>${c.own?"":"'s workspace"}. Only people with access to ${c.name} can see this thread.</span></div>`
+    :`<textarea id="ubxTxt" aria-label="Your reply" placeholder="Reply as ${c.name}, from ${mbx}">Thanks ${first}, </textarea>
      <div class="tools" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <span class="sub">Lands in <strong>${c.own?AGENCY.name:c.name}</strong>'s workspace, sent from ${mbx}. You stay here.</span>
-      <button class="shd-button shd-button--primary" data-ubxsend="${r.id}">Send as ${c.own?AGENCY.name:c.name}</button></div>`}</div>`;
+      <span class="sub">Lands in <strong>${c.name}</strong>${c.own?"":"'s workspace"}, sent from ${mbx}. You stay here.</span>
+      <button class="shd-button shd-button--primary" data-ubxsend="${r.id}">Send as ${c.name}</button></div>`}</div>`;
 }
 function ubxHTML(){
  const all=UBX_ALL, th=ubxThreads(), unread=all.filter(ubxUnread).length;
@@ -9135,7 +9137,7 @@ function vAgencyMod(){
 let anTab="seq", anWsOpen=false, anWsSel=null, anWsQ="";   /* vE E021: anWsQ, the filter's search */
 let anSort={seq:{col:null,dir:-1},mail:{col:null,dir:-1},team:{col:null,dir:-1}};
 const anSources=()=>myClients().concat(canI("dashboard")?[OWN_WS]:[]);
-const anWsName=c=>c.own?AGENCY.name:c.name;
+const anWsName=c=>c.name;
 /* change 228, 13 Oct 2026 (Hitesh): every export is a Workspace Admin's. Per workspace in the
    filter, the Prospects export's own gate: Account Owner and Account Admin always (Workspace
    Admin everywhere), an Account Member only where they are Workspace Admin. */
@@ -9423,7 +9425,7 @@ let API_WEBHOOKS=[
 const isOwnerOrAdmin=()=>ME().role!=="Member";
 /* where the queue used to be the fallback: Home for those who have it, Clients otherwise (D13) */
 const homeView=()=>({name:"dash"});
-const apiScopeName=s=>s==="agency"?"Account-wide":s==="own"?AGENCY.name:(byId[s]?byId[s].name:s);
+const apiScopeName=s=>s==="agency"?"Account-wide":s==="own"?OWN_WS.name:(byId[s]?byId[s].name:s);
 const apiWsOpts=()=>myClients().concat([OWN_WS]);
 function apiKeyTable(list,note,kind){
  const rows=list.map(k=>`<tr><td>${k.label}</td>
@@ -11037,7 +11039,7 @@ function shPctText(sc,sh){let m=0,first=null;RK.forEach(k=>{const R=RES[k],r=R.r
 const ncEscH=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 /* change 264: a name already in use (any workspace, the agency's own included, case-insensitive) */
 function ncDupName(){const nm=(nc.name||"").trim().toLowerCase();if(!nm)return null;
- const hit=[AGENCY.name].concat(CLIENTS.map(c=>c.name)).find(x=>String(x).trim().toLowerCase()===nm);
+ const hit=[AGENCY.name,OWN_WS.name].concat(CLIENTS.map(c=>c.name)).find(x=>String(x).trim().toLowerCase()===nm);
  return hit?`A workspace called ${String(hit).trim()} already exists. Use a different name.`:null}
 const ncNameMsg=()=>nc.nameErr||ncDupName();
 function ncNameMsgHTML(){const m=ncNameMsg();return m?`<p class="nc-limsay is-err nc-fielderr" id="ncnMsg" role="alert"><span>${ncEscH(m)}</span></p>`:`<p class="sub nc-fieldhint" id="ncnMsg">Usually the client&rsquo;s company name. Client users see it too.</p>`}
@@ -12149,26 +12151,23 @@ function modalHTML(){
    `<button class="shd-button shd-button--secondary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-mconfirm>Apply ${sh}%</button>`,"modal--560");
  }
  if(modal.kind==="agencyconfirm"){
-  const O=AGENCY_OWN;
   /* One sentence, the picture, one undo line. The picture carries the model:
      what you have on the left, and the same thing beside a new, empty
      workspace on the right. 28 Sep 2026, Hitesh: fewer messages, design
      system modal, D14 words (a workspace, not a client). */
   const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
-  const kv=xs=>'<div class="ac-kv">'+xs.map(x=>'<span>'+x+'</span>').join('')+'</div>';
-  const have=[O.sequences.length+" sequences",f(O.prospects)+" prospects",O.mailboxes.length+" email accounts"];
   const nm=(ini,col,name)=>'<div class="ac-nm"><span class="avatar av-tint" style="--c:'+col+'">'+ini+'</span><b>'+name+'</b></div>';
   return card("Add a workspace?",`
     <p class="ac-lead">Your work stays exactly where it is. A new, empty workspace appears next to it, with its own sequences, prospects and email accounts.</p>
     <div class="ac-vis" aria-label="What changes">
      <div class="ac-card">
       <div class="ac-side"><i class="on"></i><i></i><i></i><i></i><i></i></div>
-      <div class="ac-main">${nm(AGENCY.initials,AGENCY.colour,AGENCY.name)}<i class="ac-sub">Your workspace today</i>${kv(have)}</div>
+      <div class="ac-main">${nm(AGENCY.initials,AGENCY.colour,AGENCY.name)}<i class="ac-sub">Your workspace today</i></div>
      </div>
      <div class="ac-arrow">${fi('<path d="M5 12h14M13 6l6 6-6 6"/>')}</div>
      <div class="ac-after">
-      <div class="ac-ws">${nm(AGENCY.initials,AGENCY.colour,AGENCY.name)}<i class="ac-sub">Your workspace</i>${kv(have)}</div>
-      <div class="ac-ws is-new">${nm("+","var(--gray-11)","New workspace")}${kv(["0 sequences","0 prospects","0 email accounts"])}</div>
+      <div class="ac-ws">${nm(OWN_WS.initials||AGENCY.initials,AGENCY.colour,OWN_WS.name)}</div>
+      <div class="ac-ws is-new">${nm("+","var(--gray-11)","New workspace")}</div>
      </div>
     </div>
     <p class="ac-undo">You can undo this at any time.</p>`,
@@ -16093,6 +16092,8 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 /* 15. Home: the Yours chip rides the name line */
 .ws-nm{display:inline-flex;align-items:center;gap:6px;min-width:0}.ws-nm .cn{white-space:nowrap}
 .ws-nm .yours{margin-left:0!important}
+.home-tbl .ws-nm:has(.yours){align-items:flex-start}.home-tbl .ws-nm:has(.yours) .cn{white-space:normal;overflow:visible;text-overflow:clip}.home-tbl .ws-nm .yours{margin-top:1px}
+.ulr-ws:has(.ulr-tag) .ulr-nm,.ul-wsn:has(.ul-tag) .ul-nm{white-space:normal;overflow:visible;text-overflow:clip}   /* vE E024 */
 
 /* change 148: the guided tour layer and the Help popover */
 /* ══ change 150: the demo control panel ═══════════════════════════════════
@@ -16686,7 +16687,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3bd2c9d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="e72ef82";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
