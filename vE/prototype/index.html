@@ -3567,13 +3567,19 @@ function hdrApply(){
    other workspace (a sequence, a prospect) goes to its module, a person page goes to the record's
    Members tab. A disabled workspace cannot be worked in, so from inside one it opens its record.
    The URL hash follows and browser Back returns. At 640px and under it opens as a sheet. ═══ */
+/* vE E021: one matching rule for every workspace list (Home, the switchers, every picker): the name, the website
+   or email, and each client user's email. Pickers list your own first, then A to Z, with a search box past 8. */
+const WS_PICK_MAX=8;
+function wsHay(c){return [c.name,c.site,c.email].concat((c.users||[]).map(u=>u[0])).filter(x=>x&&x!=="–").join(" ").toLowerCase()}
+function wsMatch(c,q){q=String(q||"").trim().toLowerCase(); return !q||wsHay(c).indexOf(q)>-1}
+function wsPickOrder(L){return L.slice().sort((a,b)=>(b.own?1:0)-(a.own?1:0)||String(a.name).localeCompare(String(b.name),undefined,{sensitivity:"base"}))}
 const hdrWsList=()=>asClient?[]:wsOrder(myWorkspaces().filter(c=>!c.deletedOn));
 const hdrWsNeeds=c=>!c.own&&!c.disabled&&!c.deletedOn&&[1,2].indexOf(wsNeedTier(c))>-1;
 let HDR_WS=null;   /* the open switcher: {trig} */
 function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hidden=true; const s=el("hdrWsScrim"); if(s) s.hidden=true;
  const t=HDR_WS&&HDR_WS.trig; if(t) t.setAttribute("aria-expanded","false"); HDR_WS=null; if(refocus&&t&&t.isConnected) t.focus()}
 function hdrWsRows(q,here){const t=(q||"").trim().toLowerCase(), cur=here!==undefined?here:ctx==="agency"?view.name==="record"?view.id:view.from:ctx;   /* here: the rail's current workspace (change 356) */
- const L=hdrWsList().filter(c=>!t||c.name.toLowerCase().includes(t)||(c.company||"").toLowerCase().includes(t));
+ const L=hdrWsList().filter(c=>wsMatch(c,t));   /* vE E021: the shared rule */
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
  return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
   :`<p class="sub hdr-wsnone">No workspaces found</p>`}
@@ -3587,7 +3593,7 @@ function hdrWsOpen(trig){
   M.addEventListener("keydown",hdrWsKey)}
  const sheet=window.innerWidth<=640, n=hdrWsList().length;
  M.className="pop hdr-wsm"+(sheet?" hdr-wsm--sheet":"");
- M.innerHTML=(sheet?'<div class="hdr-wsm-h">Switch workspace</div>':"")+(n>7?'<div class="pop-s"><input type="text" data-hdrwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>':"")+`<div class="pop-l" id="hdrWsl" role="menu" aria-label="Workspaces">${hdrWsRows("")}</div>`;
+ M.innerHTML=(sheet?'<div class="hdr-wsm-h">Switch workspace</div>':"")+(n>WS_PICK_MAX?'<div class="pop-s"><input type="text" data-hdrwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>':"")+`<div class="pop-l" id="hdrWsl" role="menu" aria-label="Workspaces">${hdrWsRows("")}</div>`;
  M.hidden=false; el("hdrWsScrim").hidden=!sheet;
  if(!sheet){const a=(trig.closest(".hdr-wsw")||(trig.id==="hdrWsCur"?el("crumbPath").querySelector(".hdr-avw--cur"):null)||trig).getBoundingClientRect();
   M.style.top=Math.round(trig.getBoundingClientRect().bottom+8)+"px"; M.style.left=Math.max(8,Math.min(Math.round(a.left),window.innerWidth-M.offsetWidth-8))+"px"}
@@ -3719,7 +3725,7 @@ function renderShell(){
  /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
  el("popAddWrap").hidden=asClient||!canI("limits");
  /* nothing to search through when there is one workspace and no clients */
- el("popSWrap").hidden=isNormal()||myClients().length+2<=8;
+ el("popSWrap").hidden=isNormal()||hdrWsList().length<=WS_PICK_MAX;   /* vE E021: the workspaces it lists, past 8 */
  /* A client with one workspace has nothing to switch to, and must never be
     able to open a popover that lists the agency and every other client.
     16 §6 step 4: "No switcher (one workspace)." Flow A's zero-client gate
@@ -4640,7 +4646,7 @@ function hsHead(t){const S=HSORT[t];
 /* the key is what the cell shows (homeCells, wsStatusCell, usageHomeCell, wsPeopleCell); null sorts last */
 function hsVal(k,c){
  if(k==="name") return String(c.name);
- if(k==="status"){return wsState(c)==="Disabled"?null:1}   /* change 359: New is Active */
+ if(k==="status"){const s=wsStatus(c); return s==="Active"?0:s==="Paused"?1:2}   /* change 359: New is Active. vE E021: Active, Paused, Disabled, reversible */
  if(k==="usage") return usageKey(c);
  if(k==="client"||k==="team"){if(k==="client"&&c.own) return null; const P=wsPeopleOf(c); return (k==="client"?P.client:P.team).length+(k==="team"&&c.own?ppTeam().filter(t=>t.role==="Owner"||t.role==="Admin").length:0)}   /* change 346 */
  return null}
@@ -5049,17 +5055,7 @@ function raPgItems(cur,total){const B=1,S=1; if(total<=B*2+S*2+3) return Array.f
  for(let i=end0;i<=total;i++) out.push(i);
  return out.filter(x=>x!==null)}
 function raPager(N,size,pages){ if(N<=RA_SIZES[0]) return "";
- const cur=RA.pg, a=(cur-1)*size+1, b=Math.min(N,cur*size);
- const chev=d=>`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
- const step=(to,dis,label,d)=>`<li class="ra-pi${dis?" is-off":""}"><button type="button" class="ra-pl" ${dis?"disabled":`data-rapg="${to}"`} aria-label="${label}">${chev(d)}</button></li>`;
- const nums=raPgItems(cur,pages).map(n=>n===0?`<li class="ra-pi ra-pn ra-pe" aria-hidden="true"><span class="ra-pl">&hellip;</span></li>`
-  :`<li class="ra-pi ra-pn${n===cur?" is-on":""}"><button type="button" class="ra-pl" data-rapg="${n}"${n===cur?' aria-current="page"':""} aria-label="Page ${n}">${n}</button></li>`).join("");
- return `<nav class="ra-pg" id="raPg" aria-label="Pagination">
-  <span class="ra-pg-m">${f(a)}-${f(b)} of ${f(N)}</span>
-  <div class="ra-pg-c ra-pg-d"><p>Showing</p>${ddHTML("raSize",String(size),[{items:RA_SIZES.map(n=>({value:String(n),label:String(n)}))}],{})}<p>out of ${f(N)}</p></div>
-  <span class="ra-pg-sep" aria-hidden="true"></span>
-  <div class="ra-pg-c ra-pg-d"><p>Go to page:</p><form id="raGo" novalidate><input class="ra-pg-in" id="raGoIn" type="number" min="1" max="${pages}" value="${cur}" aria-label="Go to page"></form><p>/${pages}</p></div>
-  <ul class="ra-pul">${step(cur-1,cur<=1,"Previous page","M10 4 6 8l4 4")}${nums}${step(cur+1,cur>=pages,"Next page","M6 4l4 4-4 4")}</ul></nav>`}
+ return pgBar("ra",N,size,RA.pg,pages)}   /* vE E021: change 353's bar, shared with Home (pgBar) */
 function raShort(c,rows){const U=c.users||[], never=U.filter(u=>AGE(LASTSEEN[u[0]]||"unknown")==="never").length,
   foot="";   /* change 320: the explanatory footers went */
  return `<div class="panel ra-sheet" id="raLog">${raGroups(rows)}${foot?`<div class="ra-foot">${foot}</div>`:""}</div>`}
@@ -6624,8 +6620,8 @@ function personAccessHTML(p){
  const only=p.kind==="client"&&(p.c.users||[]).length===1&&!p.invited;
  /* change 156: the level on each workspace changes in place (PRD §3.6: "a
     different level per client is set from their profile") */
- const lvlRows=p.kind==="team"&&p.P.role==="Member"?(p.P.ws||[]).filter(id=>byId[id]&&!byId[id].deletedOn).map(id=>[byId[id],ppWsRole(p.P,id)])
-   :p.kind==="client"?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0]===p.email)).map(c=>[c,(c.users.find(u=>u[0]===p.email)||[])[1]]):[];
+ const lvlRows=p.kind==="team"&&p.P.role==="Member"?wsPickOrder((p.P.ws||[]).filter(id=>byId[id]&&!byId[id].deletedOn).map(id=>byId[id])).map(c=>[c,ppWsRole(p.P,c.id)])   /* vE E021: A to Z */
+   :p.kind==="client"?wsPickOrder(CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0]===p.email))).map(c=>[c,(c.users.find(u=>u[0]===p.email)||[])[1]]):[];
  /* the account role once (team only), then the role in each workspace: a dropdown where it can change
     (change 156, in place, Undo on the toast), plain text where it cannot (disabled, or ATM, where an
     Account Member has no role per workspace, change 157). Owners and Admins are in every workspace. */
@@ -6872,13 +6868,23 @@ const isWsRole=r=>CLIENT_ROLES.indexOf(r)>-1;
    8px 16px, hover gray-100, selected indigo-100 with a check. Escape or a click
    outside closes it; the chosen value is written to data-value on the trigger. */
 function ddHTML(id,value,groups,o){
- o=o||{}; const all=groups.flatMap(g=>g.items), cur=all.find(x=>x.value===value);
+ o=o||{};
+ /* vE E021: a list of workspaces (every option a workspace, bar an "All" or account-wide first) */
+ const wsI=x=>byId[x.value]||(x.value==="own"&&typeof OWN_WS!=="undefined"?OWN_WS:null), isWs=g=>g.items.filter(wsI).length>=2&&g.items.filter(x=>!wsI(x)).length<=1;
+ groups=groups.map(g=>isWs(g)?Object.assign({},g,{items:g.items.filter(x=>!wsI(x)).concat(wsPickOrder(g.items.filter(wsI).map(x=>Object.assign({},x,{name:wsI(x).name,own:wsI(x).own}))))}):g);
+ const wsN=groups.filter(isWs).reduce((t,g)=>t+g.items.filter(wsI).length,0), srch=o.search!==false&&wsN>WS_PICK_MAX;
+ const all=groups.flatMap(g=>g.items), cur=all.find(x=>x.value===value);
  const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
  const chk='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
  return `<div class="dd${o.disabled?" is-disabled":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
   <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}>${o.icon||""}<span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${chev}</button>
-  <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}">${x.avatar||""}<span class="dd-lbl">${x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.desc}</span>`:x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}</div></div>`;
+  <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${srch?`<div class="dd-s"><input type="text" class="dd-q" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}" role="option" aria-selected="${x.value===value}" data-ddopt="${x.value}"${srch&&wsI(x)?` data-ddk="${wsHay(wsI(x)).replace(/"/g,"&quot;")}"`:""}>${x.avatar||""}<span class="dd-lbl">${x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.desc}</span>`:x.label}</span>${x.value===value?chk:""}</div>`).join("")).join("")}${srch?`<p class="dd-none" hidden>No workspaces match</p>`:""}</div></div>`;
 }
+/* vE E021: the dropdown's search box filters its options in place, by the shared rule */
+function ddSearch(dd){const i=dd.querySelector(".dd-q"); if(!i) return;
+ i.oninput=()=>{const t=i.value.trim().toLowerCase(); let n=0; dd.querySelectorAll("[data-ddopt]").forEach(o=>{const k=o.dataset.ddk; const on=!t||k==null||k.indexOf(t)>-1; o.hidden=!on; if(on&&k!=null) n++});
+  const z=dd.querySelector(".dd-none"); if(z) z.hidden=n>0||!t};
+ i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const v=[...dd.querySelectorAll("[data-ddopt][data-ddk]")].filter(o=>!o.hidden); if(v.length===1) v[0].click()}}}
 /* change 198: inside the invite form, a menu that would be cut off by the bottom of
    the scrolling modal body opens upward instead (the per-client role menus) */
 function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(!dd.closest(".inv-form")) return;
@@ -6888,12 +6894,14 @@ function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(!dd.closest(".inv-form
  if(h>below&&above>below) dd.classList.add("dd-up")}
 function wireDD(L,id,onPick){
  const dd=L.querySelector("#"+id); if(!dd) return; const trig=dd.querySelector("[data-ddtrig]"), menu=dd.querySelector(".dd-menu");
+ ddSearch(dd);   /* vE E021 */
  if(dd.classList.contains("is-open")){if(window.__ddAway)document.removeEventListener("mousedown",window.__ddAway,true);
   const aw=e=>{if(!document.contains(dd)){document.removeEventListener("mousedown",aw,true);window.__ddAway=null;return} if(!dd.contains(e.target)){document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");onPick("")}}; window.__ddAway=aw; document.addEventListener("mousedown",aw,true);
   menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)})}
  const close=()=>{dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",away,true);document.removeEventListener("keydown",esc,true)};
  const away=e=>{if(!dd.contains(e.target))close()}, esc=e=>{if(e.key==="Escape"){e.stopPropagation();close();trig.focus()}};
- trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;ddFlip(dd,menu);trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"})};
+ trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;ddFlip(dd,menu);trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"});
+  const sq=menu.querySelector(".dd-q"); if(sq){sq.value="";sq.oninput();sq.focus()}};   /* vE E021 */
  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
 }
 /* change 153, 7 Oct 2026, Hitesh: "i have added email but still nothing is happening".
@@ -7082,12 +7090,16 @@ function chroleHTML(){
 }
 function assignwsHTML(){
  const r=rowByKey(modal.key); if(!r) return "";
- const pick=modal.ws||r.ws||[], wsList=fundedWorkspaces(), single=r.kind==="wsuser";
+ const pick=modal.ws||r.ws||[], wsList=wsPickOrder(fundedWorkspaces()), single=r.kind==="wsuser";   /* vE E021: A to Z */
  return card(single?"Move to another workspace":"Assign workspaces",`
    <p class="ac-lead" style="margin-bottom:12px"><b>${r.name}</b> <span class="sub">${single?"signs in to one workspace":"works in the workspaces ticked below"}</span></p>
-   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">${wsList.map(c=>`<label style="display:flex;align-items:center;gap:8px;font-size:14px;height:32px"><input type="${single?"radio":"checkbox"}" name="asws" value="${c.id}" ${pick.indexOf(c.id)>-1?"checked":""}> ${av(c,22)}<span>${c.name}</span></label>`).join("")}</div>`,
+   ${wsList.length>WS_PICK_MAX?`<div class="search ws-pick-s">${srchI}<input type="text" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" oninput="wsPickFilter(this)"></div>`:""}
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px" data-wspick>${wsList.map(c=>`<label data-ddk="${wsHay(c).replace(/"/g,"&quot;")}" style="display:flex;align-items:center;gap:8px;font-size:14px;height:32px"><input type="${single?"radio":"checkbox"}" name="asws" value="${c.id}" ${pick.indexOf(c.id)>-1?"checked":""}> ${av(c,22)}<span>${c.name}</span></label>`).join("")}</div>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-assignok>Save</button>`,"ac");
 }
+/* vE E021: a sheet's workspace list, filtered in place by the shared rule */
+function wsPickFilter(i){const t=i.value.trim().toLowerCase(), box=i.closest(".modal,.ac,.card,body").querySelector("[data-wspick]"); if(!box) return;
+ box.querySelectorAll("[data-ddk]").forEach(l=>{l.style.display=!t||l.dataset.ddk.indexOf(t)>-1?"flex":"none"})}
 function pconfirmHTML(){
  const r=rowByKey(modal.key); if(!r) return "";
  const a=modal.act;
@@ -8458,9 +8470,10 @@ function vDash(){
  cliTab="all";
  /* change 267: a header sort reorders the whole list before its first DASH_ROWS; ties keep this order.
     Change 292 (audit P1-32): the default is wsOrder, the same as the Workspaces page */
- /* change E005: the one list, as the Workspaces page drew it: search, header sort and 25 a page */
- const wsAll=hsApply(wsOrder(mine).filter(c=>!cliQ||(c.name+" "+c.company+" "+c.email).toLowerCase().indexOf(cliQ.toLowerCase())>-1),"ws");
- const pg=pageOf("clients",wsAll.length,25);
+ /* change E005: the one list, as the Workspaces page drew it: search, header sort and 25 a page.
+    vE E021: search, the filters and a header sort over the default order (wslRows); 25, 50 or 100 a page */
+ const wsAll=wslRows(mine);
+ const pg=pageOf("clients",wsAll.length,WS_SIZE);
 
  /* 21 Sep, delight pass round 4: one client, never sent. The row that would
     otherwise be a single blank line becomes that client's own setup, reusing
@@ -8482,10 +8495,12 @@ function vDash(){
  const tableCard='<div class="card ws-card">'
   +'<div class="c-h ws-ch"><span class="c-t">Workspaces</span>'
   +'<div class="search">'+srchI+'<input type="text" id="cliSearch" placeholder="Search workspaces" aria-label="Search workspaces" value="'+cliQ.replace(/"/g,"&quot;")+'"></div>'
+  +wsfBar()   /* vE E021 */
   +'<span class="c-a">'+(canI("limits")?'<button class="shd-button shd-button--primary" id="dashAdd">'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
+  +wsfChips()
   +wsTableOpen()+wsHeadHTML()
-  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr><td colspan="6"><span class="sub">No workspace matches "'+cliQ+'". <button type="button" class="linkbtn" data-cliclear>Clear search</button></span></td></tr>')+'</tbody></table></div>'
-  +pager("clients",wsAll.length,25,"workspaces")
+  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="6"><span class="sub">No workspaces match. <button type="button" class="linkbtn" data-cliclear>Clear</button></span></td></tr>')+'</tbody></table></div>'
+  +wslPager(wsAll.length)
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
     survive past this render. */
@@ -9094,7 +9109,7 @@ function vAgencyMod(){
    Reuses the same membership rule as everything else cross-client: myClients()
    is null-ws-means-every-workspace for Owner/Admin, an enumerated list for a
    Member, so "who sees what" needs no special case here.                    */
-let anTab="seq", anWsOpen=false, anWsSel=null;
+let anTab="seq", anWsOpen=false, anWsSel=null, anWsQ="";   /* vE E021: anWsQ, the filter's search */
 let anSort={seq:{col:null,dir:-1},mail:{col:null,dir:-1},team:{col:null,dir:-1}};
 const anSources=()=>myClients().concat(canI("dashboard")?[OWN_WS]:[]);
 const anWsName=c=>c.own?AGENCY.name:c.name;
@@ -9301,8 +9316,10 @@ function vAgencyAnalytics(){
  const wsPick=`<span style="position:relative">${dd("Workspaces: "+anWsLabel(),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>',`data-anwstoggle aria-expanded="${anWsOpen}"`)}
      ${anWsOpen?`<div class="panel" style="position:absolute;top:36px;right:0;z-index:20;width:280px;box-shadow:var(--shadow-dropdown)">
        <div class="panel-b" style="padding-bottom:8px;border-bottom:1px solid var(--gray-13)"><button class="linkbtn" data-anwsall>${anAllWord()}</button></div>
+       ${wsOpts.length>WS_PICK_MAX?`<div class="panel-b an-ws-s"><div class="search">${srchI}<input type="text" id="anWsQ" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${anWsQ.replace(/"/g,"&quot;")}"></div></div>`:""}
        <div class="panel-b" style="max-height:220px;overflow:auto;padding-top:8px">
-        ${wsOpts.map(c=>`<label class="list-row" style="padding:5px 0;justify-content:flex-start;gap:8px"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
+        ${(()=>{const L=wsPickOrder(wsOpts).filter(c=>wsMatch(c,anWsQ)); return L.length?"":`<p class="sub" style="margin:4px 0">No workspaces match</p>`})()}
+        ${wsPickOrder(wsOpts).filter(c=>wsMatch(c,anWsQ)).map(c=>`<label class="list-row" style="padding:5px 0;justify-content:flex-start;gap:8px"><input type="checkbox" data-anws="${c.id}" ${(anWsSel===null||anWsSel.indexOf(c.id)>-1)?"checked":""}><span class="trunc">${anWsName(c)}</span></label>`).join("")}
        </div>
        <div class="panel-b" style="border-top:1px solid var(--gray-13)"><button class="linkbtn" data-anwsdone>Done</button></div>
       </div>`:""}</span>`;
@@ -12817,7 +12834,7 @@ function wire(){
  /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
     puts focus back on the redrawn header; a mouse click leaves no ring behind) */
  q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
-   HSORT[t]=S&&S.col===k?(S.dir===(HS_FIRST[k]||-1)?{col:k,dir:-S.dir}:null):{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws") PAGE.clients=1;   /* change 292: a third click returns to the default order */
+   HSORT[t]=S&&S.col===k?(S.dir===(HS_FIRST[k]||-1)?{col:k,dir:-S.dir}:null):{col:k,dir:HS_FIRST[k]||-1}; if(t==="ws"){PAGE.clients=1; wslSync("push")}   /* change 292: a third click returns to the default order. vE E021: the hash keeps it */
    render(); const b=kb&&document.querySelector('th[data-hsort="'+t+'|'+k+'"] .hs-b'); if(b) b.focus({preventScroll:true})});
  if(HPOP) hpClose();
  q("[data-hpop]").forEach(b=>b.onclick=e=>{e.stopPropagation();hpOpen(b)});
@@ -12852,8 +12869,9 @@ function wire(){
  q("[data-mbh]").forEach(b=>b.onclick=()=>{mbHealth=b.dataset.mbh;mailAll=false;render()});
  q("[data-qf]").forEach(b=>b.onclick=()=>{qFilter=b.dataset.qf;render()});
  q("[data-page]").forEach(b=>b.onclick=()=>{const [id,p]=b.dataset.page.split("|");PAGE[id]=+p;render()});
- bindSearch("cliSearch",v=>{cliQ=v;PAGE.clients=1});
- q("[data-cliclear]").forEach(b=>b.onclick=()=>{cliQ="";PAGE.clients=1;render()});   /* change 297 (audit P2-8) */
+ bindSearch("cliSearch",v=>{cliQ=v;PAGE.clients=1;wslSync("type")});   /* vE E021: results as you type; the hash follows */
+ q("[data-cliclear]").forEach(b=>b.onclick=()=>{cliQ="";wsfReset();PAGE.clients=1;wslSync("push");render()});   /* change 297 (audit P2-8). vE E021: search and filters */
+ wslWire();
  /* ═══ Members tab: role select, Remove (confirm first), Add a client user,
     Agency people Add/Remove. Six fixed roles means there is nothing left to
     toggle, only who holds which role and who is on the workspace. */
@@ -12923,7 +12941,8 @@ function wire(){
    const out=left.length?` Left out: ${left.length>3?left.length+" workspaces":listAnd(left)}, where you are not a Workspace Admin.`:"";
    receipt("analytics",`Export started for ${n} row${n===1?"":"s"}${from}; you will get an email.${out}`,null,`exported analytics, ${n} rows`);
    render()});
- q("[data-anwstoggle]").forEach(b=>b.onclick=()=>{anWsOpen=!anWsOpen;render()});
+ q("[data-anwstoggle]").forEach(b=>b.onclick=()=>{anWsOpen=!anWsOpen;anWsQ="";render();const s=el("anWsQ");if(s)s.focus()});
+ bindSearch("anWsQ",v=>{anWsQ=v});   /* vE E021 */
  q("[data-anwsall]").forEach(b=>b.onclick=()=>{anWsSel=null;render()});
  q("[data-anws]").forEach(cb=>cb.onchange=()=>{
    const id=cb.dataset.anws, all=anSources().map(c=>c.id);
@@ -13553,7 +13572,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"){p[k]=v;return} if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E021: the list's state */ if(!route) route=seg});
  return {route,p}})();
 /* change 154, 8 Oct 2026, Hitesh: "one switch: normal role management as built,
    and ATM-based role management". `model=atm` in the hash applies production's
@@ -13600,6 +13619,127 @@ const pager=(id,total,size,what)=>{const g=pageOf(id,total,size); if(total<=size
   <button class="shd-button shd-button--tertiary shd-button--sm" data-page="${id}|${g.p+1}" ${g.p>=g.n?"disabled":""}>Next</button></span></div>`};
 /* re-rendering on every keystroke would drop the caret, so put it back */
 const bindSearch=(id,set)=>{const i=el(id);if(!i)return;i.oninput=()=>{set(i.value);render();const j=el(id);if(j){j.focus();j.setSelectionRange(j.value.length,j.value.length)}}};
+
+/* ═══ vE E021, 23 Oct 2026 (Hitesh: "Workspace List Functionality everywhere in our prototype also prepare one view for
+   that: Include pagination, filters, sorting, and search functionality in the workspace list"). Home's Workspaces card:
+   search (cliQ, wsMatch), four filters in production's filter-dropdown style (sequence list's AgencyClientFilters: a
+   white select, a checkbox list), the applied ones as production's filter tabs (atoms/filter-tab) with Clear all,
+   the header sort (HSORT.ws, change 267) and production's pager (change 353's bar). All of it lives in the hash. ═══ */
+/* The default order, with no header sort, is wsOrder (change 292): your own workspace first, then used up, then
+   90% or more or running out soon, then A to Z; disabled last. Search and filters keep it; a header sort replaces it,
+   and a third click on that header returns to it. */
+const wslRows=mine=>hsApply(wsOrder(mine).filter(c=>wsMatch(c,cliQ)&&wsfPass(c)),"ws");
+const WSF_DEF=[
+ ["status","Status",[["Active","Active"],["Paused","Paused"],["Disabled","Disabled"]]],   /* the real statuses only (change 359) */
+ ["usage","Usage",[["out","Used up"],["near","Near limit"],["fine","Fine"]]],   /* the Highest usage cell's own rule (usageNeed) */
+ ["team","Your team",null],   /* the teammates added per workspace (wsfTeamOpts) */
+ ["client","Client users",[["invites","Has invites waiting"],["none","No client users yet"]]]];
+let WSF={status:[],usage:[],team:[],client:[]}, WSF_OPEN=null, WSF_Q="", WS_SIZE=25, WSL_LAST=null;
+const wsfReset=()=>{WSF={status:[],usage:[],team:[],client:[]}};
+/* Used up is the red chip, Near limit the amber one (90% or more, or a renewing resource out in about 3 days), Fine the rest */
+const wsfUse=c=>{const N=!c.disabled&&usageNeed(c); return N&&N.tone==="bad"?"out":N&&N.tone==="warn"?"near":"fine"};
+const wsfTeamOpts=()=>ppTeam().filter(t=>t.role==="Member").map(t=>[t.k,t.name]).sort((a,b)=>a[1].localeCompare(b[1]));
+const wsfOpts=k=>k==="team"?wsfTeamOpts():WSF_DEF.find(d=>d[0]===k)[2];
+const wsfCli=c=>{if(c.own) return []; const L=wsPeopleOf(c).client; return (L.some(x=>x.invited)?["invites"]:[]).concat(L.length?[]:["none"])};
+function wsfPass(c){
+ if(WSF.status.length&&WSF.status.indexOf(wsStatus(c))<0) return false;
+ if(WSF.usage.length&&WSF.usage.indexOf(wsfUse(c))<0) return false;
+ if(WSF.team.length){const T=wsPeopleOf(c).team.map(x=>x.key); if(!WSF.team.some(k=>T.indexOf(k)>-1)) return false}
+ if(WSF.client.length){const v=wsfCli(c); if(!WSF.client.some(k=>v.indexOf(k)>-1)) return false}
+ return true}
+const wsfOn=()=>WSF_DEF.some(([k])=>WSF[k].length);
+const wsfEsc=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const wsfName=(k,v)=>{const o=wsfOpts(k).find(x=>x[0]===v); return o?o[1]:v};
+const WSF_CHEV='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+/* a filter: the trigger names it, then the one value or how many ("Status: 2 selected"); the menu is a checkbox list,
+   with a search box once it lists more than 8 */
+function wsfDD(k,l){const S=WSF[k], O=wsfOpts(k), open=WSF_OPEN===k;
+ const val=!S.length?l:l+": "+(S.length===1?wsfName(k,S[0]):S.length+" selected");
+ const srch=O.length>WS_PICK_MAX, q=WSF_Q.trim().toLowerCase(), shown=srch&&q?O.filter(o=>o[1].toLowerCase().indexOf(q)>-1):O;
+ return '<div class="dd wsf'+(open?' is-open':'')+'" data-wsf="'+k+'"><button type="button" class="dd-trig" data-wsft="'+k+'" aria-haspopup="true" aria-expanded="'+open+'">'
+  +'<span class="dd-val">'+wsfEsc(val)+'</span>'+WSF_CHEV+'</button>'
+  +(open?'<div class="dd-menu wsf-m" role="group" aria-label="'+l+'">'
+   +(srch?'<div class="dd-s"><input type="text" id="wsfQ" placeholder="Search" aria-label="Search '+l.toLowerCase()+'" autocomplete="off" value="'+wsfEsc(WSF_Q)+'"></div>':'')
+   +shown.map(([v,t])=>'<label class="dd-opt wsf-o"><input type="checkbox" data-wsfo="'+k+'|'+wsfEsc(v)+'"'+(S.indexOf(v)>-1?' checked':'')+'><span class="dd-lbl">'+wsfEsc(t)+'</span></label>').join("")
+   +(shown.length?'':'<p class="dd-none">No matches</p>')+'</div>':'')+'</div>'}
+const wsfBar=()=>'<div class="wsf-bar" role="group" aria-label="Filters">'+WSF_DEF.map(([k,l])=>wsfDD(k,l)).join("")+'</div>';
+/* the applied filters: production's filter tab per filter ("Status: Active, Paused" and its close), then Clear all */
+const WSF_X='<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+function wsfChips(){if(!wsfOn()) return "";
+ return '<div class="wsf-chips">'+WSF_DEF.filter(([k])=>WSF[k].length).map(([k,l])=>{const v=WSF[k].map(x=>wsfName(k,x)).join(", ");
+   return '<span class="wsf-chip" data-wsfchip="'+k+'"><span class="wsf-cn">'+l+':</span><span class="wsf-cv" title="'+wsfEsc(v)+'">'+wsfEsc(v)+'</span>'
+    +'<button type="button" class="wsf-x" data-wsfx="'+k+'" aria-label="Remove the '+l+' filter">'+WSF_X+'</button></span>'}).join("")
+  +'<button type="button" class="linkbtn wsf-clr" data-wsfclear>Clear all</button></div>'}
+/* change 353's bar for any list: p prefixes its ids and data-<p>pg; raPager is p "ra" */
+function pgBar(p,N,size,cur,pages){
+ const a=(cur-1)*size+1, b=Math.min(N,cur*size);
+ const chev=d=>`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+ const step=(to,dis,label,d)=>`<li class="ra-pi${dis?" is-off":""}"><button type="button" class="ra-pl" ${dis?"disabled":`data-${p}pg="${to}"`} aria-label="${label}">${chev(d)}</button></li>`;
+ const nums=raPgItems(cur,pages).map(n=>n===0?`<li class="ra-pi ra-pn ra-pe" aria-hidden="true"><span class="ra-pl">&hellip;</span></li>`
+  :`<li class="ra-pi ra-pn${n===cur?" is-on":""}"><button type="button" class="ra-pl" data-${p}pg="${n}"${n===cur?' aria-current="page"':""} aria-label="Page ${n}">${n}</button></li>`).join("");
+ return `<nav class="ra-pg" id="${p}Pg" aria-label="Pagination">
+  <span class="ra-pg-m">${f(a)}-${f(b)} of ${f(N)}</span>
+  <div class="ra-pg-c ra-pg-d"><p>Showing</p>${ddHTML(p+"Size",String(size),[{items:RA_SIZES.map(n=>({value:String(n),label:String(n)}))}],{})}<p>out of ${f(N)}</p></div>
+  <span class="ra-pg-sep" aria-hidden="true"></span>
+  <div class="ra-pg-c ra-pg-d"><p>Go to page:</p><form id="${p}Go" novalidate><input class="ra-pg-in" id="${p}GoIn" type="number" min="1" max="${pages}" value="${cur}" aria-label="Go to page"></form><p>/${pages}</p></div>
+  <ul class="ra-pul">${step(cur-1,cur<=1,"Previous page","M10 4 6 8l4 4")}${nums}${step(cur+1,cur>=pages,"Next page","M6 4l4 4-4 4")}</ul></nav>`}
+/* hidden while everything fits on the smallest page */
+function wslPager(N){if(N<=RA_SIZES[0]) return ""; const g=pageOf("clients",N,WS_SIZE); return pgBar("ws",N,WS_SIZE,g.p,g.n)}
+/* the hash: wsq (encoded twice, since HASHX decodes the whole hash before it splits), wsstatus, wsusage, wsteam,
+   wsclient (comma lists), wssort (col-asc or col-desc), wspage and wssize; defaults are left out */
+const WSL_KEYS=["wsq","wsstatus","wsusage","wsteam","wsclient","wssort","wspage","wssize"];
+function wslParts(){const S=HSORT.ws, o=[];
+ if(cliQ.trim()) o.push("wsq="+encodeURIComponent(encodeURIComponent(cliQ)));
+ WSF_DEF.forEach(([k])=>{if(WSF[k].length) o.push("ws"+k+"="+WSF[k].map(encodeURIComponent).join(","))});
+ if(S) o.push("wssort="+S.col+"-"+(S.dir>0?"asc":"desc"));
+ if((PAGE.clients||1)>1) o.push("wspage="+PAGE.clients);
+ if(WS_SIZE!==25) o.push("wssize="+WS_SIZE);
+ return o}
+const wslHash=()=>location.hash.replace(/^#/,"").split("&").filter(s=>s&&WSL_KEYS.indexOf(s.split("=")[0])<0).concat(wslParts()).join("&");
+const wslSnap=()=>({q:cliQ,f:JSON.parse(JSON.stringify(WSF)),sort:HSORT.ws?Object.assign({},HSORT.ws):null,pg:PAGE.clients||1,size:WS_SIZE});
+function wslApply(s){cliQ=s.q||""; wsfReset(); WSF_DEF.forEach(([k])=>{WSF[k]=((s.f||{})[k]||[]).slice()}); HSORT.ws=s.sort||null; PAGE.clients=s.pg||1; WS_SIZE=s.size||25}
+/* "push" (a filter, a sort, a page): a new history entry; "type": the first keystroke of a search pushes, the rest replace it;
+   "replace": the current entry. Before the first push the entry being left keeps the state it had (WSL_LAST). */
+function wslSync(mode){
+ const h=wslHash(), url=location.pathname+location.search+(h?"#"+h:""), now=wslSnap();
+ try{const st=history.state;
+  if(mode==="replace"||(mode==="type"&&st&&st.sh==="wsl"&&st.typing)) history.replaceState({sh:"wsl",s:now,typing:mode==="type"},"",url);
+  else if(h!==location.hash.replace(/^#/,"")){if(!st) history.replaceState({sh:"wsl",s:WSL_LAST||now},"",location.href);
+   history.pushState({sh:"wsl",s:now,typing:mode==="type"},"",url)}}catch(e){}
+ WSL_LAST=now}
+/* boot: the hash's list state */
+function wslRead(){const raw=location.hash.replace(/^#/,"").split("&"), g=k=>{const s=raw.find(x=>x.split("=")[0]===k); return s==null?null:s.slice(k.length+1)};
+ const q=g("wsq"); if(q!=null){try{cliQ=decodeURIComponent(decodeURIComponent(q))}catch(e){cliQ=""}}
+ WSF_DEF.forEach(([k,,O])=>{const v=g("ws"+k); if(v){const L=v.split(",").map(x=>{try{return decodeURIComponent(x)}catch(e){return ""}}).filter(Boolean); WSF[k]=O?L.filter(x=>O.some(o=>o[0]===x)):L}});
+ const s=g("wssort"); if(s){const [c,d]=s.split("-"); if(c!=="acts"&&HS_COLS.ws.some(x=>x[0]===c)) HSORT.ws={col:c,dir:d==="asc"?1:-1}}
+ const z=+g("wssize"); if(RA_SIZES.indexOf(z)>-1) WS_SIZE=z;
+ const p=+g("wspage"); if(p>0) PAGE.clients=Math.floor(p);
+ WSL_LAST=wslSnap()}
+/* Back and Forward: the entry's list state, on Home */
+window.addEventListener("popstate",e=>{const st=e.state; if(!st||st.sh!=="wsl"||!st.s) return;
+ SH_SKIP=true; clearTimeout(window.__wslSkipT); window.__wslSkipT=setTimeout(()=>{SH_SKIP=false},80);
+ wslApply(st.s); WSL_LAST=st.s; WSF_OPEN=null; WSF_Q="";
+ if(ctx!=="agency"||view.name!==homeView().name){ctx="agency";asClient=false;view=homeView()}
+ render()});
+function wsfClose(focus){const k=WSF_OPEN; if(!k) return; WSF_OPEN=null; WSF_Q=""; render(); if(focus){const t=document.querySelector('[data-wsft="'+k+'"]'); if(t) t.focus()}}
+document.addEventListener("mousedown",e=>{if(WSF_OPEN&&!(e.target.closest&&e.target.closest(".wsf.is-open"))) wsfClose(false)},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&WSF_OPEN){e.preventDefault();e.stopPropagation();wsfClose(true)}},true);
+function wslWire(){
+ const q=s=>document.querySelectorAll(s), top=()=>{const c=document.querySelector(".ws-card"); if(c) c.scrollIntoView({block:"start"})};
+ q("[data-wsft]").forEach(b=>b.onclick=()=>{const k=b.dataset.wsft; WSF_OPEN=WSF_OPEN===k?null:k; WSF_Q=""; render();
+  const m=document.querySelector('.wsf[data-wsf="'+k+'"] .wsf-m'); if(m){const f=m.querySelector("#wsfQ")||m.querySelector("input"); if(f) f.focus()}});
+ q("[data-wsfo]").forEach(cb=>cb.onchange=()=>{const [k,v]=cb.dataset.wsfo.split("|"), L=WSF[k], i=L.indexOf(v);
+  if(cb.checked&&i<0) L.push(v); if(!cb.checked&&i>-1) L.splice(i,1);
+  PAGE.clients=1; wslSync("push"); render(); const n=document.querySelector('[data-wsfo="'+cb.dataset.wsfo+'"]'); if(n) n.focus()});
+ bindSearch("wsfQ",v=>{WSF_Q=v});
+ q("[data-wsfx]").forEach(b=>b.onclick=()=>{WSF[b.dataset.wsfx]=[]; PAGE.clients=1; wslSync("push"); render(); const s=el("cliSearch"); if(s) s.focus({preventScroll:true})});
+ q("[data-wsfclear]").forEach(b=>b.onclick=()=>{wsfReset(); PAGE.clients=1; wslSync("push"); render(); const s=el("cliSearch"); if(s) s.focus({preventScroll:true})});
+ q("[data-wspg]").forEach(b=>b.onclick=()=>{PAGE.clients=+b.dataset.wspg; wslSync("push"); render(); top()});
+ wireDD(document,"wsSize",v=>{if(v){WS_SIZE=+v; PAGE.clients=1; wslSync("push"); render(); top()}});
+ const go=el("wsGo"); if(go) go.onsubmit=e=>{e.preventDefault(); const i=el("wsGoIn"), n=Number(i.value), max=Number(i.max);
+  if(!Number.isInteger(n)||n<1||n>max){i.classList.add("is-err");return} PAGE.clients=n; wslSync("push"); render(); top()};
+ const gi=el("wsGoIn"); if(gi) gi.oninput=()=>gi.classList.remove("is-err");
+}
 
 /* ═══ the thread panel: reply from the roll-up without leaving it ════════════ */
 function threadHTML(){
@@ -13681,12 +13821,16 @@ function demoScenario(name){
  DEMO=name;
 }
 let DEMO="busy";
+/* vE E021: past the 37 names the first and last words recombine ("Beacon Dental"), so Many workspaces reaches 120 */
+function scaleMore(){const A=SCALE_NAMES.map(s=>s.split(" ")[0]), Z=SCALE_NAMES.map(s=>s.split(" ").slice(1).join(" ")), out=[], seen=new Set(SCALE_NAMES);
+ for(let j=0;out.length<200&&j<A.length*Z.length;j++){const nm=A[j%A.length]+" "+Z[(j+Math.floor(j/A.length)+1)%Z.length]; if(!seen.has(nm)){seen.add(nm);out.push(nm)}}
+ return out}
 function scaleTo(n){
- const r=rng("scale");
+ const r=rng("scale"), NAMES=SCALE_NAMES.concat(scaleMore()), k0=n>SCALE_NAMES.length+10?40/n:1;   /* vE E021: past 47, limits shrink so they stay inside the plan */
  const pal=["#B45309","#0F766E","#C2410C","#6D28D9","#0E7490","#9333EA","#4B5563","#BE185D","#1D4ED8","#047857","#B91C1C","#7C3AED"];
  let i=0;
- while(CLIENTS.length<n&&i<SCALE_NAMES.length){
-  const name=SCALE_NAMES[i++], id="s"+String(i).padStart(2,"0");
+ while(CLIENTS.length<n&&i<NAMES.length){
+  const name=NAMES[i++], id="s"+String(i).padStart(2,"0");
   if(byId[id]) continue;
   const slug=name.toLowerCase().replace(/[^a-z]+/g,"-").replace(/^-|-$/g,"");
   const sent=Math.round((1500+r()*14000)/100)*100, seq=1+Math.floor(r()*6);
@@ -13698,13 +13842,13 @@ function scaleTo(n){
    seq,mbx:Math.max(2,Math.round(sent/CYCLE.day/85)),prospects:Math.round(sent*0.2/10)*10,sent,
    reply:0,prev:0,pos:+(0.5+r()*3).toFixed(1),
    created:(1+Math.floor(r()*28))+" Aug, 2026",limitsReviewed:r()<.8,
-   users:[["hello@"+slug+".com",role]],mailboxes:[],synthetic:true};
+   users:i>SCALE_NAMES.length&&i%6===0?[]:[["hello@"+slug+".com",role]],mailboxes:[],synthetic:true};   /* vE E021: one in six of the extra ones has no client user yet */
   /* last cycle's rate moves with this cycle's, as it does in life; independent
      draws made half the book "Falling" and the flag meaningless */
   c.reply=+(2+r()*7).toFixed(1); c.prev=+(c.reply*(0.7+0.8*r())).toFixed(1);
   SEND_DOMAINS[id]=[slug+".com",slug+"-go.com",slug+"-reach.com"]; SEQ_SETS[id]=[];
   RK.forEach(k=>{const st=ncStep(k),cap=k==="sends"?Math.round(sent*1.2/500)*500
-    :Math.max(st,Math.round(RES[k].pool*0.015*(1+r())/st)*st);
+    :Math.max(st,Math.round(RES[k].pool*0.015*(1+r())*k0/st)*st);
     RES[k].rows[id]={res:0,cap,used:Math.min(cap,Math.round(cap*(0.2+r()*0.75)))}});
   growMailboxes(c); growSequences(c);
   CLIENTS.push(c); byId[id]=c;
@@ -13722,10 +13866,10 @@ function scaleTo(n){
    person goes through the hash (the hashchange handler reloads), so the
    choice survives the reload and the URL can be copied. In-session only. */
 let demoOpen=false, demoVA=null;
-const DEMO_SCN=[["fresh","Fresh account (no workspace yet)"],["busy","Busy: 10 workspaces, limits running out"],["calm","Calm: nothing wrong"],["crisis","Crisis: payment failed"]];
-const DEMO_SHORT={fresh:"Fresh account",busy:"Busy",calm:"Calm",crisis:"Crisis"};
+const DEMO_SCN=[["fresh","Fresh account (no workspace yet)"],["busy","Busy: 10 workspaces, limits running out"],["calm","Calm: nothing wrong"],["crisis","Crisis: payment failed"],["many","Many workspaces: 120, to show paging"]];   /* vE E021 */
+const DEMO_SHORT={fresh:"Fresh account",busy:"Busy",calm:"Calm",crisis:"Crisis",many:"Many workspaces"};
 /* which showcase the current load is: the route says, not the fixtures */
-function demoScn(){const r=HASHX.route; if(!r||/^(setup|home|new-agency)$/.test(r)) return "fresh"; const m=r.match(/^demo=?(.*)$/); return m?(m[1]||"busy"):null}
+function demoScn(){const r=HASHX.route; if(!r||/^(setup|home|new-agency)$/.test(r)) return "fresh"; if(/^scale(=|$)/.test(r)) return "many"; const m=r.match(/^demo=?(.*)$/); return m?(m[1]||"busy"):null}   /* vE E021: #scale= is Many workspaces */
 const demoChromeOff=()=>HASHX.p.chrome==="off";
 const demoAgencyPeople=()=>Object.keys(PEOPLE).filter(k=>!PEOPLE[k].disabled&&!PEOPLE[k].invited);
 const demoClientWs=()=>CLIENTS.filter(c=>!c.deletedOn&&!c.own);
@@ -13753,7 +13897,7 @@ function demoApplyPlan(v){demoGo(demoHash([demoRoute(),demoAsParam(),demoModelPa
    just before it and put back after the boot below, when the new person and
    fixtures can still reach it (demoRestoreScreen). */
 const DEMO_KEEP="demoKeepScreen";
-function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HSORT,cliQ,
+function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HSORT,cliQ,wsl:wslSnap(),
  client:CLIENT_SESSION,acting:ACTING_EMAIL,preview:PREVIEW,scroll:(el("page")||{}).scrollTop||0}))}catch(e){}}
 function demoGo(hash){demoSaveScreen();const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
 function demoRestoreScreen(){
@@ -13763,6 +13907,7 @@ function demoRestoreScreen(){
     between them keeps the landing the product gives that person */
  if(!!S.client!==!!CLIENT_SESSION) return;
  cliQ=S.cliQ||""; if(S.HSORT) HSORT=S.HSORT; /* change 267 */
+ if(S.wsl){wslApply(S.wsl); wslSync("replace")}   /* vE E021 */
  if(CLIENT_SESSION){
   if(S.ctx!==ctx||!S.cView) return;
   const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings") return;
@@ -13785,6 +13930,7 @@ function demoRoute(){return HASHX.route||""}
 function demoGuideParam(){return GUIDE_ON?"":"guide=off"}
 function demoApplyScn(n){
  if(n==="fresh"){demoGo(demoHash([demoModelParam(),demoGuideParam()]));return}
+ if(n==="many"){demoGo(demoHash(["scale=119",demoAsParam(),demoModelParam(),demoGuideParam()]));return}   /* vE E021: the busy seed plus 110, 120 with your own (scaleTo counts CLIENTS, which leaves your own out) */
  demoGo(demoHash(["demo="+n,demoAsParam(),demoModelParam(),demoGuideParam()]))}
 function demoAsParam(){const v=demoVA||demoCurrent(); return v.val&&v.val!=="t:owner"?"as="+v.val:""}
 function demoModelParam(){return (demoVA?demoVA.model:ACCESS_MODEL)==="atm"?"model=atm":""}
@@ -13945,6 +14091,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
   if(a.indexOf("w:")===0){const [id,email]=a.slice(2).split("|"),cc=byId[id];
    if(cc&&!cc.deletedOn){ctx=id;asClient=true;PREVIEW=false;CLIENT_SESSION=true;ACTING_EMAIL=email||null;openProspect=null;openSeq=null;openReply=null;view={name:"clients"};   /* change 351: a client session never keeps an agency view from the same link */
     const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1);cView=first?first[0]:"settings"}}}
+ wslRead();   /* vE E021 */
  demoRestoreScreen()}
 render();
 if(demoKeepScroll){const pg=el("page");setTimeout(()=>{pg.scrollTop=demoKeepScroll},260)}
@@ -15099,6 +15246,32 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .ra-pg-in:focus{outline:0;border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE}
 .ra-pg-in.is-err{border-color:#B91C1C;box-shadow:0 0 0 3px #FEE2E2}
 .ra-pg #raGo{margin:0}
+/* ═══ vE E021: Home's Workspaces card. Filter triggers are the app's select (.dd-trig: 32px, 1px #D1D5DB, radius 4, 13/18),
+   sized to their label as production's sequence-list filters are; the menu is .dd-menu with a checkbox per option.
+   Applied filters are production's filter tab (atoms/filter-tab/filter-tab.scss: 7px 10px, Gray 100 fill, 1px Gray 200,
+   radius 5, 12/15 500 Gray 500 name, 600 Gray 800 value, 20px apart). The pager is change 353's bar as the card's foot. ═══ */
+.ws-ch .wsf-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:0 1 auto;min-width:0}
+.wsf{flex:none}.wsf .dd-trig{width:auto;max-width:220px}
+.wsf .wsf-m{right:auto;width:max-content;min-width:200px;max-width:280px;padding:4px 0}
+.wsf-o{cursor:pointer;user-select:none}.wsf-o input{flex:none}
+.dd-s{position:sticky;top:0;z-index:1;padding:8px 8px 4px;background:#fff}
+.dd-s input{width:100%;height:32px;border:1px solid #d1d5db;border-radius:4px;background:#fff;padding:0 12px;font:inherit;font-size:13px;line-height:18px;color:#111827;outline:none;box-sizing:border-box}
+.dd-s input:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px #dbeafe}
+.dd-opt[hidden]{display:none}
+.dd-none{margin:0;padding:8px 16px;font-size:13px;line-height:20px;color:#6b7280}.dd-none[hidden]{display:none}
+.wsf-chips{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:16px 24px 0}
+.wsf-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-width:0;padding:7px 10px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;box-sizing:border-box}
+.wsf-cn,.wsf-cv{font-size:12px;line-height:15px;font-weight:500;color:#6b7280;white-space:nowrap}
+.wsf-cv{font-weight:600;color:#1f2937;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wsf-x{display:flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:2px;background:none;color:#6b7280;cursor:pointer}
+.wsf-x:hover{color:#1f2937}.wsf-x:focus-visible{outline:2px solid #1d4ed8;outline-offset:1px}
+.wsf-chips+.tscroll{margin-top:16px}
+.ws-none td{height:56px}
+.ws-card .ra-pg{margin:0;border:0;border-top:1px solid #d1d5db;border-radius:0 0 var(--radius-surface) var(--radius-surface);box-shadow:none}
+.ra-pg form{margin:0}
+.ra-pg input.ra-pg-in{width:63px;height:24px;padding:0 8px;font-size:14px;line-height:20px;text-align:left}   /* the app's input[type=number] (96px, 32px, right) outranked .ra-pg-in */
+.ws-pick-s{margin:0 0 12px}
+.an-ws-s{padding-bottom:0}
 .ra-pul{display:flex;align-items:center;margin:0;padding:0;list-style:none}
 .ra-pi{display:flex}
 .ra-pl{display:flex;align-items:center;justify-content:center;min-width:23px;min-height:24px;margin:0 0 0 8px;padding:5px 8px;border:0;border-radius:4px;background:transparent;font:inherit;font-size:14px;line-height:1;color:#595959;cursor:pointer}
@@ -15124,6 +15297,9 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .ra-pg{justify-content:space-between;gap:12px;padding:0 8px 0 16px}
  .ra-pg-m{display:block}
  .ra-pg-d,.ra-pg-sep,.ra-pn{display:none}
+ /* vE E021: phone, the filters on their own row under the search */
+ .ws-ch .wsf-bar{order:3;flex:1 1 100%}
+ .wsf-chips{padding:12px 24px 0}   /* level with the header, which keeps 24px on a phone */
 }
 .modal--450{width:450px}
 .is-preview .page .sw,.is-preview .page .shd-button--primary,.is-preview .page [data-seqask],.is-preview .page [data-seqnew],.is-preview .page [data-seqlaunchask],.is-preview .page [data-replysend],.is-preview .page [data-reqmore]{opacity:.55;pointer-events:none}/* change 138: in a preview the owner can open the ask sheet; only Send is held back */.is-preview .page [data-askopen]{opacity:1;pointer-events:auto}
@@ -16409,7 +16585,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="e35ab35";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="38ce8f5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
