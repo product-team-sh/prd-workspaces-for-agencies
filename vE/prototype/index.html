@@ -1315,9 +1315,9 @@ tr.bl-focus>td{background:var(--blue-17);transition:background .6s ease}
 .tmeta{font-size:12px;color:var(--gray-15)}
 .tbody{font-size:14px;line-height:20px;color:var(--gray-12);background:var(--gray-19);border-radius:var(--radius-input);padding:10px 14px;margin-top:6px}
 .dash-toolbar{padding:24px 24px 12px}
+.dash-flat{padding-top:20px}   /* change E013: with the top bar at 50px the first banner or tile sits at 74px, as the first card of Billing and Usage */
+@media(max-width:640px){.dash-flat{padding-top:12px}}
 .dash-title{font-size:22px;line-height:30px;font-weight:600;letter-spacing:-.01em;color:var(--gray-17)}
-.dash-arrival{display:block;margin-top:4px;max-width:640px}
-.dash-arrival .linkbtn{font-size:12px}
 @media(max-width:1180px){.dwrap{grid-template-columns:1fr}}
 /* the collapsed rail replaces the old disappearing act: 57px of icons stays
    reachable where display:none left no way back to the switcher at all. */
@@ -4091,9 +4091,7 @@ function wssScore(w){
  return {state:null,score,band,parts,fixFirst:band==="On track"?null:first,more:band==="On track"?0:more,problems:P,missing:M,trend,sent}}
 /* the vC seed adapter, as score.mjs readSeed and fromSeed: the last 7 days whatever the Dashboard's period */
 function wssInput(c){
- const keep=HOME_WIN; HOME_WIN="7d";
- let M,W;
- try{M=hm(c); W=wk7(c)} finally {HOME_WIN=keep}
+ const M=hm(c), W=wk7(c);
  const sq=(c.sequences||[]).filter(q=>q.state!=="Draft");
  const SW=sq.map(q=>c.sent?Math.round(q.sent*W.sent/c.sent):0);
  if(SW.length){const d=W.sent-SW.reduce((a,x)=>a+x,0); SW[SW.indexOf(Math.max(...SW))]+=d}
@@ -4554,8 +4552,7 @@ const wsTableOpen=()=>'<div class="tscroll"><table class="organism home-tbl ws-t
 /* change 201, 12 Oct 2026: the Dashboard's one-line header (200) here too; the window line above the table says the rest */
 /* change 267: the same five headers, each a sort button (hsHead) */
 const wsHeadHTML=()=>hsHead("ws");
-const homeUnitHTML=()=>'<span class="segc home-unit" role="group" aria-label="Show counts as">'+[["total","Total"],["day","Per day"]].map(([k,l])=>'<button type="button" data-homeunit="'+k+'" aria-pressed="'+(HOME_UNIT===k)+'">'+l+'</button>').join("")+'</span>';
-const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=>({value:k,label:WINS[k].label}))}],{icon:'<svg class="dd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'});
+/* change E013: the Home period picker and Total / Per day switch are gone; the window is the last 7 full days */
 /* change 200, 12 Oct 2026 (Hitesh: "fix workspace column header man! it looks so bad";
    doc 91, H1 "let's go with what you reccomend"): one line per header at one height,
    no unit lines. The window is said once, in the card title (homeWinLine), Bounce is
@@ -4565,7 +4562,7 @@ const homeWinHTML=()=>ddHTML("homeWin",HOME_WIN,[{items:Object.keys(WINS).map(k=
 let HC_LI=null, HC_LIK="";
 /* LinkedIn steps in the period: the Prospects contacted tile's own scaling (heroCards: winTot with the
    contacted change over myWorkspaces), the client rows rounded by largest remainder to the tile's total */
-function hcLi(c){const key=HOME_WIN+"|"+me_;
+function hcLi(c){const key=me_;
  if(!HC_LI||HC_LIK!==key){const ws=myWorkspaces(), cl=myClients();
   const cW=ws.map(wk7).reduce((a,w)=>({now:a.now+w.cont,prev:a.prev+(w.prev.cont||0)}),{now:0,prev:0}), d=cW.prev?Math.round((cW.now-cW.prev)/cW.prev*100):null;
   const ex=x=>(chanOf(x).li||0)/CYCLE.day*win().days*win().f(d), raw=cl.map(ex), fl=raw.map(Math.floor);
@@ -4574,7 +4571,6 @@ function hcLi(c){const key=HOME_WIN+"|"+me_;
   HC_LI={}; cl.forEach((x,i)=>HC_LI[x.id]=fl[i]); ws.forEach(x=>{if(!(x.id in HC_LI)) HC_LI[x.id]=Math.round(ex(x))}); HC_LIK=key;
   setTimeout(()=>{HC_LI=null},0)}
  return HC_LI[c.id]||0}
-const homeWinLine=()=>win().label+(perDay()?", a day on average":"");   /* change 320: Usage's header tooltip says "this billing cycle" */
 /* ═══ change 267, 14 Oct 2026 (Hitesh: "Also add ability sort based by clicking on column header") ═══
    One header for both tables that draw homeRow: the Dashboard (home) and the Workspaces page (ws). Null is
    the default order (no chevron); {col,dir} with dir 1 ascending, -1 descending. */
@@ -8437,21 +8433,10 @@ function vDash(){
  if(!full) return '<div class="toolbar dash-toolbar"><div class="cell-main"><span class="semibold-3 dash-title">Home</span></div></div>'
   +(()=>{const g=graceBanner();return g?'<div class="dn-w">'+g+'</div>':""})()
   +'<div class="dwrap dwrap-hero dwrap-hero--full"><div class="dmain">'+tableCard+'</div></div>';
- return '<div class="toolbar dash-toolbar" style="position:relative">'
-  +'<div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span>'
-  +(norm?'':(()=>{const M=["January","February","March","April","May","June","July","August","September","October","November","December"],mi=M.indexOf(CYCLE.month.split(" ")[0]),cur=M[mi].slice(0,3),prev=M[(mi+11)%12].slice(0,3);
-     /* change 184 (Hitesh: "too long - keep it short but clear"): the picker names the period and the headers carry "a day" and "this cycle", so the line is the dates alone */
-     /* change 361 (doc 115 B): the line names both periods, read, not hidden in a hover */
-     const R=winRange(); return '<span class="sub dash-arrival">'+R.cur+(R.prev?" compared with "+R.prev:"")+'</span>'})())
-  +'</span></div>'
-  +'<div class="tools" style="position:relative">'
-   /* change 168, 9 Oct 2026 (Hitesh): the admin panel Home drops New in a
-      workspace (creating happens inside a workspace) and Add a workspace gets
-      the + icon. The single-workspace Home keeps its New menu. */
-   +(norm?'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>':'')
-   /* change 182: the period picker the whole Home follows */
-   +(norm?'':homeUnitHTML()+homeWinHTML())
-  +'</div></div>'
+/* change E013: the period bar is gone (date line, Total / Per day, period picker). The multi-workspace Home opens on its banners and tiles;
+    the single-workspace Home keeps its title and New menu. */
+ return (norm?'<div class="toolbar dash-toolbar" style="position:relative"><div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span></span></div>'
+  +'<div class="tools" style="position:relative">'+'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>'+'</div></div>':'<div class="dash-flat">')
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
      everything under them flows in its own column as before. */
@@ -8472,7 +8457,7 @@ function vDash(){
   /* change 300: the payment banner sits above the cards */
   :dnHTML()+(()=>{const s=seqAskBanner();return s?'<div class="dn-w">'+s+'</div>':""})()+heroCards(mine,tch,rep,items)+'<div class="dwrap dwrap-hero dwrap-hero--full">'
    +'<div class="dmain">'+tableCard+'</div>'
-  +'</div>');
+  +'</div></div>');
 }
 
 /* change 300 (audit C4, inside doc 68's phase 1 cut: Home as "what needs you" is phase 2). Three ways to the
@@ -8568,7 +8553,7 @@ function heroCards(mine,tch,rep,items){
  const rate=cW.now?(mine.reduce((t,c)=>t+wk7(c).rep,0)/cW.now*100).toFixed(1)+"% reply rate":"";
  const interested=mine.reduce((t,c)=>t+positives(c),0);
  const unread=REPLIES.filter(r=>!r.replied&&mine.some(c=>c.id===r.client)), oldest=unread.length?Math.max(...unread.map(r=>ageDays(r.age))):0;
- const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+(perDay()?pdDay(winTot(x[0],cW.d)):f(Math.round(winTot(x[0],cW.d))))+" "+x[1]+'</span>'); const chanT=listAnd(chan);   /* change 298 (audit P2-15): a day keeps one decimal under 10 (181) */   /* change 297 (audit P2-3) */
+ const chan=[[tch.email,"emails"],[tch.li,"LinkedIn steps"],[tch.call,"calls"],[tch.wa,"WhatsApp"]].filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>'<span style="white-space:nowrap">'+f(Math.round(winTot(x[0],cW.d)))+" "+x[1]+'</span>'); const chanT=listAnd(chan);   /* change 298 (audit P2-15): a day keeps one decimal under 10 (181) */   /* change 297 (audit P2-3) */
  /* change 361: the tile's value hover gives both numbers like the table's cells (no chip on the tile, change 310);
     the earlier figure sums the rows' earlier Contacted, a row with no earlier figure held level (change 231) */
  const ocs=mine.map(ocOf), tNow=ocs.reduce((t,o)=>t+o.cont,0), tPrev=ocs.some(o=>o.contP!=null)?ocs.reduce((t,o)=>t+(o.contQ||0),0):null,
@@ -8585,8 +8570,8 @@ function heroCards(mine,tch,rep,items){
     `<span class="hero-v">${f(active)}</span>`,
     grace()?`<span class="hero-need">${f(held)} paused until payment is fixed</span>`
     :"").replace('<button type="button" class="hero-card" data-nav="">','<div class="hero-card hero-card--still">').replace(/<\/button>$/,"</div>")}
-  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted",
-    `<span class="hero-vrow"><span class="hero-v${tTip?' u-tip" title="" data-uwtip="'+cmpEa(tTip):''}">${pd(tNow)}</span>${spark}</span>${tTip?'<span id="heroCmp" hidden>'+cmpEa(tTip.replace(/\n/g,". "))+'</span>':''}`,`<span class="hero-f-wrap">${perDay()?"A day, via ":"Via "}${chanT||"nothing yet"}</span>`).replace('data-nav="analytics">',tTip?'data-nav="analytics" aria-describedby="heroCmp">':'data-nav="analytics">')}
+  ${card("analytics",I('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),"Prospects contacted, last 7 days",
+    `<span class="hero-vrow"><span class="hero-v${tTip?' u-tip" title="" data-uwtip="'+cmpEa(tTip):''}">${pd(tNow)}</span>${spark}</span>${tTip?'<span id="heroCmp" hidden>'+cmpEa(tTip.replace(/\n/g,". "))+'</span>':''}`,`<span class="hero-f-wrap">Via ${chanT||"nothing yet"}</span>`).replace('data-nav="analytics">',tTip?'data-nav="analytics" aria-describedby="heroCmp">':'data-nav="analytics">')}
  </div>`;
 }
 /* ═══ inside a client, as agency staff: the four modules the row actions target ═══ */
@@ -9755,18 +9740,16 @@ function hpSeqStates(c){
    E3 (Rajat): confirm how production's Replied counts: by the day the reply arrives (what this assumes), or
       prospects contacted in the period who later replied (then recent periods always read low until replies
       catch up). 115 open question 1. */
-let HOME_WIN="7d";
-const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",days:7,f:d=>1,dd:d=>d},
- "30d":{label:"Last 30 days",lower:"the last 30 days",days:30,f:d=>d==null?1:1/(1+d/200),dd:d=>d==null?null:Math.round(d*0.6)},
- "mtd":{label:"This month",lower:"this month",days:CYCLE.day-1,f:d=>d==null?1:1-d/600,dd:d=>null,cmp:false}};   /* change 361: 1 to 8 Sep, totals only */
-const win=()=>WINS[HOME_WIN]||WINS["7d"];
+/* change E013: Home has one window, the last 7 full days ending yesterday; the picker, 30 days, This month and Per day are gone */
+const WINS={"7d":{label:"Last 7 days",lower:"the last 7 days",days:7,f:d=>1,dd:d=>d}};
+const win=()=>WINS["7d"];
 const winTot=(cycle,d)=>Math.round((cycle||0)/CYCLE.day*win().days*win().f(d));
 const winD=d=>win().dd(d);
 const wk=n=>winTot(n,null);
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const winRange=()=>{const n=win().days,end=new Date(2026,8,CYCLE.day-1), at=x=>new Date(end.getTime()-x*864e5),   /* change 361: ends yesterday */
   rng=(a,b)=>a.getTime()===b.getTime()?b.getDate()+" "+MON3[b.getMonth()]:a.getMonth()===b.getMonth()?a.getDate()+" to "+b.getDate()+" "+MON3[b.getMonth()]:a.getDate()+" "+MON3[a.getMonth()]+" to "+b.getDate()+" "+MON3[b.getMonth()];
-  return {cur:rng(at(n-1),at(0)),prev:win().cmp===false?null:rng(at(2*n-1),at(n)),start:at(n-1),end}};
+  return {cur:rng(at(n-1),at(0)),prev:rng(at(2*n-1),at(n)),start:at(n-1),end}};
 /* [calls made change %, connect rate %, calls connected change %]. Change 180 (Hitesh): "We can shows calls
    connected - it's okay, remove positive call outcomes": Calls connected is the Dialer's own Call Reports
    measure (calls the prospect answered), with its change against the previous period. */
@@ -9815,10 +9798,7 @@ const w7Delta=(d,noIcon)=>'<span class="w7-d"'+(noIcon?'':' title="'+(d>0?"Up ":
    option to them"): totals for the chosen period by default, matching every product
    in doc 87 and Saleshandy's own reports; a Total | Per day switch beside the picker
    turns every count into its daily average. */
-let HOME_UNIT="total";
-const perDay=()=>HOME_UNIT==="day";
-const pd=n=>perDay()?pdDay(n):f(Math.round(n||0));
-const pdDay=n=>{const v=(n||0)/win().days;return v<10?String(Math.round(v*10)/10):f(Math.round(v))};
+const pd=n=>f(Math.round(n||0));
 /* ═══ change 340, 21 Oct 2026: Contacted and Replied, distinct prospects on any channel in the period ═══
    The seed holds channel totals, not people: email contacted and replied per sequence (wk7 cont, rep), calls made and
    connected (CHAN call, CALL_W) and LinkedIn steps (hcLi). The people per channel and the overlap are derived:
@@ -12726,8 +12706,6 @@ const tourReplayId=()=>TOUR_LAST&&byId[TOUR_LAST]&&!byId[TOUR_LAST].deletedOn?TO
 
 function wire(){
  const q=s=>document.querySelectorAll(s);
- if(document.getElementById("homeWin")) wireDD(document,"homeWin",v=>{HOME_WIN=v;render()});
- q("[data-homeunit]").forEach(b=>b.onclick=()=>{HOME_UNIT=b.dataset.homeunit;render()});
  /* change 267: the whole th sorts; its button carries focus, Enter and Space (a keyboard click, detail 0,
     puts focus back on the redrawn header; a mouse click leaves no ring behind) */
  q("th[data-hsort]").forEach(th=>th.onclick=e=>{const [t,k]=th.dataset.hsort.split("|"), S=HSORT[t], kb=e.detail===0;
@@ -13667,7 +13645,7 @@ function demoApplyPlan(v){demoGo(demoHash([demoRoute(),demoAsParam(),demoModelPa
    just before it and put back after the boot below, when the new person and
    fixtures can still reach it (demoRestoreScreen). */
 const DEMO_KEEP="demoKeepScreen";
-function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HOME_WIN,HOME_UNIT,HSORT,cliQ,
+function demoSaveScreen(){try{sessionStorage.setItem(DEMO_KEEP,JSON.stringify({ctx,view,tab,inMod,asClient,cView,openSeq,seqTab,billTab,solo,soloMod,PEOPLE_TAB,PERSON_TAB,ppTab:PP.tab,HSORT,cliQ,
  client:CLIENT_SESSION,acting:ACTING_EMAIL,preview:PREVIEW,scroll:(el("page")||{}).scrollTop||0}))}catch(e){}}
 function demoGo(hash){demoSaveScreen();const h="#"+hash; if(location.hash===h||(h==="#"&&!location.hash)) location.reload(); else location.hash=hash}
 function demoRestoreScreen(){
@@ -13676,7 +13654,7 @@ function demoRestoreScreen(){
  /* the workspace side and a client user's side are two products: crossing
     between them keeps the landing the product gives that person */
  if(!!S.client!==!!CLIENT_SESSION) return;
- HOME_WIN=S.HOME_WIN||HOME_WIN; HOME_UNIT=S.HOME_UNIT||HOME_UNIT; cliQ=S.cliQ||""; if(S.HSORT) HSORT=S.HSORT; /* change 267 */
+ cliQ=S.cliQ||""; if(S.HSORT) HSORT=S.HSORT; /* change 267 */
  if(CLIENT_SESSION){
   if(S.ctx!==ctx||!S.cView) return;
   const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings") return;
@@ -14527,7 +14505,6 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
    Blue 700 icon on hover and while open). The pop-over:
    _transfer.scss's transfer-container, list rows and footer, and the product checkbox (_checkbox.scss) */
 .hero-u{font-size:14px;font-weight:500;color:var(--gray-12);margin-left:4px}
-#homeWin{width:160px;flex:none;margin-right:4px}.home-unit{flex:none;margin-right:8px}#homeWin .dd-ic{width:16px;height:16px;flex:none;color:var(--gray-12)}
 .grace-bar{align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:13px;line-height:20px;font-weight:400;color:var(--gray-17)}.grace-bar .grace-t{flex:1;min-width:0}.grace-bar strong{font-weight:600}
 .grace-bar .grace-go{flex:none;margin:0}.grace-bar .grace-who{flex:none;color:var(--gray-15)}
 /* change 299 (audit P1-13): payment failed is "needs you": Amber 100 fill, Amber 200 edge, Amber 800 text and triangle (as the Dashboard's asks line) */
@@ -16309,7 +16286,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="ce5d61d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="2b2ecc3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
