@@ -2517,9 +2517,22 @@ CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c);
    limit, no longer fit the 200,000 step of the Scale ladder, so the plan is
    the 500,000 step and the credit pools move up with it. Limits still never
    total more than the plan. */
+/* vE E004, 23 Oct 2026 (Hitesh: "we need to add Active Prospect as a resource as we planning to allow all plan
+   people to create new workspace"): every plan can create workspaces, so the plan decides whether Active prospects
+   is metered. Scale sells it Unlimited (the comment above, 2 Oct, still holds for Scale); Starter caps it at 2,000
+   and Pro at 30,000 (saleshandy.com/pricing, platform-plans-config.ts). The demo is on Scale; #...&plan=pro (the
+   Demo panel's Plan group) puts the account on Pro. The demo only swaps Active prospects: every other pool here
+   stays the Scale seed's, though Pro's real email pool is 100,000. */
+const PLAN_TIER=(()=>{try{return /(^|&)plan=pro(&|$)/.test(decodeURIComponent(location.hash.replace(/^#/,"")))?"pro":"scale"}catch(e){return "scale"}})();
 const RES={
  sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:500000,floors:false,warn:.8,
   rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},at:{res:0,cap:200000,used:54000},sf:{res:0,cap:30000,used:30000},ok:{res:0,cap:10000,used:0},pc:{res:0,cap:12000,used:5200},own:{res:0,cap:8000,used:5585}}},
+ /* vE E004: production's name (platform-pricing-table-config.ts "Active prospects") and its tooltip as the line under
+    it. A level: what is live in a sequence now; it falls as prospects finish or are removed and never renews. Used
+    is a share of what each workspace stores (the seed's prospects). Limits total 29,000 of Pro's 30,000. */
+ active_prospects:{label:"Active prospects",short:"active prospects",nature:"In live sequences at once",kind:"level",unit:"prospects",
+  pool:PLAN_TIER==="pro"?30000:0,unlimited:PLAN_TIER!=="pro",byPlan:true,floors:false,warn:.8,
+  rows:{nw:{res:0,cap:4000,used:3560},vx:{res:0,cap:4000,used:2940},al:{res:0,cap:2500,used:2390},bl:{res:0,cap:1000,used:360},cp:{res:0,cap:500,used:0},at:{res:0,cap:10000,used:9240},sf:{res:0,cap:3000,used:2440},ok:{res:0,cap:1000,used:960},pc:{res:0,cap:1000,used:600},own:{res:0,cap:2000,used:1660}}},
  lead_finder:{label:"Lead Finder credits",short:"Lead Finder credits",nature:"Granted for the plan term on day one",kind:"balance",unit:"credits",pool:15000,floors:true,warn:.8,
   rows:{nw:{res:0,cap:1900,used:1478},vx:{res:0,cap:3500,used:2976},al:{res:0,cap:1280,used:1280},bl:{res:0,cap:480,used:184},cp:{res:0,cap:240,used:0},at:{res:0,cap:4700,used:1840},sf:{res:0,cap:800,used:610},ok:{res:0,cap:300,used:0},pc:{res:0,cap:600,used:355},own:{res:0,cap:240,used:227}}},
  verification:{label:"Email verification credits",short:"email verification credits",nature:"Balance, topped up when bought",kind:"balance",unit:"credits",pool:10000,floors:true,warn:.8,
@@ -2531,7 +2544,17 @@ const RES={
  radar:{label:"Inbox placement tests",short:"inbox placement tests",nature:"Add-on balance",kind:"balance",addon:true,unit:"tests",pool:600,floors:true,warn:.8,
   rows:{nw:{res:0,cap:120,used:30},vx:{res:0,cap:150,used:74},al:{res:0,cap:60,used:58},bl:{res:0,cap:40,used:6},cp:{res:0,cap:20,used:0},at:{res:0,cap:40,used:14},sf:{res:0,cap:10,used:2},ok:{res:0,cap:5,used:0},pc:{res:0,cap:10,used:3},own:{res:0,cap:40,used:22}}},
 };
-const RK=Object.keys(RES);
+/* vE E004: RKA is every resource in display order; RK the metered ones, the keys every limit, pace, near-limit,
+   used-up and Highest usage rule loops. An Unlimited resource (Active prospects on Scale) is only ever drawn as
+   an "Unlimited" row in a resource list (RK_SHOW), never given a limit. */
+const RKA=Object.keys(RES), RK=RKA.filter(k=>!RES[k].unlimited);
+const isUnl=k=>!!(RES[k]&&RES[k].unlimited);
+const RK_SHOW=ks=>RKA.filter(k=>ks.indexOf(k)>-1||isUnl(k));
+const UNL_TXT="Unlimited";   /* production's PLATFORM_UNLIMITED_QUOTA_LABEL */
+const unlUsed=(k,id)=>{const r=RES[k].rows[id]; return r?r.used:0};
+const unlHas=id=>RK.some(k=>RES[k].rows[id]);   /* the workspace has limits at all */
+const byPlan=k=>k==="sends"||!!(RES[k]&&RES[k].byPlan);   /* raised by changing plan, never bought */
+const resSub=(k,dflt)=>RES[k]&&RES[k].kind==="level"?RES[k].nature:dflt;
 /* 2 Oct 2026, Hitesh (phase 1, doc 66 §6): limits are fixed numbers. For a credit
    the reservation always equals the limit, so there is no Reserved column anywhere;
    limits never total more than the plan, refused at the edit rather than warned
@@ -2943,15 +2966,15 @@ function setLimit(k,id,v,why){
    and "None left" at zero. "" when it lasts the cycle or nothing is used yet. paceDays is the same number in days
    from today. Exported (window.paceLine, window.paceDays) for change 290's Usage & limits. */
 const PACE_RENEW=k=>k==="sends"||k==="lead_finder";
-function paceDays(k,r){if(!r||!r.used||!(r.cap>0)) return null; const left=r.cap-r.used; return left<=0?0:left/(r.used/CYCLE.day)}
+function paceDays(k,r){if(!r||!r.used||!(r.cap>0)) return null; if(RES[k]&&RES[k].kind==="level") return r.used>=r.cap?0:null;   /* vE E004: a level never runs out at a pace */ const left=r.cap-r.used; return left<=0?0:left/(r.used/CYCLE.day)}
 /* change 320: one pace wording for every resource, days from today; a renewing one says nothing when it lasts the cycle */
 function paceLine(k,r,all){if(!r||!(r.cap>0||r.used)) return ""; const left=r.cap-r.used, pd=r.used/CYCLE.day;   /* all: a balance's days even past the cycle */
- if(left<=0) return "None left"; if(!r.used) return "";
+ if(left<=0) return "None left"; if(!r.used||RES[k]&&RES[k].kind==="level") return "";
  const n=left/pd; if((PACE_RENEW(k)||!all)&&n>=CYCLE.days-CYCLE.day) return ""; const m=Math.max(1,Math.round(n)); return `Runs out in about ${m} day${m===1?"":"s"}`}
 window.paceLine=paceLine; window.paceDays=paceDays;
 /* 2 Oct 2026 (doc 66 §7): pace = used ÷ day of cycle × days in cycle; the run-out
    day follows. Nothing is projected before day 3 of a cycle. */
-function paceOf(k,id){const r=RES[k].rows[id]; if(!r||CYCLE.day<3||!r.used) return null;
+function paceOf(k,id){const r=RES[k].rows[id]; if(!r||CYCLE.day<3||!r.used||RES[k].kind==="level") return null;
  const perDay=r.used/CYCLE.day, proj=Math.round(perDay*CYCLE.days), left=r.cap-r.used;
  const dayHit=left<=0?CYCLE.day:CYCLE.day+left/perDay, hits=dayHit<=CYCLE.days, d=Math.min(CYCLE.days,Math.ceil(dayHit));
  return {proj,hits,atLimit:left<=0,soon:left<=0||(hits&&dayHit-CYCLE.day<=3),when:d+" "+CYCLE.month.slice(0,3)}}
@@ -4964,7 +4987,7 @@ function recAccessCard(c,ro){
   <div class="panel-b rc-abody">${line?`<div class="sub" style="margin-bottom:4px">${line}</div>`:""}<div class="rc-alist" style="--rcn:${Math.min(rows.length,3)}"><div class="rc-ascroll" tabindex="0" role="region" aria-label="People with access to ${c.name}">${rows.map(row).join("")}</div></div></div></div>`;
 }
 function recLimitsCard(c,ro){
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
+ const rows=RKA.map(k=>{const R=RES[k], r=R.rows[c.id]; if(R.unlimited) return unlApu(k,c); if(!r) return ""; const s=rowState(k,c.id,compute(k)), p=Math.min(100,Math.round(s.pct*100));
   /* change 298 (audit P1-22, Hitesh's C7: A): the Limits tab's grey bar (Gray 400); amber at 90% or more
      (UW_NEAR, the Dashboard's needs-you line), red only when used up; whole percents, and never "100%" before it is */
   const out=r.cap>0&&r.used>=r.cap, pw=r.cap>0?(out?100:Math.min(99,Math.round(r.used/r.cap*100))):0;
@@ -6060,7 +6083,7 @@ const cuChip=(t,w)=>`<span class="cx-st${w?" is-w":""}">${w?CU_I.clock:""}${t}</
 /* change 303: the agency's view of a workspace's Usage draws these same rows (ag set, agencyUsage): its own words
    ("its limit", "Topped up by you", "waiting on you"), the request line as text, and a trailing action cell */
 function cuRows(c,me,canReq,ag){const AG=AGENCY.name, yr=ag&&!ag.own?"its":"your";
- return RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return "";
+ return RKA.map(k=>{const R=RES[k], r=R.rows[c.id]; if(R.unlimited) return cuUnlRow(k,c,ag); if(!r) return "";
   const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=stop?"":paceLine(k,r), hot=stop||p>=R.warn||!!ro;   /* change 292: paceLine */
   const wq=REQUESTS.find(x=>x.client===c.id&&x.res===k), pc=[];
   pc.push(stop?`<span class="cx-ul"><span class="cx-mk is-out">Used up</span></span>`
@@ -6073,7 +6096,7 @@ function cuRows(c,me,canReq,ag){const AG=AGENCY.name, yr=ag&&!ag.own?"its":"your
    if(an){const l=cuLine(an,false), on=an.on===TODAY_D?"today":"on "+an.on;
     pc.push(ag?`<span class="cx-ul"><span class="cx-rq is-ans">${l.given>=l.amt?`You gave ${f(l.given)} ${on}`:l.given?`You gave ${f(l.given)} of ${f(l.amt)} ${on}`:`You declined the request ${on}`}</span></span>`
      :`<span class="cx-ul"><button type="button" class="cx-lk is-ans" data-cuopen="${an.ask||an.id}">${l.given>=l.amt?`${AG} gave ${f(l.given)} ${on}`:l.given?`${AG} gave ${f(l.given)} of ${f(l.amt)} ${on}`:`${AG} declined your request ${on}`}</button></span>`)}}
-  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():"Does not renew"}</span></td>
+  return `<tr data-curow="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${CU_RENEW(k)?"Renews "+cuNext():resSub(k,"Does not renew")}</span></td>
    <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw${hot?" is-hot":""}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></span><span>${f(r.used)} of ${f(r.cap)}</span></div></td>
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> left</span></td>
    <td class="cx-c-pc">${pc.join("")}</td>${ag?`<td class="cx-c-ac">${ag.act(k,wq)}</td>`:""}</tr>`}).join("")}
@@ -6286,10 +6309,10 @@ function recAskBanner(c,ro){
 /* change 292: the one pace line (paceLine); "None left" is already the cell's own text */
 function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
 function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet reads "Not set", never "None left" */
- const rows=RK.map(k=>{const R=RES[k], r=R.rows[c.id]; if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
-  if(gate) return `<tr class="rlt-row" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":"Does not renew"}</span></td>
+ const rows=RKA.map(k=>{const R=RES[k], r=R.rows[c.id]; if(R.unlimited) return rlUnlRow(k,c); if(!r) return ""; const p=r.cap>0?Math.min(100,r.used/r.cap*100):(r.used?100:0), left=r.cap-r.used, pace=rlPace(k,r);
+  if(gate) return `<tr class="rlt-row" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":resSub(k,"Does not renew")}</span></td>
    <td class="rlt-c2"><span class="sub">Not set</span></td><td class="rlt-c3">&ndash;</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`;
-  return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":"Does not renew"}</span></td>
+  return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":resSub(k,"Does not renew")}</span></td>
    <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${pbar(p,UL3_GREY)}</span><span class="rlt-uv">${ul3Mk(ul3Lv(r),`<b>${f(r.used)}</b> of ${f(r.cap)}`)}</span></span></td>
    <td class="rlt-c3">${left>0?f(left):"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
@@ -7658,6 +7681,8 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("[data-nav]")){BILL.from=null;BILL.bought=null;BILL.back=null}},true);
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
 const PLAN={name:"Scale (Monthly)",start:"01 May, 2026",next:"1 Oct, 2026",amount:"$249.00",lastAmount:"$249.00",resets:"1 Oct, 2026"};
+/* vE E004: the Pro demo names the plan; the price and every pool but Active prospects stay the Scale seed's */
+if(PLAN_TIER==="pro") PLAN.name="Pro (Monthly)";
 /* change 121, 5 Oct 2026: the last three invoices, and what was bought this cycle,
    so Plan can say what next month's invoice adds instead of "Nothing yet". */
 const INVOICES=[["01 Sep, 2026","Scale (Monthly), September, with 11 email accounts",PLAN.amount,"Paid"],
@@ -7709,7 +7734,7 @@ const BILL={open:{},buy:null,amt:null,focus:false,charged:0,
  from:null,bought:null,back:null,card:false,cv:{num:"",exp:"",cvc:""},ce:{},paying:false,focusCard:false};
 const bpUnit=k=>RES[k].unit==="tests"?"tests":"credits";
 const bpPriceTxt=k=>CREDIT_PRICE[k].replace(" / "," a ");
-const bpRenew=k=>k==="sends"||k==="lead_finder"?"Renews "+PLAN.next.split(",")[0]:"Does not renew";   /* change 320: one wording on every screen */
+const bpRenew=k=>RES[k]&&RES[k].kind==="level"?RES[k].nature:k==="sends"||k==="lead_finder"?"Renews "+PLAN.next.split(",")[0]:"Does not renew";   /* change 320: one wording on every screen */
 const bpNum=s=>{const n=parseInt(String(s).replace(/[^\d]/g,""),10);return isNaN(n)?0:n};
 const CREDIT_RENEW={lead_finder:"Renews 1 Oct",verification:"Does not renew",ai:"Does not renew",dialer:"Does not renew",radar:"Does not renew"};
 function billLine(){
@@ -7861,7 +7886,7 @@ function vPlatform(){
   ${bsxUsage("Email quota resets on "+bsxD(PLAN.next,1),items)}${bsxLF()}</div>
   ${isNormal()?"":`<div class="bsx-card bsx-goes" id="bpGoes">
    <div class="bsx-info"><h3 class="bsx-h">Where your plan goes</h3><span class="bsx-tools">${bsxDl("bill")}<button type="button" class="linkbtn bsx-link" data-ulgo>Open Usage &amp; limits</button></span></div>
-   ${bpTable(RK.filter(k=>RES[k].pool>0&&!BS_BUY[k]))}</div>`}`;
+   ${bpTable(RKA.filter(k=>(RES[k].pool>0||isUnl(k))&&!BS_BUY[k]))}</div>`}`;
 }
 /* crm-subscription.tsx:7-29: production's CRM page is a static card (no API): the plan, a start date, $0 with $19 struck */
 function bsxCRM(){return `<div class="bsx-crm"><div class="bsx-k bsx-crm-k">Plan Details</div><div class="bsx-crm-n">CRM Starter (Monthly)</div>
@@ -7917,7 +7942,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.querySelec
    The renewal is under the name. Rows are plain (change 283: the row expansion went).
    `single` is a credits page: one resource, where its total came from (CREDIT_SRC) and its price always shown. */
 function bpTable(ks,single){
- const rows=ks.map(k=>{const R=RES[k], m=compute(k), P=R.pool, open=!!single, price=BP_PRICE[k], buy=BILL.buy===k&&price!=null;
+ const rows=ks.map(k=>{if(isUnl(k)) return bpUnlRow(k); const R=RES[k], m=compute(k), P=R.pool, open=!!single, price=BP_PRICE[k], buy=BILL.buy===k&&price!=null;
   const top=Object.entries(R.rows).filter(([id,r])=>r.cap>0&&bpWs(id)).sort((a,b)=>b[1].cap-a[1].cap)[0];
   const share=top?`<span class="bp-sh-n">${bpWs(top[0]).name}</span><span class="ul3-sub">${Math.round(top[1].cap/P*100)}% of the ${f(P)}</span>`:`<span class="ul3-g">None given</span>`;
   const today=CREDIT_SRC[k].buys.filter(b=>b[1]==="today").reduce((t,b)=>t+b[0],0);
@@ -8418,9 +8443,9 @@ function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on 
  return true}
 
 /* ── Edit limits: one resource at a time, the draft (UL.draft) carried across tabs ── */
-const ul3E2K=()=>UL_K().indexOf(UL.focusK)>-1?UL.focusK:UL_K()[0];
+const ul3E2K=()=>RK_SHOW(UL_K()).indexOf(UL.focusK)>-1?UL.focusK:UL_K()[0];   /* vE E004: an Unlimited resource has its tab too */
 /* change 290: rows by % used of this resource, highest first; disabled last (as board 2) */
-const ul3E2P=(k,c)=>{const r=RES[k].rows[c.id]; return r.cap>0?r.used/r.cap:0};
+const ul3E2P=(k,c)=>{const r=RES[k].rows[c.id]; return isUnl(k)?r.used:r.cap>0?r.used/r.cap:0};
 const ul3E2Rows=k=>ulRows().filter(c=>RES[k].rows[c.id]).sort((a,b)=>(!!a.disabled-!!b.disabled)||ul3E2P(k,b)-ul3E2P(k,a)||a.name.localeCompare(b.name));
 /* a limit never goes below what is used (282's rule: a limit already below it can stay or rise) */
 const ul3E2Low=(k,id)=>{const r=RES[k].rows[id], v=ulDv(k,id); return v<r.used&&v<r.cap};
@@ -8438,13 +8463,13 @@ function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, q=u
  else if(d) s=`${d>0?"+":"&minus;"}${f(Math.abs(d))}${q&&d>0?(d>=q.amount?". Fills the request.":`. Part of the ${f(q.amount)} requested.`):""}`;
  else s=`${r.cap>0?ul3Mk(ul3Lv(r),ul3Lv(r)===2?"Used up":`${ulPct(U,r.cap)}% used`):limGate(c)?"Not set"/* change E002 */:"No limit"}${q?`${ul3Lv(r)===2?" ":". "}${ask}`:""}`;   /* no full stop after a solid mark */
  return s}
-function ul3PoolHTML(k){const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;   /* change 290: the draft is UL.draft (282's Adjust pop-up and its own draft are gone) */
+function ul3PoolHTML(k){if(isUnl(k)) return ul3UnlPool(k); const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;   /* change 290: the draft is UL.draft (282's Adjust pop-up and its own draft are gone) */
  return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
   <div class="ul3-pi"><span>Available</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
 /* change 290: the strip's right end: when it renews, then Your plan's way to get more (271/285's buy link with
    Back to Usage & limits; Change plan for emails; an Account Admin asks the owner, naming the shortfall) */
 function ul3PaHTML(k){const gap=Math.max(0,ulReqs().filter(r=>r.res===k).reduce((t,r)=>t+r.amount,0)-compute(k).free);
- const act=ulRo()?"":canI("billing")?`<button type="button" class="linkbtn rqc-lk" data-ulbuy="${k}">${k==="sends"?EMAILS_MORE.label:"Buy more"}</button>`:`<button type="button" class="linkbtn rqc-lk" data-ulaskowner="${k}|${gap}">Ask the Account Owner</button>`;
+ const act=ulRo()||isUnl(k)?"":canI("billing")?`<button type="button" class="linkbtn rqc-lk" data-ulbuy="${k}">${byPlan(k)?"Change plan":"Buy more"}</button>`:`<button type="button" class="linkbtn rqc-lk" data-ulaskowner="${k}|${gap}">Ask the Account Owner</button>`;
  return `<div class="ul3-pa"><span class="ul3-rn" data-ul3renew="${k}">${ul3E2Renew(k)}</span>${act}</div>`}
 const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
 function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), low=ul3E2Lows(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
@@ -8486,8 +8511,8 @@ function ul3E2HTML(ro){const k=ul3E2K(), R=RES[k], n=ulChanges().length, nW=ulRo
  if(!ro&&UL.rv2&&n&&!ul3E2Over().length&&!ul3E2Lows().length) return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2 is-rv" id="ulLimits"><div class="panel-h"><span class="panel-t" id="ul3RvT">Review ${ul3N(n,"change")}</span></div>${ul3E2ReviewHTML()}</div></section>`;
  UL.rv2=false;
  const W=ul3E2Rows(k);
- const tabs=UL_K().map(x=>{const sh=ul3E2Short(x); return `<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}"${sh?` title="Requests for more ${RES[x].label} than the plan has available"`:""}>${RES[x].label}${sh?`<span class="ul3-tdot" data-ul3dot="${x}" aria-hidden="true"></span><span class="cx-sr">, requests exceed what is available</span>`:""}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`}).join("");
- const rows=W.map(c=>{const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
+ const tabs=RK_SHOW(UL_K()).map(x=>{const sh=!isUnl(x)&&ul3E2Short(x); return `<button type="button" role="tab" class="ul3-tab${x===k?" is-on":""}" id="ul3tab-${x}" aria-selected="${x===k}" aria-controls="ul3E2T" tabindex="${x===k?0:-1}" data-ul3tab="${x}"${sh?` title="Requests for more ${RES[x].label} than the plan has available"`:""}>${RES[x].label}${sh?`<span class="ul3-tdot" data-ul3dot="${x}" aria-hidden="true"></span><span class="cx-sr">, requests exceed what is available</span>`:""}<span class="ul3-tn" data-ul3tabn="${x}">${ul3TabN(x)}</span></button>`}).join("");
+ const rows=W.map(c=>{if(isUnl(k)) return ul3UnlRow(k,c); const r=RES[k].rows[c.id], v=ulDv(k,c.id), sub=c.disabled?"Disabled":"", p=r.cap>0?Math.min(100,r.used/r.cap*100):0;
   return `<tr class="ul3-e2r${c.disabled?" is-off":""}" data-ulws="${c.id}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${sub?`<span class="sub">${sub}</span>`:""}</span></div></td>
    <td class="ul3-num"><span class="ul3-ub">${pbar(p,UL3_GREY)}<span data-ul3used="${c.id}">${f(r.used)} of ${f(r.cap)}</span></span></td><td><input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" data-uld="${k}|${c.id}" value="${f(v)}" aria-label="${c.name} ${R.label} limit" aria-invalid="${ul3E2Low(k,c.id)}"${!ro&&ul3CanEd(c,false)?"":" disabled"}></td><td class="ul3-e2c" data-ul3chg="${c.id}">${ul3E2Chg(k,c)}</td></tr>`}).join("");
  return `<section class="ul3-e2s" id="ul3E2S" aria-labelledby="ul3E2H">${head}<div class="panel ul-panel ul3-e2" id="ulLimits">
@@ -8531,7 +8556,7 @@ document.addEventListener("keydown",e=>{if(view.name!=="limits"||ctx!=="agency")
  if(t.dataset&&t.dataset.ul3in&&e.key==="Enter"){e.preventDefault(); const all=[...q2("[data-ul3in]")], n=all[all.indexOf(t)+1]||document.querySelector("[data-ul3save]:not(:disabled)"); if(n) n.focus(); return}
  if(e.key==="Escape"&&UL.ed&&t.closest&&t.closest("[data-ul3edbox]")&&!ul3Dirty()&&t.tagName!=="SELECT"){e.stopImmediatePropagation(); ul3EdClose(); return}
  if(e.key==="Escape"&&UL.rv2){UL.rv2=false; UL.ul3f="[data-ul3rv]"; render(); return}
- if(t.dataset&&t.dataset.ul3tab&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){const K=UL_K(), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
+ if(t.dataset&&t.dataset.ul3tab&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){const K=RK_SHOW(UL_K()), i=K.indexOf(t.dataset.ul3tab), nx=K[(i+(e.key==="ArrowRight"?1:K.length-1))%K.length]; UL.focusK=nx; UL.ul3f="#ul3tab-"+nx; render()}},true);
 
 function ul3RosterHTML(ro){const W=ul3RosterRows();
  return `<div class="panel ul-panel ul3-roster" id="ulLimits"><div class="panel-h"><span class="panel-t">${W.length===1?"Your workspace":`All ${W.length} workspaces`}</span><span class="sub ul-hsub">Sorted by how close each is to a limit</span>
@@ -10827,7 +10852,7 @@ const graceNote=c=>grace()?`<div class="msg grace grace-bar grace-amb" style="ma
 /* headroom in days at the burn rate observed so far this cycle */
 const burnDays=k=>{const m=compute(k),perDay=m.used/CYCLE.day;
   return perDay>0?m.free/perDay:Infinity};
-const runsOut=()=>RK.filter(k=>RES[k].nature!=="Storage")
+const runsOut=()=>RK.filter(k=>RES[k].nature!=="Storage"&&RES[k].kind!=="level")
   .map(k=>({k,d:burnDays(k)})).sort((a,b)=>a.d-b.d)[0];
 const onDay=d=>{const n=CYCLE.day+Math.floor(d);
   return n>CYCLE.days?"after the cycle resets":n+" Sep"};
@@ -11177,7 +11202,7 @@ function hpData(c,k){
    const soon=!!z.soon, nr=!!z.near;
    return {name:RES[y.k].label,st:y.room===0?(y.storage?"Full":"Used up"):y.draw===0?"Pool empty":soon?"Runs out soon":nr?"Near limit":"Fine",tone:y.tone==="bad"?"bad":soon||nr?"warn":"ok",out:y.room===0,
     tip:y.room>0&&soon?z.pace:"",cells:[f(y.used)+" of "+f(y.cap)+" ("+pc+"%)"],go:"lim|"+c.id+"|"+y.k,hl:!c.disabled&&!!N&&N.flag.some(x=>x.k===y.k),first:y.k===fk}})
-   .sort((a,b)=>(b.first?1:0)-(a.first?1:0))}}
+   .sort((a,b)=>(b.first?1:0)-(a.first?1:0)).concat(hpUnlRows(c))}}
  if(k==="seq") return {cols:["Sequence","Status","Owner"],rows:hpSeqStates(c).map(x=>({name:x.q.name,st:x.st,tone:x.tone,cells:[x.q.owner||"&ndash;"],go:seqGo(x.q)}))};
  const S=hpSeqStates(c).filter(x=>x.q.state!=="Draft");
  if(k==="pa"){const tot=S.reduce((t,x)=>t+(x.q.prospects||0),0)||1; let left=M.pa;
@@ -13623,7 +13648,7 @@ function renderModal(){
          not just remove the one row. render()'s own !hasAgency() guard then
          takes ctx back to "own" on this same pass. */
       const i=CLIENTS.findIndex(x=>x.id===id);if(i>-1)CLIENTS.splice(i,1);
-      delete byId[id]; RK.forEach(k=>delete RES[k].rows[id]); REQUESTS=REQUESTS.filter(r=>r.client!==id);
+      delete byId[id]; RKA.forEach(k=>delete RES[k].rows[id]); REQUESTS=REQUESTS.filter(r=>r.client!==id);
       view={name:"clients"}; resetToNormal();}
      else {
       /* 2 Oct 2026 (S2, canvas row 08): a soft delete. The workspace leaves
@@ -14879,7 +14904,7 @@ function resetToNormal(){
  CLIENTS.length=0; REQUESTS.length=0;
  /* everything keyed by client id, keeping the house workspace, which is not a
     client and is where all of this account's real work lives */
- RK.forEach(k=>{Object.keys(RES[k].rows).forEach(i=>{if(i!=="own")delete RES[k].rows[i]})});
+ RKA.forEach(k=>{Object.keys(RES[k].rows).forEach(i=>{if(i!=="own")delete RES[k].rows[i]})});
  for(let i=REPLIES.length-1;i>=0;i--) if(REPLIES[i].client!=="own") REPLIES.splice(i,1);
  for(let i=TASKS.length-1;i>=0;i--) if(TASKS[i].client!=="own") TASKS.splice(i,1);
  Object.keys(byId).forEach(i=>{if(i!=="own")delete byId[i]});
@@ -14908,7 +14933,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"){p[k]=v;return} if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"){p[k]=v;return} if(!route) route=seg});
  return {route,p}})();
 /* change 154, 8 Oct 2026, Hitesh: "one switch: normal role management as built,
    and ATM-based role management". `model=atm` in the hash applies production's
@@ -15101,7 +15126,8 @@ function demoWhoGroups(){
   if(!us.length) us.push({val:"w:"+c.id+"|",label:"No user yet (previews as "+DEFAULT_CLIENT_ROLE+")"});
   g.push(["Client users: "+c.name,us])});
  return g.filter(x=>x[1].length)}
-function demoHash(parts){return parts.filter(Boolean).join("&")}
+function demoHash(parts){if(PLAN_TIER==="pro"&&!parts.some(p=>/^plan=/.test(p||""))) parts=parts.concat(["plan=pro"]); return parts.filter(Boolean).join("&")}   /* vE E004 */
+function demoApplyPlan(v){demoGo(demoHash([demoRoute(),demoAsParam(),demoModelParam(),demoGuideParam(),"plan="+v]))}
 /* change 195, 11 Oct 2026 (Hitesh): "When we change anything in demo panel - screens
    should not be switched, user should stay on same with applied changes". Every
    panel change reloads through the hash, so the screen is kept in sessionStorage
@@ -15151,7 +15177,7 @@ function demoToggleGuide(){GUIDE_ON=!GUIDE_ON;
  history.replaceState(null,"",location.pathname+(h?"#"+h:"")); HASHX.p.guide=GUIDE_ON?undefined:"off"; demoSync()}
 function demoNowLine(){const cur=demoCurrent(),scn=demoScn();
  const who=cur.mode==="client"?cur.name+", "+(cur.email||"no user yet")+" ("+cur.role+")":"Agency, "+cur.name+" ("+roleName(cur.role)+")";
- return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+", "+who+", "+MODEL_LABEL[ACCESS_MODEL]+", guide "+(GUIDE_ON?"on":"off")}
+ return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+", "+(PLAN_TIER==="pro"?"Pro":"Scale")+", "+who+", "+MODEL_LABEL[ACCESS_MODEL]+", guide "+(GUIDE_ON?"on":"off")}
 function demoSync(){
  let pill=el("demoPill"),P=el("demoPanel");
  if(!pill){pill=document.createElement("button");pill.id="demoPill";pill.type="button";pill.className="shd-button shd-button--tertiary shd-button--sm";pill.setAttribute("aria-haspopup","true");pill.setAttribute("aria-controls","demoPanel");
@@ -15168,6 +15194,7 @@ function demoSync(){
  const esc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
  const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
   <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
+  <div class="dp-g"><div class="dp-t">Plan</div>${[["scale","Scale: Active prospects Unlimited"],["pro","Pro: 30,000 Active prospects"]].map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpplan" value="${k}"${PLAN_TIER===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">Product guide</div>
    <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON&&!isATM()}" data-dpguide${isATM()?" disabled":""} aria-label="Guide after the first workspace"></button></div>
    <div class="dp-row" style="margin-top:6px"><span class="sub">${isATM()?"The tour teaches the Workspace model":"Five steps"}</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay&&!isATM()?"":" disabled"} title="${isATM()?"Switch to Workspace roles to run it":replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
@@ -15181,6 +15208,7 @@ function demoSync(){
  if(P.innerHTML!==html) P.innerHTML=html;
  P.querySelector("[data-dpclose]").onclick=()=>{demoOpen=false;demoSync()};
  P.querySelectorAll("[name=dpscn]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyScn(r.value)});
+ P.querySelectorAll("[name=dpplan]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyPlan(r.value)});   /* vE E004 */
  P.querySelector("[data-dpguide]").onclick=()=>{if(!isATM()) demoToggleGuide()};
  P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
  P.querySelectorAll("[name=dpam]").forEach(r=>r.onchange=()=>{if(r.checked){va.model=r.value;demoSync()}});
@@ -15189,6 +15217,44 @@ function demoSync(){
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&demoOpen&&!modal&&!drawer){demoOpen=false;demoSync()}});
 document.addEventListener("click",e=>{if(demoOpen&&!el("demoPanel").contains(e.target)&&!el("demoPill").contains(e.target)){demoOpen=false;demoSync()}});
+
+/* ═══ vE E004: Active prospects in the per-resource words, and the Unlimited rows every resource list draws ═══ */
+Object.assign(USAGE_SHORT,{active_prospects:"Active prospects"}); Object.assign(USE_NM,{active_prospects:"Active prospects"});
+Object.assign(UL3_NM,{active_prospects:"Active prospects"}); Object.assign(NC_SUM_L,{active_prospects:"Active prospects"});
+Object.assign(UL3_STOP,{active_prospects:"adding prospects to sequences"}); Object.assign(UL4_LIM,{active_prospects:"active prospect"});
+Object.assign(STILL_WORKS,{active_prospects:"Sending and replies continue; no more prospects can be added to a sequence until this clears."});
+CREDIT_SRC.active_prospects={from:"the plan",buys:[]};
+/* the bar track keeps its place, unseen, so the numbers stay on the column's edge; no fill, no colour */
+const unlBar=()=>pbar(0,UL3_GREY).replace('class="pbw"','class="pbw" style="visibility:hidden"');
+/* the record's Overview Limits card */
+function unlApu(k,c){if(!unlHas(c.id)) return ""; const R=RES[k];
+ return `<div class="apu-i rc-apu is-unl" data-unl="${k}"><div class="apu-r"><span class="apu-l">${R.label}</span><span class="apu-u">${UNL_TXT}</span></div><div class="apu-rem">${f(unlUsed(k,c.id))} in live sequences</div></div>`}
+/* the record's Limits tab: Resource, Used, Left, Available */
+function rlUnlRow(k,c){if(!unlHas(c.id)) return ""; const R=RES[k];
+ return `<tr class="rlt-row is-unl${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-unl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${R.nature}</span></td>
+   <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${unlBar()}</span><span class="rlt-uv"><b>${f(unlUsed(k,c.id))}</b></span></span></td>
+   <td class="rlt-c3">${UNL_TXT}</td><td class="rlt-c4"><span class="rlt-av">${UNL_TXT}</span></td></tr>`}
+/* a workspace's Usage & billing, the client's and the agency's: Resource, Used, Left, Status (and the agency's action cell, empty) */
+function cuUnlRow(k,c,ag){if(!unlHas(c.id)) return ""; const R=RES[k];
+ return `<tr data-curow="${k}" data-unl="${k}"><td class="cx-c-rn"><span class="cx-rn">${cuName(k)}</span><span class="cx-s">${R.nature}</span></td>
+   <td class="cx-c-us"><div class="cx-bar"><span class="cx-bw" style="visibility:hidden" aria-hidden="true"><i style="width:0"></i></span><span>${f(unlUsed(k,c.id))}</span></div></td>
+   <td class="cx-c-av"><span class="cx-av">${UNL_TXT}</span></td>
+   <td class="cx-c-pc"><span class="cx-ul cx-g">No limit</span></td>${ag?`<td class="cx-c-ac"></td>`:""}</tr>`}
+/* Billing's Where your plan goes: Resource, Used, Available, Largest limit, no action (nothing to raise on Scale) */
+function bpUnlRow(k){const R=RES[k], used=Object.entries(R.rows).filter(([id])=>bpWs(id)).reduce((t,[,r])=>t+r.used,0);
+ return `<tr class="bp-r is-unl" data-pg="${k}" data-unl="${k}">
+   <td><span class="ul3-rn">${R.label}</span><span class="ul3-sub">${R.nature}</span></td>
+   <td data-l="Used"><span class="ul3-hb">${unlBar()}<span class="ul3-num">${f(used)}</span></span></td>
+   <td data-l="Available" class="ul3-num"><b>${UNL_TXT}</b><span class="ul3-sub">No limits on ${PLAN.name.replace(/ \(.*$/,"")}</span></td>
+   <td class="bp-share"><span class="ul3-g">&ndash;</span></td><td class="bp-act"></td></tr>`}
+/* Usage & limits, its own tab: the strip and one row per workspace, no field */
+function ul3UnlPool(k){const R=RES[k], used=ulRows().reduce((t,c)=>t+unlUsed(k,c.id),0);
+ return `<div class="ul3-pi"><span>Plan</span><b>${UNL_TXT}</b></div><div class="ul3-pi"><span>Used</span><b>${f(used)}</b></div>`}
+function ul3UnlRow(k,c){
+ return `<tr class="ul3-e2r is-unl${c.disabled?" is-off":""}" data-ulws="${c.id}" data-unl="${k}"><td><div class="ul-ws">${ulAv(c)}<span class="ul-wsn"><span class="ul-nm" title="${c.name}">${c.name}</span>${c.own?'<span class="ul-tag">Yours</span>':""}${c.disabled?`<span class="sub">Disabled</span>`:""}</span></div></td>
+   <td class="ul3-num"><span class="ul3-ub">${unlBar()}<span>${f(unlUsed(k,c.id))}</span></span></td><td class="ul3-unl">${UNL_TXT}</td><td class="ul3-e2c"></td></tr>`}
+/* the Dashboard's Highest usage pop-up lists every resource: an Unlimited one reads Unlimited, never flagged */
+const hpUnlRows=c=>unlHas(c.id)?RKA.filter(isUnl).map(k=>({name:RES[k].label,st:UNL_TXT,tone:"ok",out:false,tip:"",cells:[f(unlUsed(k,c.id))],go:"lim|"+c.id+"|"+k,hl:false,first:false})):[];
 
 /* Deep links, so any screen can be opened and checked without clicking a path
    to it: #clients, #queue, #dash, #credits, #settings, #invite, #solo-plain
@@ -17701,7 +17767,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="cae4d3e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="33aa5f8";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18371,6 +18437,8 @@ body:has([data-ul3e2dock]) #toastLayer{bottom:88px}   /* the Undo toast sits abo
 .cx-bw{flex:1;max-width:160px;height:8px;border-radius:30px;background:#E5E7EB;overflow:hidden}
 .cx-bw i{display:block;height:100%;background:#9CA3AF;border-radius:30px}
 .cx-bw.is-hot i{background:#F59E0B}
+/* vE E004: an Unlimited row has no bar; on a phone its kept place and the plan line ("Your plan has ... available") go */
+@media (max-width:760px){.cx-ut tr[data-unl] .cx-bw{display:none}.cx-ut tr[data-unl] .cx-bar{justify-content:flex-end}.rlt-t tr[data-unl] td.rlt-c4{display:none}}
 .cx-av{font-weight:500}
 .cx-ul{display:block}.cx-ul+.cx-ul{margin-top:4px}
 .cx-g{color:#6B7280}
