@@ -13587,13 +13587,57 @@ function soonCard(o){
    ${o.meanwhile?`<div class="soon-foot"><span class="sub">Meanwhile</span><button class="shd-button shd-button--secondary shd-button--sm" ${o.attr||""}>${o.meanwhile}</button></div>`:""}
   </div></div>`;
 }
+/* E007, 23 Oct 2026: Coming soon pages were absolutely positioned for one window width. csBuild lifts the
+   stored page into a grid: [copy | preview panel]. Stage and toast go in one 884 x 600 canvas (the stage is
+   820 wide at left 64, so the toast's 64px overhang on the left stays inside it) that csFit scales to the panel. */
+function csBuild(html){
+ const t=document.createElement("template"); t.innerHTML=html.trim();
+ const pg=t.content.firstElementChild; if(!pg) return html;
+ const kids=[...pg.children];
+ const title=kids.find(k=>(k.getAttribute("style")||"").includes("top: 22px"));
+ const copy=kids.find(k=>(k.getAttribute("style")||"").includes("width: 540px"));
+ const stage=kids.find(k=>(k.getAttribute("style")||"").includes("min-width: 820px"));
+ const toast=kids.find(k=>(k.getAttribute("style")||"").includes("width: 300px"));
+ if(!copy||!stage) return html;
+ const out=document.createElement("div"); out.className="cs-page";
+ if(title) out.appendChild(title);
+ const inner=document.createElement("div"); inner.className="cs-inner";
+ copy.removeAttribute("style"); copy.className="cs-copy"; inner.appendChild(copy);
+ const peek=document.createElement("button"); peek.type="button"; peek.className="shd-button shd-button--secondary shd-button--sm cs-peek";
+ peek.setAttribute("aria-expanded","false"); peek.textContent="See a preview"; inner.appendChild(peek);
+ const prev=document.createElement("div"); prev.className="cs-prev"; prev.setAttribute("aria-hidden","true");
+ const fit=document.createElement("div"); fit.className="cs-fit";
+ const art=document.createElement("div"); art.className="cs-art";
+ stage.removeAttribute("style"); stage.className="cs-stage";
+ stage.setAttribute("style","background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; box-shadow: 0 24px 48px rgba(31, 41, 55, 0.14), 0 2px 6px rgba(31, 41, 55, 0.06); overflow: hidden; display: flex; flex-direction: column");
+ art.appendChild(stage);
+ if(toast){
+  const ts=toast.getAttribute("style").split(";").filter(d=>d.trim()&&!/^\s*(position|left|top|right|bottom)\s*:/.test(d)).join(";");
+  toast.setAttribute("style",ts); toast.className="cs-toast"; art.appendChild(toast);
+ }
+ fit.appendChild(art); prev.appendChild(fit); inner.appendChild(prev); out.appendChild(inner);
+ return out.outerHTML;
+}
+/* scale of the canvas = panel width over canvas width, never above 1 (a unitless number, so it can drive transform) */
+function csFit(){
+ if(!window.__csRO&&"ResizeObserver" in window) window.__csRO=new ResizeObserver(()=>csFit());
+ document.querySelectorAll(".cs-prev").forEach(pv=>{
+  if(window.__csRO) window.__csRO.observe(pv);
+  const cs=getComputedStyle(pv), avail=pv.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  if(avail<=0) return;
+  const sc=Math.min(1,avail/884), cur=pv.style.getPropertyValue("--s");
+  if(cur!==sc.toFixed(4)) pv.style.setProperty("--s",sc.toFixed(4));
+ });
+}
+window.addEventListener("resize",csFit);
 function vComingSoon(key){
  const s=COMING_SOON[key]; if(!s) return vClients();
  if(CS_PAGES[key]){
   const wss=myClients(), n=wss.length;
   const av=wss.slice(0,3).map((c,i)=>`<span style="width: 24px; height: 24px; border-radius: 999px; background: ${wsLogo(c)?"#FFFFFF; box-shadow: inset 0 0 0 1px #E5E7EB":c.colour}; color: #FFFFFF; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF${i?"; margin-left: -8px":""}"${wsLogo(c)?' class="av-logo-s"':""}>${wsAvIn(c)}</span>`).join("");
   const text=CS_PAGES[key].pill.replace(/\b3\b/,String(n)).replace(/14 mailboxes/,f(wss.reduce((t,c)=>t+(c.mbx||0),0))+" mailboxes");
-  return `<div class="cs-wrap">${receiptBar("soon")}${CS_PAGES[key].html.replace("__WS_AVATARS__",`<span style="display: flex">${av}</span>`).replace("__WS_TEXT__",text).replace("__ME_EMAIL__",ME().email||"you")}</div>`;
+  const filled=CS_PAGES[key].html.replaceAll("__WS_AVATARS__",`<span style="display: flex">${av}</span>`).replaceAll("__WS_TEXT__",text).replaceAll("__ME_EMAIL__",ME().email||"you");
+  return `<div class="cs-wrap">${receiptBar("soon")}${csBuild(filled)}</div>`;
  }
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">${s.title}</span>
@@ -13617,7 +13661,7 @@ function dedupeTitle(){
  const ct=el("crumbTail"); if(!ct) return;
  const page=el("page"); if(!page) return;
  const cs=page.querySelector(".cs-page");
- if(cs){const row=cs.querySelector('div[style*="top: 22px"]'); if(row) row.remove();
+ if(cs){csFit(); const row=cs.querySelector('div[style*="top: 22px"]'); if(row) row.remove();
    if(!ct.querySelector(".crumb-soon")) ct.insertAdjacentHTML("beforeend",' <span class="chip c-info crumb-soon">Coming soon</span>')}
  const crumb=ct.textContent.replace(/coming soon/i,"").replace(/\s+/g," ").trim().toLowerCase(); if(!crumb) return;
  const tb=page.querySelector(".toolbar"); if(!tb||tb.hasAttribute("data-keeptitle")) return;
@@ -14019,6 +14063,7 @@ function wire(){
  q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
  q(".hero-card[data-nav]").forEach(b=>b.onclick=()=>{const n=b.dataset.nav;ctx="agency";asClient=false;view={name:n==="analytics"?"analytics":"clients"};render()});
  q("[data-csnotify]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csnotify];receipt("soon",`You will get one email at ${ME().email||"your address"} when ${t?t.title:"this"} is ready. Nothing else.`,null,`asked to be told when ${t?t.title:"it"} is ready`);render()});
+ q(".cs-peek").forEach(b=>b.onclick=()=>{const pv=b.parentElement.querySelector(".cs-prev"),on=!pv.classList.contains("is-open");pv.classList.toggle("is-open",on);b.setAttribute("aria-expanded",String(on));b.textContent=on?"Hide preview":"See a preview";csFit()});
  q("[data-csgo]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csgo];if(!t)return;ctx="agency";view={name:t.go==="queue"?"queue":t.go==="dash"?"dash":"clients"};render()});
  q("[data-anview]").forEach(b=>b.onclick=()=>{anView=b.dataset.anview;render()});
  q("[data-angran]").forEach(b=>b.onclick=()=>{if(b.disabled)return;anGran=b.dataset.angran;render()});
@@ -15262,31 +15307,44 @@ demoSync();
 .cs-btn{border:0;background:none;cursor:pointer;font-family:inherit;padding:0}
 .cs-page h1,.cs-page h2{font-family:inherit}
 
-/* Coming soon pages, responsive (Hitesh, 29 Sep 2026: "check page alignment", "it should be fully responsive"):
-   the grid and the stage follow the window; below 1200px the stage stacks under the copy */
-@media (max-width:1199px){
- .cs-page{min-height:0!important;padding-bottom:24px}
- .cs-page>div[aria-hidden="true"][style*="radial-gradient"]{display:none}
- .cs-page>div[style*="top: 22px"]{position:relative!important;left:0!important;top:0!important;padding:22px 24px 0}
- .cs-page>div[style*="width: 540px"]{position:relative!important;left:0!important;top:0!important;width:auto!important;max-width:640px;padding:24px 24px 0}
- .cs-page>div[aria-hidden="true"][style*="min-width: 820px"]{position:relative!important;left:0!important;right:auto!important;top:0!important;min-width:0!important;width:auto!important;height:auto!important;margin:32px 24px 0;max-width:820px}
- .cs-page>div[aria-hidden="true"][style*="width: 300px"]{display:none}
+/* Coming soon pages, responsive (E007, 23 Oct 2026, Hitesh: "Coming soon pages are not responsive – fix this").
+   Centred in production's Container width (max-w 1400px, px-6). Copy and preview keep 5:7. The preview is one
+   884 x 600 canvas scaled by --s (set by csFit from the panel width, never above 1), so nothing is clipped. */
+.cs-wrap{background:#fff;min-height:100%}
+.page:has(>.cs-wrap){background:#fff}
+.cs-wrap .receipt{max-width:1352px;width:calc(100% - 48px);margin:16px auto 0;box-sizing:border-box}
+.cs-page{background:#fff}
+.cs-inner{max-width:1400px;margin:0 auto;padding:48px 24px 56px;box-sizing:border-box;display:grid;
+ grid-template-columns:minmax(0,5fr) minmax(0,7fr);column-gap:48px;align-items:stretch}
+.cs-peek{display:none}
+.cs-copy{display:flex;flex-direction:column;gap:22px;align-items:flex-start;min-width:0}
+.cs-copy h2{font-size:32px!important;line-height:40px!important;max-width:500px}
+.cs-copy>p{font-size:16px!important;line-height:24px!important;max-width:480px!important}
+.cs-copy>div[style*="flex-direction: column"][style*="gap: 14px"]{gap:16px!important;margin-top:4px!important}
+.cs-copy>div[style*="margin-top: 12px"]{margin-top:20px!important}
+.cs-prev{--s:1;position:relative;min-width:0;box-sizing:border-box;padding:40px 32px;border:1px solid #E5E7EB;border-radius:8px;
+ background-color:#F9FAFB;background-image:radial-gradient(#D1D5DB 1px,transparent 1px);background-size:20px 20px;background-position:10px 10px;
+ overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cs-fit{position:relative;flex:none;width:calc(884px*var(--s));height:calc(600px*var(--s))}
+.cs-art{position:absolute;left:0;top:0;width:884px;height:600px;transform:scale(var(--s));transform-origin:0 0}
+.cs-stage{position:absolute;left:64px;top:0;width:820px;height:600px;box-sizing:border-box}
+.cs-toast{position:absolute;left:0;bottom:12px}
+@media (max-width:1023px){
+ .cs-inner{grid-template-columns:minmax(0,1fr);row-gap:32px;padding:32px 24px 40px}
+ .cs-copy{max-width:640px}
 }
-@media (min-width:1200px){.cs-page{min-height:calc(100vh - 52px)!important}}
-
-/* 29 Sep 2026, Hitesh: the Coming soon pages "look too full, no white space, space to breathe".
-   Smaller promise, a narrower copy column starting lower and further in, wider gaps, the grid
-   starting further right and the stage scaled toward its right edge so the two halves part. */
-@media (min-width:1200px){
- .cs-page>div[style*="top: 22px"]{left:40px!important;top:28px!important}
- .cs-page>div[style*="width: 540px"]{left:40px!important;top:100px!important;width:520px!important;gap:22px!important}
- .cs-page>div[style*="width: 540px"] h2{font-size:32px!important;line-height:40px!important;max-width:500px}
- .cs-page>div[style*="width: 540px"]>p{font-size:16px!important;line-height:24px!important;max-width:480px!important}
- .cs-page>div[style*="width: 540px"]>div[style*="flex-direction: column"][style*="gap: 14px"]{gap:16px!important;margin-top:4px!important}
- .cs-page>div[style*="width: 540px"]>div[style*="margin-top: 12px"]{margin-top:20px!important}
- .cs-page>div[aria-hidden="true"][style*="radial-gradient"]{left:640px!important}
- .cs-page>div[aria-hidden="true"][style*="min-width: 820px"]{top:150px!important;transform:scale(.88);transform-origin:top right}
- .cs-page>div[aria-hidden="true"][style*="width: 300px"]{left:700px!important;top:540px!important}
+@media (max-width:640px){
+ .cs-inner{padding:24px 16px 32px;row-gap:24px}
+ .cs-copy{gap:20px}
+ .cs-copy h2{font-size:24px!important;line-height:32px!important}
+ .cs-copy>div[style*="border-radius: 999px"]{height:auto!important;min-height:36px;padding-top:6px!important;padding-bottom:6px!important;border-radius:18px!important}
+ .cs-copy>div[style*="margin-top: 8px"]{flex-wrap:wrap}
+ .cs-copy button[data-csnotify]{flex:none}
+ .cs-copy>div[style*="background: #F9FAFB"]{flex-wrap:wrap}
+ .cs-copy>div[style*="background: #F9FAFB"]>span[style*="flex-grow"]{flex:1 1 200px;min-width:0}
+ .cs-peek{display:inline-flex;justify-self:start}
+ .cs-prev{display:none;padding:24px 16px}
+ .cs-prev.is-open{display:flex}
 }
 
 .toolbar--notitle{padding-top:16px;padding-bottom:12px}
@@ -17398,7 +17456,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="72c3baa";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="a63b4c9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
