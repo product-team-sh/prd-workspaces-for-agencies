@@ -111,7 +111,7 @@ svg{display:block}
 /* .app-sidebar, deployed, exact: no padding of its own except 12px at the foot;
    the header, the nav column and the footer each carry the product's own. */
 .sb{position:absolute;left:0;top:0;bottom:0;z-index:999;width:57px;flex:none;background:var(--gray-1);display:flex;flex-direction:column;padding:0 0 12px;
- gap:0;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--gray-13);
+ gap:0;overflow:hidden;border-right:1px solid var(--gray-13);
  transition:width .3s ease-in-out}
 /* .app-sidebar__nav, deployed, exact: a column with an 8px gap, padded 12px, no
    bottom padding. The gap is the rhythm the collapsed rail is read by. */
@@ -181,9 +181,11 @@ svg{display:block}
 .sb:not(:hover):not(.is-open) .nav-item{position:relative}
 .sb:not(:hover):not(.is-open) .nav-badge{position:absolute;top:-2px;left:15px;opacity:1;
  min-width:16px;height:16px;font-size:11px;padding:0 4px}
-/* the New badge stays visible on the collapsed icon too, where the product puts it */
-.sb:not(:hover):not(.is-open) .nav-new{position:absolute;top:0;left:15px;opacity:1;
- width:26px;height:14px;padding:1px 3px;display:flex;align-items:center;justify-content:center;line-height:12px}
+/* the New badge stays visible on the collapsed icon too. vE E044: production's collapsed geometry,
+   _sidebar.scss .app-sidebar__new-badge + .call-logs-new-badge:not(.expanded): 26x14, amber #f59e0b, white 10px/12px
+   weight 500, radius 3px, top -7px, left 15px (item left + 41px = 53px, inside the 57px rail) */
+.sb:not(:hover):not(.is-open) .nav-new{position:absolute;top:-7px;left:15px;opacity:1;
+ width:26px;height:14px;padding:1px 3px;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:12px;color:#fff;background:#f59e0b;border:0;border-radius:3px}
 /* fix 25 Sep review #5/#23: "Soon" is a wider text pill than the count/New
    badges (30px vs 16-26px) and the same corner-badge geometry that clears
    the icon for those two instead lands the pill square on top of the icon
@@ -212,6 +214,9 @@ svg{display:block}
 .ws-btn{line-height:normal}.ws-btn .ws-ctx{line-height:14px}
 .ws-btn .avatar{width:24px;height:24px;font-size:10px}
 .ws-btn svg{color:var(--gray-11)}
+/* vE E044: E043 let the switcher name wrap; in the 57px rail the name column is 0px wide, so it wrapped one letter per line,
+   284px tall, and pushed the footer off the rail (the blank band under "MG" in Hitesh's screenshot). Collapsed it is one clipped line. */
+.sb:not(:hover):not(.is-open) .ws-btn .nm{white-space:nowrap;overflow-wrap:normal;height:20px}
 /* 30 Sep 2026, Hitesh: "avoid tile then subtitle in the side panel, it is not a
    practice followed throughout the product". The switcher tile is the name
    alone; the Account / Workspace line under it is gone. The context still
@@ -257,6 +262,9 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .nav-soon{display:inline-flex;align-items:center;height:20px;padding:4px 8px;box-sizing:border-box;font-size:11px;font-weight:500;line-height:1;color:var(--label-text);background:#f3f4f6;
  border:1px solid #d1d5db;border-radius:4px;letter-spacing:0}
 .nav-gap{flex:1}
+/* vE E044: More opens a flyout beside the rail, as production's sub-nav does; the rail itself never grows or scrolls */
+.more-fly{position:fixed;z-index:1000;width:224px;box-sizing:border-box;padding:8px;display:flex;flex-direction:column;gap:8px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:8px;box-shadow:0 8px 24px rgba(31,41,55,.12);max-height:calc(100vh - 24px);overflow-y:auto}
+.more-fly[hidden]{display:none}
 /* 18 Sep QA: Status stole width from the name and usage columns on Home, so
    "Northwind Logistics" and "89% Prospects" wrapped. */
 .crow td:first-child{min-width:230px}
@@ -3095,6 +3103,49 @@ function wsLogoFind(site,cb){const d=wsLogoDom(site); if(!d){cb(null,d);return}
 const av=(c,s)=>`<span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour};width:${s||28}px;height:${s||28}px;font-size:11px">${wsAvIn(c)}</span>`;
 
 /* ═══ shell ═══ */
+/* vE E044: the rail never scrolls. Production rule, saleshandy-webui @ 5f00e7475d4914b2237f1aa82cb3b37b39862cc8,
+   src/components/home/components/sidebar/sidebar.tsx lines 162-188 (calculateVisibleItems) and 363-381 (More):
+   measure the nav column, subtract the More button, fit floor((available + gap) / (item + gap)) items (never fewer
+   than one), send the rest to More in order, then append the fixed items (Email Warm-up, Refer a Friend);
+   recomputed on window resize. Header and footer are outside the column, so they stay pinned.
+   Differences from production: row height is this prototype's own 32px (measured, not the 36 constant); the gap
+   between the last row and More is kept; More shows only when it holds something. */
+function fitRail(){
+ const nl=el("navList"); if(!nl) return;
+ const sb=nl.closest(".sb"), gap=nl.querySelector(":scope>.nav-gap"), foot=nl.querySelector(":scope>.sb-foot");
+ if(!gap||!foot) return;
+ const old=nl.querySelector(":scope>.more-fly");
+ if(old) [...old.children].forEach(c=>gap.before(c));
+ nl.querySelectorAll(":scope>.nav-more,:scope>.more-fly").forEach(n=>n.remove());
+ const items=[...nl.children].filter(n=>n.classList.contains("nav-item"));
+ const fixed=items.filter(n=>n.dataset.fixed), main=items.filter(n=>!n.dataset.fixed);
+ const close=()=>{normMore=false; if(sb) sb.classList.remove("is-open")};
+ if(!nl.clientHeight||!items.length){close(); return}
+ const cs=getComputedStyle(nl), G=parseFloat(cs.rowGap)||8, H=items[0].offsetHeight||32;
+ const A=nl.clientHeight-(parseFloat(cs.paddingTop)||0)-foot.offsetHeight-2*G-(parseFloat(getComputedStyle(gap).minHeight)||0);
+ const fits=main.length*H+(main.length-1)*G<=A;
+ if(fits&&!fixed.length){close(); return}
+ const vis=Math.min(main.length,Math.max(1,Math.floor((A-H)/(H+G))));
+ const hidden=main.slice(vis).concat(fixed);
+ const mb=document.createElement("button"); mb.className="nav-item nav-more"; mb.setAttribute("data-normmore","");
+ mb.setAttribute("aria-haspopup","true"); mb.setAttribute("aria-expanded","false");
+ mb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span class="lbl">More</span><span class="lbl" style="flex:none;color:var(--gray-11)">&#8250;</span>';
+ const fly=document.createElement("div"); fly.className="more-fly"; fly.hidden=true; fly.setAttribute("role","menu");
+ gap.before(mb); gap.before(fly); hidden.forEach(n=>fly.appendChild(n));
+ if(fly.querySelector("[aria-current=page]")) mb.setAttribute("aria-current","page");
+ if(window.__railRO) window.__railRO.disconnect();
+ if(window.ResizeObserver){let h0=foot.offsetHeight; window.__railRO=new ResizeObserver(()=>{const h=foot.offsetHeight; if(h!==h0&&!normMore){h0=h; requestAnimationFrame(fitRail)}}); window.__railRO.observe(foot)}
+ const setOpen=o=>{normMore=o; sb.classList.toggle("is-open",o); mb.setAttribute("aria-expanded",String(o)); fly.hidden=!o;
+  if(o){const r=mb.getBoundingClientRect(); fly.style.left=(sb.getBoundingClientRect().left+240+8)+"px";
+   fly.style.top=Math.max(12,Math.min(r.top,innerHeight-fly.offsetHeight-12))+"px"}};
+ mb.onclick=()=>setOpen(!normMore);
+ fly.addEventListener("click",()=>setOpen(false),true);
+ if(normMore) setOpen(true); else sb.classList.remove("is-open");
+ if(!window.__railFit){window.__railFit=1;/* the footer is taller when a long workspace name wraps in the open rail: refit whenever its height changes */
+  let t=0; window.addEventListener("resize",()=>{cancelAnimationFrame(t); t=requestAnimationFrame(fitRail)});
+  document.addEventListener("mousedown",e=>{if(normMore&&!e.target.closest(".more-fly,.nav-more")){normMore=false;const f=document.querySelector(".more-fly");if(f){f.hidden=true;document.querySelector(".sb").classList.remove("is-open");const m=document.querySelector(".nav-more");if(m)m.setAttribute("aria-expanded","false")}}});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&normMore){normMore=false;const f=document.querySelector(".more-fly");if(f){f.hidden=true;document.querySelector(".sb").classList.remove("is-open");const m=document.querySelector(".nav-more");if(m)m.setAttribute("aria-expanded","false")}}})}
+}
 function renderRail(){
  /* Order within "Outreach" matches nav-items.ts exactly: sequence, tasks,
     unifiedInbox, leads, prospects(CRM), dialer, email-verifier, email-accounts,
@@ -3252,7 +3303,9 @@ function renderRail(){
      Need support. They are here so the rail reads as the product's; none of the three is part of this
      feature, so each says so when clicked. */
   /* 29 Sep 2026, Hitesh: "remove More from the side panel, admin": the admin rail lists everything it has; only a workspace's rail keeps the product's More. */
-  +(inAgency()&&!isNormal()?"":`<button class="nav-item" ${isNormal()?`data-normmore aria-expanded="${normMore}"`:'data-flash="Not in this prototype"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span class="lbl">More</span><span class="lbl" style="flex:none;color:var(--gray-11)">&#8964;</span></button>`+(isNormal()&&normMore?item("warmup")+item("refer"):""))
+  /* vE E044: the product's fixed More items (Email Warm-up, Refer a Friend) ride at the end of the normal rail and
+     fitRail() always puts them in More, as production does; every other rail shows More only when items overflow */
+  +(isNormal()?item("warmup").replace('class="nav-item"','class="nav-item" data-fixed="1"')+item("refer").replace('class="nav-item"','class="nav-item" data-fixed="1"'):"")
   +`<div class="nav-gap"></div><div class="sb-foot">`
   /* decided 12 Sep 2026, option B: the agency's own outreach is a workspace
      like a client's, so administration lives upstairs and this is the way up */
@@ -3278,7 +3331,7 @@ function renderRail(){
      host the tour (change 148's Help popover is undone); Replay lives in the account menu. */
   +`<button class="nav-item" data-flash="Opens the support messenger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
- el("navList").querySelectorAll("[data-normmore]").forEach(b=>b.onclick=()=>{normMore=!normMore;render()});
+ /* vE E044: More is built and bound by fitRail() */
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav;
    /* Settings is the one item that means something in both workspaces */
@@ -3738,7 +3791,7 @@ function renderShell(){
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
  hdrApply();   /* change 328: the path, its trailing slot and the phone form */
- swPark(); renderRail(); placeSwitcher();
+ swPark(); renderRail(); placeSwitcher(); fitRail();
 }
 function renderPop(q=""){
  /* defence in depth: never render the account or any other workspace into a
@@ -16537,7 +16590,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="4b243e4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="b9fd92c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
