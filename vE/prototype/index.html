@@ -1718,7 +1718,7 @@ const inAgency=()=>ctx==="agency";
    CLIENTS.length so the account
    stops being normal the moment a client exists, which is the only transition
    this feature has.                                                         */
-let agencyMode=false;
+let agencyMode=false, normMore=false;   /* E042: More open on the normal rail */
 /* the account has been converted, whether or not a client exists yet */
 const hasAgency=()=>agencyMode||CLIENTS.length>0;
 const isNormal=()=>!hasAgency()&&!asClient&&!solo;
@@ -3118,7 +3118,7 @@ function renderRail(){
     isAgency is 0 (filter-nav-items.ts:80). Adding a first client is discovered
     from Home, not from a rail item a normal user has no reason to click.    */
  const GROUPS=isNormal()
-  ?[["",OUTREACH.concat(["people","billing"])]]
+  ?[["",OUTREACH.concat(["apiint","billing"])]]   /* E042: production order, nav-items.ts:138-178; no People */
   :inAgency()
   /* 25 Sep 2026, founder decision relayed by Hitesh: the admin panel is Home,
      Clients and full People/Billing/Analytics/API & Integrations. Work queue,
@@ -3206,7 +3206,9 @@ function renderRail(){
       one line above a header that already said "Inbox", "Prospects" -
       IN_LBL, via the same RAIL2MOD lookup inModLabel() uses. Only the admin
       panel (ctx==="agency") keeps the product-level names. */
-   const label=(asClient&&!inAgency()&&CLI_LBL[k])
+   const label=(isNormal()&&k==="billing"&&"Billing & Subscription")   /* filter-nav-items.ts:40-47 */
+     ||(isNormal()&&k==="crm"&&"CRM")   /* nav-items.ts:56-60: the product calls it CRM, not Prospects */
+     ||(asClient&&!inAgency()&&CLI_LBL[k])
      ||(!inAgency()&&IN_LBL[RAIL2MOD[k]||k])
      ||label0;
    let badge=typeof badge0==="function"?badge0():badge0;
@@ -3244,7 +3246,7 @@ function renderRail(){
      Need support. They are here so the rail reads as the product's; none of the three is part of this
      feature, so each says so when clicked. */
   /* 29 Sep 2026, Hitesh: "remove More from the side panel, admin": the admin rail lists everything it has; only a workspace's rail keeps the product's More. */
-  +(inAgency()?"":`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span class="lbl">More</span><span class="lbl" style="flex:none;color:var(--gray-11)">&#8964;</span></button>`)
+  +(inAgency()&&!isNormal()?"":`<button class="nav-item" ${isNormal()?`data-normmore aria-expanded="${normMore}"`:'data-flash="Not in this prototype"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span class="lbl">More</span><span class="lbl" style="flex:none;color:var(--gray-11)">&#8964;</span></button>`+(isNormal()&&normMore?item("warmup")+item("refer"):""))
   +`<div class="nav-gap"></div><div class="sb-foot">`
   /* decided 12 Sep 2026, option B: the agency's own outreach is a workspace
      like a client's, so administration lives upstairs and this is the way up */
@@ -3264,12 +3266,13 @@ function renderRail(){
      panel but keep it in the workspace". The 25 Sep rule stands: every setting
      lives in a workspace; the admin rail foot is Submit Feedback and Need
      support only. */
-  +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||view.name==="apiint"))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
+  +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||(!isNormal()&&view.name==="apiint")||(isNormal()&&(view.name==="people"||view.name==="person"||view.name==="addmember"))))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
   /* change 150: the ? item opens Intercom's messenger in production, so it does not
      host the tour (change 148's Help popover is undone); Replay lives in the account menu. */
   +`<button class="nav-item" data-flash="Opens the support messenger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span class="lbl">Need support?</span></button>`
   +`</div>`;
+ el("navList").querySelectorAll("[data-normmore]").forEach(b=>b.onclick=()=>{normMore=!normMore;render()});
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav;
    /* Settings is the one item that means something in both workspaces */
@@ -10179,7 +10182,7 @@ function vSettings(){
     workspace for it to act in, and stays Coming soon (28 Sep, Hitesh). */
  const grp=(key,label)=>{
   const g=vis.filter(x=>x[2]===key||(key==="company"&&x[2]==="agency"));
-  const apiBtn=(key==="company"&&!agency&&(!wsR||wsR==="Client Admin"))
+  const apiBtn=(key==="company"&&!agency&&!isNormal()&&(!wsR||wsR==="Client Admin"))
    ?'<button data-goapiint aria-current="'+(view.name==="apiint")+'">API &amp; Integrations</button>':"";
   return (g.length||apiBtn)?'<h4>'+label+'</h4>'+g.map(x=>
    '<button '+(x[0]==="bill"?'data-gobill':'data-set="'+x[0]+'"')
@@ -10245,6 +10248,7 @@ function vSettings(){
      <div class="inh">
       ${wsR?(a=>`<div class="k">Your access</div><div data-setaccess><b>${a[0]}</b>, as a ${wsR}.${a[1]?" "+a[1]:""}</div>`)(setAccess(sel[0],wsR)):""}
       <div class="k">${isNormal()?"What you can do":agency?"What the account can do":"What this workspace can do"}</div><div>${cando}</div>
+      ${isNormal()&&sel[0]==="users"?`<div class="k">Users</div><div><button type="button" class="btn btn-solid-primary" data-openusers onclick="ctx='agency';inMod=null;view={name:'people'};render()">Open Users</button></div>`:""}
       ${sel[0]==="admin"&&!asC?`<div class="k">Prospect sharing</div><div><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span>Let Account Members see each other&rsquo;s prospects</span><button type="button" class="sw" role="switch" aria-checked="${ACCOUNT_SETTINGS.prospectSharing}" data-pshare onclick="pshareToggle()" aria-label="Let Account Members see each other&rsquo;s prospects"></button></div><p class="sub" style="margin:6px 0 0">On: every Account Member sees every prospect in the workspaces they reach. Off: Account Members see their own prospects. One switch for the account, as in production (doc 81 §6a).</p></div>`:""}
      </div>
     </div>
@@ -16527,7 +16531,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9982cf6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="6203373";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
