@@ -8204,7 +8204,7 @@ const SETUP_STEPS=[["Generate AI Sequence","seq"],["Add Prospects","crm"],
   ["Add Email Account","mail"],["Launch Sequence","seq"]];
 /* the demo account is a running one, which is the state worth reviewing. #setup
    opens the same Home with the checklist still outstanding. */
-let setupDone=true, addCardOff=false, onboardOff=false;
+let setupDone=true, addCardOff=false;
 /* 25 Sep 2026: "Needs a decision" used to hand off to the Work queue past five
    items; the queue is Coming soon now, so "See all" expands the same card in
    place instead, the same show-all/show-fewer pattern the Email accounts
@@ -9454,8 +9454,7 @@ function vInClient(){
    <div class="tools">${own?"":queueBack()}
     </div></div>`}
 
-  <div class="wrap${!isNormal()&&!(qFrom&&!own)?" hdr-top":""}">${isNormal()&&inMod==="sequences"&&!onboardOff?onboardBlock()
-     :(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
+  <div class="wrap${!(qFrom&&!own)?" hdr-top":""}">${(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
 }
 
 const CLIENT_STEPS=[["Connect an email account","accounts",
@@ -9482,46 +9481,6 @@ function clientSetupBlock(c){
       +(go==="slgo"?'<button class="linkbtn" data-slgo="'+c.id+'">Set limits</button></div>':'<button class="linkbtn" data-cstep="'+go+'">'+["Connect","Import","Create","Launch","Invite"][i-(gate?1:0)]+'</button></div>')}).join("")   /* change 298 (audit P2-4) */
   +'</div></div></div>';
 }
-function onboardBlock(){
- /* 2 Oct 2026, Hitesh: "make changes to the starting point like this" (his
-    board). The first step is the workspace; the four product steps are locked
-    until it exists, because prospects, email accounts and sequences live inside
-    a workspace. The right panel sells the one step that is open. */
- const first=ME().name.split(" ")[0];
- const ic={ws:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>',
-   seq:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h7"/></svg>',
-   crm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M17 11h4M19 9v4"/></svg>',
-   mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
-   launch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>',
-   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
-   tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
-   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'};
- const later=[["Generate AI Sequence",ic.seq],["Add Prospects",ic.crm],["Add Email Account",ic.mail],["Launch Sequence",ic.launch]];
- return '<div class="ob"><div class="ob-l">'
-  +'<div class="ob-h"><b>Welcome, '+first+'! Let’s set up your agency’s outreach</b><button class="linkbtn quiet" data-skiponboard>Skip Onboarding</button></div>'
-  +'<div class="ob-pbar"><div>'+pbar(0,"#3B82F6")+'</div><span class="ob-cnt">0/5 steps completed</span></div>'
-  +'<div class="ob-steps">'
-  +'<div class="ob-step is-cur"><span><span style="color:var(--blue-11);display:inline-flex">'+ic.ws+'</span><span>Create a workspace</span><span class="chip c-new chip--sm">New</span></span>'
-   +'<button class="linkbtn" data-obadd>Create workspace</button></div>'
-  +'<div class="ob-then">Then, inside your workspace</div>'
-  +later.map(([l,icon])=>'<div class="ob-step is-locked"><span><span style="display:inline-flex">'+icon+'</span><span>'+l+'</span></span><span class="ob-after" title="After step 1">'+ic.lock+'</span></div>').join("")
-  +'</div>'
-  +'<div class="ob-why">'+infoI+'<span><b>Why first?</b> Prospects, email accounts and sequences always live inside a workspace. Create one for your client, then finish the steps inside it.</span></div>'
-  +'</div><div class="ob-r"><div>'
-  +'<span class="chip c-info chip--sm" style="margin-bottom:12px">New for agencies</span>'
-  +'<h3>Create your first client workspace</h3>'
-  +'<p>A workspace is a separate space for each client you manage. Set one up per client so their outreach stays organised and private.</p>'
-  +'<ul class="ob-points">'
-   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>Separate data</b>: prospects, sequences, email accounts and reports stay in their own workspace</span></li>'
-   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>One-click switching</b>: jump between workspaces from the switcher at the foot of the rail</span></li>'
-   +'<li><span class="ob-tick">'+ic.tick+'</span><span><b>Scoped access</b>: add teammates only to the workspaces they handle</span></li>'
-  +'</ul>'
-  +'<div class="tools" style="margin-top:20px"><button class="shd-button shd-button--primary" data-obadd>'+ic.plus+'Create workspace</button><button class="shd-button shd-button--tertiary" data-flash="Not in this prototype">Learn more</button></div>'
-  +'</div>'
-  +'<div class="ob-video" role="img" aria-label="How to set up client workspaces, video"><b>How to set up client workspaces</b><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="mock"><i style="--c:#0f766e"></i><i style="width:60%;--c:#2563eb"></i><i style="--c:#c2410c"></i></span></div>'
-  +'</div></div>';
-}
-
 /* ═══ Home, the agency's landing screen ═══════════════════════════════════════
    Rail item 1, and where an agency account lands at login instead of Sequences.
    Zone order is deliberate: what needs a decision, then whether the agency is
@@ -13194,7 +13153,6 @@ function wire(){
  q("[data-goalloc]").forEach(b=>b.onclick=()=>{ctx="agency";view={name:"credits"};billTab=BS_BUY[b.dataset.goalloc]||"plan";activeRes=b.dataset.goalloc;render();const r=document.querySelector(`tr[data-pg="${b.dataset.goalloc}"]`);if(r){r.classList.add("pg-focus");r.scrollIntoView({block:"center"});setTimeout(()=>r.classList.remove("pg-focus"),1600)}});
  
  {const b=el("dashAdd");if(b)b.onclick=openAddClient}
- q("[data-obadd]").forEach(b=>b.onclick=openAddClient);
  /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
     Work queue (Coming soon); it expands the same card, and "Show fewer"
     (dashAll=0) collapses it back. */
@@ -13260,7 +13218,6 @@ function wire(){
  q("[data-nav2n]").forEach(b=>b.onclick=()=>{const k=b.dataset.nav2n;
    ctx="own";asClient=false;openProspect=null;openSeq=null;openReply=null;inMod=RAIL2MOD[k]||k;view={name:"clients"};render()});
  q("[data-addcardoff]").forEach(b=>b.onclick=()=>{addCardOff=true;render()});
- q("[data-skiponboard]").forEach(b=>b.onclick=()=>{onboardOff=true;render()});
  q("[data-skipclientsetup]").forEach(b=>b.onclick=()=>{clientSetupOff[ctx]=true;render()});
  q("[data-cstep]").forEach(b=>b.onclick=()=>{if(b.dataset.cstep==="invite"){openInvite({lock:ctx,role:"Client Collaborator"});return} inMod=b.dataset.cstep;openProspect=null;openSeq=null;openReply=null;render()});
  q("[data-set]").forEach(b=>b.onclick=()=>{setSel=b.dataset.set;render()});
@@ -16570,7 +16527,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="d4e414a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="ce7b05b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
