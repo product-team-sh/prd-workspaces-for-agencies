@@ -4290,8 +4290,6 @@ function wssTipText(r){
 const wssProbText=r=>r.fixFirst?r.fixFirst.label+(r.more?", +"+r.more:""):"";
 const wssEa=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 /* the record's tab label: production's 28px ring and "Sequence Score" text in their hover container */
-function wssTabLabel(c){
- return '<span class="wss-tab"><span class="wss-tab-t">Workspace score</span><span class="chip c-info crumb-soon">Coming soon</span></span>'}   /* E010 */
 /* the three parts: the two scored ones in the band colours, Sequence setup never coloured as a band */
 const wssGroups=r=>[r.parts.mailbox??null,r.parts.prospect??null,r.parts.setup??null];
 function wssRingN(score,size,fs){const r=46, d=Math.PI*2*r, off=((100-(score||0))/100)*d, P="M 50,50 m 0,-46 a 46,46 0 1 1 0,92 a 46,46 0 1 1 0,-92";
@@ -4580,43 +4578,6 @@ const WSS_INFO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria
 /* the weaker scored part opens first (getActiveScoreScoreTab picks the lowest); Sequence setup never opens first */
 const wssWeakest=G=>G[1]!=null&&(G[0]==null||G[1]<G[0])?1:0;
 /* production's tab body (sequence-score.tsx 205 to 287): gauge, headline, one sentence, three part tabs, the pane */
-/* E010, 23 Oct 2026 (Hitesh: "Make workspace score as coming soon"): the record's Workspace score tab is a Coming soon page,
-   built in the pattern of CS_PAGES (csBuild lifts it into the copy column and the dotted preview). No score is shown. */
-function wssSoon(c){
- const ic=p=>`<span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 4px; background: #EFF6FF; color: #1D4ED8; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg></span>`;
- const pt=(p,t,d)=>`<div style="display: flex; gap: 14px; align-items: flex-start">${ic(p)}<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; line-height: 20px; font-weight: 600; color: #1F2937">${t}</span><span style="font-size: 13px; line-height: 20px; color: #6B7280">${d}</span></span></div>`;
- const av=`<span style="width: 24px; height: 24px; border-radius: 999px; background: ${wsLogo(c)?"#FFFFFF; box-shadow: inset 0 0 0 1px #E5E7EB":c.colour}; color: #FFFFFF; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF"${wsLogo(c)?' class="av-logo-s"':""}>${wsAvIn(c)}</span>`;
- const ring=(k,t,v,g)=>{const C=2*Math.PI*22, col=g?"#9CA3AF":"#1D4ED8";return `<div style="padding: 12px 14px; border: 1px solid #E5E7EB; border-radius: 4px; display: flex; align-items: center; gap: 12px"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="22" fill="none" stroke="#E5E7EB" stroke-width="6"></circle><circle cx="28" cy="28" r="22" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(C*k).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 28 28)"></circle><text x="28" y="33" text-anchor="middle" font-size="14" font-weight="600" fill="${g?"#6B7280":"#1F2937"}" font-family="Inter, sans-serif">${v}</text></svg><span style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #1F2937">${t}</span><span style="font-size: 11px; line-height: 16px; color: #6B7280">${g?"Shown only":"Counts toward the score"}</span></span></div>`};
- const row=(t,d,b)=>`<div style="display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; align-items: center; height: 56px; padding: 0 14px; border-bottom: 1px solid #F3F4F6"><span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #1F2937">${t}</span><span style="font-size: 11px; line-height: 16px; color: #6B7280">${d}</span></span><span style="display: inline-flex; align-items: center; justify-content: center; height: 26px; border-radius: 4px; background: #FFFFFF; border: 1px solid #1D4ED8; color: #1D4ED8; font-size: 10px; font-weight: 500">${b}</span></div>`;
- const stage=`<div aria-hidden="true" style="position: absolute; left: 660px; right: -80px; top: 118px; min-width: 820px; height: 600px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column">
-<div style="height: 40px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; font-size: 12px; color: #6B7280; gap: 8px">${hdrEsc(c.name)}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg><span style="font-weight: 500; color: #1F2937">Workspace score</span></div>
-<div style="padding: 20px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px">
-<div style="border: 1px solid #E5E7EB; border-radius: 4px; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 14px"><svg width="200" height="116" viewBox="0 0 200 116" aria-hidden="true"><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#E5E7EB" stroke-width="14" stroke-linecap="round"></path><path d="M 20 100 A 80 80 0 0 1 156.6 43.4" fill="none" stroke="#1D4ED8" stroke-width="14" stroke-linecap="round"></path><text x="100" y="96" text-anchor="middle" font-size="40" font-weight="600" fill="#1F2937" font-family="Inter, sans-serif">75</text></svg><span style="font-size: 14px; line-height: 20px; font-weight: 600; color: #1F2937">On track</span><span style="font-size: 11px; line-height: 16px; color: #6B7280">The lower of the first two</span></div>
-<div style="display: flex; flex-direction: column; gap: 10px">${ring(.92,"Mailbox health",92)}${ring(.75,"Prospect quality",75)}${ring(.62,"Sequence setup",62,1)}</div></div>
-<div style="padding: 0 20px"><div style="border: 1px solid #E5E7EB; border-radius: 4px; overflow: hidden"><div style="height: 36px; box-sizing: border-box; padding: 0 14px; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; font-size: 11px; font-weight: 500; color: #6B7280">Fix first</div>${row("An email account is disconnected","It stops sending until it is reconnected","Reconnect")}${row("Prospects are not verified","Bounces rise when they are sent to","Verify")}</div></div>
-</div>`;
- const html=`<div class="cs-page" style="position: relative; width: 100%; min-height: 856px; overflow: hidden; background: #FFFFFF">
-<div style="position: absolute; left: 24px; top: 96px; width: 540px; display: flex; flex-direction: column; gap: 20px; align-items: flex-start">
-<h2 style="margin: 0; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.01em; color: #111827">One score for how each workspace is doing</h2>
-<p style="margin: 0; font-size: 16px; line-height: 24px; color: #4B5563; max-width: 480px">The score is the lower of Mailbox health and Prospect quality, so one weak side never hides behind a strong one. Sequence setup sits beside it as advice and does not change the score.</p>
-<div style="display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 6px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; font-size: 13px; color: #4B5563">${av} Each workspace gets its own score</div>
-<div style="display: flex; flex-direction: column; gap: 14px; margin-top: 4px">
-${pt('<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>',"Mailbox health","Whether the workspace's mailboxes and other channels are connected and able to send.")}
-${pt('<path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path>',"Prospect quality","Whether its emails land and get replies.")}
-${pt('<path d="M21 12a9 9 0 1 1-6.2-8.6"></path><path d="M21 3v6h-6"></path>',"Fix-first rows","Each problem is a row that links straight to the fix.")}
-</div>
-<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px">
-<button type="button" data-csnotify="wscore" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; box-sizing: border-box; padding: 6px 18px; border-radius: 4px; font-size: 14px; font-weight: 500; line-height: 20px; background: #1D4ED8; color: #FFFFFF; border: 0; cursor: pointer; font-family: inherit; white-space: nowrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>Tell me when it's ready</button>
-<button type="button" class="cs-btn" data-flash="Not in this prototype" style="display: inline-flex; align-items: center; height: 36px; padding: 0 6px; font-size: 14px; line-height: 20px; font-weight: 500; color: #1D4ED8; text-decoration: none">Share what you'd want in it</button>
-</div>
-<span style="font-size: 12px; line-height: 16px; color: #6B7280; margin-top: -8px">One email to ${hdrEsc(ME().email||"you")} when it launches. Nothing else.</span>
-</div>
-${stage}
-</div>`;
- return `<div class="cs-wrap">${csBuild(html)}</div>`;
-}
-
-function wssBody(c){return wssSoon(c)}   /* E010: the old body below is unused */
 function wssBodyOld(c){const r=wssOf(c);
  if(r.score==null) return '<div class="wss-content wss-empty"><h1>Workspace score is the lower of mailbox health and prospect quality this week.</h1><p>'+(r.state==="New"?"Nothing sent yet.":r.state+'. '+r.why+'.')+'</p></div>';
  const k=wssCls(r), G=wssGroups(r), N=wssNames(r), cur=WSS_SUB[c.id]!=null?WSS_SUB[c.id]:wssWeakest(G), d=wssDetail(c);
@@ -4882,6 +4843,17 @@ function recMenuHTML(c){
   <div class="menu" role="menu" ${recMenu?"":"hidden"} style="width:280px;padding:6px">${items.join("")}</div></span>`;
 }
 let RC_REFUSED=null, PREVIEW=false, LM_MENU=null, LM_DECL=null;
+/* E037, 24 Oct 2026 (Hitesh: "Also logs everywhere is also coming soon - in our prototype"): every log is a Coming soon card.
+   The tab keeps its place and carries the same chip the E010 tab had; the body is soonCard, as COMING_SOON pages without a preview. */
+const LOG_SOON={
+ ws:{title:"Activity",promise:"A day-by-day log of every change in a workspace and who made it.",
+  bullets:["Every change, grouped by day","Who made it, with the exact time","Filter by person"],
+  meanwhile:"Open Members to see who has access",attr:'data-tab="members"'},
+ person:{title:"Activity",promise:"Everything one person changed, and when they signed in.",
+  bullets:["Changes they made, across workspaces","Sign-ins with the exact time","Filter by workspace"],
+  meanwhile:"Open Access to see their role and last sign-in",attr:'data-ptabp="access"'}};
+const logTabLabel=l=>'<span class="wss-tab"><span class="wss-tab-t">'+l+'</span><span class="chip c-info crumb-soon">Coming soon</span></span>';
+const logSoon=(k)=>soonCard(Object.assign({icon:"activity"},LOG_SOON[k]));
 function rSoon(title,line,c,icon,bullets){
  return soonCard({icon,title,promise:line,bullets,meanwhile:"Open "+c.name,attr:`data-enter="${c.id}"`});
 }
@@ -4902,7 +4874,7 @@ function vRecord(id){
     "Your workspace · email" on the own one. One chip only when it is
     Disabled. Disabled swaps Open workspace for Enable;
     deleted shows a bar with Restore and nothing else to act on. */
- const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]].concat(wssOn()&&!c.deletedOn?[["score","Workspace score"]]:[]);   /* change 338 */
+ const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
  if(tab!=="limits"&&RL) RL=null;   /* change 269 */
  const dead=!!c.deletedOn, off=!!c.disabled;
@@ -4914,13 +4886,13 @@ function vRecord(id){
  const acts=dead?"":off?(canI("disable")?`<button class="shd-button shd-button--primary" data-enable="${c.id}">Enable workspace</button>`:""):`<button class="shd-button shd-button--primary" data-enter="${c.id}">Open workspace</button>`;
  return `
  <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
-  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}"${k==="score"?' class="wss-tabbtn"':''}>${k==="score"?wssTabLabel(c):l}</button>`).join("")}</div>
+  <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}"${k==="activity"?' class="wss-tabbtn"':''}>${k==="activity"?logTabLabel(l):l}</button>`).join("")}</div>
   <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}</div>
  </div>
  ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
- <div class="wrap${tab==="score"?" wss-soon":""}">${
-  tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:tab==="score"?wssBody(c)/* change 338 */:rActivity(c)}</div>`;
+ <div class="wrap">${
+  tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:logSoon("ws",c)/* E037 */}</div>`;
 }
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
@@ -6648,11 +6620,11 @@ function vPerson(){
     actions right; the email and status line opens the page. */
  return `
  <div class="hdr-sh per-sh">
-  <div class="tabbar" role="tablist">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" role="tab" data-t="${l}" aria-selected="${PERSON_TAB===k}">${l}</button>`).join("")}</div>
+  <div class="tabbar" role="tablist">${[["access","Access"],["activity","Activity"]].map(([k,l])=>`<button data-ptabp="${k}" role="tab" data-t="${l}" aria-selected="${PERSON_TAB===k}"${k==="activity"?' class="wss-tabbtn"':''}>${k==="activity"?logTabLabel(l):l}</button>`).join("")}</div>
   <div class="hdr-sh-r">${reset}${ownerBtn}${dis}${rm}</div>
  </div>
  ${receiptBar("people")}${tr}
- <div class="wrap">${PERSON_TAB==="activity"?personActivityHTML(p):personAccessHTML(p)}</div>`;
+ <div class="wrap">${PERSON_TAB==="activity"?logSoon("person"):personAccessHTML(p)}</div>`;
 }
 /* Edit: the Invite people form, for this one person */
 function personEdit(key){
@@ -10585,7 +10557,7 @@ let focusMb=null;
    instead of handing back a plain tab with six rows to search through. */
 let FOCUS_LIM=null;
 /* the three destinations that are record tabs rather than workspace modules */
-const RECTAB={overview:1,limits:1,members:1,score:1};   /* change 338 */
+const RECTAB={overview:1,limits:1,members:1};   /* E037: no score tab */
 function gotoClient(id,mod,pid){
  if(RECTAB[mod]){
    /* capture the ranking the operator was actually looking at, once, rather
@@ -12966,7 +12938,7 @@ function wire(){
  /* ═══ agency Analytics: tab, workspace filter, sort, export ═══ */
  q("[data-antab]").forEach(b=>b.onclick=()=>{anTab=b.dataset.antab;anWsOpen=false;render()});
  q(".hero-card[data-nav]").forEach(b=>b.onclick=()=>{const n=b.dataset.nav;ctx="agency";asClient=false;view={name:"clients"};render()});   /* E026: the Prospects contacted card opens Workspaces; Analytics is Coming soon */
- q("[data-csnotify]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csnotify]||(b.dataset.csnotify==="wscore"?{title:"Workspace score"}:null);receipt("soon",`You will get one email at ${ME().email||"your address"} when ${t?t.title:"this"} is ready. Nothing else.`,null,`asked to be told when ${t?t.title:"it"} is ready`);render()});
+ q("[data-csnotify]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csnotify];receipt("soon",`You will get one email at ${ME().email||"your address"} when ${t?t.title:"this"} is ready. Nothing else.`,null,`asked to be told when ${t?t.title:"it"} is ready`);render()});
  q(".cs-peek").forEach(b=>b.onclick=()=>{const pv=b.parentElement.querySelector(".cs-prev"),on=!pv.classList.contains("is-open");pv.classList.toggle("is-open",on);b.setAttribute("aria-expanded",String(on));b.textContent=on?"Hide preview":"See a preview";csFit()});
  q("[data-csgo]").forEach(b=>b.onclick=()=>{const t=COMING_SOON[b.dataset.csgo];if(!t)return;ctx="agency";view={name:t.go==="queue"?"queue":t.go==="dash"?"dash":"clients"};render()});
  q("[data-anview]").forEach(b=>b.onclick=()=>{anView=b.dataset.anview;render()});
@@ -13142,7 +13114,6 @@ function wire(){
    const row=el("rlim-"+k); if(row) row.scrollIntoView({behavior:REDUCED()?"auto":"smooth",block:"center"})});
  q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;FOCUS_LIM=null;wssHcClose();render()});
  /* change 338: the pill opens the Workspace score tab on its weakest group; a sub-score tab; Refresh */
- q("[data-wssgo]").forEach(b=>b.onclick=e=>{e.stopPropagation();uwHide();const id=b.dataset.wssgo;delete WSS_SUB[id];gotoClient(id,"score")});
  q("[data-wsssub]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.wsssub.split("|");WSS_SUB[id]=+i;uwHide();render()});
  q("[data-wssref]").forEach(b=>b.onclick=()=>{WSS_C=null;WSS_UPD=0;render()});
  /* change 342: a contracted table's Show all and Show less; contracted tables open scrolled to the wrong column */
@@ -14367,7 +14338,7 @@ demoSync();
 .soon-ico{width:56px;height:56px;border-radius:12px;background:var(--blue-17);color:var(--blue-11);display:flex;align-items:center;justify-content:center;margin-bottom:4px}
 .soon-ico svg{width:26px;height:26px}
 .soon-t{margin:0;font-size:20px;line-height:28px;font-weight:600;color:var(--gray-17)}
-.soon-p{margin:0;font-size:14px;line-height:20px;color:var(--gray-12);max-width:440px}
+.soon-p{margin:0;font-size:14px;line-height:20px;color:var(--gray-12);max-width:440px;text-wrap:balance}
 .soon-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;max-width:400px}
 .soon-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:20px;color:var(--gray-12)}
 .soon-list svg{width:16px;height:16px;flex:none;color:var(--green-16);margin-top:2px}
@@ -14438,10 +14409,9 @@ demoSync();
 .cell-main--sub .cs{font-size:13px;line-height:20px;color:var(--gray-12)}
 .crumb-soon{margin-left:8px;height:20px;font-size:11px;vertical-align:middle}
 /* E010: the score tab's Coming soon page fills the record's body edge to edge, like the top-level ones */
-.wrap.wss-soon{padding:0;gap:0;background:#fff}
 .wss-tab .crumb-soon{margin-left:8px}
+.tabbar button.wss-tabbtn .wss-tab{padding:0}   /* E037: the chip tab sits on the same gap as its neighbours */
 .wss-tab:hover{background:none}
-#page:has(.wss-soon){background:#fff}
 
 /* People v2, 29 Sep 2026 */
 .pp-wrap{padding-top:20px;gap:16px}
@@ -16727,7 +16697,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="15f4b8b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="5fcf1e0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
