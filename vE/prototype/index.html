@@ -5220,6 +5220,8 @@ const ALL_MODS=CLIENT_MODULES.filter(m=>m[4]!=="staff").map(m=>m[0]), ALL_VERBS=
    prospects, tasks, templates, sequence reports and Usage. Roles differ only in verbs. Lead Finder, Dialer, Email Verifier and Inbox Radar are
    actions (they spend credits), so they stay out of a client login. */
 const CLIENT_FULL_MODS=["sequences","inbox","accounts","warmup","prospects","task","tmpl","analytics","usage"];
+/* vE E047 (24 Oct 2026, Hitesh: "Client Admin should able to everything in their workspace"): a Client Admin also opens the credit-spending tools */
+const CLIENT_ADMIN_MODS=CLIENT_FULL_MODS.concat(["leads","dialer","verify","radar"]);
 /* the six fixed roles' client-side half. One table: mods and verbs are the
    grant, `desc` is the one-line description a role picker shows, `banner` is
    the orientation sentence a client reads on their own workspace (accessNote,
@@ -5231,14 +5233,15 @@ const CLIENT_ROLE_DEFS={
  /* vE E029, 23 Oct 2026 (Hitesh, final role setup): the three client roles are production's
     client roles under new names (doc 81 §17). Client Admin is "Client Full": sees, edits and
     pauses the workspace's sequences, edits templates, connects and edits email accounts,
-    replies, reads sequence reports; no creating or deleting sequences, no changing prospects or tasks,
-    no buying. Client Collaborator is "Client Limited": the same minus editing sequences and
+    replies, reads sequence reports; E047 (24 Oct 2026): and everything else inside its own workspace, including
+    creating and deleting sequences, prospects, tasks, Lead Finder, Dialer, Email Verifier, Inbox Radar and buying
+    email accounts within the workspace's limits. Client Collaborator is "Client Limited": the same minus editing sequences and
     templates. All three see the same things (E032); Client Viewer changes nothing. Usage stays:
     it is this workspace's limits, which every client role reads. */
- "Client Admin":{mods:CLIENT_FULL_MODS, verbs:["reply","pause","editseq","warmup"],
-   desc:"Edits and pauses sequences, edits templates, replies and connects email accounts",
-   banner:`${AGENCY.name} runs your outreach here. As a Client Admin you can edit and pause sequences, edit templates, reply to prospects and connect email accounts.`,
-   wizTail:"can edit and pause sequences, edit templates, reply and connect email accounts."},
+ "Client Admin":{mods:CLIENT_ADMIN_MODS, verbs:ALL_VERBS,
+   desc:"Can do everything in this workspace",
+   banner:`${AGENCY.name} runs your outreach here. As a Client Admin you can do everything in this workspace.`,
+   wizTail:"can do everything in this workspace."},
  "Client Collaborator":{mods:CLIENT_FULL_MODS, verbs:["reply","pause","warmup"],
    desc:"Pauses sequences, replies and connects email accounts; no editing",
    banner:`${AGENCY.name} runs your outreach here. As a Client Collaborator you can pause and resume sequences, reply to prospects and connect email accounts. Editing sequences stays with a Client Admin.`,
@@ -5255,7 +5258,7 @@ const roleSet=role=>CLIENT_ROLE_DEFS[role]||CLIENT_ROLE_DEFS["Client Viewer"];
    in the dropdown (a role in a row), written from CLIENT_ROLE_DEFS and §8.5. */
 const WS_ROLE_LINE={
  /* vE E029: where the line between the three client roles falls */
- "Client Admin":"Edits sequences and replies",
+ "Client Admin":"Does everything in the workspace",
  "Client Collaborator":"Replies and pauses, no editing",
  "Client Viewer":"View only",
 };
@@ -5380,7 +5383,7 @@ const myClientsForLimits=()=>canI("limits")?myClients():[];
    Member on their own records); a client session holds its role's. */
 const canC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).verbs.indexOf(k)>-1:true;   /* vE E029: an agency session works fully where it reaches */
 /* change 227: buying email accounts and their domains happens inside a workspace. */
-const mayBuyMail=c=>!!c&&!asClient;   /* vE E029: buying is the agency's (doc 81 §17: no client role buys email infra) */
+const mayBuyMail=c=>!!c&&(!asClient||actingRole(c)==="Client Admin");   /* vE E047: a Client Admin buys within the workspace's limits, as an agency user does */
 const seesC=(c,k)=>asClient?userAccessOf(c,actingClientUser(c)).mods.indexOf(k)>-1:true;
 /* the invite sentence is derived from the role, never hand quoted, so it can
    never disagree with roleSet's own one-line description. */
@@ -6372,9 +6375,9 @@ function ppRolesHTML(){
   ["Pause and resume sequences",[1,1,"Own",1,1,0]],
   ["Connect and edit email accounts",[1,1,"Own",1,1,0]],
   ["Edit sequences and templates",[1,1,"Own",1,0,0]],
-  ["Create and delete sequences",[1,1,"Own",0,0,0]],
-  ["Change prospects and tasks",[1,1,"Own",0,0,0]],
-  ["Buy or delete email accounts",[1,1,"Own",0,0,0]]];
+  ["Create and delete sequences",[1,1,"Own",1,0,0]],
+  ["Change prospects and tasks",[1,1,"Own",1,0,0]],
+  ["Buy or delete email accounts",[1,1,"Own",1,0,0]]];
  const AC=[["Invite people, change roles, disable users",[1,1,0,0,0,0]],
   ["Add workspaces, set limits, admin settings",[1,1,0,0,0,0]],
   ["Whitelabel",[1,1,0,0,0,0]],
@@ -16590,7 +16593,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="48746d2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="c8815d4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
