@@ -206,7 +206,8 @@ svg{display:block}
 .ws-btn{display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;border-radius:var(--radius-input);padding:8px 4px;
  cursor:pointer;text-align:left;color:var(--gray-17);transition:padding .3s ease-in-out,gap .3s ease-in-out}
 .ws-btn:hover{background:var(--gray-16)}
-.ws-btn .nm{display:block;flex:1;font-size:13px;line-height:20px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-btn .nm{display:block;flex:1;font-size:13px;line-height:20px;font-weight:600;overflow:hidden;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;padding:2px 0}   /* vE E043: the full name wraps, no ellipsis */
+.ws-btn{align-items:flex-start}.ws-btn .avatar{margin-top:0}   /* E043: top-aligned avatar; 2px above and below the 20px lines makes one line 24px, level with the avatar */
 /* 29 Sep 2026, Hitesh: "inside workspace switcher alignment is off". The static tile is a div, so it inherited the rail's 22px line height and stood 14px taller than the button; both now set their own. */
 .ws-btn{line-height:normal}.ws-btn .ws-ctx{line-height:14px}
 .ws-btn .avatar{width:24px;height:24px;font-size:10px}
@@ -2663,7 +2664,7 @@ const AGENCY_OWN={
    The open question this does not settle is whether agencies want their own
    outreach on the platform at all. That is topic 11 of the validation panel. */
 const OWN_WS={
- id:"own", name:AGENCY.name+" (Your workspace)", company:AGENCY.name+", own outreach", forClient:false,
+ id:"own", _nm:null, company:AGENCY.name+", own outreach", forClient:false,
  email:"alex@meridiangrowth.com", colour:AGENCY.colour, own:true,
  seq:AGENCY_OWN.sequences.length, mbx:AGENCY_OWN.mailboxes.length,
  prospects:AGENCY_OWN.prospects, reply:AGENCY_OWN.reply, prev:4.1, pos:AGENCY_OWN.pos,
@@ -2676,6 +2677,11 @@ const OWN_WS={
    prospects:pr, contacted:ct, sent:Math.round(ct*2.6), reply:rp,
    owner:i%2?"Priya Nair":"Alex Meridian"})),
 };
+/* E043: the name is derived. Plain before the account converts; "(Your workspace)" once it has (E024). A rename by the
+   user wins as typed; saving the form with the derived name unchanged is not a rename. */
+Object.defineProperty(OWN_WS,"name",{enumerable:true,configurable:true,
+ get(){return this._nm||(hasAgency()?AGENCY.name+" (Your workspace)":AGENCY.name)},
+ set(v){v=(v||"").trim(); this._nm=(!v||v===AGENCY.name||v===AGENCY.name+" (Your workspace)")?null:v}});
 OWN_WS.sent=OWN_WS.sequences.reduce((t,q)=>t+q.sent,0);
 /* registered in byId so every "inside a workspace" path resolves it, and
    deliberately absent from CLIENTS, which is what keeps it out of the roll-ups,
@@ -11985,7 +11991,7 @@ function modalHTML(){
      </div>
      <div class="ac-arrow">${fi('<path d="M5 12h14M13 6l6 6-6 6"/>')}</div>
      <div class="ac-after">
-      <div class="ac-ws">${nm(OWN_WS.initials||AGENCY.initials,AGENCY.colour,OWN_WS.name)}</div>
+      <div class="ac-ws">${nm(OWN_WS.initials||AGENCY.initials,AGENCY.colour,OWN_WS._nm||AGENCY.name+" (Your workspace)")}</div>
       <div class="ac-ws is-new">${nm("+","var(--gray-11)","New workspace")}</div>
      </div>
     </div>
@@ -16531,7 +16537,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6203373";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="4b243e4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
