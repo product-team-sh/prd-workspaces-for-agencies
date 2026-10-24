@@ -5723,7 +5723,7 @@ const cuNext=()=>"1 "+CU_MON[(cuToday().getUTCMonth()+1)%12];
    words ("its limit"); E003: nothing else on them, for either side */
 function cuRows(c,ag){const yr=ag&&!ag.own?"its":"your";
  return RKA.map(k=>{const R=RES[k], r=R.rows[c.id]; if(R.unlimited) return cuUnlRow(k,c,ag); if(!r) return "";
-  const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=stop?"":paceLine(k,r), hot=stop||p>=R.warn||!!ro;   /* change 292: paceLine */
+  const p=r.cap?r.used/r.cap:1, stop=r.used>=r.cap, ro=stop||!ulrRule(k).cli?"":paceLine(k,r), hot=stop||p>=R.warn||!!ro;   /* change 292: paceLine */
   const pc=stop?`<span class="cx-ul"><span class="cx-mk is-out">Used up</span></span>`
    :ro?`<span class="cx-ul"><span class="cx-mk">${ro}</span></span>`
    :p>=R.warn?`<span class="cx-ul"><span class="cx-mk">Close to ${yr} limit</span></span>`:`<span class="cx-ul cx-g">Fine</span>`;
@@ -5732,8 +5732,8 @@ function cuRows(c,ag){const yr=ag&&!ag.own?"its":"your";
    <td class="cx-c-av"><span class="cx-av">${f(Math.max(0,r.cap-r.used))}</span><span class="cx-ml"> left</span></td>
    <td class="cx-c-pc">${pc}</td></tr>`}).join("")}
 /* vE E033: the client's Renews cell, the refresh date only (126 section 4); a level has none */
-const cuRwHTML=k=>{const v=ulrRule(k).cli; return v==null?'<td class="cx-c-rw is-none"><span aria-label="No refresh">&ndash;</span></td>'
- :'<td class="cx-c-rw">'+(v==="Doesn't renew"?v:'<span class="ulr-ph">Renews </span>'+v)+'</td>'};
+const cuRwHTML=k=>{const v=ulrRule(k).cli; return v==null?'<td class="cx-c-rw is-none"></td>'
+ :'<td class="cx-c-rw"><span class="ulr-ph">Renews </span>'+v+'</td>'};   /* vE E039: nothing for a resource that doesn't renew */
 function cUsage(c){
  const AG=AGENCY.name;
  /* vE E015: Download usage report sits at the right end of the tab row (no row of its own) */
@@ -7812,14 +7812,14 @@ function ulrBarHTML(){const ch=ulChanges(), n=ch.length; if(!n) return "";
    renew. on/lost: the row on top. keep: what a resource that doesn't renew keeps. cli: the client's Renews cell. The
    Dialer is its own subscription, monthly on the 14th; Inbox Radar on the 1st. ═══ */
 function ulrRule(k){const pro=PLAN_TIER==="pro", nx=PLAN.next.split(",")[0], M={day:CYCLE.day,days:CYCLE.days,from:"1 Sep",to:nx}, on=(T,lost)=>({term:T,on:"On "+T.to,lost});
- if(k==="sends") return Object.assign({head:"Renews "+nx,act:"Change plan",cli:nx},on(M,"Unused is lost"));
- if(k==="lead_finder") return pro?Object.assign({head:"Renews 1 May 2027",act:"Add-on or upgrade",cli:"1 May 2027"},on({day:132,days:365,from:"1 May 2026",to:"1 May 2027"},"Unused is lost, add-on too"))
-  :Object.assign({head:"Renews "+nx,act:"Add-on or upgrade",cli:nx},on(M,"Unused is lost"));
- if(k==="dialer") return Object.assign({head:pro?"Renews monthly, next 14 Sep":"Renews with your Dialer plan on 14 Sep",act:"Buy more",cli:"14 Sep"},on({day:27,days:31,from:"14 Aug",to:"14 Sep"},"Plan credits lost, bought kept"));
- if(k==="radar") return pro?{head:"Doesn't renew",keep:"Tests are kept",act:"Get an Inbox Radar plan",cli:"Doesn't renew"}
-  :Object.assign({head:"Renews with your Inbox Radar plan on 1 Oct",act:"Change Inbox Radar plan",cli:"1 Oct"},on(Object.assign({},M,{to:"1 Oct"}),"Unused is lost"));
- if(RES[k]&&RES[k].kind==="level") return {head:"Plan limit",act:"Change plan",cli:null};
- return {head:"Doesn't renew",keep:"Never expires",act:"Buy more",cli:"Doesn't renew"}}
+ if(k==="sends") return Object.assign({head:"Renews "+nx+", emails not sent this month don't carry over.",act:"Change plan",cli:nx},on(M,"Unused is lost"));
+ if(k==="lead_finder") return pro?Object.assign({head:"Renews with your add-on on 1 May 2027, unused credits don't carry over.",act:"Add-on or upgrade",cli:"1 May 2027"},on({day:132,days:365,from:"1 May 2026",to:"1 May 2027"},"Unused is lost, add-on too"))
+  :Object.assign({head:"Renews "+nx+", unused credits don't carry over.",act:"Add-on or upgrade",cli:nx},on(M,"Unused is lost"));
+ if(k==="dialer") return Object.assign({head:"Renews 14 Sep, bought credits carry over and plan credits don't.",act:"Buy more",cli:"14 Sep"},on({day:27,days:31,from:"14 Aug",to:"14 Sep"},"Plan credits lost, bought kept"));
+ if(k==="radar") return pro?{head:"Doesn't renew, tests stay until used.",keep:"Tests are kept",act:"Get an Inbox Radar plan",cli:null}
+  :Object.assign({head:"Renews 1 Oct, unused tests don't carry over.",act:"Change Inbox Radar plan",cli:"1 Oct"},on(Object.assign({},M,{to:"1 Oct"}),"Unused is lost"));
+ if(RES[k]&&RES[k].kind==="level") return {head:isUnl(k)?"Unlimited on your plan.":"Doesn't renew, frees up as prospects finish their sequences.",act:"Change plan",cli:null};
+ return {head:"Doesn't renew, credits stay until used.",keep:"Never expires",act:"Buy more",cli:null}}
 const ulrTerm=k=>isUnl(k)?null:ulrRule(k).term||null;
 const ulrSig2=x=>{if(x<100) return Math.round(x/10)*10||Math.round(x); const p=Math.pow(10,Math.floor(Math.log10(x))-1); return Math.round(x/p)*p};
 /* the pace at the typed limit: days from today while it runs out before the renewal, else what is left on that day */
@@ -7845,7 +7845,7 @@ function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
  return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.head}</span></td><td>${P.keep}</td><td class="ulr-cl">Limits and used stay</td></tr>`}
 function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
  const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span><span>You can give</span></div>${RK_SHOW(UL_K()).map(x=>{const n=ulrOut(x);
-  return `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}"${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${n?`<span class="ulr-lab"><i aria-hidden="true"></i>${n} used up</span>`:""}<span class="ulr-ra" data-ulrav="${x}">${ulrAvHTML(x)}</span></button>`}).join("")}</nav>`;
+  return `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}"${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span><span class="ulr-ra" data-ulrav="${x}">${ulrAvHTML(x)}</span></button>`}).join("")}</nav>`;
  const RU=ulrRule(k), T=ulrTerm(k), sub=RU.head;   /* vE E033: 126's header line */
  const act=ulRo()||unl?"":canI("billing")?`<button type="button" class="linkbtn ul3-lk" data-ulbuy="${k}">${RU.act}</button>`:`<button type="button" class="linkbtn ul3-lk" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
@@ -7853,7 +7853,7 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
   +(T?`<td class="ulr-ur"><span class="ulr-num">${f(R.rows[c.id].used)}</span></td><td class="ulr-gc" data-ulru="${c.id}">${ulrGaugeHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`
   :`<td data-ulru="${c.id}">${ulrUseHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${unl?`<span class="ulr-lv">${UNL_TXT}</span>`:ulrLimHTML(k,c,ro)}</td></tr>`)).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${ulfToolbar()}${ulfChips()}
-  <table class="ulr-t${T?" ulr-tp":""}" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup>${T?'<col class="ulr-c1"><col class="ulr-cu"><col class="ulr-cg"><col class="ulr-cv"><col>':'<col class="ulr-c1"><col><col class="ulr-c3">'}</colgroup>${(T?ulrHeadP(T):hsHead("ul")).replace("</thead>",ulrOnHTML(k)+"</thead>")}<tbody>${rows||ulfNone(T?5:3)}</tbody></table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t${T?" ulr-tp":""}" id="ul3E2T" tabindex="-1" aria-labelledby="ulrT"><colgroup>${T?'<col class="ulr-c1"><col class="ulr-cu"><col class="ulr-cg"><col class="ulr-cv"><col>':'<col class="ulr-c1"><col><col class="ulr-c3">'}</colgroup>${T?ulrHeadP(T):hsHead("ul")}<tbody>${rows||ulfNone(T?5:3)}</tbody></table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -16527,7 +16527,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="ce7b05b";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="9982cf6";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16913,7 +16913,9 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ulr-ch{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 24px;border-bottom:1px solid #E5E7EB;box-sizing:border-box}
 .ulr-ct{margin:0;font-size:16px;line-height:24px;font-weight:600;color:#1F2937}
 .ulr-chr{display:flex;align-items:center;gap:16px;font-size:14px;line-height:20px}
-.ulr-g{color:#6B7280}
+.ulr-g{color:#374151;flex:0 1 auto;min-width:0;text-align:right;text-wrap:balance}   /* vE E039: A, one sentence, Gray 700 */
+.ulr-ch .ulr-chr{flex:1 1 0;min-width:0;justify-content:flex-end}
+.ulr-chr .ul3-lk{flex:none}
 .ulr-back{display:none}
 .ulr-t{width:100%;border-collapse:collapse;table-layout:fixed}
 .ulr-t:focus{outline:none}
@@ -16970,6 +16972,8 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .ulr-back{display:inline-flex;align-items:center;gap:4px;width:100%;margin:0 0 4px -2px;padding:0;border:0;background:none;font:inherit;font-size:14px;line-height:20px;font-weight:500;color:#1D4ED8;cursor:pointer;text-align:left}
  .ulr-back:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
  .ulr-chr{flex-wrap:wrap;gap:4px 16px;width:100%}
+ .ulr-ch .ulr-chr{flex:1 1 100%;justify-content:flex-start}
+ .ulr-g{text-align:left}
  .ulr-t colgroup,.ulr-t thead{display:none}
  .ulr-t,.ulr-t tbody{display:block}
  .ulr-t tr{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:8px;padding:12px 16px;border-bottom:1px solid #E5E7EB}
