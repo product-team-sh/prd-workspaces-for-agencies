@@ -198,7 +198,7 @@ svg{display:block}
 /* .app-sidebar__header, deployed, exact: 50px, 11.5px vertical padding, 14px side
    margins, a 1px #e5e7eb rule beneath */
 /* 30 Sep 2026, Hitesh: the rail's logo block and the topbar share one height and one divider line; 52px, white, 20/28 title, measured off the product ("check difference and match") */
-.sb-brand{display:flex;align-items:center;gap:6px;height:52px;box-sizing:border-box;flex:none;padding:8px 0;margin:0 14px;border-bottom:1px solid var(--gray-13);color:var(--gray-17);font-weight:700;font-size:16px}
+.sb-brand{display:flex;align-items:center;gap:6px;height:50px;box-sizing:border-box;flex:none;padding:11.5px 0;margin:0 14px;border-bottom:1px solid var(--gray-13);color:var(--gray-17);font-weight:700;font-size:16px}
 .sb-brand svg{width:30px;height:26px}
 /* the workspace switcher has no equivalent in the real sidebar at all (the real
    header slot holds only the logo); it is this feature's own new furniture per
@@ -265,6 +265,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 /* vE E044: More opens a flyout beside the rail, as production's sub-nav does; the rail itself never grows or scrolls */
 .more-fly{position:fixed;z-index:1000;width:224px;box-sizing:border-box;padding:8px;display:flex;flex-direction:column;gap:8px;background:var(--gray-1);border:1px solid var(--gray-13);border-radius:8px;box-shadow:0 8px 24px rgba(31,41,55,.12);max-height:calc(100vh - 24px);overflow-y:auto}
 .more-fly[hidden]{display:none}
+.more-fly .nav-item{height:auto;min-height:32px;line-height:20px}.more-fly .nav-item .lbl{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 /* 18 Sep QA: Status stole width from the name and usage columns on Home, so
    "Northwind Logistics" and "89% Prospects" wrapped. */
 .crow td:first-child{min-width:230px}
@@ -403,7 +404,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
    toolbar the toolbar's own 22px bottom padding does. Templates no longer set padding-top inline. */
 .tabbar+.wrap{padding-top:20px}
 .c-h+.tscroll{margin-top:12px}
-.ws-ch{flex-wrap:wrap;row-gap:12px}.ws-ch .search{flex:1 1 220px;max-width:320px}.ws-ch .c-a{flex:none}
+.ws-ch{flex-wrap:wrap;row-gap:12px}.ws-ch .search{flex:1 1 160px;min-width:160px;max-width:320px}.ws-ch .c-a{flex:none}
 .filters{padding:16px 24px 12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start}
 .dwrap{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(320px,.9fr);gap:20px;padding:4px 24px 36px;align-items:start}
@@ -3130,7 +3131,7 @@ function fitRail(){
  const cs=getComputedStyle(nl), G=parseFloat(cs.rowGap)||8, H=items[0].offsetHeight||32;
  const A=nl.clientHeight-(parseFloat(cs.paddingTop)||0)-foot.offsetHeight-2*G-(parseFloat(getComputedStyle(gap).minHeight)||0);
  const fits=main.length*H+(main.length-1)*G<=A;
- if(fits&&!fixed.length){close(); return}
+ if(fits&&!fixed.length){close(); if(window.__railRO) window.__railRO.disconnect(); if(window.ResizeObserver){let h1=foot.offsetHeight; window.__railRO=new ResizeObserver(()=>{const h=foot.offsetHeight; if(h!==h1&&!normMore){h1=h; requestAnimationFrame(fitRail)}}); window.__railRO.observe(foot)} return}
  const vis=Math.min(main.length,Math.max(1,Math.floor((A-H)/(H+G))));
  const hidden=main.slice(vis).concat(fixed);
  const mb=document.createElement("button"); mb.className="nav-item nav-more"; mb.setAttribute("data-normmore","");
@@ -5876,7 +5877,7 @@ function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet re
    <td class="rlt-c2"><span class="sub">Not set</span></td><td class="rlt-c3">&ndash;</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`;
   return `<tr class="rlt-row${FOCUS_LIM===k?" is-focus":""}" id="rlim-${k}" data-rl="${k}"><td class="rlt-c1"><span class="rlt-nm">${R.label}</span><span class="sub">${PACE_RENEW(k)?"Renews 1 Oct":resSub(k,"Does not renew")}</span></td>
    <td class="rlt-c2"><span class="rlt-u"><span class="rlt-bar" aria-hidden="true">${pbar(p,useCol(r.used,r.cap))}</span><span class="rlt-uv">${ul3Mk(ul3Lv(r),`<b>${f(r.used)}</b> of ${f(r.cap)}`)}</span></span></td>
-   <td class="rlt-c3">${left>0?f(left):"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
+   <td class="rlt-c3${left>0?" rlt-lf":""}">${left>0?f(left):"None left"}${pace?`<span class="sub">${pace}</span>`:""}</td><td class="rlt-c4"><span class="rlt-av">${f(compute(k).free)}</span></td></tr>`}).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
  return `<div class="panel rlt-sheet"><table class="rlt-t"><colgroup><col style="width:30%"><col style="width:28%"><col style="width:22%"><col></colgroup>
   <thead><tr><th>Resource</th><th>Used</th><th>Left</th><th>You can give</th></tr></thead><tbody>${rows}</tbody></table></div>`}
@@ -6124,7 +6125,7 @@ function rMail(c){
   ${receiptBar("mailboxes:"+c.id)}
   ${c.mailboxes.length?`<div class="filters"><div class="pills">${[["all","Any health",mine.length]].concat(summary.map(([t,n])=>[t,MB_LABEL(t),n]))
     .map(([k,l,n])=>`<button data-mbh="${k}" aria-pressed="${mbHealth===k}">${l}<span class="pn">${n}</span></button>`).join("")}</div></div>`:""}
-  <div class="tscroll"><table class="organism" style="min-width:560px">
+  <div class="tscroll"><table class="organism pin1" style="min-width:560px">
    <thead><tr><th>Email Account</th><th>Health</th><th class="ar">Daily Limit</th>${asClient?"":"<th></th>"}</tr></thead>
    <tbody>${c.mailboxes.length?rows.map(m=>{
     /* fix 25 Sep review #3: Reconnect is a state mutation and was rendered
@@ -6309,7 +6310,7 @@ function vPeople(){
  const pop=all?team.concat(cl):tab==="team"?team:cl;
  const rows=on?pop.filter(r=>r.invited):pop, total=on?invN:popAll.length;
  /* All users carries one more column, Type (Your team or Client user); its Role column then holds the account role for the team and the workspace role for a client user */
- const cols=all?'grid-template-columns:minmax(250px,1fr) 78px 152px minmax(260px,2.5fr) 88px 176px 44px':'grid-template-columns:minmax(250px,1fr) 120px minmax(260px,2.5fr) 88px 176px 44px';   /* vE E030: Access never narrows below 260px; the card scrolls sideways instead (CSS) */
+ const cols=all?'grid-template-columns:minmax(var(--ppc1,250px),var(--ppc1m,1fr)) 78px 152px minmax(260px,2.5fr) 88px 176px 44px':'grid-template-columns:minmax(var(--ppc1,250px),var(--ppc1m,1fr)) 120px minmax(260px,2.5fr) 88px 176px 44px';   /* vE E030: Access never narrows below 260px; the card scrolls sideways instead (CSS) */
  const typeCell=t=>all?`<span class="pp-type">${t}</span>`:"";
  const head=`<div class="pp-head" style="${cols}"><span>Person</span>${all?"<span>Type</span><span>Role</span>":"<span>Role</span>"}<span>Access</span><span>Last sign-in</span><span>Status</span><span></span></div>`;
  const kebab='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
@@ -7764,7 +7765,7 @@ const UL3_NM={sends:"Emails sent / month",lead_finder:"Lead Finder credits",veri
 const UL3_GREY="#9CA3AF";   /* Gray 400: every bar on this page */
 /* 2 at its limit (needs you), 1 at 90% or more (worth a look), 0 otherwise */
 const ul3Lv=r=>!r||!(r.cap>0)?0:r.used>=r.cap?2:r.used/r.cap>=.9?1:0;
-const ul3Mk=(lv,t)=>lv===2?`<span class="ul3-mk is-out">${t}</span>`:lv===1?`<span class="ul3-mku">${t}</span>`:t;
+const ul3Mk=(lv,t)=>lv===2?`<span class="ul3-mk is-out">${t}</span>`:t;
 const ul3Noun=k=>k==="sends"?"emails":RES[k].short;
 const ul3Unit=k=>k==="sends"?"emails":RES[k].unit;
 const ul3Month=()=>String(CYCLE.month).split(" ")[0];
@@ -11011,7 +11012,7 @@ function wlDelModalHTML(){
  const title=`<span class="delete-alert-modal--title"><span class="delete-alert-modal--title__icon">${wlI.trash}</span><h2>${dom?"Delete brand domain":"Delete "+m.title}</h2></span>`;
  const body=dom?`<div class="delete-alert-modal--body__contents"><p>Are you sure you want to delete your brand domain?</p><p>This will remove your brand domain and revert back to the default urls.</p></div>`
   :`<div class="delete-alert-modal--body__contents"><p>Are you sure you want to delete brand ${m.title.toLowerCase()}?</p><p>This will remove your branding from login page.</p></div>`;
- return card(title,body,`<button type="button" class="btn btn-solid-outlined action-btn-cancel" data-mclose>Cancel</button><button type="button" class="btn btn-solid-primary action-btn-delete" data-wlok>Delete</button>`,"ac delete-alert-modal");
+ return card(title,body,`<button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--danger" data-wlok>Delete</button>`,"ac delete-alert-modal");
 }
 function wireWhitelabel(){
  const q=sel=>[...document.querySelectorAll(sel)], rr=()=>render();
@@ -12096,7 +12097,7 @@ function cPros(c,owner){
    <span class="c-a">${/* change 215: Add Prospects for whoever holds addpros (Client Admin, Collaborator) */owner||canC(c,"addpros")?`<button class="shd-button shd-button--primary shd-button--sm" data-flash="Add by hand or import a CSV: not in this prototype">${ADD_I}Add Prospects</button>`:""}${owner||canC(c,"export")
      ?'<button class="shd-button shd-button--tertiary shd-button--sm" data-flash="Export started">Export CSV</button>'
      :""}</span></div>
-  <div class="tscroll"><table class="organism" style="min-width:760px">
+  <div class="tscroll"><table class="organism pin1" style="min-width:760px">
   <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Status</th><th class="colact"></th></tr></thead>
   <tbody>${P.length?P.map(p=>`<tr>
     <td><span style="font-weight:600;color:var(--gray-800)">${p.name}</span><span class="cs" style="display:block">${p.title}</span></td>
@@ -12357,7 +12358,8 @@ function modalHTML(){
     <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm>${isDel?"Delete workspace":"Disable"}</button>`,"modal--450");
 }
 function card(title,body,foot,cls){
- return `<div class="mscrim" id="mscrim"><div class="modal${cls?" "+cls:""}" role="dialog" aria-label="${title}">
+ const ariaTitle=String(title).replace(/<[^>]*>/g,"").replace(/"/g,"&quot;");   /* vE E057: HTML titles must not tear the attribute */
+ return `<div class="mscrim" id="mscrim"><div class="modal${cls?" "+cls:""}" role="dialog" aria-label="${ariaTitle}">
    <div class="modal-h"><span class="semibold-3">${title}</span>
      <button class="ubtn" data-mclose aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
    <div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`;
@@ -14569,6 +14571,7 @@ demoSync();
 
 /* Home hero cards, 30 Sep 2026 */
 .hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:4px 24px 0}
+@media (max-width:640px){.hero{padding:4px 16px 0}}   /* E056: one 16px gutter with the Workspaces card */
 .hero-card{display:flex;flex-direction:column;gap:8px;padding:16px 20px;background:#fff;border:1px solid var(--gray-13);border-radius:8px;text-align:left;font:inherit;color:inherit;cursor:pointer;min-width:0}
 .hero-card:hover{border-color:var(--gray-23);box-shadow:var(--shadow-xs)}
 .hero-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -14822,7 +14825,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.35;cursor:not-
 .pager{padding:8px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;justify-content:flex-end;gap:20px}.pager .sub{font-size:14px;line-height:20px;color:#1f2937}.pager .tools{gap:16px}
 .pager .shd-button--sm{height:24px;padding:2px 8px;font-size:14px;border:0;background:#fff;color:#1f2937}.pager .shd-button--sm:hover{background:#dbeafe;color:#1d4ed8}.pager .shd-button--sm:disabled{opacity:.35}
 /* Toast: 280 to 480 wide, z 9000, slide up 0.22s */
-.toast{min-width:280px;max-width:480px;animation-duration:.22s}#toastLayer{z-index:9000}@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.toast{width:max-content;min-width:0;max-width:min(640px,100%);box-sizing:border-box;animation-duration:.22s}#toastLayer{z-index:9000;left:73px;right:73px;transform:none;align-items:center}@media (max-width:800px){#toastLayer{right:16px}}@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 /* 2 Oct 2026: credit amounts above the free pool are refused on Add */
 .nc-limsay.is-err span{color:#b91c1c!important}
 .numin input.is-err,.numin input.is-err:focus,.numin input.is-err:hover{border:1.5px solid #b91c1c!important;box-shadow:0 0 0 3px #fee2e2!important}
@@ -15083,6 +15086,7 @@ td>.cs:only-child{display:block}
 .rc-lbar{height:4px;background:#f3f4f6;border-radius:2px;margin-top:6px;overflow:hidden}.rc-lbar>span{display:block;height:4px}
 .rc-req{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding:8px 12px;border-radius:4px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:18px}
 .rc-dl{grid-template-columns:140px 1fr;row-gap:10px;font-size:14px;align-items:center}.rc-dl input{width:100%;box-sizing:border-box}
+@media (max-width:640px){.rc-dl:not(.sl-dl){grid-template-columns:88px minmax(0,1fr)}.rc-dl:not(.sl-dl) dd{min-width:0;overflow-wrap:anywhere}}   /* E056 */
 .rc-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:4px}
 .rc-dact{display:flex;gap:8px;margin-top:12px}
 .rc-deleted{display:flex;align-items:center;gap:10px;margin:0 24px 16px;padding:10px 14px;border-radius:4px;background:#fef2f2;border:1px solid #fecaca;font-size:13px;line-height:18px;color:#1f2937}
@@ -15283,7 +15287,8 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .rlt-nm{display:block;font-weight:500;color:#1F2937}
 .rlt-u{display:flex;align-items:center;gap:12px}
 .rlt-bar{flex:none;width:64px}.rlt-bar .pbw{width:100%}
-.rlt-uv{white-space:nowrap}.rlt-uv b{font-weight:600}
+.rlt-uv{white-space:nowrap;flex:none}.rlt-uv b{font-weight:600}
+@media (min-width:761px) and (max-width:1100px){.rlt-t col:nth-child(1){width:26%!important}.rlt-t col:nth-child(2){width:36%!important}.rlt-t col:nth-child(3){width:18%!important}}
 .rlt-av{color:#6B7280}
 .rlt-t tr.is-focus td{background:#EFF6FF}
 .rlt-own{margin:0;padding:16px 24px}
@@ -15311,8 +15316,12 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .rlt-t tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid #E5E7EB}
  .rlt-t tbody tr:first-child{border-top:0}
  .rlt-t td{display:block;padding:0!important;border:0!important}
- .rlt-t td.rlt-c2{grid-column:2;grid-row:1;text-align:right}
- .rlt-t td.rlt-c2 .rlt-bar{display:none}
+ .rlt-t td.rlt-c2,.rlt-t td.rlt-c2 .rlt-u{display:contents}
+ .rlt-t td.rlt-c2 .rlt-uv{grid-column:2;grid-row:1;text-align:right}
+ .rlt-t td.rlt-c2 .rlt-bar{grid-column:1/-1;grid-row:2;width:100%}
+ .rlt-t tr[data-unl] td.rlt-c2 .rlt-bar{display:none}
+ .rlt-t td.rlt-c2>.sub{grid-column:2;grid-row:1;text-align:right}
+ .rlt-t td.rlt-c3.rlt-lf::before{content:"Left ";font-size:12px;line-height:16px;color:#6B7280}
  .rlt-t td.rlt-c3,.rlt-t td.rlt-c4{grid-column:1/-1}
  .rlt-t td.rlt-c4{font-size:12px;line-height:16px}
  .rlt-t td.rlt-c4 .rlt-av::before{content:"You can give "}
@@ -16762,7 +16771,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="db3c58e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="f19da0f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -16920,7 +16929,11 @@ body:has(#demoPill:not([hidden])) .ul3-e2s .ul3-e2d{padding-right:108px}   /* 29
 .pp-invtg:focus-visible{outline:none;border:1.5px solid #1D4ED8;box-shadow:0 0 0 3px #DBEAFE}
 .pp-invtg[aria-pressed=true]{background:#DBEAFE;border-color:#1D4ED8;color:#1D4ED8}
 /* Access keeps 260px, so below about 1280px the card scrolls sideways (never the page) instead of the columns overlapping */
-@media (max-width:1279px){.pp-sec{overflow-x:auto}.pp-head,.pp-row{min-width:1160px}}
+@media (max-width:1279px){.pp-sec{overflow-x:auto}.pp-head,.pp-row{min-width:1160px}.pp-head>:first-child,.pp-row>:first-child{position:sticky;left:0;z-index:1;margin-left:-20px;padding-left:20px;background:var(--gray-1)}.pp-head>:first-child{background:var(--gray-19)}.pp-row.is-link:hover>:first-child{background:var(--gray-19)}}
+@media (max-width:600px){.pp-head,.pp-row{--ppc1:190px;--ppc1m:190px}table.organism.pin1 th:first-child,table.organism.pin1 td:first-child{width:150px;min-width:150px;max-width:150px;white-space:normal;overflow-wrap:anywhere}}
+/* vE E058: the name column stays while the rest of a workspace module table scrolls (the sticky first cell Sequences has in production) */
+@media (max-width:1279px){table.organism.pin1{border-collapse:separate;border-spacing:0}}table.organism.pin1 th:first-child,table.organism.pin1 td:first-child{position:sticky;left:0;z-index:1}table.organism.pin1 th:first-child{z-index:3}
+table.organism.pin1 td:first-child{background:#fff}table.organism.pin1 tbody tr:hover td:first-child{background:var(--gray-19)}table.organism.pin1 tr.is-focus td:first-child{background:var(--blue-17)}
 @media (max-width:600px){
  .pp-tb{flex-direction:column;align-items:stretch;gap:12px}
  .pp-tb-f .search{flex:1 1 100%;max-width:none;min-width:0}
@@ -17373,6 +17386,53 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .cx-ut td.cx-c-rw{grid-area:rw;font-size:12px;line-height:16px;color:#6B7280;margin-top:-4px}
  .cx-ut td.cx-c-rw.is-none{display:none}
 }
+/* vE E054: 761 to 990px takes the phone's card rows (the Workspace column was 0px wide at 768); 24px sides, the toolbar's */
+@media (min-width:761px) and (max-width:990px){
+ .ulr-t colgroup,.ulr-t thead{display:none}
+ .ulr-t,.ulr-t tbody{display:block}
+ .ulr-t tr{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:8px;padding:12px 24px;border-bottom:1px solid #E5E7EB}
+ .ulr-t tbody tr:last-child{border-bottom:0}
+ .ulr-t tfoot{display:block}.ulr-t tfoot tr.ulr-tot{border-top:1px solid #E5E7EB;border-bottom:0}
+ .ulr-t td{display:block;height:auto;padding:0!important;border:0!important}
+ .ulr-t td:nth-child(1){grid-column:1;grid-row:1;align-self:center;min-width:0}
+ .ulr-ws .ulr-nm{white-space:normal;overflow:visible;text-overflow:clip}
+ .ulr-t td:nth-child(3){grid-column:2;grid-row:1;align-self:center}
+ .ulr-t td:nth-child(2){grid-column:1/-1;grid-row:2}
+ .ulr-t tbody tr:hover td{background:none}
+ .ulr-pen{visibility:visible}
+ .ulr-t .ulr-in.ul-in{width:112px;margin-right:11px}
+ .ulr-t.ulr-tp thead .th-one th.ulr-lh{padding-right:10px}
+ .ulr-t thead{display:block}
+ .ulr-t thead .th-one{display:flex;align-items:center;gap:24px;height:40px;padding:0 24px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;box-sizing:border-box}
+ .ulr-t thead .th-one th{height:auto;padding:0;border:0;background:none;text-align:left}
+ .ulr-t thead .th-one th:last-child{margin-left:auto}
+ .ulr-t thead .th-one th:last-child .hs-b{margin-right:0}
+ .ulr-t tr.ws-none{display:block}
+ .ulr-t.ulr-tp td.ulr-cl{text-align:right}
+ .ulr-t.ulr-tp td.ulr-cl .ulr-lb{justify-content:flex-end;flex-wrap:nowrap}
+ .ulr-t.ulr-tp td.ulr-cl .ulr-lv{min-width:0}
+ .ulr-t.ulr-tp td.ulr-cl .ulr-was{order:-1;flex:none;margin:0 8px 0 0}
+ .ulr-t.ulr-tp td.ulr-cl .ulr-in.ul-in{text-align:right;margin:0 11px 0 0}
+ .ulr-t.ulr-tp thead th.ulr-gh,.ulr-t.ulr-tp thead th.ulr-p{display:none}
+ .ulr-t.ulr-tp thead th.ulr-r .hs-b{margin-right:0}
+ .ulr-t.ulr-tp tr{grid-template-columns:auto minmax(0,1fr) auto}
+ .ulr-t.ulr-tp td:nth-child(1){grid-column:1/-1;grid-row:1}
+ .ulr-t.ulr-tp td:nth-child(2){grid-column:1;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(3){grid-column:2;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(4){grid-column:3;grid-row:2;align-self:center}
+ .ulr-t.ulr-tp td:nth-child(5){grid-column:1/-1;grid-row:3}
+ .ulr-ph,.ulr-nw{display:inline}.ulr-ww{display:none}
+ .ulr-t thead tr.ulr-onr{display:flex;flex-direction:column;gap:8px;padding:12px 24px;background:#F9FAFB;border-bottom:1px solid #E5E7EB}
+ .ulr-t thead tr.ulr-onr td{background:none;text-align:left!important;white-space:normal;align-self:stretch!important}
+ .ulr-t thead tr.ulr-onr td.ulr-gc{display:none}
+ .ulr-ch{padding:12px 24px;gap:4px 16px}   /* the phone's stack: title, then the renewal line and Change plan on the full row */
+ .ulr-chr{flex-wrap:wrap;gap:4px 16px;width:100%}
+ .ulr-ch .ulr-chr{flex:1 1 100%;justify-content:flex-start}
+ .ulr-g{text-align:left}
+}
+/* vE E054: the popover's Export is a primary button, not a tab (.tabbar button leaked into it) */
+.tabbar .ur-p .shd-button--primary{height:32px;margin:0;padding:6px 16px;border:0;border-radius:4px;background:var(--blue-11);color:#fff;font-size:14px;line-height:20px;font-weight:500}
+.tabbar .ur-p .shd-button--primary:hover,.tabbar .ur-p .shd-button--primary:active,.tabbar .ur-p .shd-button--primary:focus{background:var(--blue-20);color:#fff}
 .ul3-e2s .ul3-e2c{color:#1F2937}
 .ul3-e2s .ul3-e2d{position:sticky;bottom:12px;margin:0 12px 12px;padding:12px 16px 12px 20px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18)}
 .ul3-e2s .ul3-e2d .shd-button{height:auto;min-height:36px;padding:6px 16px;font-size:14px;line-height:20px}
