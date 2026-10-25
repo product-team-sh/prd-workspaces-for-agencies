@@ -2115,7 +2115,7 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
  const d=Date.parse(x.replace(/,/g,"")+" 00:00"), t=Date.parse("9 September 2026 00:00"); return isNaN(d)?60:Math.max(0,Math.round((t-d)/864e5))};
 [
  [ "at","Lena Okafor","3 hours ago","Email account connect@atlasmfg-go.com connected"],
- [ "sf","System","5 hours ago","Sending stopped: the Emails sent / month limit of 30,000 was reached"],
+ [ "sf","System","5 hours ago","Sending stopped: the Emails sent limit of 30,000 was reached"],
  [ "at","Jonah Reyes","6 hours ago","Bought 2 email accounts on atlas-mail.com, $7.00 a month"],
  [ "pc","Priya Nair","8 hours ago","Dedupe across sequences changed to Off"],
  [ "vx","Tariq Hassan","yesterday","Email account care@vertex-reach.com reconnected"],
@@ -2129,7 +2129,7 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
  [ "at","Tariq Hassan","4 days ago","Added 1,200 prospects from a CSV import"],
  [ "nw","Alex Meridian","5 days ago","Invited sam@meridiangrowth.com as an Account Member"],
  [ "sf","Lena Okafor","5 days ago","Email account hello@summit-outbound.com connected"],
- [ "at","Alex Meridian","6 days ago","Emails sent / month limit changed from 180,000 to 200,000"],
+ [ "at","Alex Meridian","6 days ago","Emails sent limit changed from 180,000 to 200,000"],
  [ "al","Priya Nair","1 week ago","Sending priority changed to Balanced Sending"],
  [ "vx","Jonah Reyes","1 week ago","Tariq Hassan added to the workspace"],
  [ "pc","Alex Meridian","1 week ago","Limits reviewed: own limits, no share of the plan"],
@@ -2139,7 +2139,7 @@ const AGO_DAYS=w=>{const x=String(w||"").toLowerCase(); if(x==="just now"||x==="
  [ "pc","Lena Okafor","9 days ago","Sequence Hotel GMs, coastal created"],
  [ "ok","Alex Meridian","12 days ago","Workspace disabled: Oakridge Realty ended its contract. Data kept."],
  [ "ok","Priya Nair","13 days ago","All 4 sequences paused ahead of the handover"],
- [ "sf","Alex Meridian","15 days ago","Emails sent / month limit changed from 25,000 to 30,000"],
+ [ "sf","Alex Meridian","15 days ago","Emails sent limit changed from 25,000 to 30,000"],
  [ "at","Lena Okafor","16 days ago","Custom tracking domain set to go.atlasmfg.com"],
  [ "al","Alex Meridian","18 days ago","sales@alloyco.com's role changed to Client Collaborator"],
  [ "bl","Alex Meridian","19 days ago","Invited felix@meridiangrowth.com as an Account Member"],
@@ -2448,7 +2448,7 @@ CLIENTS.forEach(c=>{growMailboxes(c);growSequences(c);
  if(c.disabled) c.sequences.forEach(q=>{if(q.state==="Active") q.state="Paused"})});
 /* sends and prospects pool sizes are the real figures from a Scale account */
 /* 2 Oct 2026, Hitesh, checked against saleshandy.com/pricing: a plan meters
-   Emails sent / month and Lead Finder credits / month (both renew), Email
+   Emails sent and Lead Finder credits / month (both renew), Email
    verification credits and AI credits (one-time balances, topped up when
    bought) and the Dialer and Inbox placement add-ons (purchased balances).
    Prospect storage, email accounts, users and teams are Unlimited on every
@@ -2472,7 +2472,7 @@ const USE_BAND={yellow:51,red:86}, USE_COL=["#34D399","#FBBF24","#F87171"];   /*
 const useColP=p=>USE_COL[p>=USE_BAND.red?2:p>=USE_BAND.yellow?1:0];
 const useCol=(u,c)=>!(c>0)?(u>0?USE_COL[2]:USE_COL[0]):useColP(ulPct(u,c));   /* the whole percent the words show, so 85.7% is "86% used" and red */
 const RES={
- sends:{label:"Emails sent / month",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:500000,floors:false,warn:.8,
+ sends:{label:"Emails sent",short:"emails",nature:"Renews monthly",kind:"monthly",unit:"emails",pool:500000,floors:false,warn:.8,
   rows:{nw:{res:0,cap:50000,used:41300},vx:{res:0,cap:60000,used:52800},al:{res:0,cap:25000,used:24100},bl:{res:0,cap:20000,used:6400},cp:{res:0,cap:5000,used:0},at:{res:0,cap:200000,used:54000},sf:{res:0,cap:30000,used:30000},ok:{res:0,cap:10000,used:0},pc:{res:0,cap:12000,used:5200},own:{res:0,cap:88000,used:5585}}},
  /* vE E004: production's name (platform-pricing-table-config.ts "Active prospects") and its tooltip as the line under
     it. A level: what is live in a sequence now; it falls as prospects finish or are removed and never renews. Used
@@ -7352,7 +7352,7 @@ function billLine(){
    table read from compute(), the source Usage & limits' Your plan reads, so Used and Available to
    give agree on both screens. No asks, no limits list, one link to Usage & limits (239).
    change 343 (Hitesh, 21 Oct 2026: "show only things part of platform plan"): the card keeps what Platform
-   sells (Emails sent / month, Lead Finder credits); a resource BS_BUY sells elsewhere is on its own screen. */
+   sells (Emails sent, Lead Finder credits); a resource BS_BUY sells elsewhere is on its own screen. */
 /* change 283: Download usage report. One control for Billing's Where your plan goes and the client's Usage page.
    The popover is state (UR), so a repaint keeps it open; listeners are delegated once on the document. */
 const UR={open:null,per:"90",from:"2026-08-10",to:"2026-09-09",busy:false,t:null}, UR_TODAY="2026-09-09";
@@ -7759,7 +7759,7 @@ function ulLimitsHTML(ro){const W=ulRows(), ks=UL_K(), ed=UL.edit&&!ro;
   ${ed?`<div class="ul-sticky" id="ulDraftBar">${ulBarHTML()}</div>`:""}`}
 /* ═══ change 259, 13 Oct 2026 (doc 98, Option A): Your plan, then every workspace by how close it is to
    a limit. Colour means "needs you" and nothing else. ═══ */
-const UL3_NM={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"}   /* change 297 (audit P1-5): RES[k].label */;   /* the Dashboard's short names (change 232) */
+const UL3_NM={sends:"Emails sent",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"}   /* change 297 (audit P1-5): RES[k].label */;   /* the Dashboard's short names (change 232) */
 const UL3_GREY="#9CA3AF";   /* Gray 400: every bar on this page */
 /* 2 at its limit (needs you), 1 at 90% or more (worth a look), 0 otherwise */
 const ul3Lv=r=>!r||!(r.cap>0)?0:r.used>=r.cap?2:r.used/r.cap>=.9?1:0;
@@ -11099,7 +11099,7 @@ function ncSiteMsgHTML(){const m=ncSiteMsg();return m?`<p class="nc-limsay is-er
 function ncPaintName(){const i=el("ncn"),p=el("ncnMsg"),m=ncNameMsg();if(i){i.classList.toggle("is-err",!!m);i.setAttribute("aria-invalid",m?"true":"false")}if(p)p.outerHTML=ncNameMsgHTML();ncPaintAdd()}
 function ncPaintSite(){const i=el("ncsite"),p=el("ncsiteMsg"),m=ncSiteMsg();if(i){i.classList.toggle("is-err",!!m);i.setAttribute("aria-invalid",m?"true":"false")}if(p)p.outerHTML=ncSiteMsgHTML();ncPaintAdd()}
 function ncPaintAdd(){const why=ncAddWhy(),dn=el("drDone"),aw=el("ncAddWhy");if(dn){dn.disabled=!!why;dn.title=why}if(aw)aw.textContent=""}
-const NC_SUM_L={sends:"Emails sent / month",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
+const NC_SUM_L={sends:"Emails sent",lead_finder:"Lead Finder credits",verification:"Email verification credits",ai:"AI credits",dialer:"Dialer credits",radar:"Inbox placement tests"};
 function ncAddWhy(){
  if(ncDupName())return "Use a name no other workspace has.";if(ncSiteMsg())return "Fix the website to add the workspace.";return ""}
 /* change 205, 12 Oct 2026 (Hitesh): "give explicit button which enables edit with pencil icon ... one will be
@@ -13959,7 +13959,7 @@ function demoScenario(name){
  if(name==="crisis"){
   GRACE.on=true;
   const nw=RES.sends.rows.nw; nw.used=nw.cap; byId.nw.sent=nw.cap; growSequences(byId.nw); HOME_METRICS.nw=Object.assign({},HOME_METRICS.nw,{sysp:5,last:"today, 06:10"});
-  ACTIVITY.unshift({client:"nw",who:"System",when:"3 hours ago",text:"Sending stopped: the Emails sent / month limit of "+f(nw.cap)+" was reached",at:-0.12});
+  ACTIVITY.unshift({client:"nw",who:"System",when:"3 hours ago",text:"Sending stopped: the Emails sent limit of "+f(nw.cap)+" was reached",at:-0.12});
  }
  DEMO=name;
 }
@@ -16779,7 +16779,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c40d8ae";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="88fa255";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
