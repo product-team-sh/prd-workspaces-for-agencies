@@ -1600,8 +1600,8 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
 #popL .hdr-wsr[data-xs="flat"]::before,#popL .hdr-wsr[data-xs="hide"]::before{transform:scaleY(0);opacity:0}
 #popL .hdr-wsr[data-xs="flat"]::after,#popL .hdr-wsr[data-xs="hide"]::after{opacity:0}
 .pop-r .pop-cur .xs-spin{display:block;margin:1px;box-sizing:border-box}
-#pop.pop--in{animation:popIn .18s cubic-bezier(.2,0,0,1) both;transform-origin:12px 100%}
-@keyframes popIn{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}
+#pop.pop--in{animation:popIn .18s cubic-bezier(.2,0,0,1) both;transform-origin:12px 0}
+@keyframes popIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}   /* vE E093: opens down from the header */
 /* the trigger on the Account level: Account's tile, as on the switcher's top row (.pop-r .pop-ico) */
 #wsAv.ws-acct{border:0;border-radius:4px;background:var(--gray-16);color:var(--gray-12)}
 #wsAv.ws-acct svg{width:14px;height:14px;opacity:1;transform:none;color:var(--gray-12)}
@@ -1624,10 +1624,11 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
       <button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
         <span class="avatar av-tint" id="wsAv">MG</span>
         <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
+        <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
       </button>
       <div id="xformLayer"></div>
       <div class="pop" id="pop" hidden>
+        <div class="pop-sheet-h" id="popSheetH">Workspaces</div>   <!-- vE E093: the phone sheet's title -->
         <div class="pop-s" id="popSWrap"><input type="text" id="popQ" placeholder="Search workspaces" aria-label="Search workspaces"></div>
         <div class="pop-l" id="popL"></div>
         <div class="pop-f" id="popAddWrap">
@@ -1640,7 +1641,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
   <div class="main">
     <header class="topbar">
       <!-- 28 Sep 2026, Hitesh: the global search box and its Cmd+K palette are removed. Each screen keeps its own search. -->
-      <div class="crumb"><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Home</span></div>
+      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Home</span></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
       <div class="util">
         <button class="ubtn u-tip" data-uwtip="Support" aria-label="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
         <button class="ubtn u-tip" data-uwtip="Quick actions" aria-label="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
@@ -1996,10 +1997,14 @@ let me_="owner";
    with its popover and the transformation layer inside) is one node that moves
    into the rail foot after each rail render; nothing is duplicated. */
 const SW_POS="F";
-function swPark(){const ws=el("sbWs"),brand=document.querySelector(".sb-brand"); if(ws&&brand&&brand.nextElementSibling!==ws) brand.insertAdjacentElement("afterend",ws)}
+/* vE E093 (26 Oct 2026, board 138 C): the switcher is the header's first crumb. #sbWs sits first in .topbar .crumb, out
+   of the rail, so a rail render never touches it; #pop, its scrim and the handover layer move to body. */
+function swPark(){placeSwitcher()}
 function placeSwitcher(){
- const ws=el("sbWs"), foot=document.querySelector(".sb-foot"); if(!ws) return; document.body.dataset.swpos="F";
- if(foot) foot.insertAdjacentElement("beforeend",ws); else swPark();
+ const ws=el("sbWs"), cr=document.querySelector(".topbar .crumb"); if(!ws) return; document.body.dataset.swpos="H";
+ if(cr&&cr.firstElementChild!==ws) cr.insertAdjacentElement("afterbegin",ws);
+ ["pop","xformLayer"].forEach(id=>{const n=el(id); if(n&&n.parentNode!==document.body) document.body.appendChild(n)});
+ if(!el("popScrim")) document.body.insertAdjacentHTML("beforeend",'<div class="pop-scrim" id="popScrim" hidden></div>');
 }
 
 const ME=()=>PEOPLE[me_];
@@ -3446,8 +3451,8 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
   <span class="avatar av-tint" id="wsAv">MG</span>
   <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
-</button>`;
+  <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+</button>`;   /* vE E093: the header crumb's chevron */
 /* ═══ change 328 (Hitesh, 18 Oct 2026: "let's build H into vC"; H revised, change 317) ═══════
    The top bar is the path: its segments with production's ChevronRight between them, one
    trailing slot after the last segment (a single status: a chip, a switch, a count, Beta or
@@ -3779,7 +3784,7 @@ function renderShell(){
    /* vE E038: on the Account level the trigger shows Account's tile, as the switcher's top row does (the account's
       initials are also Your workspace's) */
    const acct=!inC&&!asClient&&!isNormal(), wa=el("wsAv"); wa.classList.toggle("ws-acct",acct);
-   if(acct){wa.classList.remove("av-logo"); wa.innerHTML=POP_GRID; el("wsNm").textContent="Master View"}   /* vE E084: the level is named Master View */
+   if(acct){wa.classList.remove("av-logo"); wa.innerHTML=POP_GRID; el("wsNm").textContent="Admin Panel"}   /* vE E084: the level is named Admin Panel (vE E091a) */
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
  /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
@@ -3810,7 +3815,7 @@ function renderShell(){
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
  /* 28 Sep 2026, Hitesh: the second line says which level you are on, in one
     word, instead of describing the model. */
- if(!asClient&&!solo) el("wsCtx").textContent=inAgency()&&!norm?"Master View":"Workspace";
+ if(!asClient&&!solo&&el("wsCtx")) el("wsCtx").textContent=inAgency()&&!norm?"Admin Panel":"Workspace";   /* vE E091a: renamed */
  /* 28 Sep 2026: no coloured bar on the switcher inside a workspace; the
     trigger's own avatar and second line say where you are. */
  el("sbWs").style.boxShadow="none";
@@ -3874,7 +3879,7 @@ function renderPop(q=""){
     hdrWsRows' order (E021: your own first, then A to Z) and only those this person can open (E029). A search (past 8,
     E021) lists the matches flat, without the Account row. Change 132 holds: no attention tags here. */
  const acur=ctx==="agency"&&!xform;
- el("popL").innerHTML=(t?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Master View</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
+ el("popL").innerHTML=(t?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
   +`<div class="pop-kids${t?" pop-kids--q":""}" role="group" aria-label="Workspaces">${hdrWsRows(t,ctx==="agency"?null:ctx)}</div>`;
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
@@ -3887,18 +3892,24 @@ function renderPop(q=""){
  if(xform) xsMark(el("popL"));   /* vE E038: rows still being set up show it */
 }
 /* vE E038: auto (true) is the one opening by the first conversion: a short reveal and no focus moved */
-const openPop=auto=>{popOpen=true;const P=el("pop"),R=el("sbWs").getBoundingClientRect();
- /* opens below the trigger, or above it when the trigger sits in the lower half
-    of the window (placement D, the rail foot), and never past the right edge */
- const below=R.bottom+6, roomBelow=window.innerHeight-below;
- if(roomBelow<320&&R.top>roomBelow){P.style.top="auto";P.style.bottom=(window.innerHeight-R.top+6)+"px"} else {P.style.bottom="auto";P.style.top=below+"px"}
+/* vE E093: the listing opens from the header crumb: 4px under the bar, from the crumb's left edge and never past the
+   right edge (board 138 C), or at 640px and under as change 334's bottom sheet */
+const popSheet=()=>window.innerWidth<=640;
+function placePop(){const P=el("pop"), sh=popSheet(), sc=el("popScrim"); P.classList.toggle("pop--sheet",sh); if(sc) sc.hidden=!sh;
+ if(sh){P.style.top="";P.style.left="";P.style.bottom=""; return}
+ const T=document.querySelector(".topbar").getBoundingClientRect(), R=el("sbWs").getBoundingClientRect();
+ P.style.bottom="auto"; P.style.top=Math.round(T.bottom+4)+"px";
+ P.style.left=Math.max(8,Math.min(Math.round(R.left),window.innerWidth-P.offsetWidth-8))+"px"}   /* E038: its real width, not 280 */
+const openPop=auto=>{popOpen=true;const P=el("pop");
  P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
- P.style.left=Math.max(8,Math.min(R.left,window.innerWidth-P.offsetWidth-8))+"px";   /* E038: its real width, not 280 */
+ placePop();
  P.classList.remove("pop--in"); if(auto===true){void P.offsetWidth; P.classList.add("pop--in")}
  /* the search box is hidden for a normal user, and focusing a hidden input
     moves focus nowhere useful */
  if(auto!==true&&!isNormal())el("popQ").focus()};
-const closePop=()=>{popOpen=false;XS_POP=false;el("pop").hidden=true;el("wsBtn").setAttribute("aria-expanded","false")};
+const closePop=()=>{popOpen=false;XS_POP=false;el("pop").hidden=true;const sc=el("popScrim"),b=el("wsBtn"); if(sc) sc.hidden=true; if(b) b.setAttribute("aria-expanded","false")};   /* vE E093: and the sheet's scrim */
+/* vE E093: a resize keeps the listing on its crumb; crossing 640px closes it rather than swap menu and sheet under the hand */
+window.addEventListener("resize",()=>{if(!popOpen) return; if(el("pop").classList.contains("pop--sheet")!==popSheet()) closePop(); else placePop()});
 
 /* item 1, 28 Sep 2026: the header chip used to cycle the acting reviewer on a
    bare click, no menu, no confirmation - and nothing stopped that click from
@@ -6715,7 +6726,7 @@ function pxRoleGroups(p){const last=pxLastOwner(p), peer=ME().role!=="Owner"&&p.
  const team=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]).map(r=>({value:r,label:roleName(r)}));
  return [{label:"Your team",items:team}].concat(peer?[]:[{label:"Client users",items:PX_CLIENT_R.map(r=>({value:r,label:roleName(r),off:last?PX_LAST_WHY:""}))}])}
 function pxFF(p){const d=PA_ED.d; if(d.side===p.kind||(d.role==="Owner"&&d.side==="team")) return "";
- const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: Master View and the ticked workspaces.`}
+ const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: Admin Panel and the ticked workspaces.`}   /* vE E091a */
 function pxRoleEdit(p){const d=PA_ED.d, r=pxDRole(d), mixed=r==="mixed", ff=pxFF(p);
  return `<div class="px-role"${mixed?" data-mixed":""}>${ddHTML("pxrole",mixed?"":r,pxRoleGroups(p),{placeholder:"Client, by workspace"})}</div>`
   +(d.role==="Owner"&&d.side==="team"&&p.role!=="Owner"?`<p class="inv-help px-help">Once saved, you can&rsquo;t change or remove ${invEsc(p.first)}.</p>`:ff?`<p class="inv-help px-help" data-pxff>${ff}</p>`:"")}
@@ -6922,7 +6933,7 @@ function personActivityHTML(p){
  if(PA_KIND!=="all") rows=rows.filter(r=>r.kind===PA_KIND);
  if(PA_WS!=="all") rows=rows.filter(r=>r.ws===PA_WS);
  const wsOpts=[{value:"all",label:"All workspaces"}].concat(fundedWorkspaces().map(c=>({value:c.id,label:c.name,avatar:av(c,18)})));
- const tag=r=>r.ws&&byId[r.ws]?`<span class="pa-tag">${av(byId[r.ws],18)}${byId[r.ws].name}</span>`:r.kind==="signin"?`<span class="sub">Sign-in</span>`:`<span class="sub">Master View</span>`;
+ const tag=r=>r.ws&&byId[r.ws]?`<span class="pa-tag">${av(byId[r.ws],18)}${byId[r.ws].name}</span>`:r.kind==="signin"?`<span class="sub">Sign-in</span>`:`<span class="sub">Admin Panel</span>`;   /* vE E091a */
  return `<div class="panel"><div class="panel-h pa-fh">
    <span class="tools">${ddHTML("paKind",PA_KIND,[{items:[{value:"all",label:"Everything"},{value:"change",label:"Changes"},{value:"signin",label:"Sign-ins"}]}],{})}${ddHTML("paWs",PA_WS,[{items:wsOpts}],{})}</span></div>
    <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(r=>`<div class="pa-row"><span style="min-width:0">${r.text}</span>${tag(r)}<span class="sub pa-ts">${r.stamp}</span></div>`).join(""):`<p class="sub" style="margin:12px 0">Nothing changed by ${p.first} yet. Sign-ins and changes land here.</p>`}</div></div>`;
@@ -13132,8 +13143,8 @@ const TOUR_STEPS={
  5:{where:c=>tourNm(c),go:c=>{ctx=c.id;asClient=false;cView="sequences";inMod="sequences";openProspect=null;openSeq=null;openReply=null;render()},
     target:c=>(asClient||solo)?null:tourPopOn()?document.querySelector('#popL [data-go="agency"]'):el("wsBtn"),
     state:c=>tourPopOn()?"row":"on",
-    head:c=>tourPopOn()?"Master View takes you back to where you run every workspace.":`Move between Master View, your own workspace and ${tourNm(c)} here.`,
-    body:c=>"",act:c=>tourPopOn()?"Pick Master View.":"Open the switcher.",   /* vE E038, E084: the row is named Master View */
+    head:c=>tourPopOn()?"Admin Panel takes you back to where you run every workspace.":`Move between Admin Panel, your own workspace and ${tourNm(c)} here.`,   /* vE E091a */
+    body:c=>"",act:c=>tourPopOn()?"Pick Admin Panel.":"Open the switcher.",   /* vE E038, E084, E091a: the row is named Admin Panel */
     done:c=>ctx==="agency"&&!asClient&&view.name===homeView().name}
 };
 function tourLayer(){let L=el("tourLayer"); if(!L){L=document.createElement("div");L.id="tourLayer";const M=el("modalLayer");if(M)M.insertAdjacentElement("beforebegin",L);else document.body.appendChild(L)} return L}
@@ -17217,7 +17228,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="cc75112";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="61bebaf";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18264,6 +18275,46 @@ button.hdr-chip{cursor:pointer}
 .hdr-wsnone{margin:0;padding:8px}
 .hdr-wsscrim{position:fixed;inset:0;z-index:1000;background:rgba(17,24,39,.35)}
 .hdr-wsm-h{padding:16px 16px 8px;font-size:16px;line-height:24px;font-weight:600;color:#111827}
+/* vE E093 (26 Oct 2026, Hitesh: "Switcher in breadcrumb is perfect"; board 138 C): the header starts with the level's
+   crumb, the switcher. Tile 24px (the listing's rounded tile, 6px; Admin Panel's grid tile 4px), 8px, the name 16/20 600
+   Gray 500 #6B7280 wrapping where it must (never cut), the 24px chevron box 2px after it (hover and open: Gray 100 behind
+   Gray 700), 8px, ChevronRight 16px Gray 400, 8px, the page name Gray 800. A client user on one workspace: tile and name,
+   no chevron. The bar grows past 50px only when a name wraps. 640px and under: no tile, no page crumb (the rail's active
+   icon names the page); a record or sequence keeps 328's back and name. */
+.topbar{height:auto;min-height:50px}
+.topbar .crumb>#sbWs{display:flex;align-items:center;flex:0 1 auto;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.topbar #sbWs .ws-btn{display:flex;align-items:center;gap:8px;width:auto;flex:0 1 auto;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:none;color:#6b7280;font:inherit;line-height:20px;text-align:left;cursor:pointer}
+.topbar #sbWs .ws-btn:hover{background:none}
+.topbar #sbWs .ws-btn.ws-static{cursor:default}
+.topbar #sbWs .ws-btn>span:not(.avatar):not(.ws-lvdd){flex:0 1 auto!important;min-width:0}
+.topbar #sbWs .ws-btn .avatar{width:24px;height:24px;margin:0;border-radius:6px;font-size:10px;font-weight:600;flex:none}
+.topbar #sbWs .ws-btn .avatar.ws-acct{border-radius:4px}
+.topbar #sbWs .ws-btn .nm{display:block;height:auto;padding:0;font-size:16px;line-height:20px;font-weight:600;color:#6b7280;white-space:normal;overflow:visible;overflow-wrap:anywhere;opacity:1}
+.topbar #sbWs .ws-ctx{display:none}
+.topbar #sbWs .ws-lvdd{width:24px;height:24px;display:grid;place-items:center;margin-left:-6px;border-radius:4px;color:#6b7280;flex:none}
+.topbar #sbWs .ws-lvdd svg{width:16px;height:16px;display:block;color:inherit;opacity:1;transform:none}
+.topbar #wsBtn:hover .ws-lvdd,.topbar #wsBtn[aria-expanded=true] .ws-lvdd{background:#f3f4f6;color:#374151}
+.topbar #wsBtn:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px;border-radius:4px}
+.topbar .crumb-tail{color:#1f2937}
+.topbar .crumb:not(.hdr-multi)>#crumbTail{flex:none}
+.pop-sheet-h{display:none}
+.pop-scrim{position:fixed;inset:0;z-index:1000;background:rgba(17,24,39,.35)}
+.pop-scrim[hidden]{display:none}
+#pop.pop--sheet{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;border-width:1px 0 0;border-radius:8px 8px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.08)}
+#pop.pop--sheet .pop-sheet-h{display:block;padding:16px 16px 8px;font-size:16px;line-height:24px;font-weight:600;color:#111827}
+#pop.pop--sheet .pop-s{padding:0 16px 8px}
+#pop.pop--sheet .pop-l{max-height:60vh;padding:0 8px 16px}
+#pop.pop--sheet .pop-r{min-height:44px}
+@media (max-width:640px){
+ header.topbar,header.topbar:has(.crumb-tail){padding:4px 16px}   /* above vE's later phone .topbar rules (fix 44) */
+ header.topbar:has(.crumb-tail) .crumb{margin:0}
+ .topbar #sbWs .ws-btn .avatar{display:none}
+ .topbar .crumb>.hdr-lvsep,.topbar .crumb:not(.hdr-multi)>#crumbTail,.topbar .crumb:not(.hdr-multi)>.crumb-extra{display:none}
+ /* a record, a sequence, a person: the level crumb takes the first line, 328's back, name and slot the second */
+ .topbar .crumb.hdr-multi{flex:1 1 0;flex-wrap:wrap;row-gap:4px}   /* basis 0: the utilities keep their width */
+ .topbar .crumb.hdr-multi>#sbWs{flex:1 0 100%}
+ .topbar .crumb.hdr-multi>#crumbTail{max-width:calc(100% - 64px)}   /* back (20), two gaps and a 28px switch stay on the name's line */
+}
 .hdr-by{white-space:nowrap}
 .hdr-sh .rec-kebab{width:32px;min-width:32px;padding:0;justify-content:center}
 /* content starts 16px under the tab row or the bar */
