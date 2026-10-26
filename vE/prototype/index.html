@@ -3779,7 +3779,7 @@ function renderShell(){
    /* vE E038: on the Account level the trigger shows Account's tile, as the switcher's top row does (the account's
       initials are also Your workspace's) */
    const acct=!inC&&!asClient&&!isNormal(), wa=el("wsAv"); wa.classList.toggle("ws-acct",acct);
-   if(acct){wa.classList.remove("av-logo"); wa.innerHTML=POP_GRID; el("wsNm").textContent="Account"}
+   if(acct){wa.classList.remove("av-logo"); wa.innerHTML=POP_GRID; el("wsNm").textContent="Master View"}   /* vE E084: the level is named Master View */
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
  /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
@@ -3810,7 +3810,7 @@ function renderShell(){
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
  /* 28 Sep 2026, Hitesh: the second line says which level you are on, in one
     word, instead of describing the model. */
- if(!asClient&&!solo) el("wsCtx").textContent=inAgency()&&!norm?"Account":"Workspace";
+ if(!asClient&&!solo) el("wsCtx").textContent=inAgency()&&!norm?"Master View":"Workspace";
  /* 28 Sep 2026: no coloured bar on the switcher inside a workspace; the
     trigger's own avatar and second line say where you are. */
  el("sbWs").style.boxShadow="none";
@@ -3874,7 +3874,7 @@ function renderPop(q=""){
     hdrWsRows' order (E021: your own first, then A to Z) and only those this person can open (E029). A search (past 8,
     E021) lists the matches flat, without the Account row. Change 132 holds: no attention tags here. */
  const acur=ctx==="agency"&&!xform;
- el("popL").innerHTML=(t?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Account</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
+ el("popL").innerHTML=(t?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Master View</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
   +`<div class="pop-kids${t?" pop-kids--q":""}" role="group" aria-label="Workspaces">${hdrWsRows(t,ctx==="agency"?null:ctx)}</div>`;
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
@@ -3923,7 +3923,6 @@ function renderMePop(){
    <span class="avatar av-p" style="width:32px;height:32px;font-size:13px">${p.initials}</span>
    <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</span><span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.email||""}</span></span></div>
   <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
-  <button class="pop-r" data-tourreplay${tourReplayId()?"":" disabled"}>Replay the product tour</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
  el("mePopL").querySelectorAll("[data-tourreplay]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=tourReplayId();closeMePop();if(id) tourStart(id)});
  el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else tourToast("Open a workspace&rsquo;s Settings for your profile.")}); /* change 291: the flash was drawn inside the closed menu */
@@ -4626,7 +4625,7 @@ function wsPeopleCell(c,side){
  const nmx=L.map(x=>x.label+(x.role?", "+roleName(x.role):"")+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", invited":"")), shown=nmx.slice(0,8).concat(nmx.length>8?["and "+(nmx.length-8)+" more"]:[]);
  const tip=shown.join("\n"), esc=t=>t.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
  return '<span class="wsp-grp" tabindex="0" role="group" data-uwtip="'+esc(tip)+'" aria-label="'+esc((side==="client"?"Client users":"Your team")+" in "+c.name+": "+shown.join("; "))+'">'
-   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</span><span class="wsp-l">'+line+fix+'</span>';
+   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</span>';   /* vE E084: no names line under the faces */
 }
 function wsOANote(){return "";   /* change 320: the Account Owners line went */
 }
@@ -6036,14 +6035,14 @@ function rlRowHTML(k,c,gate){const R=RES[k], unl=!!R.unlimited, r=R.rows[c.id]; 
  if(unl){used=f(unlUsed(k,c.id)); gauge='<span class="ulr-bar is-none"></span>'; lim=`<span class="ulr-lv">${UNL_TXT}</span>`; last='<span class="ulr-pace is-q">&ndash;</span>'}
  else if(gate){used=f(r.used); gauge='<span class="ulr-bar is-none"></span>'; lim='<span class="ulr-lv rlt-ns">Not set</span>'; last='<span class="ulr-pace is-q">&ndash;</span>'}
  else{const lv=ulrLv(c,r.used,r.cap), p=ulPct(r.used,r.cap), w=r.cap>0?Math.min(100,r.used/r.cap*100):lv===2?100:0, L=ulrLast(k,r,r.cap);
-  used=f(r.used); gauge=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,r.cap)}"></span></span>`; lim=`<span class="ulr-lv">${f(r.cap)}</span>`; last=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${L.t}</span>`}
+  used=f(r.used); gauge=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,r.cap)}"></span></span>`; lim=`<span class="ulr-lv">${f(r.cap)}</span>`; last=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${ulrPctT(L)}</span>`}
  return `<tr class="${cls}" id="rlim-${k}" data-rl="${k}"${unl?` data-unl="${k}"`:""}><td class="rlt-c1"><div class="ulr-ws"><span class="rlt-rn"><span class="ulr-nm">${R.label}</span><span class="sub">${sub}</span></span></div></td>`
-  +`<td class="ulr-ur rlt-c2"><span class="ulr-num">${used}</span></td><td class="ulr-gc">${gauge}</td><td class="ulr-cl">${lim}</td><td class="ulr-pc">${last}</td></tr>`}
+  +`<td class="ulr-gc">${gauge}</td><td class="ulr-ur rlt-c2"><span class="ulr-num">${used}</span></td><td class="ulr-cl">${lim}</td><td class="ulr-pc">${last}</td></tr>`}
 function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet reads "Not set", never "None left" */
  const rows=RKA.map(k=>rlRowHTML(k,c,gate)).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
- return `<div class="panel rlt-sheet"><table class="ulr-t ulr-tp rlt-t2"><colgroup><col class="ulr-c1"><col class="ulr-cu"><col class="ulr-cg"><col class="ulr-cv"><col class="ulr-cp"></colgroup>
-  <thead><tr class="th-one"><th>Resource</th><th class="ulr-r">Used</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Used of limit</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+ return `<div class="panel rlt-sheet"><table class="ulr-t ulr-tp rlt-t2"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>
+  <thead><tr class="th-one"><th>Resource</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r">Used</th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Usage (%)</th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
 function rlFxLine(D,k,id){if(RL&&RL.nb&&RL.nb[k]) return `<span class="ul3-mk">${NUM_ERR}</span>`;   /* vE E075 fix 5 */
  const e=ul3EdFx(D,k,id);
@@ -6500,9 +6499,12 @@ function ppAccess(r){
 function vPeople(){
  if(!canI("members")) return denied("see or manage people");
  if(PP.tab==="invites"){PP.tab="all";PP.inv=true}   /* vE E030: Invites waiting is a toggle now, not a tab */
+ if(PP.inv) PP.tab="all";   /* vE E084: Invites waiting is an option of the group filter, across both groups */
  const q=PP.q.trim().toLowerCase(), tab=PP.tab;
  const teamAll=ppTeam(), clAll=ppClientsMerged();
- const inWs=r=>PP.ws==="all"||(r.c?r.all.some(x=>x.c.id===PP.ws):(r.ws===null||r.ws.indexOf(PP.ws)>-1));
+ /* vE E084: PP.ws is "all" or a list of workspace ids (none ticked shows no one) */
+ const wsIn=id=>PP.ws==="all"||PP.ws.indexOf(id)>-1;
+ const inWs=r=>PP.ws==="all"||(!!PP.ws.length&&(r.c?r.all.some(x=>wsIn(x.c.id)):(r.ws===null||r.ws.some(wsIn))));
  /* vE E079, E080: the search reads every column: name, email, type, role, every workspace name, last sign-in, status */
  const sgTxt=r=>r.invited||r.seen==="unknown"?"Never":rmCap(r.seen);
  const stTxt=r=>r.disabled?"Disabled":r.invited?(invExpired(r.invited)?"Invite expired":r.invited==="never"?"Invited":"Invited "+AGE(r.invited)):"Active";
@@ -6535,20 +6537,29 @@ function vPeople(){
    <span class="pp-end"><button class="ubtn pp-more" data-ppcl="${r.key}" aria-label="Actions for ${r.name}">${kebab}</button>${PP.menu===r.key&&rowByKey(r.key)?peopleMenuHTML(rowByKey(r.key)):""}</span></div>`;
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
- const ph=all?"Search all users":tab==="team"?"Search your team":"Search client users";
- const empty=on?(invN?"No invite matches.":"No invites waiting. Everyone has signed in."):all?"No one matches.":tab==="team"?"No one on your team matches.":"No client user matches.";
+ const ph=on?"Search invites":all?"Search all users":tab==="team"?"Search your team":"Search client users";
+ const empty=on?(invN?"No invite matches.":"No invites waiting. Everyone has signed in."):PP.ws!=="all"&&!PP.ws.length?"Tick at least one workspace.":all?"No one matches.":tab==="team"?"No one on your team matches.":"No client user matches.";
  return `<div class="wrap pp-wrap">${receiptBar("people")}
   <div class="pp-tb"><div class="pp-tb-f">
     <span class="search">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
-    ${ddHTML("ppWho",tab,[{items:[{value:"all",label:"All users",count:teamAll.length+clAll.length},{value:"team",label:"Your team",count:teamAll.length},{value:"clients",label:"Client users",count:clAll.length}]}],{})}
-    ${ddHTML("ppWs",PP.ws,[{items:[{value:"all",label:"Workspace: All"}].concat(wsOpts.map(c=>({value:c.id,label:c.name,avatar:av(c,18)})))}],{})}
-    <button type="button" class="pp-invtg" aria-pressed="${on}" data-ppinv>Invites waiting<span class="pp-cnt pp-cnt--${invN?"amber":"gray"}">${invN}</span></button>
+    ${ddHTML("ppWho",on?"invites":tab,[{items:[{value:"all",label:"All users",count:teamAll.length+clAll.length},{value:"team",label:"Your team",count:teamAll.length},{value:"clients",label:"Client users",count:clAll.length},{value:"invites",label:"Invites waiting",count:invAll.length}]}],{})}
+    ${ppWsDD(wsOpts)}
     ${tab==="team"?ddHTML("ppRole",PP.role,[{items:[{value:"all",label:"Account role: All"},{value:"Owner",label:"Account Owner"},{value:"Admin",label:"Account Admin"},{value:"Member",label:"Account Member"}]}],{}):""}</div>
    <div class="pp-tb-a"><button type="button" class="linkbtn pp-rolelink" data-pproles>What each role can do</button>
    <button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite people</button></div></div>
   ${`<section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${q?`${nrText(PP.q)}. <button type="button" class="linkbtn" data-ppclear>Clear search</button>`:empty}</div>`}</section>
   ${rows.length<total?`<span class="sub pp-foot">Showing ${rows.length} of ${total} ${on?"invites":all?"users":tab==="team"?"on your team":"client users"}</span>`:""}`}</div>`;
 }
+/* vE E084: the People Workspace filter as a checkbox list: Select all on top (mixed when some are ticked), then every
+   workspace in picker order; ticking keeps the menu open. PP.wsKeep reopens it after the re-render, where it was. */
+function ppWsDD(L){const sel=PP.ws==="all"?null:PP.ws, on=id=>sel===null||sel.indexOf(id)>-1, open=!!PP.wsKeep, srch=L.length>WS_PICK_MAX;
+ const n=sel===null?L.length:sel.length, lab=sel===null?"All":!n?"None":n===1&&byId[sel[0]]?byId[sel[0]].name:n+" of "+L.length;
+ const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+ return `<div class="dd dd--ck${open?" is-open":""}" id="ppWs" data-value="${sel===null?"all":sel.join(",")}">
+  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${open}"><span class="dd-val">Workspace: ${lab}</span>${chev}</button>
+  <div class="dd-menu" role="listbox" aria-multiselectable="true" ${open?"":"hidden"}>${srch?`<div class="dd-s"><input type="text" class="dd-q" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}
+   <label class="dd-opt dd-ck dd-ck-all"><input type="checkbox" data-ppwsall${sel===null?" checked":""}><span class="dd-lbl">Select all</span></label>
+   ${wsPickOrder(L).map(c=>`<label class="dd-opt dd-ck" role="option" aria-selected="${on(c.id)}" data-ddopt="${c.id}"${srch?` data-ddk="${wsHay(c).replace(/"/g,"&quot;")}"`:""}><input type="checkbox" data-ppwsc="${c.id}"${on(c.id)?" checked":""}>${av(c,18)}<span class="dd-lbl">${c.name}</span></label>`).join("")}${srch?`<p class="dd-none" hidden></p>`:""}</div></div>`}
 const chevR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
 const peopleI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
 const bldgI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>';
@@ -6702,7 +6713,7 @@ function pxRoleGroups(p){const last=pxLastOwner(p), peer=ME().role!=="Owner"&&p.
  const team=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]).map(r=>({value:r,label:roleName(r)}));
  return [{label:"Your team",items:team}].concat(peer?[]:[{label:"Client users",items:PX_CLIENT_R.map(r=>({value:r,label:roleName(r),off:last?PX_LAST_WHY:""}))}])}
 function pxFF(p){const d=PA_ED.d; if(d.side===p.kind||(d.role==="Owner"&&d.side==="team")) return "";
- const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: Account pages and the ticked workspaces.`}
+ const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: Master View and the ticked workspaces.`}
 function pxRoleEdit(p){const d=PA_ED.d, r=pxDRole(d), mixed=r==="mixed", ff=pxFF(p);
  return `<div class="px-role"${mixed?" data-mixed":""}>${ddHTML("pxrole",mixed?"":r,pxRoleGroups(p),{placeholder:"Client, by workspace"})}</div>`
   +(d.role==="Owner"&&d.side==="team"&&p.role!=="Owner"?`<p class="inv-help px-help">Once saved, you can&rsquo;t change or remove ${invEsc(p.first)}.</p>`:ff?`<p class="inv-help px-help" data-pxff>${ff}</p>`:"")}
@@ -6909,7 +6920,7 @@ function personActivityHTML(p){
  if(PA_KIND!=="all") rows=rows.filter(r=>r.kind===PA_KIND);
  if(PA_WS!=="all") rows=rows.filter(r=>r.ws===PA_WS);
  const wsOpts=[{value:"all",label:"All workspaces"}].concat(fundedWorkspaces().map(c=>({value:c.id,label:c.name,avatar:av(c,18)})));
- const tag=r=>r.ws&&byId[r.ws]?`<span class="pa-tag">${av(byId[r.ws],18)}${byId[r.ws].name}</span>`:r.kind==="signin"?`<span class="sub">Sign-in</span>`:`<span class="sub">Account</span>`;
+ const tag=r=>r.ws&&byId[r.ws]?`<span class="pa-tag">${av(byId[r.ws],18)}${byId[r.ws].name}</span>`:r.kind==="signin"?`<span class="sub">Sign-in</span>`:`<span class="sub">Master View</span>`;
  return `<div class="panel"><div class="panel-h pa-fh">
    <span class="tools">${ddHTML("paKind",PA_KIND,[{items:[{value:"all",label:"Everything"},{value:"change",label:"Changes"},{value:"signin",label:"Sign-ins"}]}],{})}${ddHTML("paWs",PA_WS,[{items:wsOpts}],{})}</span></div>
    <div class="panel-b" style="padding-top:0;padding-bottom:4px">${rows.length?rows.map(r=>`<div class="pa-row"><span style="min-width:0">${r.text}</span>${tag(r)}<span class="sub pa-ts">${r.stamp}</span></div>`).join(""):`<p class="sub" style="margin:12px 0">Nothing changed by ${p.first} yet. Sign-ins and changes land here.</p>`}</div></div>`;
@@ -8307,6 +8318,8 @@ const ulrSig2=x=>{if(x<100) return Math.round(x/10)*10||Math.round(x); const p=M
    month", "Lasts the year" for the annual Lead Finder term); between, "Lasts over a month". Not renewing: N% used.
    Unlimited: a dash. v: the typed limit. x: "q" quiet Gray 500, "out" Used up, "" Gray 800 */
 const ULR_HZ=30;
+/* vE E085: Usage (%) reads the figure alone; used up is 100% */
+const ulrPctT=L=>L.t==="Used up"?"100%":L.t.replace(/ used$/,"");
 function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};   /* vE E075 fix 12: Unlimited is said once, in the Limit cell   /* vE E045: "Used of limit" only, every resource */
  if(r.used>=v&&(r.used>0||v>0)) return {t:"Used up",x:"out"};
  return {t:ulPct(r.used,v)+"% used",x:ul3Lv({used:r.used,cap:v})?"":"q"}}
@@ -8314,7 +8327,7 @@ function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};  
 function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), s=(t,x,a)=>`<span class="ulr-pace${x?" is-"+x:""}"${a?` aria-label="${a}"`:""}>${t}</span>`;
  if(c.disabled){const h=isUnl(k)?0:Math.max(0,v-r.used);
   return s(h?`Disabled, holds ${f(h)}`:"Disabled","q")   /* vE E045 */+(h&&!ulRo()&&v===r.cap?`<button type="button" class="linkbtn ulr-take" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`:"")}
- const L=ulrLast(k,r,isUnl(k)?null:v); return s(L.t,L.x,L.a)}
+ const L=ulrLast(k,r,isUnl(k)?null:v); return s(ulrPctT(L),L.x,L.a)}
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
@@ -8331,11 +8344,11 @@ function ulrGaugeHTML(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), lv=ulrLv(c
 /* hsHead's markup for the pace table's own five columns; the bar's column has no sort */
 function ulrHeadP(k){const S=HSORT.ul, T=ulrTerm(k), th=(c,l,x)=>{const on=!!S&&S.col===c, up=on&&S.dir>0;
   return '<th class="th-s'+(x?" "+x:"")+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="ul|'+c+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'};
- const u=T?(T.days>31?"Used this year":"Used this month"):"Used", l="Used of limit";   /* vE E045 */   /* vE E041 fixes 3 and 9 */
- return '<thead><tr class="th-one">'+th("name","Workspace")+th("used",u,"ulr-r")+'<th class="ulr-gh" aria-label="Bar"></th>'+th("limit","Limit","ulr-r ulr-lh")+th("pace",l,"ulr-p")+'</tr></thead>'}
+ const u="Used", l="Usage (%)";   /* vE E045; E085: Used on every resource, the last column Usage (%) */   /* vE E041 fixes 3 and 9 */
+ return '<thead><tr class="th-one">'+th("name","Workspace")+'<th class="ulr-gh" aria-label="Bar"></th>'+th("used",u,"ulr-r")+th("limit","Limit","ulr-r ulr-lh")+th("pace",l,"ulr-p")+'</tr></thead>'}   /* vE E085: the bar before Used */
 /* H's row, pinned in the header (a second thead row of td cells, after the sort row): never sorted, filtered or paged. None for a level */
 function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
- if(T) return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.on}</span></td><td class="ulr-ur"><span class="ulr-ww">Back to 0</span><span class="ulr-nw">Used goes back to 0</span></td><td class="ulr-gc"></td><td class="ulr-cl"><span class="ulr-ww">Stays the same</span><span class="ulr-nw">Limit stays the same</span></td><td class="ulr-pc">${P.lost}</td></tr>`;
+ if(T) return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.on}</span></td><td class="ulr-gc"></td><td class="ulr-ur"><span class="ulr-ww">Back to 0</span><span class="ulr-nw">Used goes back to 0</span></td><td class="ulr-cl"><span class="ulr-ww">Stays the same</span><span class="ulr-nw">Limit stays the same</span></td><td class="ulr-pc">${P.lost}</td></tr>`;
  if(!P.keep) return "";
  return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.head}</span></td><td>${P.keep}</td><td class="ulr-cl">Limits and used stay</td></tr>`}
 /* vE E045 (Hitesh: "I think last of the table should total", "let's finalise option 5"): the Total row, in the table's
@@ -8345,7 +8358,7 @@ function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
    whenever search or a filter hides a row, or on a page past the first. None on an unlimited resource */
 function ulrTotHTML(k,W0,pg){if(isUnl(k)||!RES[k].rows[OWN_ID]) return ""; const seen=ul3E2Rows(k).map(c=>c.id), adm=!canI("billing"), ids=Object.keys(RES[k].rows).filter(id=>!adm||seen.indexOf(id)>-1), L=ids.reduce((t,id)=>t+ulDv(k,id),0), U=ids.reduce((t,id)=>t+RES[k].rows[id].used,0);
  const w=L>0?Math.min(100,U/L*100):U>0?100:0, P=ulrLast(k,{used:U,cap:L},L), all=W0.length<ul3E2Rows(k).length||pg.from>0;
- return `<tfoot><tr class="ulr-tot" data-ulrtot="${k}"><td><div class="ulr-ws"><span class="ulr-tsp" aria-hidden="true"></span><span class="ulr-nm">${adm?"Total, your workspaces":all?"Total, all workspaces":"Total"}</span></div></td><td class="ulr-ur"><span class="ulr-num">${f(U)}</span></td><td class="ulr-gc"><span class="ulr-bar" role="img" aria-label="${P.t}"><span style="width:${+w.toFixed(1)}%;background:${useCol(U,L)}"></span></span></td><td class="ulr-cl"><span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(L)}</span></span>${ULR_PEN0}</span></td><td class="ulr-pc"><span class="ulr-pace${P.x?" is-"+P.x:""}">${P.t}</span></td></tr></tfoot>`}
+ return `<tfoot><tr class="ulr-tot" data-ulrtot="${k}"><td><div class="ulr-ws"><span class="ulr-tsp" aria-hidden="true"></span><span class="ulr-nm">${adm?"Total, your workspaces":all?"Total, all workspaces":"Total"}</span></div></td><td class="ulr-gc"><span class="ulr-bar" role="img" aria-label="${P.t}"><span style="width:${+w.toFixed(1)}%;background:${useCol(U,L)}"></span></span></td><td class="ulr-ur"><span class="ulr-num">${f(U)}</span></td><td class="ulr-cl"><span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(L)}</span></span>${ULR_PEN0}</span></td><td class="ulr-pc"><span class="ulr-pace${P.x?" is-"+P.x:""}">${ulrPctT(P)}</span></td></tr></tfoot>`}
 function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
  /* vE E045 (D): the rail names the resources; what you can give sits with the table it applies to */
  const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span></div>${RK_SHOW(UL_K()).map(x=>
@@ -8361,9 +8374,9 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3>${ulfShow(k)?"":all}<span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span></div></td>`
-  +`<td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
+  +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${tb}
-  <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cu"><col class="ulr-cg"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -13073,7 +13086,7 @@ const _render328=render; render=function(){_render328(); hdrTabsFit()};   /* cha
    In-session only, no storage.                                              */
 let TOUR=null, TOUR_LAST=null, TOUR_KEY="", TOUR_TICK=null;
 /* change 150: the demo panel can switch the guide off; endXform then lands on Home with no tour */
-let GUIDE_ON=true;
+let GUIDE_ON=false;   /* vE E084, Hitesh 26 Oct: the tour is out of the prototype until it is rebuilt */
 const TOUR_N=5;
 const tourWs=()=>TOUR&&byId[TOUR.ws]||null;
 const tourNm=c=>c.name.replace(/\.$/,"");
@@ -13112,8 +13125,8 @@ const TOUR_STEPS={
  5:{where:c=>tourNm(c),go:c=>{ctx=c.id;asClient=false;cView="sequences";inMod="sequences";openProspect=null;openSeq=null;openReply=null;render()},
     target:c=>(asClient||solo)?null:tourPopOn()?document.querySelector('#popL [data-go="agency"]'):el("wsBtn"),
     state:c=>tourPopOn()?"row":"on",
-    head:c=>tourPopOn()?"Account takes you back to where you run every workspace.":`Move between Account, your own workspace and ${tourNm(c)} here.`,
-    body:c=>"",act:c=>tourPopOn()?"Pick Account.":"Open the switcher.",   /* vE E038: the row is named Account */
+    head:c=>tourPopOn()?"Master View takes you back to where you run every workspace.":`Move between Master View, your own workspace and ${tourNm(c)} here.`,
+    body:c=>"",act:c=>tourPopOn()?"Pick Master View.":"Open the switcher.",   /* vE E038, E084: the row is named Master View */
     done:c=>ctx==="agency"&&!asClient&&view.name===homeView().name}
 };
 function tourLayer(){let L=el("tourLayer"); if(!L){L=document.createElement("div");L.id="tourLayer";const M=el("modalLayer");if(M)M.insertAdjacentElement("beforebegin",L);else document.body.appendChild(L)} return L}
@@ -13913,9 +13926,17 @@ function wire(){
  q("[data-ppclremove]").forEach(b=>b.onclick=e=>{e.stopPropagation();const key=b.dataset.ppclremove;const [id,email]=key.slice(2).split("|");const c=byId[id];const i=c.users.findIndex(x=>x[0]===email);const u=c.users[i];c.users.splice(i,1);PP.menu=null;ppToast(`${ppName(email,u)} removed from ${c.name}.`,()=>{c.users.splice(i,0,u);render()});render()});
  {const i=el("ppQ");if(i){i.oninput=()=>{PP.q=i.value;const v=i.value;render();const n=el("ppQ");if(n){n.focus();n.setSelectionRange(v.length,v.length)}}}}
  q("[data-ppclear]").forEach(b=>b.onclick=()=>{PP.q="";render()});   /* change 297 (audit P2-8) */
- wireDD(document,"ppWs",v=>{PP.ws=v;render()});
+ wireDD(document,"ppWs",()=>{});   /* vE E084: a checkbox list; ticking does not close it */
+ {const W=el("ppWs"); if(W){const ids=myClients().map(c=>c.id), menu=W.querySelector(".dd-menu");
+  W.querySelectorAll("[data-ddopt]").forEach(o=>o.onclick=null);
+  const keep=f=>{const sq=W.querySelector(".dd-q"); PP.wsKeep={top:menu.scrollTop,q:sq?sq.value:"",f}; PP.menu=null; render()};
+  W.querySelectorAll("[data-ppwsc]").forEach(cb=>cb.onchange=()=>{const id=cb.dataset.ppwsc; let s=PP.ws==="all"?ids.slice():PP.ws.filter(x=>x!==id); if(cb.checked){if(s.indexOf(id)<0) s.push(id)} else s=s.filter(x=>x!==id); PP.ws=s.length>=ids.length?"all":s; keep(id)});
+  const a=W.querySelector("[data-ppwsall]"); if(a){a.indeterminate=PP.ws!=="all"&&PP.ws.length>0; a.onchange=()=>{PP.ws=a.checked?"all":[]; keep("")}}
+  W.onkeydown=e=>{if(e.key==="Escape"&&!menu.hidden){e.stopPropagation(); W.classList.remove("is-open"); menu.hidden=true; const tg=W.querySelector("[data-ddtrig]"); tg.setAttribute("aria-expanded","false"); tg.focus()}};
+  if(PP.wsKeep){const k=PP.wsKeep, sq=W.querySelector(".dd-q"); PP.wsKeep=null; if(sq&&k.q){sq.value=k.q; sq.oninput()} menu.scrollTop=k.top;
+   const f=k.f?W.querySelector('[data-ppwsc="'+k.f+'"]'):a; if(f) f.focus({preventScroll:true})}}}
  wireDD(document,"ppRole",v=>{PP.role=v;render()});
- wireDD(document,"ppWho",v=>{if(v)PP.tab=v;PP.menu=null;render()});   /* vE E030: the group dropdown replaces the tabs */
+ wireDD(document,"ppWho",v=>{if(v==="invites"){PP.tab="all";PP.inv=true}else if(v){PP.tab=v;PP.inv=false}PP.menu=null;render()});   /* vE E084 */   /* vE E030: the group dropdown replaces the tabs */
  q("[data-ppinv]").forEach(b=>b.onclick=()=>{PP.inv=!PP.inv;PP.menu=null;render()});
  q("[data-invite]").forEach(b=>b.onclick=()=>openInvite(b.dataset.invite?{lock:b.dataset.invite,role:"Client Collaborator"}:{}));
  q("[data-rolecompare]").forEach(b=>b.onclick=()=>{modal={kind:"rolecompare"};renderModal()});
@@ -14456,7 +14477,7 @@ function demoToggleGuide(){GUIDE_ON=!GUIDE_ON;
  history.replaceState(null,"",location.pathname+(h?"#"+h:"")); HASHX.p.guide=GUIDE_ON?undefined:"off"; demoSync()}
 function demoNowLine(){const cur=demoCurrent(),scn=demoScn();
  const who=cur.mode==="client"?cur.name+", "+(cur.email||"no user yet")+" ("+cur.role+")":"Agency, "+cur.name+" ("+roleName(cur.role)+")";
- return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+", "+(PLAN_TIER==="pro"?"Pro":"Scale")+", "+who+", guide "+(GUIDE_ON?"on":"off")}
+ return (scn?DEMO_SHORT[scn]:HASHX.route.split("=")[0])+", "+(PLAN_TIER==="pro"?"Pro":"Scale")+", "+who}
 function demoSync(){
  let pill=el("demoPill"),P=el("demoPanel");
  if(!pill){pill=document.createElement("button");pill.id="demoPill";pill.type="button";pill.className="shd-button shd-button--tertiary shd-button--sm";pill.setAttribute("aria-haspopup","true");pill.setAttribute("aria-controls","demoPanel");
@@ -14474,9 +14495,6 @@ function demoSync(){
  const html=`<div class="dp-h"><b>Demo controls</b><button type="button" class="dp-x" data-dpclose aria-label="Close">&times;</button></div>
   <div class="dp-g"><div class="dp-t">Showcase</div>${DEMO_SCN.map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpscn" value="${k}"${scn===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">Plan</div>${[["scale","Scale: Active prospects Unlimited"],["pro","Pro annual, yearly Lead Finder add-on: 30,000 Active prospects"]].map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpplan" value="${k}"${PLAN_TIER===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
-  <div class="dp-g"><div class="dp-t">Product guide</div>
-   <div class="dp-row"><span>Guide after the first workspace</span><button type="button" class="sw" role="switch" aria-checked="${GUIDE_ON}" data-dpguide aria-label="Guide after the first workspace"></button></div>
-   <div class="dp-row" style="margin-top:6px"><span class="sub">Five steps</span><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-dpreplay${replay?"":" disabled"} title="${replay?"":"Needs a client workspace"}">Replay the tour now</button></div></div>
   <div class="dp-g"><div class="dp-t">View as</div>
    <select class="dp-sel" data-dpwho aria-label="Person" style="width:100%">${groups.map(([g,os])=>`<optgroup label="${esc(g)}">${os.map(o=>`<option value="${esc(o.val)}"${o.val===va.val?" selected":""}${o.disabled?" disabled":""}>${esc(o.label)}</option>`).join("")}</optgroup>`).join("")}</select>
    <div class="dp-f"><button type="button" class="shd-button shd-button--primary shd-button--sm" data-dpapply>Apply</button></div></div>
@@ -14485,8 +14503,8 @@ function demoSync(){
  P.querySelector("[data-dpclose]").onclick=()=>{demoOpen=false;demoSync()};
  P.querySelectorAll("[name=dpscn]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyScn(r.value)});
  P.querySelectorAll("[name=dpplan]").forEach(r=>r.onchange=()=>{if(r.checked) demoApplyPlan(r.value)});   /* vE E004 */
- P.querySelector("[data-dpguide]").onclick=()=>demoToggleGuide();
- P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
+ /* vE E084: the Product guide group went with the tour */
+ if(P.querySelector("[data-dpreplay]")) P.querySelector("[data-dpreplay]").onclick=()=>{const id=tourReplayId(); if(!id) return; demoOpen=false; demoSync(); tourStart(id)};
  const sk=P.querySelector("[data-dpwho]"); if(sk) sk.onchange=()=>{va.val=sk.value;demoSync()};
  P.querySelector("[data-dpapply]").onclick=demoApplyAs;
 }
@@ -15142,7 +15160,10 @@ input::placeholder,textarea::placeholder{color:#9ca3af}
 .numin input,.numin input[type=text]{padding-right:82px}
 /* Checkbox and radio, small: 16px, border 1px Gray 400, hover Blue 800, checked 2px Blue 700, disabled 35% */
 input[type=checkbox],input[type=radio]{appearance:none;-webkit-appearance:none;width:16px;height:16px;margin:0;border:1px solid #9ca3af;background:#fff;cursor:pointer;flex:none;display:inline-block;vertical-align:middle;position:relative;box-sizing:border-box;transition:border .14s,background .14s}
-input[type=checkbox]{border-radius:2px}input[type=radio]{border-radius:9999px}
+input[type=checkbox]{border-radius:2px}
+input[type=checkbox]:indeterminate{background:#1d4ed8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'><path d='M6 12h12'/></svg>") center/60% no-repeat;border:2px solid #1d4ed8}   /* vE E084: Select all with some ticked */
+.dd--ck .dd-ck-all{border-bottom:1px solid #E5E7EB}
+#ppWs.dd--ck .dd-menu{right:auto;width:280px;max-width:calc(100vw - 32px)}.dd--ck .dd-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}input[type=radio]{border-radius:9999px}
 input[type=checkbox]:hover,input[type=radio]:hover{border-color:#1e40af}
 input[type=checkbox]:checked{background:#1d4ed8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center/60% no-repeat;border:2px solid #1d4ed8}
 input[type=checkbox]:checked:hover{background-color:#1e40af;border-color:#1e40af}input[type=checkbox]:checked:active{background-color:#1e3a8a;border-color:#1e3a8a}
@@ -17189,7 +17210,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="657b067";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="bddfbe4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
