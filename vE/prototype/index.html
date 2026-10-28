@@ -1624,7 +1624,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
       <button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
         <span class="avatar av-tint" id="wsAv">MG</span>
         <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
-        <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></span>
       </button>
       <div id="xformLayer"></div>
       <div class="pop" id="pop" hidden>
@@ -1942,7 +1942,11 @@ function renderBrandMark(){const b=document.querySelector(".sb-brand"); if(!b)re
  const html=on?`<img src="${BRAND.icon}" alt=""><span>${BRAND.companyName}</span>`:logoSVG("logoGradA")+"<span>Saleshandy</span>";
  if(b.innerHTML!==html)b.innerHTML=html;
  const f=document.getElementById("favicon"); if(f)f.href=on?BRAND.favicon:"";
- document.title=brandTitle()+(window.__B?", "+window.__B:"")}
+ tabTitle()}
+/* vE E095: the tab names the page and the workspace, so clients open in several tabs can be told apart */
+function tabTitle(){const n=el("wsNm")||el("wsStaticNm"), ct=el("crumbTail"), ws=n?n.textContent.trim():"", pg=ct?ct.textContent.trim():"";
+ const lead=[pg,ws].filter((x,i,a)=>x&&a.indexOf(x)===i).join(" – ");
+ document.title=(lead?lead+" | ":"")+brandTitle()+(window.__B?", "+window.__B:"")}
 /* Assignment, not permission, is the primitive. A person sees the clients they were
    assigned. Everything cross-client is filtered by this one list. */
 const PEOPLE={
@@ -3451,7 +3455,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 const WSBTN_HTML=`<button class="ws-btn" id="wsBtn" aria-expanded="false" aria-haspopup="true">
   <span class="avatar av-tint" id="wsAv">MG</span>
   <span style="min-width:0;flex:1"><span class="nm" id="wsNm">Meridian Growth</span><span class="ws-ctx" id="wsCtx">Your workspace</span></span>
-  <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+  <span class="ws-lvdd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></span>
 </button>`;   /* vE E093: the header crumb's chevron */
 /* ═══ change 328 (Hitesh, 18 Oct 2026: "let's build H into vC"; H revised, change 317) ═══════
    The top bar is the path: its segments with production's ChevronRight between them, one
@@ -3841,6 +3845,7 @@ function renderShell(){
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
  hdrApply();   /* change 328: the path, its trailing slot and the phone form */
+ tabTitle();   /* vE E095 */
  swPark(); renderRail(); placeSwitcher(); fitRail();
 }
 function renderPop(q=""){
@@ -17224,7 +17229,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6c2da16";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="412c2bd";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18291,6 +18296,19 @@ button.hdr-chip{cursor:pointer}
 .topbar #sbWs .ws-lvdd svg{width:16px;height:16px;display:block;color:inherit;opacity:1;transform:none}
 .topbar #wsBtn:hover .ws-lvdd,.topbar #wsBtn[aria-expanded=true] .ws-lvdd{background:#f3f4f6;color:#374151}
 .topbar #wsBtn:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px;border-radius:4px}
+/* vE E095 (28 Oct 2026, doc 151 R): the level reads as a place. Name Gray 800 like the page; logo, name and the up-down
+   icon are one button: 6px in front of the logo (pulled back 6px so the logo keeps its x), 2px after the icon box,
+   4px top and bottom, radius 6px, Gray 100 on hover and while open. A 1px Gray 200 rule, 20px tall, replaces the
+   ChevronRight before the page, centred by eye: about 18px from the icon's drawn edge (or the name) and 18px to the page. */
+.topbar #sbWs .ws-btn .nm{color:#1f2937}
+.topbar #sbWs #wsBtn{margin-left:-6px;padding:4px 2px 4px 6px;border-radius:6px}
+.topbar #sbWs #wsBtn:hover,.topbar #sbWs #wsBtn[aria-expanded=true]{background:#f3f4f6}
+.topbar #wsBtn:hover .ws-lvdd,.topbar #wsBtn[aria-expanded=true] .ws-lvdd{background:none;color:#374151}
+.topbar #wsBtn:focus-visible{outline-offset:0;border-radius:6px}
+.topbar .crumb>.hdr-lvsep{width:1px;height:20px;margin:0 10px 0 0;background:#e5e7eb}
+.topbar #sbWs:has(.ws-static)+.hdr-lvsep{margin-left:10px}
+.topbar .crumb>.hdr-lvsep svg{display:none}
+@media (max-width:640px){.topbar #sbWs #wsBtn{padding-top:0;padding-bottom:0}}   /* a wrapped long name keeps the 50px bar */
 .topbar .crumb-tail{color:#1f2937}
 .topbar .crumb:not(.hdr-multi)>#crumbTail{flex:none}
 .pop-sheet-h{display:none}
