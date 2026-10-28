@@ -6600,29 +6600,21 @@ function ppRolesHTML(){
  const c=(v,i)=>`<td class="rl2-c ${gc(i)}">${v===1?Y:v===0?N:`<span class="rl2-t${v==="Own"?" rl2-own":""}">${v}</span>`}</td>`;
  const sec=t=>`<tr class="rl2-sec"><td class="rl2-l">${t}</td>${[0,1,2,3,4,5].map(i=>`<td class="${gc(i)}"></td>`).join("")}</tr>`;
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
- const th=(b,i)=>`<th class="rl2-th ${gc(i)}"><b>${b}</b></th>`;   /* vE E029: the role name only, no sub-line */
+ /* vE E094: one line under each role name says what the role is for, so the pick at Invite is easy */
+ const RL_SUM=["Everything, billing included","Runs assigned workspaces","Works on their own records",
+  "Runs the client’s campaigns","Email accounts and replies only","Sees everything, changes nothing"];
+ const th=(b,i)=>`<th class="rl2-th ${gc(i)}"><b>${b}</b><span class="rl2-sum">${RL_SUM[i]}</span></th>`;
  const W=[["Open workspaces",["Every one","Assigned ones","Assigned ones","Their own","Their own","Their own"]]];
- const IN=[["See everything in the workspace",[1,1,"Own",1,1,1]],
-  ["Reply, forward and draft; change a reply’s outcome",[1,1,"Own",1,1,0]],
-  ["Mark a prospect as replied",[1,1,"Own",1,1,0]],
-  ["Pause and resume sequences",[1,1,"Own",1,0,0]],
-  ["Connect and reconnect email accounts",[1,1,"Own",1,1,0]],
-  ["Edit sender name and signature",[1,1,"Own",1,1,0]],
-  ["Pause and resume warm-up",[1,1,"Own",1,0,0]],
-  ["Edit daily limit and sending intervals",[1,1,"Own",1,0,0]],
-  ["Use an email account in a sequence",[1,1,"Own",1,0,0]],
-  ["Edit sequences and templates",[1,1,"Own",1,0,0]],
-  ["Create and delete sequences",[1,1,"Own",1,0,0]],
-  ["Change prospects and tasks",[1,1,"Own",1,0,0]],
-  ["Export prospects",[1,1,"Own",1,0,0]],
-  ["Export reports",[1,1,"Own",1,1,0]],
-  ["Add Do Not Contact entries",[1,1,"Own",1,1,0]],
-  ["Remove Do Not Contact entries",[1,1,"Own",1,0,0]],
-  ["Disconnect or delete email accounts",[1,1,"Own",1,0,0]],
+ /* vE E094: 23 rows grouped into 11; a row merges only rows whose six answers were identical */
+ const IN=[["See sequences, prospects, replies and reports",[1,1,"Own",1,1,1]],
+  ["Reply to prospects and set a reply’s outcome",[1,1,"Own",1,1,0]],
+  ["Connect email accounts; edit sender name and signature",[1,1,"Own",1,1,0]],
+  ["Export reports; add Do Not Contact entries",[1,1,"Own",1,1,0]],
+  ["Create, edit, pause and delete sequences and templates",[1,1,"Own",1,0,0]],
+  ["Change prospects and tasks; export prospects; remove Do Not Contact entries",[1,1,"Own",1,0,0]],
+  ["Warm-up, sending limits, use in sequences; disconnect or delete email accounts",[1,1,"Own",1,0,0]],
   ["Buy email accounts",[1,1,"Own",0,0,0]]];
- const AC=[["Invite users, change roles, disable users",[1,1,0,0,0,0]],
-  ["Add workspaces, set limits, admin settings",[1,1,0,0,0,0]],
-  ["Whitelabel",[1,1,0,0,0,0]],
+ const AC=[["Users, workspaces, limits, admin settings and Whitelabel",[1,1,0,0,0,0]],
   ["Billing",[1,0,0,0,0,0]]];
  return `<div class="mscrim" id="mscrim"><div class="modal rl" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
   <div class="modal-h"><div><span class="semibold-3" id="rlTitle">What each role can do</span></div>
@@ -16069,6 +16061,10 @@ table.rl2--ws{overflow:clip}
 .rl2-secn{margin-left:10px;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:#6b7280}
 .rl2--six .rl2-th{width:112px;padding:10px 6px}.rl2--six .rl2-th b{white-space:normal}.rl2--six .rl2-c{padding:0 6px}.rl2--six thead th{position:sticky;z-index:2}.rl2--six .rl2-grp th{top:-16px;padding:10px 6px 0;font-size:12px;font-weight:600;color:#6b7280;text-align:center;border-bottom:0}.rl2--six .rl2-grp th+th{border-left:1px solid #e5e7eb}.rl2--six tr:not(.rl2-grp) th{top:16px}table.rl2--six{overflow:clip}.rl2--six tr:not(.rl2-grp) th:nth-child(5){border-left:1px solid #e5e7eb}.rl2--six .rl2-l{white-space:nowrap}.rl2--six .rl2-th b{width:min-content;margin:0 auto}.rl2--six .rl2-th i{white-space:nowrap}.rl2-own{font-weight:600;color:#374151}.rl2-yes{display:inline-flex;width:16px;height:16px;color:#374151;vertical-align:middle}.rl2-yes svg{width:16px;height:16px}.rl-lg .rl2-yes{width:14px;height:14px}.rl-lg .rl2-yes svg{width:14px;height:14px}   /* vE E029 */
 .rl2--acct .rl2-th b{font-size:14px}
+/* vE E094: the role summary under each name, and row labels that wrap instead of widening the dialog */
+.rl2-sum{display:block;margin-top:4px;font-size:12px;line-height:16px;font-weight:400;color:#6b7280;white-space:normal}
+.rl2.rl3 .rl2-l{white-space:normal;height:auto;padding-top:10px;padding-bottom:10px;line-height:20px;min-width:240px}
+.rl2.rl3 .rl2-c{height:auto;padding-top:10px;padding-bottom:10px}
 /* vE E034 (Hitesh's pick A, "Two teams, two bands"): Blue 50 / Purple 50 bands, Blue 100 / Purple 100 chips, Gray 500 Cannot mark.
    SD steps used: Blue 50 #EFF6FF, 100 #DBEAFE, 200 #BFDBFE, 800 #1E40AF; Purple 50 #F5F3FF, 100 #EDE9FE, 200 #DDD6FE, 800 #5B21B6; Gray 100 #F3F4F6, 500 #6B7280 */
 .rl2.rl3 th,.rl2.rl3 td{border-left:0}
@@ -17228,7 +17224,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="61bebaf";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="6c2da16";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
