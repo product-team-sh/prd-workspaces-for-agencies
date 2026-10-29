@@ -3269,7 +3269,7 @@ function renderRail(){
      &&(k!=="people"||canI("members"))};
  /* inside a client the rail drives inMod, so that is what marks it current.
     Without this branch no rail item was ever current in a client workspace. */
- const cur=k=>ctx==="agency"
+ const cur=k=>pfOn()?false:ctx==="agency"   /* vE E099: My Profile is no rail item */
    ?((k==="dash"&&(view.name==="dash"||view.name==="clients"||view.name==="record"||(view.name==="person"&&view.from)))||(k==="queue"&&view.name==="queue")
      ||(k==="billing"&&view.name==="credits")||(k==="limits"&&view.name==="limits")
      ||(k==="people"&&(view.name==="people"||(view.name==="person"&&!view.from)||view.name==="addmember"))
@@ -3369,7 +3369,7 @@ function renderRail(){
   +`</div>`;
  /* vE E044: More is built and bound by fitRail() */
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
-   const n=b.dataset.nav;
+   const n=b.dataset.nav; if(view.name==="profile") view={name:"clients"};   /* vE E099: any rail item leaves My Profile */
    /* Settings is the one item that means something in both workspaces */
    if(n==="settings"){if(asClient&&!inAgency()){cView="settings";openProspect=null;openSeq=null;openReply=null;render();return}
      /* item 16: clear inMod, or the module just left (Templates, say) keeps
@@ -3535,6 +3535,7 @@ const HDR_LV={
 function hdrModel(){
  if(solo||["login","invite","m1","m2"].indexOf(view.name)>-1) return null;
  const L=HDR_LV;
+ if(pfOn()) return {segs:[L.page("My Profile")],slot:"",prod:true};   /* vE E099: the same header at every level */
  if(ctx==="agency"){
   if(view.name==="record"&&byId[view.id]){const c=byId[view.id];
    return {segs:[L.workspaces(),L.ws(c,"here")],slot:hdrRecSlot(c)}}
@@ -3844,6 +3845,7 @@ function renderShell(){
    :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
+ {const tb=document.querySelector(".topbar"); if(tb) tb.classList.toggle("is-pf",pfOn())}   /* vE E099: the level crumb hides on My Profile */
  hdrApply();   /* change 328: the path, its trailing slot and the phone form */
  tabTitle();   /* vE E095 */
  swPark(); renderRail(); placeSwitcher(); fitRail();
@@ -3941,7 +3943,7 @@ function renderMePop(){
   <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
  el("mePopL").querySelectorAll("[data-tourreplay]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=tourReplayId();closeMePop();if(id) tourStart(id)});
- el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();if(isNormal()||!inAgency()){if(isNormal())ctx="own";inMod=null;view={name:"settings"};render()}else tourToast("Open a workspace&rsquo;s Settings for your profile.")}); /* change 291: the flash was drawn inside the closed menu */
+ el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();pfOpen()});   /* vE E099: one My Profile, the same page at every level */
  el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)});
 }
 const openMePop=()=>{if(el("meBtn").classList.contains("me-static"))return;
@@ -3955,8 +3957,180 @@ function renderClientMePop(){const c=byId[ctx], u=c&&actingClientUser(c), email=
    <span style="min-width:0"><span style="display:block;font-size:14px;font-weight:600;color:var(--gray-17);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ppName(email,u)}</span>${u&&u[2]?`<span style="display:block;font-size:12px;color:var(--gray-15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</span>`:""}</span></div>
   <div style="padding:4px 0"><button class="pop-r" data-meprofile>My Profile</button>
   <button class="pop-r" data-flash="Not in this prototype">Sign out</button></div>`;
- el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop(); cView="settings"; openProspect=null; openSeq=null; openReply=null; render()});
+ el("mePopL").querySelectorAll("[data-meprofile]").forEach(b=>b.onclick=()=>{closeMePop();pfOpen()});   /* vE E099 */
  el("mePopL").querySelectorAll("[data-flash]").forEach(b=>b.onclick=e=>{e.stopPropagation();flash(b,b.dataset.flash)})}
+
+/* ═══ vE E099 (28 Oct 2026, doc 149): My Profile, one page per person ═══
+   Opened from the account menu at every level (Admin Panel, any workspace, a client user's workspace) and the same page
+   each time: the header reads "My Profile", nothing on it names a workspace, and a change applies everywhere at once.
+   Only what is the person's is here; a workspace's sending schedules, API keys, "Track email by my team" and default
+   team member stay in that workspace's Settings. Production's fields and numbers: my-profle-content.tsx, _my-profile.scss,
+   the change-email and delete-account flows, and out-of-office-content.tsx for Out of Office. */
+let PF={d:null,o:null,free:false,rs:null};   /* d: the form draft; o: the Out of Office draft; free: the account is on a free plan (production's delete gate) */
+const PF_TZ=["Pacific/Honolulu","America/Anchorage","America/Los_Angeles","America/Denver","America/Chicago","America/New_York","America/Sao_Paulo","UTC","Europe/London","Europe/Paris","Europe/Berlin","Africa/Johannesburg","Europe/Moscow","Asia/Dubai","Asia/Karachi","Asia/Kolkata","Asia/Dhaka","Asia/Bangkok","Asia/Singapore","Asia/Tokyo","Australia/Sydney","Pacific/Auckland"];
+/* INVENTED DEMO DATA: country, phone and time zone per person (production keeps them on the user row) */
+const PF_SEED={owner:["us","+1 (212) 555-0147","America/New_York"],priya:["in","+91 98201 44718","Asia/Kolkata"],sam:["in","+91 99300 27561","Asia/Kolkata"],"finance@northwind.co":["us","+1 (646) 555-0193","America/Chicago"]};
+const PF_STORE={};
+function pfOn(){return asClient&&ctx!=="agency"?cView==="profile":view.name==="profile"}
+function pfCli(){return asClient&&ctx!=="agency"&&byId[ctx]?actingClientUser(byId[ctx]):null}
+function pfMe(){const u=pfCli(), k=u?"w:"+u[0].toLowerCase():"t:"+me_;
+ if(!PF_STORE[k]){const z=PF_SEED[u?u[0].toLowerCase():me_]||[u?"us":"in","",u?"America/New_York":"Asia/Kolkata"];
+  PF_STORE[k]={cc:z[0],phone:z[1],tz:z[2],ooo:{on:false,opt:"date",days:{date:5,manual:5}}}}
+ const S=PF_STORE[k], nm=u?(u[2]||""):ME().name, sp=nm.trim().split(/\s+/).filter(Boolean);
+ return Object.assign({},S,{key:k,client:!!u,email:u?u[0]:ME().email,first:sp[0]||"",last:sp.slice(1).join(" "),owner:!u&&isOwnerP(ME())})}
+/* the workspaces where this person owns sequences, which is where Out of Office pauses prospects (149: a client user
+   who owns none has no Out of Office) */
+function pfSeqWs(){const u=pfCli(), nm=u?(u[2]||u[0]):ME().name, seen={};
+ return [OWN_WS].concat(CLIENTS).filter(c=>c&&!c.deletedOn&&!seen[c.id]&&(seen[c.id]=1)&&(c.sequences||[]).some(q=>q.owner===nm))}
+/* every workspace the account holds, which Delete account erases */
+function pfAllWs(){const seen={}; return [OWN_WS].concat(CLIENTS).filter(c=>c&&!c.deletedOn&&!seen[c.id]&&(seen[c.id]=1))}
+function pfOpen(){PF.d=null;PF.o=null;openProspect=null;openSeq=null;openReply=null;
+ if(asClient&&ctx!=="agency") cView="profile"; else view={name:"profile"}; render()}
+const pfEsc=t=>String(t==null?"":t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const PF_FLAG={in:'<svg width="16" height="11" viewBox="0 0 16 11" aria-hidden="true"><rect width="16" height="11" fill="#fff"/><rect width="16" height="3.67" fill="#FF9933"/><rect y="7.33" width="16" height="3.67" fill="#138808"/><circle cx="8" cy="5.5" r="1.5" fill="none" stroke="#000080" stroke-width=".6"/></svg>',
+ us:'<svg width="16" height="11" viewBox="0 0 16 11" aria-hidden="true"><rect width="16" height="11" fill="#B22234"/>'+[1,3,5,7,9].map(i=>`<rect y="${(i*11/13).toFixed(2)}" width="16" height="${(11/13).toFixed(2)}" fill="#fff"/>`).join("")+'<rect width="6.4" height="5.92" fill="#3C3B6E"/></svg>'};
+const PF_I={eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+ trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>',
+ info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+ chev:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>'};
+const pfOooDirty=(o,P)=>JSON.stringify(o)!==JSON.stringify(P.ooo);
+function vProfile(){
+ const P=pfMe(), d=PF.d||(PF.d={first:P.first,last:P.last,phone:P.phone,tz:P.tz}), o=PF.o||(PF.o=JSON.parse(JSON.stringify(P.ooo)));
+ const seqWs=pfSeqWs(), showOoo=!P.client||seqWs.length>0;
+ const fld=(id,lab,v,ph)=>`<div class="pf-f"><label class="pf-l" for="${id}">${lab}</label><input type="text" class="pf-i" id="${id}" value="${pfEsc(v)}" placeholder="${ph}" autocomplete="off"></div>`;
+ const ro=(id,lab,v,btn)=>`<div class="pf-cta"><div class="pf-f"><label class="pf-l" for="${id}">${lab}</label><input type="text" class="pf-i" id="${id}" value="${pfEsc(v)}" disabled></div>${btn}</div>`;
+ const num=k=>`<span class="pf-num"><input type="text" inputmode="numeric" value="${o.days[k]}" data-pfnum="${k}" aria-label="Days" ${!o.on||o.opt!==k?"disabled":""}><span class="pf-numh"><button type="button" data-pfstep="${k}|1" aria-label="More days" tabindex="-1" ${!o.on||o.opt!==k?"disabled":""}>${PF_I.chev}</button><button type="button" data-pfstep="${k}|-1" aria-label="Fewer days" tabindex="-1" ${!o.on||o.opt!==k?"disabled":""}>${PF_I.chev}</button></span></span>`;
+ const rad=(k,body)=>`<label class="pf-rad${o.on?"":" is-off"}"><input type="radio" name="pfopt" value="${k}" ${o.opt===k?"checked":""} ${o.on?"":"disabled"}><span class="pf-rl">${body}</span></label>`;
+ const delBtn=`<button type="button" class="pf-del" data-pfdel ${PF.free?"":"disabled"}>Delete Account</button>`;
+ return `<div class="pf" data-pf>
+  <form class="pf-form" data-pfform onsubmit="return false">
+   ${fld("pfFirst","First name",d.first,"Enter your first name")}
+   ${fld("pfLast","Last name",d.last,"Enter your last name")}
+   ${ro("pfEmail","Email",P.email,`<button type="button" class="pf-b2" data-pfemail>Change Email</button>`)}
+   ${ro("pfPass","Password","************",`<button type="button" class="pf-b2 pf-b2--pw" data-pfpw>Change Password</button>`)}
+   <div class="pf-ph"><p>Phone number</p><div class="pf-phc"><span class="pf-flag" aria-hidden="true">${PF_FLAG[P.cc]||PF_FLAG.in}<i></i></span><input type="tel" class="pf-phi" id="pfPhone" value="${pfEsc(d.phone)}" placeholder="Enter phone number" aria-label="Phone number"></div></div>
+   <div class="pf-f"><label class="pf-l" for="pfTz">Time Zone</label><span class="pf-tz"><select id="pfTz">${PF_TZ.map(z=>`<option${z===d.tz?" selected":""}>${z}</option>`).join("")}</select>${PF_I.chev}</span></div>
+   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfsave>Save</button><span class="pf-why" data-pftzwhy ${d.tz!==P.tz?"":"hidden"}>Changes how times show to you. Sending schedules keep their own time zone.</span></div>
+  </form>
+  ${showOoo?`<section class="pf-sec" aria-labelledby="pfOooH"><h2 class="pf-sh" id="pfOooH">Out of Office</h2>
+   <div class="pf-tg"><button type="button" class="pf-sw" role="switch" aria-checked="${o.on}" aria-labelledby="pfOooL" data-pfooo></button><p id="pfOooL">Enable Out-of-Office Workflow</p></div>
+   <div class="pf-opts" role="radiogroup" aria-label="When to pause prospects">
+    ${rad("date",`<p>Pause prospects as per the return date found in out-of-office email. If no date is found, pause them for</p>${num("date")}<p>days</p>`)}
+    ${rad("manual",`<p>Pause prospects for</p>${num("manual")}<p>days when out-of-office reply is detected</p>`)}
+   </div>
+   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfooosave ${pfOooDirty(o,P)?"":"disabled"}>Save</button>${seqWs.length?`<span class="pf-why" data-pfooowhy ${pfOooDirty(o,P)?"":"hidden"}>Applies to your sequences in ${listAnd(seqWs.map(c=>pfEsc(c.name)))}.</span>`:""}</div>
+  </section>`:""}
+  ${P.owner?`<div class="pf-dz"><h2>Danger Zone</h2><p>Delete your Saleshandy account permanently.</p></div>
+   ${PF.free?delBtn:`<span class="u-tip pf-dzt" tabindex="0" data-uwtip="Your Saleshandy account must be on a free plan if you want to delete it.">${delBtn}</span>`}`:""}
+ </div>`;
+}
+/* the time zone and Out of Office lines appear beside their Save only while there is a change to save */
+function pfSync(){const P=pfMe(), pg=el("page"); if(!pg) return;
+ const t=pg.querySelector("[data-pftzwhy]"); if(t&&PF.d) t.hidden=PF.d.tz===P.tz;
+ const dirty=PF.o&&pfOooDirty(PF.o,P), sv=pg.querySelector("[data-pfooosave]"), w=pg.querySelector("[data-pfooowhy]");
+ if(sv) sv.disabled=!dirty; if(w) w.hidden=!dirty}
+function pfToast(t){clearTimeout(receiptTimer); RECEIPT={scope:"pf",text:t,short:t,undo:null,entry:null,side:!!asClient,variant:"neutral"};
+ receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast()},8000); renderToast()}
+/* one person, every workspace: a client user's name and sign-in change on each workspace that lists them */
+function pfSetName(first,last){const nm=(String(first).trim()+" "+String(last).trim()).trim(), u=pfCli();
+ if(u){const e=u[0].toLowerCase(); CLIENTS.forEach(c=>(c.users||[]).forEach(x=>{if(x[0].toLowerCase()===e) x[2]=nm||undefined})); return}
+ if(nm){const p=ME(); p.name=nm; p.initials=(nm.split(/\s+/).map(w=>w[0]).join("").slice(0,2)||p.initials).toUpperCase()}}
+function pfSetEmail(nu){const u=pfCli(), P=pfMe();
+ if(u){const e=u[0].toLowerCase(); CLIENTS.forEach(c=>(c.users||[]).forEach(x=>{if(x[0].toLowerCase()===e) x[0]=nu}));
+  if(ACTING_EMAIL&&ACTING_EMAIL.toLowerCase()===e) ACTING_EMAIL=nu; PF_STORE["w:"+nu.toLowerCase()]=PF_STORE[P.key]; return}
+ ME().email=nu}
+function pfWire(){const pg=el("page"); if(!pg||!pg.querySelector("[data-pf]")) return;
+ const q=s=>pg.querySelectorAll(s);
+ [["pfFirst","first"],["pfLast","last"],["pfPhone","phone"]].forEach(([id,k])=>{const i=el(id); if(i) i.oninput=()=>{PF.d[k]=i.value}});
+ const tz=el("pfTz"); if(tz) tz.onchange=()=>{PF.d.tz=tz.value; pfSync()};
+ q("[data-pfsave]").forEach(b=>b.onclick=()=>{const P=pfMe(), d=PF.d; pfSetName(d.first,d.last); PF_STORE[P.key].phone=d.phone; PF_STORE[P.key].tz=d.tz;
+  PF.d=null; render(); pfToast("Profile saved")});
+ q("[data-pfemail]").forEach(b=>b.onclick=()=>{modal={kind:"pf",step:"pw"}; renderModal()});
+ q("[data-pfpw]").forEach(b=>b.onclick=()=>{modal={kind:"pf",step:"pass"}; renderModal()});
+ q("[data-pfdel]").forEach(b=>b.onclick=()=>{modal={kind:"pf",step:"del"}; renderModal()});
+ q("[data-pfooo]").forEach(b=>b.onclick=()=>{PF.o.on=!PF.o.on; render(); const t=pg.querySelector("[data-pfooo]"); if(t) t.focus()});
+ q('input[name="pfopt"]').forEach(r=>r.onchange=()=>{PF.o.opt=r.value; render()});
+ q("[data-pfnum]").forEach(i=>i.oninput=()=>{const v=parseInt(i.value.replace(/\D/g,""),10); if(!isNaN(v)) PF.o.days[i.dataset.pfnum]=Math.max(1,Math.min(100,v)); pfSync()});
+ q("[data-pfstep]").forEach(b=>b.onclick=()=>{const [k,dv]=b.dataset.pfstep.split("|"), v=Math.max(1,Math.min(100,PF.o.days[k]+(+dv)));
+  PF.o.days[k]=v; const i=pg.querySelector(`[data-pfnum="${k}"]`); if(i) i.value=v; pfSync()});
+ q("[data-pfooosave]").forEach(b=>b.onclick=()=>{const P=pfMe(), W=pfSeqWs(); PF_STORE[P.key].ooo=JSON.parse(JSON.stringify(PF.o)); PF.o=null; render();
+  pfToast("Out of Office saved"+(W.length?" for "+listAnd(W.map(c=>c.name)):""))});
+}
+/* the dialogs: production's change-email-modal frame (title, descriptions, action, divider, footer) for the email steps and
+   Delete Account; the design system's modal (card) for Change Password, as production's settings-general-modal */
+function pfModalHTML(){const M=modal, P=pfMe(), cur=pfEsc(P.email);
+ const T=h=>`<div class="pfm-t">${h}</div>`, D=(h,c)=>`<div class="pfm-d${c?" "+c:""}"><p>${h}</p></div>`, A=h=>`<div class="pfm-a">${h}</div>`, DV='<div class="pfm-dv"></div>', F=h=>`<div class="pfm-f">${h}</div>`;
+ const cancel=`<button type="button" class="pfm-b2" data-mclose>Cancel</button>`, curT=T(`<p>Your current email is <b>${cur}</b></p>`);
+ const pw=(id,lab)=>`<div class="pf-f pf-f--m"><label class="pf-l" for="${id}">${lab}</label><span class="pf-pw"><input type="password" class="pf-i" id="${id}" placeholder="Enter your current password" autocomplete="current-password" data-pfmv value="${pfEsc(M.v||"")}"><button type="button" class="pf-eye" data-pfeye aria-label="Show password">${PF_I.eye}</button></span></div>`;
+ const otp=()=>`<div class="pfm-otp"><p class="pfm-otpl">Please enter the code you received below</p><div class="pfm-otpc">${[0,1,2,3].map(i=>`<input type="text" inputmode="numeric" maxlength="1" data-pfotp="${i}" aria-label="Digit ${i+1}" value="${(M.code||"")[i]||""}">`).join("")}</div></div>`;
+ const full=(M.code||"").length===4, go=(to,t,dis,cls)=>`<button type="button" class="shd-button ${cls||"shd-button--primary"}" data-pfmnext="${to}" ${dis?"disabled":""}>${t}</button>`;
+ let lab="Change Email", body="";
+ if(M.step==="pass") return card("Change Password",`<div class="pf-mf">${["Current Password|Enter your current password","New Password|Enter your new password","Confirm Password|Confirm new password"].map((x,i)=>{const [l,ph]=x.split("|");
+   return `<div class="pf-f pf-f--m"><label class="pf-l" for="pfmP${i}">${l}</label><span class="pf-pw"><input type="password" class="pf-i" id="pfmP${i}" placeholder="${ph}" autocomplete="${i?"new-password":"current-password"}"><button type="button" class="pf-eye" data-pfeye aria-label="Show password">${PF_I.eye}</button></span></div>`}).join("")}</div>`,
+   `<button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pfpwok>Update</button>`);
+ if(M.step==="pw") body=curT+D("Please enter your current login password to continue changing email.")+A(pw("pfmPw","Current Password"))+DV+F(cancel+go("code0","Continue",!M.v));
+ else if(M.step==="code0") body=curT+D(`To continue, please enter the 4-digit verification code sent to <b>${cur}</b>`)+A(otp())+DV+F(cancel+go("new","Continue",!full));
+ else if(M.step==="new") body=curT+D("Please enter a new email account and we will send you a verification code on this.")
+   +A(`<div class="pf-f pf-f--m"><label class="pf-l" for="pfmNew">New Email</label><input type="email" class="pf-i${M.err?" is-err":""}" id="pfmNew" placeholder="johndoe@example.com" value="${pfEsc(M.nu||"")}" data-pfmv autocomplete="off">${M.err?`<span class="pf-err">${M.err}</span>`:""}</div>`)
+   +DV+F(cancel+go("code","Send code",!M.nu));
+ /* the one step that commits: the consequence is said here, once. A client user's code email comes from the agency
+    when Whitelabel is on (the same gap as 142 decision 12), so the step names who sent it. */
+ else if(M.step==="code") body=curT+D(`To continue, please enter the 4-digit verification code sent to <b>${pfEsc(M.nu)}</b>${P.client?` from <b>${pfEsc(brandOn()?BRAND.companyName:"Saleshandy")}</b>`:""} <button type="button" class="linkbtn pfm-ln" data-pfmnext="new">Change</button>`)
+   +D(`Didn&rsquo;t receive a code? <button type="button" class="linkbtn pfm-ln" data-pfrs disabled>Resend (${PF.rs==null?60:PF.rs})</button>`)
+   +A(otp())+D("Changes your sign-in for every workspace.","pfm-why")+DV+F(cancel+go("done","Change Email",!full));
+ else if(M.step==="done"){lab="Email Changed Successfully"; body=T("<h1>Email Changed Successfully</h1>")+D(`Your login email address has been updated to <b>${pfEsc(M.nu)}</b>. Please note that your password remains unchanged.`)+D("To continue, please log in again.")+DV+F(`<button type="button" class="shd-button shd-button--primary" data-pfmdone>Log in again</button>`)}
+ /* Delete account: Account Owner only (the page never draws the button for anyone else). It names every workspace it
+    erases, and keeps production's alert and current-password step. */
+ else if(M.step==="del"){lab="Delete Account"; const W=pfAllWs();
+  body=T(`<div class="pfm-dt"><span class="pfm-di">${PF_I.trash}</span><h1>Delete Account</h1></div>`)
+   +D(`Delete account <b>${cur}</b>? This deletes all ${W.length} workspaces and their data:`,"pb-3")
+   +`<div class="pfm-ws"><ul class="pfm-wsl" aria-label="Workspaces deleted">${W.map(c=>`<li>${av(c,24)}<span class="pfm-wsn">${pfEsc(c.name)}</span>${c.disabled?'<span class="pfm-tag">Disabled</span>':""}</li>`).join("")}</ul></div>`
+   +`<div class="pfm-al"><div class="pfm-alb"><span class="pfm-ali">${PF_I.info}</span><p>This action cannot be undone. All your Saleshandy data will be permanently erased.</p></div></div>`
+   +A(pw("pfmDel","Current Password"))+DV+F(cancel+`<button type="button" class="shd-button shd-button--danger" data-pfmdel ${M.v?"":"disabled"}>Delete Account</button>`)}
+ return `<div class="mscrim" id="mscrim"><div class="pfm" role="dialog" aria-modal="true" aria-label="${lab}">${body}</div></div>`;
+}
+let PF_RS_T=null;
+function pfModalWire(L){const M=modal; if(!M||M.kind!=="pf") return;
+ const re=()=>renderModal(), btn=L.querySelector("[data-pfmnext]:not(.pfm-ln)");
+ L.querySelectorAll("[data-pfeye]").forEach(b=>b.onclick=()=>{const i=b.parentNode.querySelector("input"); i.type=i.type==="password"?"text":"password"; b.setAttribute("aria-label",i.type==="password"?"Show password":"Hide password")});
+ L.querySelectorAll("[data-pfmv]").forEach(i=>{i.oninput=()=>{if(M.step==="new"){M.nu=i.value.trim(); if(M.err){M.err=""; i.classList.remove("is-err"); const e=i.parentNode.querySelector(".pf-err"); if(e) e.remove()}} else M.v=i.value;
+   const b=L.querySelector(M.step==="del"?"[data-pfmdel]":"[data-pfmnext]:not(.pfm-ln)"); if(b) b.disabled=M.step==="new"?!M.nu:!M.v};
+  i.onkeydown=e=>{if(e.key==="Enter"){const b=L.querySelector("[data-pfmnext]:not(.pfm-ln)"); if(b&&!b.disabled) b.click()}}});
+ const O=[...L.querySelectorAll("[data-pfotp]")];
+ O.forEach((i,n)=>{i.oninput=()=>{i.value=i.value.replace(/\D/g,"").slice(-1); M.code=O.map(x=>x.value||" ").join("").replace(/\s+$/,""); if(btn) btn.disabled=O.some(x=>!x.value); if(i.value&&O[n+1]) O[n+1].focus()};
+  i.onkeydown=e=>{if(e.key==="Backspace"&&!i.value&&O[n-1]) O[n-1].focus(); if(e.key==="ArrowLeft"&&O[n-1]) O[n-1].focus(); if(e.key==="ArrowRight"&&O[n+1]) O[n+1].focus(); if(e.key==="Enter"&&btn&&!btn.disabled) btn.click()}});
+ L.querySelectorAll("[data-pfmnext]").forEach(b=>b.onclick=()=>{const to=b.dataset.pfmnext;
+  if(to==="code"){const v=(M.nu||"").trim(); if(!validEmail(v)){M.err="Please enter a valid email address."; re(); return}
+   if(v.toLowerCase()===pfMe().email.toLowerCase()){M.err="This is already your email."; re(); return}}
+  if(to==="done") pfSetEmail(M.nu);
+  M.step=to; M.code=""; M.v=""; if(to==="code") PF.rs=60; re(); if(to==="done") render()});
+ L.querySelectorAll("[data-pfmdone]").forEach(b=>b.onclick=()=>{const nu=M.nu; modal=null; renderModal(); render(); pfToast("Email changed to "+nu)});
+ L.querySelectorAll("[data-pfmdel]").forEach(b=>b.onclick=()=>flash(b,"Not in this prototype"));
+ L.querySelectorAll("[data-pfpwok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); pfToast("Password updated")});
+ /* production's Resend counts down from 60 before it can be used */
+ clearInterval(PF_RS_T); if(M.step==="code"){PF_RS_T=setInterval(()=>{const r=document.querySelector("[data-pfrs]"); if(!modal||modal.kind!=="pf"||modal.step!=="code"||!r){clearInterval(PF_RS_T); return}
+  PF.rs=Math.max(0,(PF.rs==null?60:PF.rs)-1); r.textContent=PF.rs?"Resend ("+PF.rs+")":"Resend"; r.disabled=PF.rs>0},1000)}
+ const f=L.querySelector("[data-pfotp]:not([value]),[data-pfotp][value=''],[data-pfmv],#pfmP0"); if(f) setTimeout(()=>f.focus(),0);
+}
+/* review states (Validation topic and #e099=<state>). The client user is finance@northwind.co, on Northwind Logistics as a
+   Client Collaborator and on Atlas Manufacturing as a Client Viewer: one person, two workspaces, one profile. */
+const E099_CL="finance@northwind.co";
+const E099_ST={owner:{who:"owner",lv:"agency"},member:{who:"sam",lv:"vx"},"client-wl":{cl:1,wl:1},client:{cl:1},
+ email:{who:"owner",lv:"agency",m:"code"},ooo:{who:"sam",lv:"vx",ooo:1},delete:{who:"owner",lv:"agency",free:1,m:"del"},admin:{who:"priya",lv:"agency"},
+ "client-email":{cl:1,wl:1,m:"code"}};
+function e099Set(k){const S=E099_ST[k]||E099_ST.owner;
+ solo=false; drawer=null; modal=null; popOpen=false; mePopOpen=false; openProspect=null; openSeq=null; openReply=null;
+ if(S.wl){BRAND.icon=wlSample("icon"); BRAND.logo=wlSample("logo")} else {BRAND.icon=""; BRAND.logo=""}
+ if(S.cl){/* INVENTED DEMO NAME: the client user's own name, set at sign-up */
+  CLIENTS.forEach(c=>(c.users||[]).forEach(u=>{if(u[0]===E099_CL&&!u[2]) u[2]="Ines Laurent"}));
+  me_="owner"; ctx="nw"; asClient=true; PREVIEW=false; CLIENT_SESSION=true; ACTING_EMAIL=E099_CL; view={name:"clients"}; cView="profile"}
+ else {me_=S.who; asClient=false; PREVIEW=false; CLIENT_SESSION=false; ACTING_EMAIL=null; ctx=S.lv; inMod=S.lv==="agency"?null:"sequences"; view={name:"profile"}}
+ PF.d=null; PF.o=null; PF.free=!!S.free; PF.rs=null;
+ if(S.ooo){const P=pfMe(); PF.o=JSON.parse(JSON.stringify(P.ooo)); PF.o.on=true}
+ if(S.m==="code") modal={kind:"pf",step:"code",nu:S.cl?"ines.laurent@northwind.co":"alex.m@meridiangrowth.com",code:""};
+ if(S.m==="del") modal={kind:"pf",step:"del"};
+}
+function e099Go(k){e099Set(k); render(); renderModal(); if(typeof sessRender==="function") sessRender()}
 const closeMePop=()=>{mePopOpen=false;el("mePop").hidden=true;el("meBtn").setAttribute("aria-expanded","false")};
 
 /* ═══ Client Management ═══ */
@@ -10733,13 +10907,13 @@ function vSettings(){
  const apiN=wsR&&wsR!=="Client Admin"?'<span style="white-space:nowrap">API &amp; Integrations</span> is with a Client Admin.':"";
  /* a client's own user keeps their profile plus the few things they can act on */
  const allowed=x=>{
-  if(x[2]==="user") return true;
+  if(x[2]==="user") return agency||isNormal();   /* vE E099: a workspace's Settings is that workspace's; My Profile is in the account menu */
   if(x[2]==="agency") return agency;
   if(x[0]==="users"&&!agency&&!isNormal()) return utCan(c);   /* vE E083: Account Owners and the Account Admins assigned here */
   return true;
  };
- const vis=SETS.filter(allowed), hidden=SETS.filter(function(x){return !allowed(x)&&x[0]!=="users"});   /* vE E083: hidden outright, as production hides it from non-admins */
- if(!vis.some(x=>x[0]===setSel)) setSel=vis[0][0];
+ const vis=SETS.filter(allowed), hidden=SETS.filter(function(x){return !allowed(x)&&x[0]!=="users"&&x[0]!=="profile"});   /* vE E099: not struck out, it lives in the account menu */   /* vE E083: hidden outright, as production hides it from non-admins */
+ if(setSel==="profile"||!vis.some(x=>x[0]===setSel)) setSel=vis.filter(x=>x[0]!=="profile")[0][0];   /* vE E099: Settings opens on its first own page */
  const sel=setById[setSel];
 
  /* item N2, 28 Sep 2026: "API & Integrations" is not a SETS row (it opens the
@@ -10752,7 +10926,7 @@ function vSettings(){
   const apiBtn=(key==="company"&&!agency&&!isNormal()&&(!wsR||wsR==="Client Admin"))
    ?'<button data-goapiint aria-current="'+(view.name==="apiint")+'">API &amp; Integrations</button>':"";
   return (g.length||apiBtn)?'<h4>'+label+'</h4>'+g.map(x=>
-   '<button '+(x[0]==="bill"?'data-gobill':'data-set="'+x[0]+'"')
+   '<button '+(x[0]==="bill"?'data-gobill':x[0]==="profile"?'data-goprofile':'data-set="'+x[0]+'"')   /* vE E099 */
    +' aria-current="'+(x[0]===setSel)+'">'+(x[0]==="users"&&!agency&&!isNormal()?"Users &amp; Teams":x[1])+'</button>').join("")+apiBtn:""};
 
  /* item 24, 28 Sep 2026: for a workspace's own operator (own workspace or a
@@ -10789,6 +10963,7 @@ function vSettings(){
      :sel[3]==="W"||sel[3]==="W only"?"Set it for "+c.name+" only. No other workspace can see or use it."
      :sel[3].indexOf("floor")>-1?"Add to the account list. Nothing the account set can be removed here."
      :sel[3]==="A + W"?"Manage who is a member of "+c.name+". Users themselves are created at account level."
+     :sel[0]==="ooo"?"Pause prospects who send an out-of-office auto-reply. Override the account default for "+c.name+", unless the account locked it."   /* vE E099r: says what the rule is */
      :"Override the account default for "+c.name+", unless the account locked it.");
 
  const nCompany=SETS.filter(x=>x[2]!=="user").length;
@@ -12087,17 +12262,7 @@ function cSettings(c){
     line to revert. */
  const ro=actingRole(c)==="Client Viewer"||noUser||wsOff(c);
  return `${cWorkspaceSection(c)}<div class="grid" style="margin-top:16px">
-  <div class="panel"><div class="panel-h"><span class="panel-t">Profile</span></div><div class="panel-b">
-   ${noUser?`<p class="sub" style="margin:0 0 12px">No one invited yet.</p>`:""}
-   <div class="field"><label class="flabel" for="cpName">Name</label><input type="text" id="cpName" value="${noUser?"":(au&&au[2])||""}" placeholder="${noUser?"No one invited yet":"Not set"}" ${ro?"disabled":""}></div>
-   <div class="field"><label class="flabel" for="cpEmail">Email</label><input type="email" id="cpEmail" value="${u}" placeholder="${noUser?"No one invited yet":""}" disabled>
-    <p class="sub" style="margin-top:6px">${noUser?"Invite the workspace's first user from Users to fill this in.":`Your sign-in. ${AGENCY.name} invited this address; ask them to invite another to change it.`}</p></div>
-   <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Saved">Save</button></div></div>
-  <div class="panel"><div class="panel-h"><span class="panel-t">Password</span></div><div class="panel-b">
-   <div class="field"><label class="flabel" for="cpOld">Current password</label><input type="password" id="cpOld" autocomplete="current-password" ${ro?"disabled":""}></div>
-   <div class="field"><label class="flabel" for="cpNew">New password</label><input type="password" id="cpNew" placeholder="At least 8 characters" autocomplete="new-password" ${ro?"disabled":""}></div>
-   <button class="shd-button shd-button--primary" ${ro?"disabled":""} data-flash="Password changed">Change password</button>
-   </div></div>
+  <!-- vE E099: Profile and Password are on My Profile (the account menu), the same page in every workspace -->
   <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
    </div></div>
@@ -12115,7 +12280,7 @@ function fixClientCView(c){
  const nav=granted.concat([["settings","Settings"]]);
  /* land them on the first screen they actually have. Without this a
     reports-only client opens on a Sequences tab that is not in their nav. */
- if(!nav.some(n=>n[0]===cView)) cView=nav.length?nav[0][0]:"settings";
+ if(!nav.some(n=>n[0]===cView)&&cView!=="profile") cView=nav.length?nav[0][0]:"settings";   /* vE E099: My Profile is not a module */
  return granted;
 }
 function vClientSide(){
@@ -12526,6 +12691,7 @@ function modalHTML(){
     is the one people actually want to know, so it is given equal weight, and
     the fact that it is reversible is stated rather than left to be discovered
     (23 §3.2: deleting the only client returns the account to where it was).  */
+ if(modal.kind==="pf") return pfModalHTML();   /* vE E099 */
  if(modal.kind==="ulrstop") return ulrStopHTML();   /* vE E045 */
  if(modal.kind==="limedit") return ledHTML(c);   /* change 220 */
  if(modal.kind==="share"){
@@ -12727,6 +12893,7 @@ function renderModal(){
  const L=el("modalLayer"); shellInert(); if(!modal){L.innerHTML="";renderToast();return}
  L.innerHTML=modalHTML();
  wirePeopleModal(L); wirePP(L); utWire(L); renderToast();
+ if(modal&&modal.kind==="pf") pfModalWire(L);   /* vE E099 */
  if(modal&&modal.kind==="limedit") ledWire(L);   /* change 220 */
  L.querySelectorAll("[data-ulrcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); ulrApply()});   /* vE E045 */
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; if(!back){INV=null;PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
@@ -13077,6 +13244,7 @@ function render(){
      rollback of this decision is a one-line move. Email Accounts (view.name
      ==="mail") has no screen behind it to intercept any more; its own
      vEstate was deleted outright, not kept (items 47, 48, 28 Sep 2026). */
+  :pfOn()?vProfile()   /* vE E099: My Profile, the same page at every level */
   :(ctx==="agency"&&COMING_SOON[view.name])?vComingSoon(view.name)
   :(ctx==="agency"&&view.name==="analytics")?vAgencyAnalytics()
   /* item N2, 28 Sep 2026: reachable from any workspace's Settings now, not
@@ -13102,7 +13270,7 @@ function render(){
  pageEl.scrollTop=(pageKey===lastPageKey)?prevScroll:0;
  pageEl.classList.toggle("pb-still",pageKey===lastPageKey);
  lastPageKey=pageKey;
- wire();renderThread();
+ wire();renderThread();if(pfOn())pfWire();   /* vE E099 */
  renderXform();
  if(typeof demoSync==="function") demoSync();
 }
@@ -13854,6 +14022,7 @@ function wire(){
  q("[data-skipclientsetup]").forEach(b=>b.onclick=()=>{clientSetupOff[ctx]=true;render()});
  q("[data-cstep]").forEach(b=>b.onclick=()=>{if(b.dataset.cstep==="invite"){openInvite({lock:ctx,role:"Client Collaborator"});return} inMod=b.dataset.cstep;openProspect=null;openSeq=null;openReply=null;render()});
  q("[data-set]").forEach(b=>b.onclick=()=>{setSel=b.dataset.set;render()});
+ q("[data-goprofile]").forEach(b=>b.onclick=()=>pfOpen());   /* vE E099: the same My Profile page */
  /* item N2, 28 Sep 2026: opens the real API & Integrations screen without
     leaving the workspace (ctx stays whatever workspace Settings was reached
     from - own or a client). */
@@ -14479,7 +14648,7 @@ function demoRestoreScreen(){
  if(S.wsl){wslApply(S.wsl); wslSync("replace")}   /* vE E021 */
  if(CLIENT_SESSION){
   if(S.ctx!==ctx||!S.cView) return;
-  const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings") return;
+  const mods=roleSet(actingRole(byId[ctx])).mods; if(mods.indexOf(S.cView)<0&&S.cView!=="settings"&&S.cView!=="profile") return;   /* vE E099 */
   cView=S.cView; openSeq=S.openSeq; seqTab=S.seqTab||seqTab; demoKeepScroll=S.scroll; return}
  const reach=id=>id==="agency"||myWorkspaces().some(c=>c.id===id);
  const v=S.view;
@@ -14594,6 +14763,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
  const [k,v]=h.split("=");
  if(k==="scale"){scaleTo(+v||40);view={name:"dash"}}
  if(k==="grace"){GRACE.on=true;view={name:"dash"}}
+ if(k==="e099"){e099Set(v||"owner"); if(modal) setTimeout(renderModal,0)}   /* vE E099: #e099=<state>, the review states */
  /* change 121, 5 Oct 2026: #demo=calm, #demo=busy, #demo=crisis. Three states of
     the same book for a demo: calm has nothing at a limit, no ask waiting and no
     disconnected account; busy is today's seed, unchanged; crisis has two
@@ -16967,6 +17137,125 @@ body.tour-on .home-tbl .crow .qa{display:none!important}
  .wss-st-m{flex-wrap:wrap}
  .wss-st-l{margin-left:0;width:100%;text-align:center}
 }
+
+/* ═══ vE E099: My Profile. Production's numbers: _global-settings-wrapper.scss (24px 24px 0, white), _my-profile.scss
+   (300px fields, 32px inputs, 12/16 labels, 12px form gap, 36px Change buttons 20px from the field, the Danger Zone),
+   _out-of-office.scss (the toggle row and the option rail) and the change-email-modal frame (450px, 144px down). ═══ */
+.topbar.is-pf #sbWs,.topbar.is-pf .hdr-lvsep{display:none!important}
+.pf{background:#fff;min-height:100%;box-sizing:border-box;padding:24px 24px 32px}
+.page:has(>.pf){background:#fff}   /* the Demo pill's 32px spacer under the page stays white */
+.pf-form{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:12px;margin:0 0 32px}
+.pf-f{min-height:56px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:300px;max-width:100%}
+.pf-f--m{width:100%;min-height:0}
+.pf-l{display:block;color:#6b7280;font-size:12px;font-weight:500;line-height:16px;margin:0 0 4px}
+input.pf-i,select.pf-i{box-sizing:border-box;width:100%;height:32px;padding:6px 16px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#1f2937;font-size:14px;font-weight:400;line-height:20px;box-shadow:none}
+input.pf-i:hover{border-color:#e5e7eb}
+input.pf-i:focus,input.pf-i:focus-visible{outline:none;border-color:#1d4ed8;box-shadow:none}
+input.pf-i:disabled{background:#f9fafb;color:#9ca3af;border-color:#e5e7eb}
+input.pf-i::placeholder{color:#9ca3af}
+input.pf-i.is-err,input.pf-i.is-err:focus{border-color:#fca5a5}
+.pf-err{display:block;color:#b91c1c;font-size:12px;font-weight:500;line-height:18px;margin-top:4px}
+.pf-cta{display:flex;justify-content:flex-start;align-items:flex-end;flex-wrap:wrap;gap:20px;width:100%}
+.pf-b2,.pfm-b2{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:6px 16px;border:1px solid #e5e7eb;border-radius:4px;background:transparent;color:#6b7280;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer;transition:color .12s,border-color .12s}
+.pf-b2:hover,.pf-b2:focus-visible,.pf-b2:active,.pfm-b2:hover,.pfm-b2:focus-visible,.pfm-b2:active{color:#1d4ed8;border-color:#1d4ed8;background:transparent}
+.pfm-b2{height:32px}
+.pf-b2--pw{width:154px}
+.pf-ph{width:300px;max-width:100%}
+.pf-ph>p{color:#6b7280;font-size:12px;font-weight:500;line-height:16px;margin:0 0 4px}
+.pf-phc{display:flex;align-items:center}
+.pf-flag{position:relative;flex:none;box-sizing:border-box;width:56px;height:36px;padding:8px;border:1px solid #e5e7eb;border-right:none;border-radius:4px 0 0 4px;background:transparent}
+.pf-flag svg{position:absolute;left:8px;top:12px;display:block}
+.pf-flag i{position:absolute;left:34px;top:16px;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #555}
+input.pf-phi{flex:1;min-width:0;box-sizing:border-box;width:100%;height:36px;padding:0 0 0 12px;background:#fff;border:1px solid #e5e7eb;border-radius:0 4px 4px 0;line-height:20px;font-size:14px;font-weight:500;color:#1f2937;box-shadow:none;transition:all .2s ease-in-out}
+input.pf-phi::placeholder{color:#d1d5db}
+input.pf-phi:hover{border-color:#e5e7eb}
+input.pf-phi:focus{outline:none;box-shadow:none;border-color:#1d4ed8}
+.pf-phc:focus-within .pf-flag{border-color:#1d4ed8}
+.pf-tz{position:relative;display:block;width:300px;max-width:100%}
+.pf-tz select{appearance:none;-webkit-appearance:none;box-sizing:border-box;width:100%;height:32px;padding:6px 40px 6px 16px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#1f2937;font:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;box-shadow:none}
+.pf-tz select:hover{border-color:#e5e7eb}
+.pf-tz select:focus{outline:none;border-color:#1d4ed8;box-shadow:none}
+.pf-tz svg{position:absolute;right:16px;top:8px;width:16px;height:16px;color:#9ca3af;pointer-events:none}
+.pf-save{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin-top:8px}
+.pf-why{font-size:14px;line-height:20px;color:#6b7280}
+.pf-why[hidden]{display:none}
+.pf-sec{border-top:2px solid #e5e7eb;border-radius:1px;padding-top:20px;margin:0 0 32px}
+.pf-sh{color:#1f2937;font-size:14px;font-weight:600;line-height:20px;margin:0 0 16px}
+.pf-tg{display:flex;align-items:center;gap:8px}
+.pf-tg p{color:#1f2937;font-size:14px;line-height:20px;margin:0}
+.pf-sw{position:relative;flex:none;width:32px;height:16px;border:0;border-radius:100px;background:#9ca3af;padding:0;cursor:pointer;transition:background .15s}
+.pf-sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}
+.pf-sw[aria-checked=true]{background:#1d4ed8}
+.pf-sw[aria-checked=true]::after{left:18px}
+.pf-opts{display:flex;flex-direction:column;justify-content:center;gap:6px;margin:12px 0 16px 14px;padding-left:22px;border-left:3px solid #f3f4f6;border-radius:4px}
+.pf-rad{display:flex;align-items:center;gap:8px;margin:0;cursor:pointer}
+.pf-rad.is-off{cursor:default}
+.pf-rad input[type=radio]{appearance:none;-webkit-appearance:none;flex:none;box-sizing:border-box;width:16px;height:16px;margin:0;border:1.5px solid #9ca3af;border-radius:50%;background:#fff;display:grid;place-content:center;cursor:inherit}
+.pf-rad input[type=radio]::after{content:"";width:8px;height:8px;border-radius:50%;background:#1d4ed8;transform:scale(0)}
+.pf-rad input[type=radio]:checked{border-color:#1d4ed8}
+.pf-rad input[type=radio]:checked::after{transform:scale(1)}
+.pf-rad input[type=radio]:disabled{opacity:.5}
+.pf-rad input[type=radio]:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+.pf-rl{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.pf-rl p{color:#6b7280;font-size:14px;line-height:20px;margin:0}
+.pf-num{position:relative;display:inline-flex;flex:none;width:74px;height:32px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:4px;background:#f9fafb;overflow:hidden}
+.pf-num:focus-within,.pf-num:hover{border-color:#1d4ed8}
+.pf-num input[type=text]{flex:1;min-width:0;width:auto;height:30px;border:0;border-radius:0;padding:0 8px;background:transparent;color:#1f2937;font-size:14px;font-weight:400;line-height:normal;box-shadow:none}
+.pf-num input[type=text]:focus{outline:none;box-shadow:none}
+.pf-num input[type=text]:disabled{background:transparent;color:#9ca3af}
+.pf-numh{flex:none;display:flex;flex-direction:column;width:18px;background:#f3f4f6;border-radius:0 4px 4px 0}
+.pf-numh button{flex:1;display:flex;align-items:center;justify-content:center;border:0;padding:0;background:transparent;color:#4b5563;cursor:pointer}
+.pf-numh button:hover{color:#1d4ed8}
+.pf-numh button:disabled{cursor:default;color:#9ca3af}
+.pf-numh button svg{width:10px;height:10px}
+.pf-numh button:first-child svg{transform:rotate(180deg)}
+.pf-dz{display:flex;flex-direction:column;padding-top:20px;border-radius:1px;border-top:2px solid #e5e7eb}
+.pf-dz h2{color:#1f2937;font-size:14px;font-weight:600;line-height:20px;margin:0 0 4px}
+.pf-dz p{color:#6b7280;font-size:12px;font-weight:500;line-height:18px;margin:0 0 16px}
+.pf-dzt{display:inline-block}
+.pf-del{display:inline-flex;align-items:center;justify-content:center;width:135px;height:36px;padding:6px 16px;border:1px solid #b91c1c;border-radius:4px;background:transparent;color:#b91c1c;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
+.pf-del:hover,.pf-del:focus-visible,.pf-del:active{color:#b91c1c;border-color:#b91c1c;background:#fef2f2}
+.pf-del:disabled{opacity:.35;cursor:not-allowed;background:transparent}
+.pf-dzt .pf-del:disabled{pointer-events:none}
+.pf-pw{position:relative;display:block;width:100%}
+.pf-pw input.pf-i{padding-right:44px}
+.pf-eye{position:absolute;right:8px;top:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#1f2937;padding:0;cursor:pointer;border-radius:4px}
+.pf-eye svg{width:16px;height:16px}
+.pf-mf{display:flex;flex-direction:column;gap:12px}
+.pfm{position:absolute;left:50%;top:144px;transform:translateX(-50%);box-sizing:border-box;width:450px;max-width:calc(100vw - 32px);max-height:calc(100vh - 168px);overflow:auto;background:#fff;border:2px solid #f3f4f6;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.pfm-t{display:flex;justify-content:space-between;align-items:center;padding:24px}
+.pfm-t h1{color:#1f2937;font-size:16px;font-weight:700;line-height:24px;margin:0}
+.pfm-t p,.pfm-d p{color:#1f2937;font-size:14px;line-height:20px;margin:0;overflow-wrap:anywhere}
+.pfm-t b,.pfm-d b{font-weight:600}
+.pfm-dt{display:flex;align-items:center;gap:10px}
+.pfm-dt h1{font-weight:600}
+.pfm-di{display:flex;width:24px;height:24px;color:#b91c1c}
+.pfm-di svg{width:100%;height:100%}
+.pfm-d{display:flex;align-items:center;padding:0 24px 20px}
+.pfm-d.pb-3{padding-bottom:16px}
+.pfm-ln{font-size:14px;line-height:20px}
+.pfm-ln:disabled{color:#9ca3af;cursor:default;text-decoration:none}
+.pfm-a{display:flex;align-items:center;padding:0 24px 24px}
+.pfm-dv{height:2px;margin:0 24px;border-radius:4px;background:#f3f4f6}
+.pfm-f{display:flex;align-items:center;justify-content:flex-end;gap:16px;box-sizing:border-box;height:72px;padding:20px 24px}
+.pfm-otp{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.pfm-otpl{color:#6b7280;text-align:center;font-size:12px;font-weight:500;line-height:16px;margin:0}
+.pfm-otpc{display:flex;justify-content:center;align-items:center;gap:15px}
+.pfm-otpc input[type=text]{box-sizing:border-box;width:36px;height:36px;padding:0;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#1f2937;text-align:center;font-size:14px;line-height:20px;box-shadow:none}
+.pfm-otpc input[type=text]:hover,.pfm-otpc input[type=text]:focus{outline:none;box-shadow:none;border-color:#1d4ed8}
+.pfm-ws{padding:0 24px 20px}
+.pfm-wsl{list-style:none;margin:0;padding:4px 0;max-height:216px;overflow:auto;border:1px solid #e5e7eb;border-radius:4px}
+.pfm-wsl li{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px}
+.pfm-wsn{flex:1;min-width:0;color:#1f2937;font-size:14px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pfm-tag{flex:none;font-size:12px;line-height:16px;padding:2px 6px;border-radius:4px;background:#f3f4f6;color:#4b5563}
+.pfm-al{padding:0 24px 20px}
+.pfm-alb{display:flex;gap:8px;box-sizing:border-box;min-height:54px;margin:0;padding:8px 16px;border-radius:4px;background:#fffbeb;border:1px solid #fef3c7}
+.pfm-ali{flex:none;display:flex;align-items:center;justify-content:center;width:16px;height:20px;color:#b45309}
+.pfm-ali svg{width:16px;height:16px}
+.pfm-alb p{color:#92400e;font-size:12px;font-weight:500;line-height:20px;margin:0}
+@media (max-height:760px){.pfm{top:24px;max-height:calc(100vh - 48px)}}
+@media (max-width:640px){.topbar.is-pf .crumb:not(.hdr-multi)>#crumbTail{display:block}   /* the phone header drops the page name for the level crumb; My Profile has no level crumb, so its name stays */
+ .pf{padding:16px 16px 32px}.pf-f,.pf-ph,.pf-tz{width:100%}.pf-cta{gap:12px}}
 </style>
 <div id="sess" class="collapsed" hidden>
  <div class="sess-bar">
@@ -17093,6 +17382,16 @@ const TOPICS=[
   src:"29 §4.1, decided 12 Sep",
   go:()=>{GRACE.on=true;T_become("owner");solo=false;ctx="nw";asClient=true;cView="sequences";openProspect=null;openSeq=null;openReply=null;view={name:"clients"}}},
 ];
+/* vE E099: doc 149, one profile per person. `states` puts one button per review state under the topic. */
+TOPICS.push({k:"e099", t:"One profile, every workspace",
+ claim:"A person has one profile: name, sign-in email, password, phone, time zone and Out of Office. It opens from the account menu at every level, it is the same page each time, and a change applies in every workspace. A workspace's schedules, API keys and team settings stay in that workspace's Settings.",
+ ask:"Would anyone on your team, or a client, expect a different name or time zone per workspace?",
+ watch:"If they want a different display name or time zone per client, the one-profile model needs a per-workspace override (149 counter-case, not in Phase 1).",
+ src:"149",
+ open:"Production's Out of Office pauses prospects who reply with an out-of-office message; it is a per-user setting, so it applies in every workspace where the person owns sequences. Password change signing out other sessions is not confirmed in code.",
+ go:()=>e099Set("owner"),
+ states:[["Open as Owner, from the Admin Panel","owner"],["Open as Member, inside Vertex Health","member"],["Open as client user, Whitelabel on","client-wl"],["Open as client user, Whitelabel off","client"],
+  ["Change email, the code step","email"],["Change email, client user, Whitelabel on","client-email"],["Turn on Out of Office","ooo"],["Delete account, Owner","delete"],["Open as Admin","admin"]]});
 const REACT=[["yes","Confirmed"],["no","Contradicted"],["meh","Did not care"],["new","New requirement"]];
 const RDOT={yes:"d-yes",no:"d-no",meh:"d-meh",new:"d-new"};
 
@@ -17133,6 +17432,7 @@ function sessRender(){
    <dl class="sess-cell"><dt>What would change our mind</dt><dd>${T.watch}</dd></dl>
    ${T.open?`<dl class="sess-cell"><dt>Still open</dt><dd>${T.open}</dd></dl>`:""}
   </div>
+  ${T.states?`<div class="sess-foot">${T.states.map(([l,k])=>`<button class="shd-button shd-button--tertiary shd-button--sm" data-sst="${k}">${l}</button>`).join("")}</div>`:""}
   <div class="sess-react">${REACT.map(([k,l])=>
     `<button data-r="${k}" aria-pressed="${rec.r===k}">${l}</button>`).join("")}</div>
   <textarea id="sessNote" placeholder="What they actually said. Their words, not the summary.">${rec.n.replace(/</g,"&lt;")}</textarea>
@@ -17146,6 +17446,7 @@ function sessRender(){
    ${Object.keys(PEOPLE).map(k=>`<button class="shd-button shd-button--sm ${k===me_?"shd-button--primary":"shd-button--tertiary"}" data-sessswap="${k}" ${asClient||solo?"disabled":""}>${PEOPLE[k].name}, ${PEOPLE[k].role}</button>`).join("")}
   </div>`;
  el("sessMain").querySelectorAll("[data-sessswap]").forEach(b=>b.onclick=()=>swapMe(b.dataset.sessswap));
+ el("sessMain").querySelectorAll("[data-sst]").forEach(b=>b.onclick=()=>e099Go(b.dataset.sst));   /* vE E099 */
  el("sessList").querySelectorAll("[data-si]").forEach(b=>b.onclick=()=>sessGo(+b.dataset.si));
  el("sessMain").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{
    const r=b.dataset.r; rec.r=rec.r===r?null:r; sSave(); sessRender()});
@@ -17248,7 +17549,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="6d90141";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="4dddb56";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
