@@ -1641,7 +1641,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
   <div class="main">
     <header class="topbar">
       <!-- 28 Sep 2026, Hitesh: the global search box and its Cmd+K palette are removed. Each screen keeps its own search. -->
-      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Home</span></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
+      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Workspaces</span></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
       <div class="util">
         <button class="ubtn u-tip" data-uwtip="Support" aria-label="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
         <button class="ubtn u-tip" data-uwtip="Quick actions" aria-label="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
@@ -1679,7 +1679,7 @@ const I={
  analytics:['0 0 24 24','<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>'],
  billing:['0 0 24 24','<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'],
  queue:['0 0 24 24','<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>'],
- dash:['0 0 24 24','<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'], /* vE E012: the page is Home again, so the house icon (change 189 used a grid while it was Dashboard) */ /* change 189 (Hitesh: "We are saying dashboard and showing home icon?"): a dashboard icon, not a house */
+ dash:['0 0 24 24','<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>'], /* vE E100: the page is Workspaces, so the Workspaces tile's icon */ /* vE E012: the page is Home again, so the house icon (change 189 used a grid while it was Dashboard) */ /* change 189 (Hitesh: "We are saying dashboard and showing home icon?"): a dashboard icon, not a house */
  back:['0 0 24 24','<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'],
  /* change 226: Usage & limits, a gauge (lucide gauge, as on the board) */
  limits:['0 0 24 24','<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>'],
@@ -1694,7 +1694,7 @@ const I={
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
-const RAIL=[['dash','Home',null,'agency'],['queue','Work queue',null,'agency'],
+const RAIL=[['dash','Workspaces',null,'agency'],   /* vE E100: was Home */['queue','Work queue',null,'agency'],
  ['seq','Sequences'],['task','Tasks'],
  ['inbox','Unified Inbox',()=>{
    /* item 12, 28 Sep 2026: this rail item renders only while standing inside
@@ -3514,7 +3514,7 @@ const hdrModName=mod=>mod==="sequences"?"Sequence":asClient?(CLIENT_LBL[mod]||"W
 const hdrLeave=()=>{ORIGIN=null;openSeq=null;openProspect=null;openReply=null;qFrom=null;focusMb=null};
 const HDR_LV={
  /* the rail section: the Workspaces list (the record's legacy #backList when already in the admin panel) */
- workspaces:()=>ctx==="agency"?{t:"Home",a:'id="backList"'}:{t:"Home",go:()=>{hdrLeave();ctx="agency";asClient=false;PREVIEW=false;view={name:"dash"};render()}},
+ workspaces:()=>ctx==="agency"?{t:"Workspaces",a:'id="backList"'}:{t:"Workspaces",go:()=>{hdrLeave();ctx="agency";asClient=false;PREVIEW=false;view={name:"dash"};render()}},
  /* a workspace: plain text for a client user; for an agency person a link to its record (from a
     person page, back to its Members tab, 321's way back) and a switcher; the record itself is current */
  ws:(c,how)=>{const s={t:c.name,av:av(c,24),ws:c.id,dim:!!(c.disabled||c.deletedOn)};
@@ -3598,7 +3598,7 @@ function hdrApply(){
  ct.textContent=r.last.t; ct.removeAttribute("title");
  if(r.last.you) ct.insertAdjacentHTML("beforeend",' <span class="hdr-you">(you)</span>');
  /* the current page is a workspace (its record): name and chevron open the switcher */
- d.hidden=!r.last.sw; box.classList.toggle("hdr-wscur",!!r.last.sw);
+ d.hidden=true; box.classList.remove("hdr-wscur");   /* vE E100: no second switcher on a record; the level crumb switches */
  if(r.last.sw) d.setAttribute("aria-label","Switch workspace, "+r.last.t);
  let x=el("crumbExtra"); if(!x){x=document.createElement("span");x.id="crumbExtra";d.after(x)}
  x.className="wlp crumb-extra hdr-slot"; x.innerHTML=m.slot||"";
@@ -3837,11 +3837,11 @@ function renderShell(){
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
    :view.name==="whitelabel"?"Whitelabel":view.name==="login"?"Log in"
-   :view.name==="dash"?"Home":view.name==="credits"?"Billing & Subscription":view.name==="limits"?"Usage & limits"
+   :view.name==="dash"?"Workspaces":view.name==="credits"?"Billing & Subscription":view.name==="limits"?"Usage & limits"
    :view.name==="addmember"?"Users / Add a user"
    :view.name==="people"?"Users"
    :view.name==="person"?((view.from&&byId[view.from]?byId[view.from].name:"Users")+" / "+((personOf(view.id)||{}).name||""))
-   :view.name==="record"?byId[view.id].name:"Home";
+   :view.name==="record"?byId[view.id].name:"Workspaces";
  /* matched to the live Sequences page, 28 Sep 2026: "Sequence", with the YouTube mark */
  if(!solo&&!inAgency()&&view.name!=="settings"&&view.name!=="apiint"&&(asClient?cView==="sequences":inMod==="sequences")&&!openSeq){el("crumbTail").innerHTML=(inC&&!c.own&&!isNormal()&&!asClient?c.name+" / ":"")+'Sequence<span class="yt" aria-label="Watch how sequences work"></span>'}
  hdrApply();   /* change 328: the path, its trailing slot and the phone form */
@@ -4023,7 +4023,7 @@ const WSA_ICO=[["sequences","Sequences",QA[0][2]],["inbox","Unified Inbox",QA[2]
 function wsActsCell(c){
  const nm=c.name.replace(/"/g,"&quot;");
  if(c.deletedOn) return '<td class="wsact"><div class="wsact-in">'+(canI("destructive")?'<button type="button" class="shd-button shd-button--secondary shd-button--sm" data-restore="'+c.id+'" aria-label="Restore '+nm+'">Restore</button>':'')+'</div></td>';   /* vE E075 fix 3 */
- if(c.disabled) return '<td class="wsact"><div class="wsact-in"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-enter="'+c.id+'" aria-label="Open workspace, '+nm+'">Open workspace</button></div></td>';   /* vE E075 fix 19 (PRD 3.7: your team opens it read-only) */
+ /* vE E100: a disabled workspace keeps its shortcuts; like Open workspace they open it read-only (PRD 3.7). Was E075 fix 19 */
  return '<td class="wsact"><div class="wsact-in"><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-enter="'+c.id+'" aria-label="Open workspace, '+nm+'">Open workspace</button>'
   +WSA_ICO.map(([m,l,d])=>'<button type="button" class="wsact-ic u-tip" data-goto="'+c.id+'|'+m+'" data-uwtip="'+l+'" aria-label="'+l+' in '+nm+'">'
    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg></button>').join("")+'</div></td>'}
@@ -4071,7 +4071,7 @@ function wssStalled(q,nowH){if(q.stalled!=null) return q.stalled; if(!q.schedule
 /* doc 108 14.0, as score.mjs scoreWorkspace (pass 6) */
 function wssScore(w){
  const C=WSS_CFG, Z=C.Z, state=(s,why)=>({state:s,why,score:null,band:null,parts:{},problems:[],missing:[]});
- if(w.status==="deleted") return state("Removed","Deleted workspaces leave Home");
+ if(w.status==="deleted") return state("Removed","Deleted workspaces leave the list");
  if(w.status==="disabled") return state("Disabled","This workspace is disabled");
  if(w.viewer==="client") return state("Hidden","Phase 1: only the agency sees the score");
  if(w.accountStop) return state("Stopped",w.accountStop);
@@ -4766,18 +4766,18 @@ function vClients(){
     +'<i>'+sub+'</i><div class="fc-kv">'+kv.map(x=>'<span>'+x+'</span>').join('')+'</div></div>';
   const pic=`<div class="fc-vis cempty-vis">
      <div class="fc-top"><span class="avatar av-tint" style="--c:${AGENCY.colour}">${AGENCY.initials}</span><b>${AGENCY.name}</b>
-      <span class="fc-rail"><span>${railI.home}Home</span></span></div>
+      <span class="fc-rail"><span>${railI.home}Workspaces</span></span></div>
      <svg class="fc-branch" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
       <path d="M50 0v5M50 5C50 15 25 11 25 22M50 5C50 15 75 11 75 22" fill="none" stroke="var(--gray-23)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
      <div class="fc-ws">
       ${tile(AGENCY.name,AGENCY.initials,AGENCY.colour,"What you have today",[O.sequences.length+" sequences",f(O.prospects)+" prospects",O.mailboxes.length+" email accounts"],false)}
       ${tile("Your first workspace","+","var(--gray-11)","Empty, and its own",["0 sequences","0 prospects","0 email accounts"],true)}
      </div></div>`;
-  const gets=[[svg("dash"),"Home","Every workspace's health on one screen, ranked by what needs you."],
+  const gets=[[svg("dash"),"Workspaces","Every workspace's health on one screen, ranked by what needs you."],
     [svg("people"),"Users","Everyone with access, and which workspace each of them reaches."],
     ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',"Switcher","Move between workspaces and your own outreach without signing out."]];
   return `
- <div class="toolbar"><div class="cell-main"><span class="semibold-3">Home</span></div></div>
+ <div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
  <div class="wrap cempty-wrap"><div class="panel cempty">
    <div class="cempty-hero">
     <div class="cempty-copy">
@@ -4794,7 +4794,7 @@ function vClients(){
  </div></div>`;
  }
  if(myClients().length===0) return `
- <div class="toolbar"><div class="cell-main"><span class="semibold-3">Home</span></div></div>
+ <div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
  <div class="wrap"><div class="panel"><div class="empty">
    <p class="empty-t">Nothing assigned to you yet</p>
    <p class="empty-s">${ME().name} is not a member of any
@@ -7575,7 +7575,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
   const m=/^\s*Buy ([\d,]+) /.exec(b.textContent||""); if(m&&bpNum(m[1])>0) BILL.amt=bpNum(m[1]);
   BILL.from="link"; BILL.bought=null;
   BILL.back={ctx,view:Object.assign({},view),tab:typeof tab!=="undefined"?tab:null,
-   label:view.name==="record"&&byId[view.id]?byId[view.id].name:view.name==="dash"?"Home":ctx!=="agency"&&inMod==="usage"?"Usage & billing":"Usage & limits"}}},true);
+   label:view.name==="record"&&byId[view.id]?byId[view.id].name:view.name==="dash"?"Workspaces":ctx!=="agency"&&inMod==="usage"?"Usage & billing":"Usage & limits"}}},true);
 /* change 285: leaving Billing from the rail ends the buy-link state */
 document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("[data-nav]")){BILL.from=null;BILL.bought=null;BILL.back=null}},true);
 const billLabel=k=>(BILL_TABS.find(t=>t[0]===k)||BILL_TABS[0])[1];
@@ -8918,7 +8918,7 @@ function vDash(){
  /* change E005 (Hitesh, 23 Oct 2026: "replace this table with [the Workspaces page] table on Dashboard" and "Remove workspaces
     tab and option from sidebar"): the Workspaces page's table, toolbar and pager are this card. */
  const tableCard='<div class="card ws-card">'
-  +'<div class="c-h ws-ch"><span class="c-t">Workspaces</span>'
+  +'<div class="c-h ws-ch">'   /* vE E100: no card title; the page itself is Workspaces */
   +'<div class="search">'+srchI+'<input type="text" id="cliSearch" placeholder="Search workspaces" aria-label="Search workspaces" value="'+cliQ.replace(/"/g,"&quot;")+'"></div>'
   +wsfBar()   /* vE E021 */
   +'<span class="c-a">'+(canI("limits")?(addBlock()?'<span class="sub add-why" id="addwhy">'+addBlock()+'</span>':'')+'<button class="shd-button shd-button--primary" id="dashAdd"'+(addBlock()?' disabled aria-describedby="addwhy"':'')+'>'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
@@ -8983,12 +8983,12 @@ function vDash(){
     user's way, because a bare button for a feature they have never heard of is
     noise; the discovery card in the main column carries it instead, and the
     header gains the button permanently once a client exists.               */
- if(!full) return '<div class="toolbar dash-toolbar"><div class="cell-main"><span class="semibold-3 dash-title">Home</span></div></div>'
+ if(!full) return '<div class="toolbar dash-toolbar"><div class="cell-main"><span class="semibold-3 dash-title">Workspaces</span></div></div>'
   +(()=>{const g=graceBanner();return g?'<div class="dn-w">'+g+'</div>':""})()
   +'<div class="dwrap dwrap-hero dwrap-hero--full"><div class="dmain">'+tableCard+'</div></div>';
 /* change E013: the period bar is gone (date line, Total / Per day, period picker). The multi-workspace Home opens on its banners and tiles;
     the single-workspace Home keeps its title and New menu. */
- return (norm?'<div class="toolbar dash-toolbar" style="position:relative"><div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Home</span></span></div>'
+ return (norm?'<div class="toolbar dash-toolbar" style="position:relative"><div class="cell-main"><span style="min-width:0"><span class="semibold-3 dash-title">Workspaces</span></span></div>'
   +'<div class="tools" style="position:relative">'+'<div style="position:relative"><button class="shd-button shd-button--tertiary" id="newBtn" aria-expanded="'+newOpen+'">New &#9662;</button>'+newMenuHTML()+'</div>'+'</div></div>':'<div class="dash-flat">')
   /* 18 Sep, Hitesh: This cycle and Plan pacing sit level, one row across the
      top, same top and bottom edge. The two are grid cells of the dwrap itself;
@@ -9519,7 +9519,7 @@ function vAgencyMod(){
    </div>
    <div class="panel" style="margin-top:20px"><div class="panel-b"><span class="sub">Your
     own numbers only. Overall performance across your workspaces is on
-    <button class="linkbtn" data-godash>Home</button>, which ranks workspaces rather than
+    <button class="linkbtn" data-godash>Workspaces</button>, which ranks them rather than
     blending them into one rate.</span></div></div>`;
  } else {
   body=parked(`${label} for ${AGENCY.name}`);
@@ -10213,10 +10213,11 @@ const wsShownState=c=>{const s=wsState(c); return s==="Active"&&grace()?"Paused"
 const wsStatus=c=>{const s=wsShownState(c); return s==="New"?(grace()?"Paused":"Active"):s};
 /* colour only means "needs you": grey for the states, amber for Paused */
 function wsStateDot(s){return s==="Paused"?"#D97706":"var(--gray-11)"}
+/* vE E100: Disabled reads in the same grey as Active; only Deleted is dimmed */
 function wsStatusCell(c){
  if(c.deletedOn) return '<td><span class="ws-stat is-off">Deleted</span><span class="cs stackb">'+c.deletedOn+', 30 days to restore</span></td>';   /* vE E075 fix 3 */
- const t=wsStatus(c), sub=t==="Disabled"?"since "+(c.disabledOn||TODAY_D):t==="Paused"?"payment failed":"";
- return '<td><span class="ws-stat'+(t==="Disabled"?' is-off':t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
+ const t=wsStatus(c), sub=t==="Paused"?"payment failed":"";   /* vE E100: Disabled carries no date */
+ return '<td><span class="ws-stat'+(t==="Paused"?' is-need':' is-calm')+'">'+t+'</span>'+(sub?'<span class="cs stackb">'+sub+'</span>':'')+'</td>'}
 const HP_TITLE={usage:"Usage",mbx:"Email accounts",seq:"Sequences",pa:"Prospects added",sent:"Emails sent",bounce:"Bounce rate",rep:"Email reply rate",leads:"Leads revealed"};
 const HP_MOD={usage:["limits","Limits"],mbx:["accounts","Email Accounts"],seq:["sequences","Sequences"],pa:["sequences","Sequences"],sent:["sequences","Sequences"],bounce:["sequences","Sequences"],rep:["inbox","Unified Inbox"],leads:["leads","Lead Finder"]};
 let HPOP=null;
@@ -10782,7 +10783,7 @@ function vSettings(){
      <span class="semibold-3" style="display:block">Settings</span>
      <span class="cs">${isNormal()?AGENCY.name:agency?AGENCY.name+" account, across every workspace":c.name+" workspace"}</span>
    </span></div>
-   <div class="tools">${agency||asC||ctx==="own"?"":`<button class="shd-button shd-button--tertiary" data-nav2="dash">Home</button>`}</div>
+   <div class="tools">${agency||asC||ctx==="own"?"":`<button class="shd-button shd-button--tertiary" data-nav2="dash">Workspaces</button>`}</div>
    <!-- item 17, 28 Sep 2026: own is not a client to jump back to a list of; "Back to account" in the rail is the way up from there. -->
   </div>`}
   <div class="wrap${!agency&&!isNormal()?" hdr-top":""}">
@@ -12824,7 +12825,7 @@ const COMING_SOON={
  queue:{title:"Work queue",
   promise:"One list of every decision across your workspaces, ordered by what it costs to ignore.",
   bullets:["Workspaces at a limit","Disconnected and paused mailboxes","Unread replies grouped by workspace"],
-  meanwhile:"Home shows the decisions waiting today",go:"dash"},
+  meanwhile:"Workspaces shows the decisions waiting today",go:"dash"},
  inbox:{title:"Unified Inbox",
   promise:"Every workspace's replies in one inbox, each row naming its workspace, replies sent from that workspace's email account.",
   bullets:["Every reply from every workspace, one list","Each row named by its workspace and sequence","Sent from that workspace's own email account, never yours"],
@@ -13113,7 +13114,7 @@ const tourGoRec=(c,t)=>{ORIGIN=null;ctx="agency";asClient=false;view={name:"reco
    secondary button, and the condition that completes it. `sub` is the tab
    sub-state: the tab button is the target until that tab is active. */
 const TOUR_STEPS={
- 1:{where:c=>"Home",go:c=>{ctx="agency";asClient=false;view=homeView();render()},
+ 1:{where:c=>"Workspaces",go:c=>{ctx="agency";asClient=false;view=homeView();render()},
     target:c=>ctx==="agency"&&!asClient&&view.name==="dash"?(document.querySelector(`.home-tbl tr[data-crow="${c.id}"] .cn`)||document.querySelector(`.home-tbl tr[data-crow="${c.id}"]`)):null,
     /* change 152: the cutout is the name link, but the card keeps clear of the
        whole row, so it is placed against the row and lands below it */
@@ -13190,7 +13191,7 @@ function tourDraw(){
    if(done){
      card=`<div class="tour-card tour-card--done" role="dialog" aria-label="Tour finished"><div class="tour-eye">Tour finished</div>
       <div class="tour-h">That is the whole model: workspaces, the people on them, and the limits between them.</div>
-      <p class="tour-p">Home is one click away.</p>
+      <p class="tour-p">Workspaces is one click away.</p>
       <div class="tour-f"><span></span><button type="button" class="shd-button shd-button--primary shd-button--sm" data-tourdone>Done</button></div></div>`;
    }else if(!t){
      card=`<div class="tour-card tour-card--off" role="dialog" aria-label="Tour, step ${step} of ${TOUR_N}"><div class="tour-eye">Step ${step} of ${TOUR_N}</div>
@@ -17229,7 +17230,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="412c2bd";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="9dc1cde";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
