@@ -2018,7 +2018,25 @@ const wlSample=kind=>"data:image/svg+xml;utf8,"+encodeURIComponent(kind==="logo"
    in its empty state; "Choose a file" and the domain step still fill it with the
    sample brand, so a walkthrough can switch it on in two clicks. */
 const BRAND={companyName:"Meridian Growth",logo:"",icon:"",favicon:"",domain:"",domainVerified:false,domainPending:false};
-const brandOn=()=>AGENCY.whitelabel&&!!BRAND.icon;
+/* ═══ vE E105 (29 Oct 2026, Hitesh: "Adding user already present - we can still invite them and they can join any workspace
+   and can access different workspace from switcher… Account Access / Client Access"; doc 150, A). One login, several accounts,
+   inside one at a time. The prototype draws one account in full (Meridian Growth). The others are stand-ins: a name and the
+   workspaces this login reaches there, drawn with the workspace view; their own data is a copy, never Meridian's. ═══ */
+let E105X=null;   /* the other account this session is in, {a, email}; null while in Meridian Growth */
+const E105_ACCTS={
+ tw:{name:"Tidewater Partners",ws:[{id:"x-tw-q4",name:"Q4 outbound",from:"sf",colour:"#0E7490",dom:"tidewater-reach.com",owners:["Nora Lind","Owen Pratt"],
+  seqs:["Agency founders, US","Agency founders, UK","Heads of growth, SaaS","Q4 webinar follow-up","Lost deals, re-engage","Partner intros","Referral asks"]}]},
+ hs:{name:"Harbour Stays",normal:true,ws:[{id:"x-hs",name:"Harbour Stays",from:"pc",colour:"#6D28D9",dom:"harbourstays.com",owners:["Maya Ortiz"],
+  seqs:["Corporate travel buyers","Event planners, coastal","Repeat guests win-back"]}]},
+ ao:{name:"Acme Outreach",normal:true,ws:[{id:"x-ao",name:"Acme Outreach",from:"bl",colour:"#B45309",dom:"acme-reach.com",owners:["Jordan Pike"],
+  seqs:["Founder outbound","Agency owners, UK","Acme ICP test"]}]}};
+/* each login's other accounts and its role there. Tariq (an Account Member here, a freelance SDR) is a client user at
+   Tidewater, which runs an outbound programme Meridian bought; hello@pinecrest.hotels (Client Viewer on Pinecrest) owns a normal
+   account of their own; the Acme Outreach founder owns one too and is the address the invite states use */
+const E105_LOGINS={"tariq@meridiangrowth.com":[{a:"tw",role:"Client Collaborator"}],
+ "hello@pinecrest.hotels":[{a:"hs",role:"Owner"}],
+ "founder@acmeoutreach.com":[{a:"ao",role:"Owner"}]};
+const brandOn=()=>!E105X&&AGENCY.whitelabel&&!!BRAND.icon;   /* vE E105: another account is never drawn in Meridian's brand */
 const brandTitle=()=>brandOn()?BRAND.companyName:"Saleshandy, version C";
 let wlTab="logo", wlDomainDraft="", wlDomainErr="";
 function renderBrandMark(){const b=document.querySelector(".sb-brand"); if(!b)return; const on=brandOn()&&!solo;
@@ -2119,12 +2137,14 @@ function actor(){
    clientWsOf: every workspace the acting client user is on (a client user can
    be on several, PRD §2.1). onAccount: is this address already someone here. */
 const agencyFull=c=>!asClient;
-const clientWsOf=()=>ACTING_EMAIL?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===ACTING_EMAIL.toLowerCase())):[];
+const clientWsOf=()=>E105X?e105XWs(E105X.a):ACTING_EMAIL?CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===ACTING_EMAIL.toLowerCase())):[];
 const onAccount=email=>{const e=String(email||"").toLowerCase();
  const k=Object.keys(PEOPLE).find(k=>(PEOPLE[k].email||"").toLowerCase()===e); if(k) return {kind:"team",key:k,name:PEOPLE[k].name};
  const ws=CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===e)); if(ws.length) return {kind:"client",ws:ws.map(c=>c.id)}; return null};
 /* addresses that already own their own Saleshandy account (production refuses
-   the invite with "Failed to send invitation"; the need report counts 16 of them) */
+   the invite with "Failed to send invitation"; the need report counts 16 of them).
+   vE E105 (doc 150): they are invited like any other address and accept by signing in;
+   the inviter is never told the person uses Saleshandy elsewhere. */
 const SH_ACCOUNTS=["founder@acmeoutreach.com"];
 /* change 158, vE E029: reach inside a workspace (doc 81 §3). An agency session sees
    a record only if its owner is within reach: own (an Account Member), account
@@ -3836,7 +3856,7 @@ function renderShell(){
     re-inserted (with its click handler re-wired) the moment the session
     leaves that state, so a client session has no switcher trigger at all
     rather than an inert one that still answers to the DOM. */
- if(solo||(asClient&&clientWsOf().length<2)){const b=el("wsBtn"); if(b) b.remove();
+ if(solo||(asClient&&clientWsOf().length<2&&!e105Multi())){const b=el("wsBtn"); if(b) b.remove();
    /* 25 Sep 2026: the header still names the workspace for a client session; it is a
       label, not a trigger (no button, no chevron, no popover). */
    const w=solo?byId[ctx]:c;
@@ -3847,7 +3867,7 @@ function renderShell(){
  else {const st=el("wsStatic"); if(st) st.remove();
    if(!el("wsBtn")){
      el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
-     el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2))return;popOpen?closePop():openPop()};
+     el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2&&!e105Multi()))return;popOpen?closePop():openPop()};
    }
  }
  if(solo){const o=byId[ctx].email,loc=o.split("@")[0];
@@ -3950,6 +3970,7 @@ function renderPop(q=""){
  /* change 155: a client user on two or more workspaces gets a switcher of those
     only (PRD §2.2): no account row, no Add. One workspace keeps the identity
     tile and no trigger at all. */
+ if(e105Multi()&&!xform){e105Pop(t,q); return}   /* vE E105: grouped by account */
  if(asClient){const mine=clientWsOf().filter(c=>wsMatch(c,t));
   if(clientWsOf().length<2){el("popL").innerHTML="";return}
   el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour,c),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">${t?nrHTML(q):"No workspaces found"}</p>`);
@@ -5935,7 +5956,6 @@ function rmChipSt(c,v){
  if(!INV_OK.test(v)) return {bad:1,msg:`<b>${rmEsc(v)}</b> is not an email address. Click it to edit.`};
  if((c.users||[]).some(u=>u[0].toLowerCase()===v)) return {dup:1,msg:`<b>${rmEsc(v)}</b> already has access.`};
  const a=onAccount(v); if(a&&a.kind==="team") return {bad:1,msg:`<b>${rmEsc(v)}</b> is ${rmEsc(a.name)}, on your team. Add them under Your team.`};
- if(SH_ACCOUNTS.indexOf(v)>-1) return {bad:1,msg:`<b>${rmEsc(v)}</b> already owns a Saleshandy account. Ask them to close it, or use another address.`};
  return {};
 }
 const rmDraft=()=>RM.inv.draft.split(/[\s,;]+/).filter(Boolean).map(v=>v.toLowerCase());
@@ -7343,7 +7363,6 @@ const agencyDomains=()=>{const d=new Set(); (AGENCY_OWN.mailboxes||[]).forEach(m
 /* what an address tells us */
 function invCls(e){e=String(e).toLowerCase(); const d=e.split("@")[1]||"";
  if(!INV_OK.test(e)) return {bad:1};
- if(SH_ACCOUNTS.indexOf(e)>-1) return {bad:1,sh:1};
  const a=onAccount(e); if(a&&a.kind==="team") return {team:1,person:Object.assign({k:a.key},PEOPLE[a.key])};
  const g=invGuessWs(e);
  if(a&&a.kind==="client") return {client:1,existing:a.ws,guess:g};
@@ -7748,7 +7767,6 @@ function wirePeopleModal(L){
     parts.forEach(x=>{if(!INV_OK.test(x)){err=`${x} isn't a full email address.`;bad.push(x);return}
       const ex=onAccount(x); if(ex&&ex.kind==="team"){err=x+" is already on your team";bad.push(x);return}
       if(ex&&ex.kind==="client"&&INV.lock&&ex.ws.indexOf(INV.lock)>-1){err=x+" is already on "+byId[INV.lock].name;bad.push(x);return}
-      if(SH_ACCOUNTS.indexOf(x.toLowerCase())>-1){err=x+" already owns a Saleshandy account. Ask them to close it, or use another address.";bad.push(x);return}
       if(INV.emails.indexOf(x)<0){INV.emails.push(x);INV.rows[x]=invPropose(x)}});
     INV.draft=bad.join(", "); INV.err=err; rerender(); const n=L.querySelector("#invEmail"); if(n&&!keep)n.focus()};
   const sync=()=>{const d=inp.value; const h=L.querySelector("[data-invhint]"); if(h&&!INV.err)h.textContent=invHintText(d);
@@ -13437,7 +13455,7 @@ function render(){
  }
  lastNavKey=navKey;
  pageEl.innerHTML=solo?vSolo()
-  :view.name==="invite"?vInvite()
+  :view.name==="invite"?(view.e105?e105AccHTML():vInvite())   /* vE E105 */
   :view.name==="refused"?vRefused()
   :view.name==="ivx"?vIvx()   /* vE E096 */
   :view.name==="login"?vLogin()
@@ -14379,7 +14397,7 @@ el("meBtn").onclick=e=>{
   e.stopPropagation();
   if(el("meBtn").classList.contains("me-static"))return;   /* change 292: solo, or a preview with no client user yet */
   mePopOpen?closeMePop():openMePop()};
-el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2))return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
+el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2&&!e105Multi()))return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
 el("popQ").oninput=e=>renderPop(e.target.value);
 el("popAdd").onclick=()=>{if(!canI("limits"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
@@ -14957,6 +14975,130 @@ function ul3UnlRow(k,c){
 /* the Dashboard's Highest usage pop-up lists every resource: an Unlimited one reads Unlimited, never flagged */
 const hpUnlRows=c=>unlHas(c.id)?RKA.filter(isUnl).map(k=>({name:RES[k].label,st:UNL_TXT,tone:"ok",out:false,tip:"",cells:[f(unlUsed(k,c.id))],go:"lim|"+c.id+"|"+k,hl:false,first:false})):[];
 
+/* ═══ vE E105 (29 Oct 2026, doc 150 A): the switcher grouped by account, the switch between accounts, and the email and
+   accept page for an address that already has a login. Rules: a heading per account, A to Z, so the order never moves when
+   you switch; Account access lists Admin Panel and the workspaces the role reaches (today's tree), Client access only the
+   workspaces invited to, flat; a normal account is one row; headings only for a login in two or more accounts; on an agency's
+   own brand domain a client user sees only that agency. ═══ */
+const E105={state:null};
+const e105TeamKey=e=>{e=String(e||"").toLowerCase(); return Object.keys(PEOPLE).find(k=>(PEOPLE[k].email||"").toLowerCase()===e&&!PEOPLE[k].disabled)||null};
+/* the login of this session: a teammate's, a signed-in client user's, or the one carried into another account. A preview or
+   solo has none */
+function e105Email(){if(E105X) return E105X.email; if(solo||PREVIEW) return null;
+ if(asClient) return CLIENT_SESSION&&ACTING_EMAIL?ACTING_EMAIL.toLowerCase():null;
+ const P=PEOPLE[me_]; return P&&P.email?P.email.toLowerCase():null}
+const e105HomeWs=e=>CLIENTS.filter(c=>!c.deletedOn&&(c.users||[]).some(u=>u[0].toLowerCase()===e));
+const e105HomeWl=()=>AGENCY.whitelabel&&!!BRAND.icon;
+/* doc 150 Q2, taken as recommended: on the agency's own brand domain a client user sees only that agency */
+const e105OnDomain=()=>!E105X&&asClient&&brandOn()&&!!BRAND.domain&&BRAND.domainVerified;
+function e105Accts(){const e=e105Email(); if(!e) return [];
+ const k=e105TeamKey(e), L=[];
+ if(k||e105HomeWs(e).length) L.push({a:"home",name:AGENCY.name,team:!!k});
+ if(e105OnDomain()) return L;
+ (E105_LOGINS[e]||[]).forEach(x=>{const A=E105_ACCTS[x.a]; if(A) L.push({a:x.a,name:A.name,normal:!!A.normal,role:x.role})});
+ return L.sort((p,q)=>p.name.localeCompare(q.name,undefined,{sensitivity:"base"}))}
+function e105Multi(){return e105Accts().length>1}
+/* another account's workspaces this login reaches: a copy of a demo workspace's data under its own id, in byId only */
+function e105XWs(a){const A=E105_ACCTS[a], e=e105Email(); if(!A||!e) return [];
+ const me=(E105_LOGINS[e]||[]).find(x=>x.a===a); if(!me) return [];
+ return A.ws.map(w=>{let c=byId[w.id]; if(!c){const s=byId[w.from];
+   c=Object.assign({},s,{id:w.id,name:w.name,company:w.name,email:e,colour:w.colour,logo:null,xacct:a,disabled:false,deletedOn:null,
+    sequences:(s.sequences||[]).map((x,i)=>Object.assign({},x,{name:w.seqs[i%w.seqs.length],owner:w.owners[i%w.owners.length]})),mailboxes:(s.mailboxes||[]).map(x=>[x[0].split("@")[0]+"@"+w.dom].concat(x.slice(1))),overrides:Object.assign({},s.overrides||{})});
+   byId[w.id]=c}
+  c.users=[[e,me.role==="Owner"?"Client Admin":me.role]]; return c})}   /* the owner of a normal account sees all of it */
+/* the switcher, grouped */
+function e105Pop(t,q){const P=el("popL"), A=e105Accts(), e=e105Email();
+ const ck=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}>${POP_CHECK}</span>`;
+ const av=c=>`<span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span>`;
+ const row=(go,c,cur)=>`<button type="button" class="pop-r e105-r${c.disabled?" is-off":""}" data-e105go="${go}" aria-current="${cur}">${av(c)}<span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${ck(cur)}</button>`;
+ /* a client-access heading carries that agency's brand when its Whitelabel is on (doc 150: "under that agency's name and brand") */
+ const head=(a,id,cl)=>{const wl=cl&&a.a==="home"&&e105HomeWl(); return `<div class="pop-h e105-h" id="${id}">${wl?`<img class="e105-bi" src="${BRAND.icon}" alt="">`:""}<span>${hdrEsc(wl?BRAND.companyName:a.name)}</span></div>`};
+ const G=A.map((a,i)=>{const hid="e105h"+i;
+  if(a.a==="home"&&a.team){const was=asClient; asClient=false; const W=hdrWsList().filter(c=>wsMatch(c,t)), kids=W.length?hdrWsRows(t,E105X?"":ctx==="agency"?null:ctx):""; asClient=was;
+   const acur=!E105X&&ctx==="agency", adm=t?"":`<button type="button" class="pop-r pop-r--acct" data-e105go="home|agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span>${ck(acur)}</button>`;
+   if(!adm&&!kids) return "";
+   return `<div class="e105-g" role="group" aria-labelledby="${hid}">${head(a,hid)}${adm}${kids?`<div class="pop-kids${t?" pop-kids--q":""}" role="group" aria-label="Workspaces">${kids}</div>`:""}</div>`}
+  const W=(a.a==="home"?e105HomeWs(e):e105XWs(a.a)).filter(c=>wsMatch(c,t)); if(!W.length) return "";
+  const cur=c=>a.a==="home"?!E105X&&ctx===c.id:!!E105X&&E105X.a===a.a&&ctx===c.id;
+  if(a.normal) return `<div class="e105-g" role="group" aria-label="${hdrEsc(a.name)}">${row(a.a+"|"+W[0].id,W[0],cur(W[0]))}</div>`;
+  return `<div class="e105-g" role="group" aria-labelledby="${hid}">${head(a,hid,1)}${W.map(c=>row(a.a+"|"+c.id,c,cur(c))).join("")}</div>`}).filter(Boolean);
+ P.innerHTML=G.length?G.join('<div class="e105-sep" role="separator"></div>'):`<p class="sub" style="padding:8px">${t?nrHTML(q):"No workspaces found"}</p>`;
+ P.querySelectorAll("[data-e105go]").forEach(b=>b.onclick=()=>{const v=b.dataset.e105go, i=v.indexOf("|"); e105Pick(v.slice(0,i),v.slice(i+1))});
+ /* a workspace in this account's tree: today's pick (from a workspace it keeps the module); from another account, its Sequences */
+ P.querySelectorAll("[data-hdrws]").forEach(b=>b.onclick=()=>{const id=b.dataset.hdrws, from=!!E105X; closePop();
+  if(!from&&ctx!=="agency"){hdrWsPick(id); return}
+  if(from) e105Home();
+  ctx=id;asClient=false;openProspect=null;openSeq=null;openReply=null;inMod="sequences";if(id!=="own"||from) view={name:"clients"};
+  render()})}
+function e105FirstMod(c){openProspect=null;openSeq=null;openReply=null; const mods=roleSet(actingRole(c)).mods, first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1); cView=first?first[0]:"settings"}
+/* back into Meridian Growth as this login: the teammate, or the client user */
+function e105Home(){const e=E105X?E105X.email:e105Email(), k=e105TeamKey(e); E105X=null; PREVIEW=false; inMod=null;
+ if(k){me_=k; asClient=false; CLIENT_SESSION=false; ACTING_EMAIL=null} else {asClient=true; CLIENT_SESSION=true; ACTING_EMAIL=e}}
+function e105Pick(a,id){closePop();
+ if(a==="home"){const was=!!E105X; if(was) e105Home();
+  if(id==="agency"){if(!was&&ctx==="agency") return; ctx="agency"; asClient=false; inMod=null; view=homeView(); render(); return}
+  const c=byId[id]; if(!c||(!was&&ctx===id)) return;
+  ctx=id; view={name:"clients"}; e105FirstMod(c); render();
+  if(was&&e105OnDomain()) e105Toast(`Opened on ${BRAND.domain}, ${BRAND.companyName}'s own address.`);
+  return}
+ if(E105X&&E105X.a===a&&ctx===id) return;
+ const e=e105Email(), c=e105XWs(a).find(w=>w.id===id); if(!e||!c) return;
+ E105X={a,email:e}; asClient=true; CLIENT_SESSION=true; ACTING_EMAIL=e; PREVIEW=false; inMod=null; ctx=c.id; view={name:"clients"}; e105FirstMod(c); render()}
+function e105Toast(t){clearTimeout(receiptTimer); RECEIPT={scope:"e105",text:t,short:t,variant:"info"};   /* no side: it follows the switch into the client session */ receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast()},6000); renderToast()}
+
+/* ── the invite to an address that already has a login: the email, then "Sign in to join" ── */
+const E105_INV={email:"founder@acmeoutreach.com",ws:"pc",role:"Client Collaborator"};
+function e105Pending(){const I=E105_INV, c=byId[I.ws]; if(!c||(c.users||[]).some(u=>u[0]===I.email)) return;
+ c.users=c.users||[]; c.users.push([I.email,I.role]); LASTSEEN[I.email]="never"; INVITED["w:"+c.id+"|"+I.email]="just now"}
+function e105AccHTML(){const I=E105_INV, c=byId[I.ws], wl=brandOn(), ag=wl?BRAND.companyName:AGENCY.name, by=PEOPLE.owner, dom=(by.email||"").split("@")[1];
+ const back=`<button class="invite-back" data-invback><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="m15 18-6-6 6-6"/></svg> Back to prototype</button>`;
+ if(view.e105==="email") return back+`<div class="invite-wrap"><article class="e105-mail" aria-label="Invite email">
+   <header class="e105-mh"><p class="e105-subj">${by.name} has invited you to join ${ag}</p>
+    <p class="e105-from"><b>${wl?ag:ag+" via Saleshandy"}</b> <span>&lt;${wl?"no-reply@"+dom:"hello@meetsaleshandy.com"}&gt;</span></p>
+    <p class="e105-to">to ${I.email}</p></header>
+   <div class="e105-mb"><p>Hello,</p>
+    <p>${by.name} (${by.email}) just added you to ${wl?ag:ag+" on Saleshandy"}. This email already has a login, so sign in with it to get access.</p>
+    <p>Your workspace:</p><ul><li>${c.name} – ${I.role}</li></ul>
+    <p class="e105-cta"><button type="button" class="shd-button shd-button--primary" data-e105acc="open">Accept Invitation</button></p>
+    <p>Thank you,<br>Team ${ag}</p></div></article></div>`;
+ return back+`<div class="invite-wrap"><div class="invite-card">
+   <div class="invite-brand">${wl?(BRAND.logo?`<img src="${BRAND.logo}" alt="${BRAND.companyName}" style="max-height:40px;max-width:220px">`:`<span>${BRAND.companyName}</span>`):logoSVG("logoGradE105")+"<span>Saleshandy</span>"}</div>
+   <p class="invite-h">Sign in to join ${ag}</p>
+   <p class="invite-s">This email already has a login. Sign in with its password to open ${c.name}.</p>
+   <form class="invite-form" data-e105form>
+    <div class="field"><label class="flabel" for="e105Em">Email</label><input type="email" id="e105Em" class="invite-email" value="${I.email}" disabled></div>
+    <div class="field"><label class="flabel" for="e105Pw">Password</label><input type="password" id="e105Pw" placeholder="Enter your password" autocomplete="current-password"></div>
+    <button type="submit" class="shd-button shd-button--primary">Sign in</button>
+    <p class="e105-fp"><button type="button" class="linkbtn linkbtn--sm" data-flash="Sends the password reset email">Forgot Password?</button></p>
+   </form></div></div>`}
+/* signing in accepts: the invite is used, and the person lands in the invited workspace with their other account beside it */
+function e105Accept(){const I=E105_INV, c=byId[I.ws]; if(!c) return; delete INVITED["w:"+c.id+"|"+I.email]; LASTSEEN[I.email]="just now";
+ E105X=null; solo=false; PREVIEW=false; CLIENT_SESSION=true; ACTING_EMAIL=I.email; asClient=true; ctx=c.id; view={name:"clients"}; e105FirstMod(c); render()}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-e105acc]"); if(!b) return; e.preventDefault();
+ if(b.dataset.e105acc==="open"){view=Object.assign({},view,{e105:"accept"}); render()}});
+document.addEventListener("submit",e=>{if(!e.target.matches||!e.target.matches("[data-e105form]")) return; e.preventDefault(); e105Accept()});
+
+/* ── reviewer states (#e105=<state>) ── */
+function e105Phone(){const d=document.createElement("div"); d.className="e105-ph";
+ d.innerHTML=`<div class="e105-phh"><span>Phone, 390 wide</span><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-e105close>Close phone view</button></div><iframe title="The switcher at 390 wide" src="${location.href.split("#")[0]}#e105=switcher-two-accounts&guide=off"></iframe>`;
+ document.body.appendChild(d); d.querySelector("[data-e105close]").onclick=()=>{location.hash="e105=switcher-two-accounts&guide=off"}}
+function e105Boot(s){E105.state=s; solo=false; PREVIEW=false; E105X=null; inMod=null; openProspect=null; openSeq=null; openReply=null; me_="owner";
+ const open=()=>setTimeout(()=>{if(!popOpen&&el("wsBtn")) openPop()},700);
+ const team=k=>{me_=k; ctx="agency"; asClient=false; CLIENT_SESSION=false; ACTING_EMAIL=null; view=homeView()};
+ const client=(e,id)=>{asClient=true; CLIENT_SESSION=true; ACTING_EMAIL=e; ctx=id; view={name:"clients"}; e105FirstMod(byId[id])};
+ const away=(e,a)=>{E105X={a,email:e}; const c=e105XWs(a)[0]; client(e,c.id)};
+ if(s==="switcher-two-accounts"){team("tariq"); open()}
+ if(s==="phone"){team("tariq"); setTimeout(e105Phone,400)}
+ if(s==="other-account"){team("tariq"); away("tariq@meridiangrowth.com","tw"); open()}
+ if(s==="switcher-client"){client("hello@pinecrest.hotels","pc"); open()}
+ if(s==="client-whitelabel"){BRAND.icon=wlSample("icon"); BRAND.logo=wlSample("logo"); BRAND.favicon=wlSample("icon"); BRAND.domain="app.meridiangrowth.com"; BRAND.domainVerified=true; AGENCY.whitelabel=true;
+  away("hello@pinecrest.hotels","hs"); open()}
+ if(s==="invite-existing"){team("owner"); view={name:"record",id:E105_INV.ws}; tab="members";
+  setTimeout(()=>{openInvite({ctxWs:E105_INV.ws}); INV.emails=[E105_INV.email]; INV.f.role=E105_INV.role; INV.f.touched=true; INV.f.cl=[E105_INV.ws]; INV.f.clTouched=true; renderModal();
+   setTimeout(()=>{const x=document.querySelector('.modal input[type=checkbox]:checked'); if(x) x.scrollIntoView({block:"center"})},50)},600)}
+ if(s==="email-existing"||s==="accept-existing"){team("owner"); e105Pending(); view={name:"invite",e105:s==="email-existing"?"email":"accept",back:{name:"people"}}}
+ if(s==="joined"){e105Pending(); const I=E105_INV; delete INVITED["w:"+I.ws+"|"+I.email]; LASTSEEN[I.email]="just now"; client(I.email,I.ws); open()}}
+
 /* Deep links, so any screen can be opened and checked without clicking a path
    to it: #clients, #queue, #dash, #credits, #settings, #invite, #solo-plain
    for an ordinary account with no agency relationship, and #client=<id> for
@@ -14984,6 +15126,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
     for someone with no Home). Change 195: a Demo panel change keeps the
     screen it was made on instead (demoRestoreScreen, end of this block). */
  if(k==="demo"){demoScenario(v||"busy");ctx="agency";asClient=false;inMod=null;view=homeView()}
+ if(k==="e105") e105Boot(v||"switcher-two-accounts");   /* vE E105: reviewer states */
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,limits:1,settings:1,invite:1,whitelabel:1,login:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
  if(flat[k]) view={name:k};
@@ -17769,7 +17912,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dcbeb87";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="dbbcd41";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19145,6 +19288,35 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
  .home-tbl .wsp-l{align-items:flex-start}.home-tbl .wsp-l .cs{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
  .ws-ch .c-a:has(.add-why){flex:1 1 100%;margin-left:0;flex-wrap:wrap;row-gap:8px}.ws-ch .c-a .add-why{flex:1 1 100%;margin-right:0}
  .modal--450:has(#delConfirm) .prm-why{white-space:normal}
+}
+</style>
+<style>
+/* ═══ vE E105: the switcher grouped by account. Headings are the listing's own group label (.pop-h, 12/16 600 Gray 500,
+   sentence case); groups are split by a 1px Gray 200 rule across the listing, 8px above and below, as the Add a workspace
+   footer's rule. A client-access heading carries the agency's 16px icon when its Whitelabel is on. The email and the accept
+   page sit in the invite view's own layout (J1); the email is a 720px reading pane. ═══ */
+#popL .e105-sep{height:1px;margin:8px -8px;background:var(--gray-13)}
+#popL .e105-h{display:flex;align-items:center;gap:8px;min-width:0}
+#popL .e105-h span{overflow:hidden;text-overflow:ellipsis}
+#popL .e105-bi{flex:none;width:16px;height:16px;border-radius:4px}
+#popL .e105-r .pop-cur.hdr-wsnc{visibility:hidden}
+.e105-mail{width:100%;max-width:720px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-sizing:border-box;text-align:left;overflow:hidden}
+.e105-mh{padding:20px 24px;border-bottom:1px solid #E5E7EB}
+.e105-subj{margin:0 0 8px;font-size:18px;line-height:28px;font-weight:600;color:#111827}
+.e105-from,.e105-to{margin:0;font-size:14px;line-height:20px;color:#1F2937;overflow-wrap:anywhere}
+.e105-from span,.e105-to{color:#6B7280}
+.e105-mb{padding:24px;font-size:14px;line-height:22px;color:#1F2937;overflow-wrap:anywhere}
+.e105-mb p{margin:0 0 12px}
+.e105-mb ul{margin:0 0 12px;padding-left:20px}
+.e105-mb .e105-cta{margin:20px 0}
+.e105-fp{margin:-4px 0 0;text-align:center}
+.e105-ph{position:fixed;inset:0;z-index:8500;background:rgba(17,24,39,.64);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box}
+.e105-phh{display:flex;align-items:center;justify-content:space-between;gap:16px;width:390px;max-width:100%;color:#fff;font-size:14px;line-height:20px;font-weight:500}
+.e105-phh .shd-button{background:#fff}
+.e105-ph iframe{width:390px;max-width:100%;height:min(844px,calc(100vh - 88px));border:0;border-radius:8px;background:#fff}
+@media (max-width:640px){
+ .e105-mh{padding:16px}
+ .e105-mb{padding:16px}
 }
 </style>
 <script src="review-picker.js"></script>
