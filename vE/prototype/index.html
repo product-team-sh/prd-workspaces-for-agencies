@@ -1938,7 +1938,7 @@ const HANDOVER_MS=900, HANDOVER_MS_REDUCED=400;
    One function, so the preview tile and the handover tile can never drift
    apart again. N1: the tag beside it now names who the workspace is for,
    also shared so both tiles agree. */
-const wsPreviewSub=()=>"New and empty. Its limits come from what is available.";   /* vE E070 */
+const wsPreviewSub=()=>"New and empty. Its limits come from what is left to allocate.";   /* vE E070 */
 const wsForTag=forClient=>forClient===false?"Yours":"For a client";
 function clientTileHTML(c){
  /* 29 Sep 2026: wide enough for the subtitle on one line, and left-aligned inside the centred beat */
@@ -2637,7 +2637,7 @@ const othersCap=(k,dv)=>Object.keys(RES[k].rows).reduce((t,id)=>id===OWN_ID?t:t+
 const allocOf=k=>Object.keys(RES[k].rows).reduce((t,id)=>t+Math.max(RES[k].rows[id].cap,RES[k].rows[id].used),0);   /* what is spoken for: a limit, or what is already spent if that is more */
 const rawFree=k=>RES[k].pool-allocOf(k);
 /* the toast and receipt tail: what the account holds after the change */
-const availTxt=k=>` Available ${f(compute(k).free)}.`;
+const availTxt=k=>` ${f(compute(k).free)} left to allocate.`;   /* vE E103 */
 /* the most one raise can take: 40% of Available, in 500s, never more than Available */
 const raiseStep=k=>{const a=compute(k).free; return Math.min(a,Math.max(500,Math.round(a*0.4/500)*500))};
 /* a deleted workspace's limits go to Available (zeroed, remembered); Restore takes back what Available still covers */
@@ -3006,7 +3006,7 @@ function setLimit(k,id,v,why){
  const c=byId[id], R=RES[k], r=R.rows[id]; if(!c||!r) return false;
  v=Math.max(0,Math.round(v)); const was=r.cap; if(v===was) return true;
  const avail=R.pool-allocOf(k);
- if(Math.max(v,r.used)-Math.max(was,r.used)>avail){RC_REFUSED={id,k,text:`Not saved. Only ${f(Math.max(0,avail))} available. Lower another limit first.`}; return false}
+ if(Math.max(v,r.used)-Math.max(was,r.used)>avail){RC_REFUSED={id,k,text:`Not saved. Only ${f(Math.max(0,avail))} left to allocate. Lower another limit first.`}; return false}
  RC_REFUSED=null; r.cap=v; r.custom=true; syncRes(k,r);
  if(TOUR&&TOUR.step===3&&TOUR.ws===id) TOUR.limitDone=true;   /* change 148 */
  const stops=v<r.used, pc=paceOf(k,id);
@@ -6310,7 +6310,7 @@ function rcLimSentence(c){
  if(cap<r.used) return `<b>${first}</b> has already sent <b class="tnum">${f(r.used)}</b> emails this cycle, more than a limit of ${f(cap)}; sending stops the moment this is applied.`;
  return left<0
   ?`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle, <span style="color:var(--orange-12)">${f(-left)} more than the plan can give</span>; that number will not save.`
-  :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> stay available for everyone else.`;
+  :`<b>${first}</b> can send up to <b class="tnum">${f(cap)}</b> emails this cycle; <b class="tnum">${f(left)}</b> left to allocate to everyone else.`;
 }
 /* ═══ change 269, 14 Oct 2026 (Hitesh: "let's build this in vC", fd/record-limits.html; then "match ask panel
    throughout prototype ... table like"): the record's Limits tab: the six limits as one sheet: used of limit,
@@ -6350,11 +6350,11 @@ function rlFxLine(D,k,id){if(RL&&RL.nb&&RL.nb[k]) return `<span class="ul3-mk">$
  return e.html}
 function rlDockHTML(c){const D=RL.D, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), st=ch.filter(ul3NewStop);
  const nb=Object.keys(RL.nb||{}).length, msg=nb?`<span class="ul3-mk">${NUM_ERR}</span>`:!n?""   /* change 333: Save stays disabled until there is a change; vE E075 fix 5: a refused number blocks Save */
-  :over.length?`<span class="ul3-mk">Not enough available: ${listAnd(over.map(k=>`${RES[k].label} by ${f(-ul3Free(D,k))}`))}.</span> Lower ${over.length>1?"them":"it"} to save, or move some from another workspace in Usage &amp; limits.`
+  :over.length?`<span class="ul3-mk">Not enough left to allocate: ${listAnd(over.map(k=>`${RES[k].label} by ${f(-ul3Free(D,k))}`))}.</span> Lower ${over.length>1?"them":"it"} to save, or move some from another workspace in Usage &amp; limits.`
   :`${ul3N(n,"change")}: ${listAnd(ch.map(x=>`${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?` ${c.name} stops ${listAnd(st.map(x=>UL3_STOP[x.k]))}.`:""}${ul3TellNote(ch)}`;
  return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-rlcancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlsave${!n||over.length||nb?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
 /* vE E081: Available, as Usage & limits says it (E072 row 23), after the draft; an over-raise never shows a negative figure */
-function rlAvLine(D,k){if(isUnl(k)) return ""; const a=ul3Free(D,k), n=a<0?compute(k).free:a, T=ulrTerm(k); return T?`<b>${f(n)}</b> available until ${T.to}`:`Available <b>${f(n)}</b>`}
+function rlAvLine(D,k){if(isUnl(k)) return ""; const a=ul3Free(D,k), n=a<0?compute(k).free:a, T=ulrTerm(k); return T?`<b>${f(n)}</b> left to allocate until ${T.to}`:`Left to allocate <b>${f(n)}</b>`}
 function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[id]);
  const lines=ks.map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=!!ul3EdFx(D,k,id).bad;
   return `<div class="ul3-el rlt-el" data-rlel="${k}"><label class="ul3-elab" for="rlin-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
@@ -6369,7 +6369,7 @@ function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledb
  box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad||!!(RL.nb&&RL.nb[k])))});
  box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id])}
 /* change 320: the sub-line is the day of the cycle; what needs you is on the rows (amber marks) */
-function rlHeadLine(c,ro){return ro?(c.deletedOn?"Deleted. Its limits went to Available.":"Disabled, still counts against the plan"):`Day ${CYCLE.day} of ${CYCLE.days}`}
+function rlHeadLine(c,ro){return ro?(c.deletedOn?"Deleted. Its limits are left to allocate again.":"Disabled, still counts against the plan"):`Day ${CYCLE.day} of ${CYCLE.days}`}
 function rlHeadLine0(c,ro,busy){
  const cyc=`Day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}`;
  const R=RK.filter(k=>RES[k].rows[c.id]&&RES[k].rows[c.id].cap>0), lv=k=>ul3Lv(RES[k].rows[c.id]), out=R.filter(k=>lv(k)===2).length, near=R.filter(k=>lv(k)===1).length;
@@ -6379,7 +6379,7 @@ function rlHeadLine0(c,ro,busy){
  const lead=soon.length?`<b>${rlpCap(soon.length>2?`${soon[0].k==="sends"?"emails":RES[soon[0].k].label} and ${soon.length-1} other limits`:listAnd(soon.map(x=>x.k==="sends"?"emails":RES[x.k].label)))} run out ${when(S[0].d)} at this pace.</b>`:"";
  const cnt=out?`${out} limit${out===1?" is":"s are"} used up${near?`; ${near} more ${near===1?"is":"are"} at 90% or more`:""}.`:near>1?`${near} limits are at 90% or more.`:"";
  const look=[lead,cnt].filter(Boolean).join(" ");
- if(ro) return c.deletedOn?`<b>Deleted.</b> Its limits went to Available. ${cyc}`:`<b>Disabled.</b> Its limits still count against the plan, and they can still change. ${cyc}`;
+ if(ro) return c.deletedOn?`<b>Deleted.</b> Its limits are left to allocate again. ${cyc}`:`<b>Disabled.</b> Its limits still count against the plan, and they can still change. ${cyc}`;
  if(busy||look) return look?`${look} ${cyc}`:cyc;
  let b=null; R.forEach(k=>{const r=RES[k].rows[c.id], p=ulPct(r.used,r.cap); if(!b||p>b.p) b={k,p}});
  if(!b||!R.some(k=>RES[k].rows[c.id].used)) return `<b>Nothing needs you.</b> Nothing used yet. ${cyc}`;
@@ -6477,11 +6477,11 @@ function slFill(k){const E=RL, W=E.id, D=E.D; if(E.tch[k]) return;
 /* the consequence line of one limit */
 function slFx(D,k,W){const v=slV(D,k,W), a=compute(k).free, mx=slMax(k,W), O=OWN_WS.name;
  if(RL&&RL.nb&&RL.nb[k]) return {num:true,html:`<span class="ul3-mk">${NUM_ERR}</span>`};   /* vE E075 fix 5 */
- {const fr=slFree(D,k); if(fr<0) return {over:true,html:`<span class="ul3-mk">Only ${f(Math.max(0,fr+v-slR(k,W).cap))} available.</span> Lower another limit first.`}}   /* vE E075 fix 9: the same refusal as Usage & limits (PRD 3.6) */
+ {const fr=slFree(D,k); if(fr<0) return {over:true,html:`<span class="ul3-mk">Only ${f(Math.max(0,fr+v-slR(k,W).cap))} left to allocate.</span> Lower another limit first.`}}   /* vE E075 fix 9: the same refusal as Usage & limits (PRD 3.6) */
  if(v>mx) return {bad:true,html:`<span class="ul3-mk">More than your plan has.</span> Up to ${f(mx)}.`};
- if(!v) return {html:`Available ${f(a)}.`};
- if(v<=a) return {html:`Takes ${f(v)} from Available.`};
- return {short:v-a,html:a?`Takes ${f(a)} from Available and ${f(v-a)} from the workspaces below.`:`Takes ${f(v)} from the workspaces below.`}}
+ if(!v) return {html:`${f(a)} left to allocate.`};
+ if(v<=a) return {html:`Takes ${f(v)} from what is left to allocate.`};
+ return {short:v-a,html:a?`Takes ${f(a)} from what is left to allocate and ${f(v-a)} from the workspaces below.`:`Takes ${f(v)} from the workspaces below.`}}
 /* a donor's Change cell: refused below use; a lowered limit says by how much, a stop, and the new pace against the old */
 function slChg(D,k,id){const r=slR(k,id), v=slV(D,k,id), d=r.cap-v; if(RL&&RL.nb&&RL.nb[k+"|"+id]) return `<span class="ul3-mk">${NUM_ERR}</span>`;   /* vE E075 fix 5 */
  if(v<r.used) return `<span class="ul3-mk">Below the ${f(r.used)} used</span> <span class="ul3-g">A limit can't go below what is used.</span>`;
@@ -6509,7 +6509,7 @@ function slCalc(D,W){const nb=Object.keys((RL&&RL.nb)||{}), ks=RK.filter(k=>slR(
 function slDockHTML(c){const D=RL.D, C=slCalc(D,c.id), nm=id=>byId[id].name, told=C.lowered.filter(id=>!byId[id].own).map(nm);
  const msg=C.nb.length?`<span class="ul3-mk">${NUM_ERR}</span>`:C.bad.length?`<span class="ul3-mk">More than your plan has: ${listAnd(C.bad.map(k=>RES[k].label))}.</span> Lower ${C.bad.length>1?"them":"it"} to set limits.`
   :C.low.length?`<span class="ul3-mk">Below what is used: ${listAnd(C.low.map(nm))}.</span> Raise it to set limits.`
-  :C.over.length?`<span class="ul3-mk">Only ${f(Math.max(0,slFree(D,C.over[0])+slV(D,C.over[0],c.id)-slR(C.over[0],c.id).cap))} available.</span> Lower another limit first.`
+  :C.over.length?`<span class="ul3-mk">Only ${f(Math.max(0,slFree(D,C.over[0])+slV(D,C.over[0],c.id)-slR(C.over[0],c.id).cap))} left to allocate.</span> Lower another limit first.`
   :C.lowered.length?`Lowers ${listAnd(C.lowered.map(nm))}${!told.length?".":told.length===C.lowered.length?`; ${told.length===1?"its":"their"} admins are told.`:`; ${listAnd(told)} admins are told.`}`:"";
  const n=C.set.length;
  return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-slx>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-slok${C.ok?"":" disabled"}>${n?`Set ${n===1?"1 limit":n+" limits"}`:"Set limits"}</button></span>`}
@@ -8003,7 +8003,7 @@ const bpBack=()=>BILL.from==="link"&&BILL.back?`<button type="button" class="lin
 const bpHl=(h,p)=>`<section class="bp-ans" aria-labelledby="bpH"><div class="bp-hl"><h2 class="ul3-h" id="bpH" tabindex="-1">${h}</h2>${bpBack()}</div>${p?`<p class="ul3-p">${p}</p>`:""}</section>`;
 function bpLinkHead(){if(BILL.from!=="link") return ""; const k=BILL.bought?BILL.bought.k:BILL.buy; if(!k||!RES[k]) return "";
  const lab=RES[k].label, free=`<b>${f(compute(k).free)}</b>`;
- return BILL.bought?bpHl(`Bought ${f(BILL.bought.a)} ${lab}.`,`Your plan now has ${free} available. Give them to a workspace in Usage &amp; limits.`)
+ return BILL.bought?bpHl(`Bought ${f(BILL.bought.a)} ${lab}.`,`Your plan now has ${free} left to allocate. Give them to a workspace in Usage &amp; limits.`)
   :bpHl(`Buy ${lab}.`,"")}
 function bpHead(){
  if(grace()) return bpHl(`Payment failed on ${GRACE.failedOn}.`,`Sending is paused in every workspace. Update the card within ${GRACE.daysLeft} days, or the account pauses.`)+bpPayHTML();
@@ -8159,12 +8159,12 @@ function bpTable(ks,single){
   return `<tr class="bp-r${open?" is-open":""}" data-pg="${k}">
    <td><span class="ul3-rn">${R.label}</span><span class="ul3-sub">${bpRenew(k)}</span></td>
    <td data-l="Used"><span class="ul3-hb">${pbar(P>0?m.used/P*100:0,useCol(m.used,P))}<span class="ul3-num">${f(m.used)} <span class="ul3-g">of ${f(P)}</span></span></span></td>
-   <td data-l="Available" class="ul3-num"><b>${f(m.free)}</b><span class="ul3-sub">${f(P-m.free)} given to workspaces</span>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
+   <td data-l="Left to allocate" class="ul3-num"><b>${f(m.free)}</b><span class="ul3-sub">${f(P-m.free)} given to workspaces</span>${today?`<span class="ul3-sub">${f(today)} bought today</span>`:""}</td>
    <td class="bp-share">${share}</td><td class="bp-act">${act}</td></tr>${det}${buy?`<tr class="bp-buyrow"><td colspan="5">${bpBuyHTML(k)}</td></tr>`:""}`}).join("");
- return `<table class="ul-t bp-t${single?" is-single":""}"><thead><tr><th class="bp-c1">Resource</th><th class="bp-c2">Used</th><th class="bp-c3">Available</th><th class="bp-share">Largest limit</th><th class="bp-c5" aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table>`}
+ return `<table class="ul-t bp-t${single?" is-single":""}"><thead><tr><th class="bp-c1">Resource</th><th class="bp-c2">Used</th><th class="bp-c3">Left to allocate</th><th class="bp-share">Largest limit</th><th class="bp-c5" aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table>`}
 /* the buy panel: the amount, its effect on what the plan can give, the charge in a sentence; the
    button names count and price. Blocked while the card is declined, with the reason above it. */
-const bpBuyFx=(k,a)=>a?`Available goes from ${f(compute(k).free)} to ${f(compute(k).free+a)}.`:`Enter how many ${bpUnit(k)} to buy, for example 1,000.`;
+const bpBuyFx=(k,a)=>a?`Left to allocate goes from ${f(compute(k).free)} to ${f(compute(k).free+a)}.`:`Enter how many ${bpUnit(k)} to buy, for example 1,000.`;
 /* change 299 (audit P2-12): more than ten times the plan's monthly amount in one click gets a second look */
 const bpBig=(k,a)=>a*BP_PRICE[k]>10*parseFloat(String(PLAN.amount).replace(/[^0-9.]/g,""))?`That is ${usd(a*BP_PRICE[k])}. Check the amount.`:"";
 const bpCost=(k,a)=>a?`${usd(a*BP_PRICE[k])} at ${bpPriceTxt(k)}, charged now to ${BILL_CARD}.`:"";
@@ -8314,12 +8314,12 @@ function ulChanges(){const W=ulRows(), out=[]; W.forEach(c=>UL_K().forEach(k=>{c
 const ulDelta=d=>d?`<span class="ul-chip ${d>0?"is-ok":"is-no"}">${d>0?"+":"&minus;"}${f(Math.abs(d))}</span>`:"";
 function ulPlanRow(){const ks=UL_K();
  const legend=`<td class="ul-planl"><span class="ul-nm">Your plan</span><span class="ul-pl">In plan</span><span class="ul-pbsp"></span>
-   <span class="ul-pl"><i class="ul-sw is-used"></i>Used</span><span class="ul-pl"><i class="ul-sw is-given"></i>Given to workspaces</span><span class="ul-pl"><i class="ul-sw is-av"></i>Available</span></td>`;
+   <span class="ul-pl"><i class="ul-sw is-used"></i>Used</span><span class="ul-pl"><i class="ul-sw is-given"></i>Given to workspaces</span><span class="ul-pl"><i class="ul-sw is-av"></i>Left to allocate</span></td>`;
  return `<tr class="ul-planr">${legend}${ks.map(k=>{const R=RES[k], m=compute(k), given=m.caps, av=Math.max(0,R.pool-given), ab=k==="sends";
   const t=n=>ab?`<span title="${f(n)}">${ulAb(k,n)}</span>`:f(n);
   const w=n=>(Math.max(0,n)/R.pool*100).toFixed(3)+"%";
   return `<td class="ul-c" data-ulplan="${k}"><span class="ul-nm ul-hidden" aria-hidden="true">&nbsp;</span><span class="ul-pv"><b>${t(R.pool)}</b></span>
-   <span class="ul-pb" role="img" aria-label="${R.label}: ${f(m.used)} used, ${f(given)} given to workspaces, ${f(av)} available of ${f(R.pool)}"><i class="is-used" style="width:${w(Math.min(m.used,given))}"></i><i class="is-given" style="width:${w(given-Math.min(m.used,given))}"></i><i class="is-av" style="width:${w(av)}"></i></span>
+   <span class="ul-pb" role="img" aria-label="${R.label}: ${f(m.used)} used, ${f(given)} given to workspaces, ${f(av)} left to allocate of ${f(R.pool)}"><i class="is-used" style="width:${w(Math.min(m.used,given))}"></i><i class="is-given" style="width:${w(given-Math.min(m.used,given))}"></i><i class="is-av" style="width:${w(av)}"></i></span>
    <span class="ul-pv" data-ulpused="${k}">${t(m.used)}</span><span class="ul-pv" data-ulpgiven="${k}">${t(given)}</span><span class="ul-pv ul-pavail" data-ulpav="${k}"><b>${t(av)}</b></span></td>`}).join("")}</tr>`}
 function ulWsCell(c,ed){const st=wsState(c);
  const used0=UL_K().every(k=>!RES[k].rows[c.id]||!RES[k].rows[c.id].used);
@@ -8354,7 +8354,7 @@ function ulLimitsHTML(ro){const W=ulRows(), ks=UL_K(), ed=UL.edit&&!ro;
  const head=`<thead><tr class="ul-grp"><th></th>${mon?`<th colspan="${mon}" title="This month, renews 1 Oct">This month, renews 1 Oct</th>`:""}${term?`<th colspan="${term}" class="ul-grp-t">For the plan term</th>`:""}</tr>
   <tr><th>Workspace</th>${ks.map(k=>`<th class="${UL.focusK===k?"is-fk":""}${RES[k].kind==="monthly"?"":" ul-term"}" data-ulcol="${k}" title="${RES[k].label}">${RES[k].label}</th>`).join("")}</tr></thead>`;
  const body=ed?W.map(ulDraftRow).join(""):ulPlanRow()+W.map(c=>ulGridRow(c,ro)).join("");
- const foot=ed?`<tfoot><tr class="ul-avr"><td><span class="ul-nm">Available in the plan</span><span class="sub">Updates as you type</span></td>${ks.map(k=>`<td class="ul-c${UL.focusK===k?" is-fk":""}" data-ulav="${k}">${ulAvFoot(k)}</td>`).join("")}</tr></tfoot>`:"";
+ const foot=ed?`<tfoot><tr class="ul-avr"><td><span class="ul-nm">Left to allocate</span><span class="sub">Updates as you type</span></td>${ks.map(k=>`<td class="ul-c${UL.focusK===k?" is-fk":""}" data-ulav="${k}">${ulAvFoot(k)}</td>`).join("")}</tr></tfoot>`:"";
  return `<div class="panel ul-panel${ed?" is-editing":""}" id="ulLimits"><div class="panel-h"><span class="panel-t">${ed?"Editing limits":"Limits"}</span><span class="sub ul-hsub">${ed?"A draft. No workspace changes until you review and apply.":W.length+" workspace"+(W.length===1?"":"s")}</span><span class="c-a">${right}</span></div>
   <table class="ul-t ul-grid">${cols}${head}<tbody>${body}</tbody>${foot}</table></div>
   ${ed?`<div class="ul-sticky" id="ulDraftBar">${ulBarHTML()}</div>`:""}`}
@@ -8375,7 +8375,7 @@ function ul3PlanHTML(ro){const owner=canI("billing");
   return `<tr data-ul3plan="${k}"><td><span class="ul3-rn">${R.label}</span></td><td class="ul3-num"><b>${f(m.free)}</b> <span class="ul3-g">of ${f(R.pool)}</span></td><td><span class="ul3-hb">${pbar(p,UL3_GREY)}<span class="ul3-g">${p}% given</span></span></td><td class="ul3-pa">${act}</td></tr>`}).join("");
  return `<div class="panel ul-panel ul3-plan" id="ul3Plan"><div class="panel-h"><span class="panel-t">Your plan</span><span class="sub ul-hsub">${PLAN.name.replace(/\s*\(.*\)$/,"")} plan, day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}</span></div>
   <table class="ul-t ul3-pt"><colgroup><col style="width:28%"><col style="width:24%"><col style="width:24%"><col></colgroup>
-   <thead><tr><th>Resource</th><th>Available</th><th>Given to workspaces</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div>`}
+   <thead><tr><th>Resource</th><th>Left to allocate</th><th>Given to workspaces</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the roster: by how close each workspace is to its closest limit; new and disabled ones last */
 function ul3Close(c){let b=null; UL_K().forEach(k=>{const r=RES[k].rows[c.id]; if(!r||!(r.cap>0)) return; const x=Math.min(1,r.used/r.cap); if(!b||x>b.x) b={k,r,x}}); return b}
 const ul3Quiet=c=>!!c.disabled||UL_K().every(k=>!RES[k].rows[c.id]||!RES[k].rows[c.id].used);
@@ -8428,15 +8428,15 @@ const ul3Dot=t=>/\.$/.test(t)?t:t+".";
 
 /* the consequence line of one limit, record-limits wording, aware of every other change in the draft */
 function ul3EdFx(D,k,id){const r=RES[k].rows[id], L=r.cap, U=r.used, v=ul3Dv(D,k,id), d=v-L, after=ul3Free(D,k), bef=Math.max(0,after+d), mon=k==="sends", O=OWN_WS.name;
- if(after<0&&d>0) return {bad:true,short:-after,html:`Only ${f(bef)} available. Lower another limit first.`};
+ if(after<0&&d>0) return {bad:true,short:-after,html:`Only ${f(bef)} left to allocate. Lower another limit first.`};
  if(d&&ul3Below({k,id,v})){const still=L<=U;
   return {stop:true,html:`<span class="ul3-mk">${still?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`The new limit is below the ${f(U)} already used${mon?" this month":""}, so ${mon?"nothing sends until 1 Oct or until you raise it":"it stays stopped until you raise it"}.`:`The limit is 0. ${mon?"Nothing sends until 1 Oct or until you raise it.":"It stays stopped until you raise it."}`}`}}
  if(d>0){const took=ul3Ch(D).filter(x=>x.k===k&&x.id!==id&&x.v<x.was);
   if(took.length){const fw=Math.min(d,took.reduce((t,x)=>t+x.was-x.v,0)), fp=d-fw, nm=listAnd(took.map(x=>byId[x.id].name));
-   return {html:`Was ${f(L)}. Uses ${f(d)}: ${fp?`${f(fp)} from Available and ${f(fw)} from ${nm}`:`all of it from ${nm}`}.`}}
-  return {html:`Was ${f(L)}. Takes ${f(d)} from Available.`}}
- if(d<0) return {html:`Was ${f(L)}. Gives ${f(-d)} back to Available.`};
- return {html:`Up to ${f(L+bef)}; ${f(bef)} available.`}}
+   return {html:`Was ${f(L)}. Uses ${f(d)}: ${fp?`${f(fp)} from what is left to allocate and ${f(fw)} from ${nm}`:`all of it from ${nm}`}.`}}
+  return {html:`Was ${f(L)}. Takes ${f(d)} from what is left to allocate.`}}
+ if(d<0) return {html:`Was ${f(L)}. Gives ${f(-d)} back to what is left to allocate.`};
+ return {html:`Up to ${f(L+bef)}; ${f(bef)} left to allocate.`}}
 function ul3FxLine(D,k,id){return ul3EdFx(D,k,id).html}
 /* who can give: not this workspace, not a new one, enough spare above what it has used to close the gap */
 function ul3Donors(D,k,id,short){const sp=c=>ul3Dv(D,k,c.id)-RES[k].rows[c.id].used;
@@ -8503,7 +8503,7 @@ function ul3E2Chg(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), d=v-r.cap, U=r
  return s}
 function ul3PoolHTML(k){if(isUnl(k)) return ul3UnlPool(k); const R=RES[k], m=compute(k), av=ulDfree(k), was=m.free;   /* change 290: the draft is UL.draft (282's Adjust pop-up and its own draft are gone) */
  return `<div class="ul3-pi"><span>Plan</span><b>${f(R.pool)}</b></div><div class="ul3-pi"><span>Given to workspaces</span><b>${f(R.pool-av)}</b></div><div class="ul3-pi"><span>Used</span><b>${f(m.used)}</b></div>
-  <div class="ul3-pi"><span>Available</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
+  <div class="ul3-pi"><span>Left to allocate</span><b>${av<0?`<span class="ul3-mk">Over by ${f(-av)}</span>`:f(av)}${av!==was?`<span class="ul3-was">was ${f(was)}</span>`:""}</b></div>`}
 /* change 290: the strip's right end: when it renews, then Your plan's way to get more (271/285's buy link with
    Back to Usage & limits; Change plan for emails; an Account Admin asks the owner) */
 function ul3PaHTML(k){
@@ -8512,7 +8512,7 @@ function ul3PaHTML(k){
 const ul3E2Over=()=>UL_K().filter(k=>ulDfree(k)<0);
 function ul3E2DockHTML(){const ch=ulChanges(), n=ch.length, over=ul3E2Over(), low=ul3E2Lows(), nW=new Set(ch.map(x=>x.id)).size, st=ch.filter(ul3NewStop), k=ul3E2K();
  const msg=!n?"No changes yet."
-  :over.length?`<span class="ul3-mk">Not enough available: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}.</span> Lower a limit to review.`
+  :over.length?`<span class="ul3-mk">Not enough left to allocate: ${listAnd(over.map(x=>`${RES[x].label} by ${f(-ulDfree(x))}`))}.</span> Lower a limit to review.`
   :low.length?`<span class="ul3-mk">Below what is used: ${listAnd(low.map(x=>`${byId[x.id].name} ${UL3_NM[x.k]}`))}.</span> Raise it to review.`
   :`${ul3N(n,"change")} across ${ul3N(nW,"workspace")}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}`;
  return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db">${n?`<button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button>`:""}<button type="button" class="shd-button shd-button--primary" data-ul3rv${!n||over.length||low.length?" disabled":""}>${n?`Review ${ul3N(n,"change")}`:"Review changes"}</button></span>`}
@@ -8647,7 +8647,7 @@ const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disable
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
 function ulrTake(key){const [k,id]=key.split("|"), c=byId[id], r=c&&RES[k].rows[id]; if(!r) return; const was=r.cap, d=was-r.used; if(d<=0) return;
  if(!setLimit(k,id,0,"taken back on Usage & limits")) return; delete UL.draft[key]; DECIDED.shift();
- receipt("ul",`Took back ${f(d)} from ${c.name}. Available ${f(compute(k).free)}.`,()=>{r.cap=was; syncRes(k,r); logAct(id,`${RES[k].label} limit changed back to ${f(was)} (undo)`)},`took back ${c.name}'s ${RES[k].label.toLowerCase()}`); RECEIPT.variant="neutral";   /* no green toasts (E035's invite toast) */
+ receipt("ul",`Took back ${f(d)} from ${c.name}. ${f(compute(k).free)} left to allocate.`,()=>{r.cap=was; syncRes(k,r); logAct(id,`${RES[k].label} limit changed back to ${f(was)} (undo)`)},`took back ${c.name}'s ${RES[k].label.toLowerCase()}`); RECEIPT.variant="neutral";   /* no green toasts (E035's invite toast) */
  UL.ul3f=`[data-ulce="${key}"]`; render()}
 /* vE E041 fix 2: a quiet Gray 500 dot on the rail where a workspace is used up or at 90% or more (saved figures, J's threshold) */
 function ulrMark(k){if(isUnl(k)) return ""; const o=ulRows().filter(c=>!c.disabled&&RES[k].rows[c.id]&&ulrLv(c,RES[k].rows[c.id].used,RES[k].rows[c.id].cap)===2).length; if(!o) return "";   /* vE E045: used up only */
@@ -8786,7 +8786,7 @@ function vLimits(){
 function ulLayer(){let L=el("ulLayer"); if(!L){L=document.createElement("div");L.id="ulLayer";document.body.appendChild(L)} return L}
 function ulCellFx(){const [k,id]=UL.cell.split("|"), R=RES[k], r=R.rows[id], c=byId[id], v=UL.cellV==null?r.cap:UL.cellV, free=compute(k).free, after=free+r.cap-v, over=after<0, tot=allocOf(k)-r.cap+v;
  const first=c.name.split(" ")[0];
- return `<div class="ul-pop-av"><span class="sub">Available in the plan</span><span><b>${f(free)}</b> now &rarr; <b class="${over?"is-bad":""}">${over?"&minus;"+f(-after):f(after)}</b> after</span></div>
+ return `<div class="ul-pop-av"><span class="sub">Left to allocate</span><span><b>${f(free)}</b> now &rarr; <b class="${over?"is-bad":""}">${over?"&minus;"+f(-after):f(after)}</b> after</span></div>
   ${over?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>Limits for ${R.label} would total ${f(tot)}, more than the ${f(R.pool)} in your plan. The most ${c.name} can have is ${f(r.cap+free)}.</span></div>`:""}
   ${UL.cellErr?`<div class="msg m-bad ul-pop-m" role="alert">${warnI}<span>${UL.cellErr}</span></div>`:""}
   ${!over&&v<r.used?`<div class="msg m-warn ul-pop-m">${warnI}<span>Below the ${f(r.used)} ${c.own?"you have":first+" has"} used: ${R.label} stop${R.label.endsWith("s")?"":"s"} for ${c.own?"your workspace":first} now.</span></div>`:""}
@@ -8927,7 +8927,7 @@ function vCredits(){
  const m=compute(activeRes),R=m.R,pc=n=>n/R.pool*100, alloc=allocOf(activeRes), avail=R.pool-alloc;
  const ws=fundedWorkspaces().filter(c=>R.rows[c.id]);
  const segs=ws.map(c=>{const r=R.rows[c.id]; return `<span class="al-seg" title="${c.name}: ${f(r.used)} used of ${f(r.cap)}" style="width:${pc(r.cap)}%"><i style="width:${r.cap?Math.min(100,Math.round(r.used/r.cap*100)):0}%;background:${c.colour}"></i><b style="background:${c.colour}"></b></span>`}).join("");
- const legend=ws.map(c=>`<span class="al-leg"><i style="background:${c.colour}"></i>${c.name} <span class="sub">${f(R.rows[c.id].cap)}</span></span>`).join("")+`<span class="al-leg"><i style="background:var(--gray-16)"></i>Available <span class="sub">${f(avail)}</span></span>`;
+ const legend=ws.map(c=>`<span class="al-leg"><i style="background:${c.colour}"></i>${c.name} <span class="sub">${f(R.rows[c.id].cap)}</span></span>`).join("")+`<span class="al-leg"><i style="background:var(--gray-16)"></i>Left to allocate <span class="sub">${f(avail)}</span></span>`;
  const rows=ws.map(c=>{const r=R.rows[c.id],st=rowState(activeRes,c.id,m),p=Math.min(100,Math.round(st.pct*100)), pcx=paceOf(activeRes,c.id);
   return `<tr><td><div class="cell-main">${av(c)}<span style="min-width:0">
     ${c.own?`<button class="cn" data-go2ws="own">${c.name}</button>`:`<button class="cn" data-manage="${c.id}">${c.name}</button>`}
@@ -8944,10 +8944,10 @@ function vCredits(){
     <div class="stat"><span class="stat-l">In your plan</span><span class="stat-v">${f(R.pool)}</span></div>
     <div class="stat"><span class="stat-l">Given to workspaces</span><span class="stat-v">${f(alloc)}</span></div>
     <div class="stat"><span class="stat-l">Used so far</span><span class="stat-v">${f(m.used)}</span></div>
-    <div class="stat"><span class="stat-l">Available</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
+    <div class="stat"><span class="stat-l">Left to allocate</span><span class="stat-v" style="color:${avail>0?"var(--gray-17)":"var(--red-18)"}">${f(avail)}</span></div>
    </div>
    <div class="panel-b" style="border-top:1px solid var(--gray-200);display:flex;flex-direction:column;gap:10px">
-    ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Available"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Available"})}
+    ${apuItem("Given to workspaces",alloc,R.pool,{barHTML:bucketBar([[alloc,"#2563EB","Given to workspaces"],[Math.max(0,avail),"#34D399","Left to allocate"]]),rem:f(Math.max(0,avail))+" ("+pbPct(R.pool?Math.max(0,avail)/R.pool*100:0)+"%) Left to allocate"})}
     ${avail<=0?`<div class="msg m-warn">${warnI}<span>Nothing left to give. Lower a workspace's limit or <button class="linkbtn" data-gobill="${activeRes}">add capacity</button>.</span></div>`:""}
    </div>
    <div class="tscroll"><table class="organism" style="min-width:860px">
@@ -10386,7 +10386,7 @@ function dashItems(){
    if(st.room===0)
     out.push({score:90,sev:"critical",client:c.id,raise:k+"|"+c.id,act:"Raise limit",age:"today",
       what:c.name+" is at its "+RES[k].label.toLowerCase()+" limit and has stopped",
-      why:"Available: "+f(m.free)+" "+RES[k].unit+". Only you can raise this."})})});   /* vE E020 */
+      why:"Left to allocate: "+f(m.free)+" "+RES[k].unit+". Only you can raise this."})})});   /* vE E020 */
  /* operator work escalates here once it has aged. A disconnected mailbox is not
     the owner's job until nobody has done it for two days, at which point it is. */
  INFRA().filter(a=>a.client==="__x"||ageDays(a.age)>=2).forEach(a=>{
@@ -11200,7 +11200,7 @@ function queueEmpty(){const d=DECIDED[0];
    into the row's own copy, so the tooltip can never disagree with the row. */
 const dqTip=(html,tip)=>'<span class="dq-tip">'+html+'<span class="dq-fore" role="tooltip">'+tip+'</span></span>';
 function raiseConsequence(k,id){const m=compute(k),step=raiseStep(k);
- return 'Available '+f(Math.max(0,m.free-step))+' '+m.R.unit}   /* vE E070 */
+ return f(Math.max(0,m.free-step))+' '+m.R.unit+' left to allocate'}   /* vE E070 */
 const ADD_CAP_TIP='Opens Billing; nothing changes until you buy';
 /* 17 Sep 2026, round 4 (44-ui-audit.md P4): the queue's four counters were a
    strip of numbers nothing responded to. They are the filter now, All by default,
@@ -11744,9 +11744,9 @@ const ledBase=k=>LIMED.moved?ledDerived(k):ledRow(k).cap;
 const ledIsSet=k=>!!LIMED.edit&&LIMED.custom[k]!=null;
 const ledCap=k=>ledIsSet(k)?LIMED.custom[k]:ledBase(k);
 const ledOver=k=>ledCap(k)>ledAvail(k);
-const ledHint=k=>{const r=ledRow(k), v=ledCap(k); return ledOver(k)?`Only ${f(ledAvail(k))} available`:v<r.used?`Below the ${f(r.used)} used`:`${f(ledAvail(k))} available`};
+const ledHint=k=>{const r=ledRow(k), v=ledCap(k); return ledOver(k)?`Only ${f(ledAvail(k))} left to allocate`:v<r.used?`Below the ${f(r.used)} used`:`${f(ledAvail(k))} left to allocate`};
 const ledChanged=()=>ledKeys().filter(k=>ledCap(k)!==ledRow(k).cap);
-function ledWhy(){const ks=ledKeys().filter(ledOver); return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(ledAvail(ks[0]))} available. Lower it to save.`:""}
+function ledWhy(){const ks=ledKeys().filter(ledOver); return ks.length?`${NC_SUM_L[ks[0]]||RES[ks[0]].label}: only ${f(ledAvail(ks[0]))} left to allocate. Lower it to save.`:""}
 function ledPct(){if(LIMED.edit) return '<span class="nc-off">Off while you edit values</span>'; return LIMED.moved?`<b>${LIMED.share}%</b>`:'<span class="nc-off">Current limits</span>'}
 function ledOpen(id){const c=byId[id]; if(!c) return; LIMED={id,edit:false,moved:false,custom:{},learn:false,share:NC_SHARE_DEFAULT};
  /* the slider starts where the current limits sit, as a share of what is available to each (the middle one) */
@@ -11760,9 +11760,9 @@ function ledHTML(c){const first=c.name.split(" ")[0], ks=ledKeys(), why=ledWhy()
   :`<button type="button" class="shd-button shd-button--tertiary shd-button--sm nc-modebtn" id="ledMode" aria-pressed="false">${NC_PEN}Edit values</button>`;
  return card("Edit limits",`<div class="nc-limhead" style="display:flex;justify-content:space-between;align-items:center"><span class="nc-eyebrow" style="margin:0">Limits for ${c.name}</span>${btn}</div>
   <div class="nc-usage ${LIMED.edit?"is-edit":"is-slider"}" id="ncUsage">
-   <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s available</label><button type="button" class="linkbtn" id="ledLearn" aria-expanded="${LIMED.learn?"true":"false"}" aria-controls="ledLearnBox">${LIMED.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ledPct">${ledPct()}</span></div>
-   <input type="range" id="ncShare" min="1" max="100" step="1" value="${LIMED.share}" style="--p:${Math.round((LIMED.share-1)/99*100)}%;--g:100%" aria-label="Share of what's available"${LIMED.edit?" disabled":""}>
-   ${LIMED.learn?`<div class="nc-learn" id="ledLearnBox"><p>Available is your plan minus what other workspaces have. The slider gives ${first} that share of each, never less than it has already used. To set each value yourself, use Edit values; the slider is off while you do.</p><p>Emails are a monthly limit. Credits are a balance, set aside for ${first}.</p></div>`:""}
+   <div class="nc-urow"><span class="nc-ulab"><label class="flabel" for="ncShare" style="margin:0">Share of what&rsquo;s left to allocate</label><button type="button" class="linkbtn" id="ledLearn" aria-expanded="${LIMED.learn?"true":"false"}" aria-controls="ledLearnBox">${LIMED.learn?"Hide":"Learn more"}</button></span><span class="nc-upct" id="ledPct">${ledPct()}</span></div>
+   <input type="range" id="ncShare" min="1" max="100" step="1" value="${LIMED.share}" style="--p:${Math.round((LIMED.share-1)/99*100)}%;--g:100%" aria-label="Share of what's left to allocate"${LIMED.edit?" disabled":""}>
+   ${LIMED.learn?`<div class="nc-learn" id="ledLearnBox"><p>Left to allocate is your plan minus what other workspaces have. The slider gives ${first} that share of each, never less than it has already used. To set each value yourself, use Edit values; the slider is off while you do.</p><p>Emails are a monthly limit. Credits are a balance, set aside for ${first}.</p></div>`:""}
    <div class="nc-sum">${ks.map(row).join("")}${ks.length%2?'<div class="nc-sum-r nc-sum-pad" aria-hidden="true"></div>':""}</div>
   </div>`,
   `<div class="sub nc-addwhy" id="ledWhy" role="status">${why}</div><button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" id="ledSave"${why||!ch?" disabled":""}${why?` title="${why}"`:""}>Save limits</button>`,"modal--560 led-modal")}
@@ -11790,11 +11790,11 @@ function ledSave(){if(!LIMED) return; const c=byId[LIMED.id]; if(!c||ledWhy()) r
  if(!ch.length){modal=null; LIMED=null; renderModal(); return}
  const byShare=!LIMED.edit&&LIMED.moved, sh=LIMED.share, prev=[];
  ch.forEach(k=>{const R=RES[k], r=R.rows[c.id], was=r.cap, v=ledCap(k); prev.push([k,was,r.custom]); r.cap=v; r.custom=!byShare; syncRes(k,r);
-  logAct(c.id,`${R.label} limit changed from ${f(was)} to ${f(v)}${byShare?` (${sh}% of what was available)`:""}`)});
+  logAct(c.id,`${R.label} limit changed from ${f(was)} to ${f(v)}${byShare?` (${sh}% of what was left to allocate)`:""}`)});
  const was0=c.limSet; c.limSet={share:byShare?sh:null,on:TODAY_D};
  if(TOUR&&TOUR.step===3&&TOUR.ws===c.id) TOUR.limitDone=true;
  RC_REFUSED=null; const R0=RES[ch[0]];
- receipt("client:"+c.id,ch.length===1?`${c.name}'s ${R0.label.toLowerCase()} limit is now ${f(R0.rows[c.id].cap)}, was ${f(prev[0][1])}. Available ${f(compute(ch[0]).free)}.`:`${c.name}'s limits saved; ${ch.length} changed.`,
+ receipt("client:"+c.id,ch.length===1?`${c.name}'s ${R0.label.toLowerCase()} limit is now ${f(R0.rows[c.id].cap)}, was ${f(prev[0][1])}. ${f(compute(ch[0]).free)} left to allocate.`:`${c.name}'s limits saved; ${ch.length} changed.`,
   ()=>{prev.forEach(([k,v,cu])=>{const r=RES[k].rows[c.id]; r.cap=v; r.custom=cu; syncRes(k,r)}); c.limSet=was0; render()},`changed ${c.name}'s limits`);
  modal=null; LIMED=null; renderModal(); render()}
 function ncAccessSentence(){
@@ -14967,7 +14967,7 @@ function bpUnlRow(k){const R=RES[k], used=Object.entries(R.rows).filter(([id])=>
  return `<tr class="bp-r is-unl" data-pg="${k}" data-unl="${k}">
    <td><span class="ul3-rn">${R.label}</span><span class="ul3-sub">${R.nature}</span></td>
    <td data-l="Used"><span class="ul3-hb">${unlBar()}<span class="ul3-num">${f(used)}</span></span></td>
-   <td data-l="Available" class="ul3-num"><b>${UNL_TXT}</b><span class="ul3-sub">No limits on ${PLAN.name.replace(/ \(.*$/,"")}</span></td>
+   <td data-l="Left to allocate" class="ul3-num"><b>${UNL_TXT}</b><span class="ul3-sub">No limits on ${PLAN.name.replace(/ \(.*$/,"")}</span></td>
    <td class="bp-share"><span class="ul3-g">&ndash;</span></td><td class="bp-act"></td></tr>`}
 /* Usage & limits, its own tab: the strip and one row per workspace, no field */
 function ul3UnlPool(k){const R=RES[k], used=ulRows().reduce((t,c)=>t+unlUsed(k,c.id),0);
@@ -16312,7 +16312,7 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .rlt-t td.rlt-c3.rlt-lf::before{content:"Left ";font-size:12px;line-height:16px;color:#6B7280}
  .rlt-t td.rlt-c3,.rlt-t td.rlt-c4{grid-column:1/-1}
  .rlt-t td.rlt-c4{font-size:12px;line-height:16px}
- .rlt-t td.rlt-c4 .rlt-av::before{content:"Available "}
+ .rlt-t td.rlt-c4 .rlt-av::before{content:"Left to allocate "}
  .rlt-ed .ul3-el{padding:12px 16px}
  .rlt-ed .rlt-dock{padding:12px 16px}
  .rlt-edh{padding-left:16px;padding-right:16px}
@@ -17915,7 +17915,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="2235cd9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="fa9fb99";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
