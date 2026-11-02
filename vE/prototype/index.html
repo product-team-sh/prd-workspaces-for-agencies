@@ -4890,7 +4890,7 @@ function wsPeopleOf(c){
 }
 const wsOA=()=>ppTeam().filter(t=>t.role==="Owner").map(t=>({name:t.name,ini:t.initials,invited:false,disabled:t.disabled}));
 function wsFaces(list,col){
- const n=4, face=x=>'<span class="wsp-f'+(x.disabled?' is-off':'')+'">'+ppAv(x.ini,col,24,x.invited)+'</span>';
+ const n=4, face=x=>'<span class="wsp-f'+(x.disabled?' is-off':'')+'"'+(x.key&&canI("members")?' data-pnopen="'+(String(x.key).indexOf("w:")===0?x.key:"t:"+x.key)+'" role="button" tabindex="0" aria-label="Open '+String(x.label||x.name).replace(/"/g,"&quot;")+'"':'')+'>'+ppAv(x.ini,col,24,x.invited)+'</span>';   /* vE E102: a face opens that person's panel */
  return '<span class="wsp-faces">'+list.slice(0,n).map(face).join("")+(list.length>n?'<span class="wsp-more">+'+(list.length-n)+'</span>':'')+'</span>';
 }
 function wsPeopleCell(c,side){
@@ -4919,7 +4919,7 @@ function wsPeopleCell(c,side){
  const nmx=L.map(x=>x.label+(x.role?", "+roleName(x.role):"")+(x.disabled?", disabled":x.expired?", invite expired":x.invited?", invited":"")), shown=nmx.slice(0,8).concat(nmx.length>8?["and "+(nmx.length-8)+" more"]:[]);
  const tip=shown.join("\n"), esc=t=>t.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
  return '<span class="wsp-grp" tabindex="0" role="group" data-uwtip="'+esc(tip)+'" aria-label="'+esc((side==="client"?"Client users":"Your team")+" in "+c.name+": "+shown.join("; "))+'">'
-   +wsFaces(L,side==="client"?c.colour:AGENCY.colour)+'</span>';   /* vE E084: no names line under the faces */
+   +wsFaces(L,side==="client"?c.colour:AGENCY.colour).replace(/ data-pnopen=/g,' data-pnfrom="'+c.id+'" data-pnopen=')+'</span>';   /* vE E084: no names line under the faces */
 }
 function wsOANote(){return "";   /* change 320: the Account Owners line went */
 }
@@ -5777,7 +5777,7 @@ let PEOPLE_TAB="agency", PEOPLE_FLASH=null;
 /* People revamp, 29 Sep 2026 (Hitesh: "UX is broken, everything has to be revamped"):
    one table and the product's own modals, modelled on Settings > Users and Teams. */
 let PEOPLE_Q="", PEOPLE_ROLE="all", peopleMenu=null, INV=null, DISABLED={};
-const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,transfer:1,mkowner:1,rmowner:1,pplvl:1};
+const PEOPLE_MODALS={invite:1,chrole:1,assignws:1,pconfirm:1,prm:1,prmc:1,prmw:1,transfer:1,mkowner:1,rmowner:1,pplvl:1};
 /* change 156, 8 Oct 2026: every role is given from the admin panel (PRD §2.1,
    §3.6; doc 84 rows 14 to 16). Owners: invite as Owner, make an Admin an Owner,
    remove another Owner's role, and Transfer ownership from the Owner's own
@@ -5932,7 +5932,7 @@ function rmClientRow(c,r,ed,link,ty){
 function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
  /* change 349: every row has a kebab, or none does. A row with nothing to edit on this workspace (Owner, Admin, you, a disabled person) has one item, which opens their page in People */
- const items=!ed?[]:can&&!r.me?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[["people","Change in Users"]];
+ const items=!ed?[]:can&&!r.me?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[["people",personOf(r.key)&&personCanEdit(personOf(r.key))?"Edit access":"View access"]];   /* vE E102: it opens the panel here, not Users */
  return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
   <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
 }
@@ -6945,7 +6945,7 @@ const hoHas=c=>c.seq+c.ea+c.pros+c.tpl>0;
 /* the workspaces the draft takes away from this person */
 function hoLost(p){const d=PA_ED.d, c=pxCast(p), before=c.kind==="client"?Object.keys(c.cws):pxVisible(c.ws||[]);
  const after=d.side==="client"?pxTicked(d):d.role==="Owner"?null:d.ws; return pxOrd(before.filter(id=>after!==null&&after.indexOf(id)<0))}
-const hoOwed=p=>hoLost(p).filter(id=>hoHas(hoOwn(p.email,id)));
+const hoOwed=p=>[];   /* Phase 1 (Hitesh, 29 Oct 2026: "Handover flow when we delete user would be something will take up in phase-2"). Phase 2: hoLost(p).filter(id=>hoHas(hoOwn(p.email,id))) */
 /* teammates who can open the workspace (Account Owners included), then its Client Admins; nobody who cannot sign in */
 function hoGroups(p,id){const w=pxW(id);
  const team=ppTeam().filter(t=>t.email!==p.email&&!t.invited&&!t.disabled&&(t.ws===null||t.ws.indexOf(id)>-1)).map(t=>({value:"t:"+t.k,label:t.name+(t.me?" (you)":"")}));
@@ -7123,13 +7123,14 @@ function pxSave(){const E=PA_ED; if(!E) return; const p=personOf(E.key); if(!p){
    if(u&&old[id]!==nw[id]) logAct(id,`${email}'s role set to ${ppShort(nw[id])}`)});
   const keep=nw[p.c&&p.c.id]?p.c.id:pxOrd(Object.keys(nw))[0]; key="w:"+keep+"|"+email;
   t=cross?`${first} is now a client user.`:ch.length===1?(nw[ch[0]]?(old[ch[0]]?`${nm} is now ${art(nw[ch[0]])} in ${sentEnd(wn(ch[0]))}`:`${nm} now opens ${wn(ch[0])} as ${art(nw[ch[0]])}.`):`${nm} no longer opens ${sentEnd(wn(ch[0]))}`):`${nm}&rsquo;s access changed in ${ch.length} workspaces.`}
- PA_ED=null; PX_MENU=false; view={name:"person",id:key};
- receipt("people",t+(HO.sentence?" "+HO.sentence:""),()=>{snap(); HO.undo(); if(view.name==="person"&&view.id===key) view={name:"person",id:p.key}},`updated ${nm}'s access`);
+ PA_ED=null; PX_MENU=false; if(PN) PN.key=key; else view={name:"person",id:key};   /* vE E102 */
+ receipt("people",t+(HO.sentence?" "+HO.sentence:""),()=>{snap(); HO.undo(); if(view.name==="person"&&view.id===key) view={name:"person",id:p.key}; if(PN&&PN.key===key){PN.key=p.key; PA_ED=null}},`updated ${nm}'s access`);
  render();
 }
 function paCancel(){const p=PA_ED&&personOf(PA_ED.key); if(p&&pxDirty(p)){PA_ED.ask=true; render(); return} PA_ED=null; render()}
 /* opening a person from a workspace keeps that workspace as the way back: the breadcrumb names it and browser Back returns to its Members tab */
-function shOpenPerson(key,from){view={name:"person",id:key}; if(from) view.from=from; PERSON_TAB="access"; PA_KIND="all"; PA_WS="all";
+function shOpenPerson(key,from){if(pnOpen(key,from)) return;   /* vE E102: the panel, over the Members tab */
+view={name:"person",id:key}; if(from) view.from=from; PERSON_TAB="access"; PA_KIND="all"; PA_WS="all";
  if(from){try{const h=demoHash(["person="+key,"from="+from,HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam()]); (history.state&&history.state.sh==="person"?history.replaceState:history.pushState).call(history,{sh:"person",id:key,from},"",location.pathname+location.search+"#"+h); SH_PUSHED=true}catch(e){}}}
 window.addEventListener("popstate",e=>{const st=e.state; SH_SKIP=true; setTimeout(()=>{SH_SKIP=false},80);
  if(st&&st.sh==="person"&&personOf(st.id)){PA_ED=null; view={name:"person",id:st.id,from:st.from}; PERSON_TAB="access"; SH_PUSHED=true; render(); return}
@@ -7254,7 +7255,8 @@ function vPerson(){
  <div class="wrap">${PERSON_TAB==="activity"?logSoon("person"):personAccessHTML(p)}</div>`;
 }
 /* vE E048: Edit access edits in place, with Invite's fields, where the Role and Workspaces rows are */
-function personEdit(key){
+function personEdit(key){if(PN&&PN.key===key) return;   /* vE E102: the panel is the edit */
+
  const p=personOf(key); if(!p||!personCanEdit(p)) return;
  PA_ED=pxStart(p); PX_MENU=false; render(); pxFocus();
 }
@@ -7300,7 +7302,7 @@ function prmGo(){
  const P=p.P, to=modal.to||{}, wss=(P.ws===null?fundedWorkspaces():(P.ws||[]).map(id=>byId[id]).filter(Boolean));
  const ids=pxOrd(wss.map(c=>c.id)).filter(id=>hoHas(hoOwn(p.email,id))); if(!ids.every(id=>to[id])) return;   /* vE E073 */
  const HO=hoApply(p,ids,to);
- delete PEOPLE[p.k]; modal=null; renderModal(); view={name:"people"};
+ delete PEOPLE[p.k]; modal=null; renderModal(); if(PN) pnClose(true); else view={name:"people"};   /* vE E102: stay where the panel was opened */
  receipt("people",`${p.name} removed from the account. ${HO.sentence||"Nothing to hand over."}`,()=>{PEOPLE[p.k]=P; HO.undo(); render()},`${p.name} removed from the account`);
  render();
 }
@@ -7593,7 +7595,7 @@ function ddSearch(dd){const i=dd.querySelector(".dd-q"); if(!i) return;
  i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault(); const v=[...dd.querySelectorAll("[data-ddopt][data-ddk]")].filter(o=>!o.hidden); if(v.length===1) v[0].click()}}}
 /* change 198: inside the invite form, a menu that would be cut off by the bottom of
    the scrolling modal body opens upward instead (the per-client role menus) */
-function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(dd.closest(".inv-a2,.px-fld")){invPlaceMenu(dd,menu); return}   /* vE E048: the person page's fields float like Invite's */ if(!dd.closest(".inv-form")) return;
+function ddFlip(dd,menu){dd.classList.remove("dd-up"); if(dd.closest(".pn-pan")){pnPlaceMenu(dd,menu); return}   /* vE E102 */ if(dd.closest(".inv-a2,.px-fld")){invPlaceMenu(dd,menu); return}   /* vE E048: the person page's fields float like Invite's */ if(!dd.closest(".inv-form")) return;
  let sc=dd.parentElement; while(sc&&sc!==document.body){const o=getComputedStyle(sc).overflowY; if(o==="auto"||o==="scroll") break; sc=sc.parentElement}
  const box=sc&&sc!==document.body?sc.getBoundingClientRect():{top:0,bottom:innerHeight}, t=dd.getBoundingClientRect();
  const below=Math.min(box.bottom,innerHeight)-t.bottom, above=t.top-Math.max(box.top,0), h=menu.offsetHeight+8;
@@ -7732,7 +7734,7 @@ function pconfirmHTML(){
  const r=rowByKey(modal.key); if(!r) return "";
  const a=modal.act;
  const title=a==="delete"?(r.kind==="team"?"Remove from account?":`Remove from ${r.c.name}?`):a==="disable"?"Disable user?":"Enable user?";
- const body=a==="delete"?(r.kind==="team"?`${r.name} loses every sign-in to ${AGENCY.name}. Sequences they created stay and are reassigned to you.`:`${r.email} loses their sign-in to ${r.c.name}. Their replies stay.`)
+ const body=a==="delete"?(r.kind==="team"?`${r.name} loses every sign-in to ${sentEnd(AGENCY.name)} Sequences they created stay and are reassigned to you.`:`${r.email} loses their sign-in to ${sentEnd(r.c.name)} Their replies stay.`)
    :a==="disable"?`${r.name} keeps their record and loses their sign-in until enabled again.`:`${r.name} can sign in again.`;
  return card(title,`<p class="ac-lead" style="margin:0">${body}</p>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button ${a==="delete"?"shd-button--danger":"shd-button--primary"}" data-pconfirmok>${title.replace("?","")}</button>`,"ac");
@@ -7799,7 +7801,7 @@ function wirePeopleModal(L){
   if(!L.querySelector(".inv-ed"))inp.focus();}
  if(k==="transfer"){wireDD(L,"trTo",v=>{modal.to=v;rerender()}); const go=L.querySelector("[data-trgo]"); if(go) go.onclick=transferStart}
  if(k==="mkowner"||k==="rmowner"){const go=L.querySelector("[data-ownok]"); if(go) go.onclick=ownerRoleGo}
- if(k==="prm"||k==="prmc"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{if(!v) return; modal.to[d.id.slice(6)]=v; renderModal(); const tr=document.querySelector("#"+d.id+" [data-ddtrig]"); if(tr) tr.focus()})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=prmGo; L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
+ if(k==="prm"||k==="prmc"||k==="prmw"){L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{if(!v) return; modal.to[d.id.slice(6)]=v; renderModal(); const tr=document.querySelector("#"+d.id+" [data-ddtrig]"); if(tr) tr.focus()})); const go=L.querySelector("[data-prmgo]"); if(go)go.onclick=pnDelGo;   /* vE E102, Phase 1 */ L.querySelectorAll("[data-openrec]").forEach(b=>b.onclick=()=>{modal=null;renderModal();view={name:"record",id:b.dataset.openrec};render()})}
  if(k==="chrole"){wireDD(L,"chRole",v=>{modal.to=v;rerender()}); const ok=L.querySelector("[data-chroleok]"); if(ok)ok.onclick=()=>peopleModalOk("chrole")}
  if(k==="assignws"){L.querySelectorAll("input[name=asws]").forEach(c=>c.onchange=()=>{modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value)}); L.querySelector("[data-assignok]").onclick=()=>{if(!modal.ws)modal.ws=[...L.querySelectorAll("input[name=asws]:checked")].map(x=>x.value);peopleModalOk("assignws")}}
  if(k==="pconfirm"){L.querySelector("[data-pconfirmok]").onclick=()=>peopleModalOk("pconfirm")}
@@ -12832,6 +12834,7 @@ function modalHTML(){
  if(modal.kind==="invite") return inviteHTML();
  if(modal.kind==="transfer") return transferHTML();
  if(modal.kind==="mkowner"||modal.kind==="rmowner") return ownerConfirmHTML();
+ if(modal.kind==="prm"||modal.kind==="prmc"||modal.kind==="prmw") return pnDelHTML();   /* vE E102, Phase 1: production's Delete user confirm; prmHTML's hand-over table is Phase 2 */
  if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
  if(modal.kind==="utrole") return utRoleHTML();   /* vE E083 */
  if(modal.kind==="utrm") return utRmHTML();
@@ -13426,7 +13429,8 @@ function ivxPreview(v){const I=v.indexOf("t:")===0?ivxTeam(v.slice(2)):ivxClient
 function render(){
  if(asClient&&CLIENT_SESSION&&ACTING_EMAIL&&byId[ctx]&&byId[ctx].disabled){const alt=clientWsOf().filter(x=>!x.disabled).sort((a,b)=>a.name.localeCompare(b.name))[0]; if(alt){ctx=alt.id; view={name:"clients"}} else view={name:"refused"}}
  if(asClient&&view.name!=="clients"&&view.name!=="refused") view={name:"clients"};   /* change 351: one guard, a client session has no agency view */
- if(PA_ED&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
+ pnRoute();   /* vE E102: the person page is gone; its route opens the panel */
+ if(PA_ED&&!(PN&&PN.key===PA_ED.key)&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
  if(view.name!=="person"){SH_PUSHED=false; PX_MENU=false}   /* vE E048: leaving the person page closes its more menu */
  /* the handover's toolbar line is for this landing only; leaving the
     workspace it named, for any reason, spends it for the rest of the session */
@@ -13504,6 +13508,7 @@ function render(){
  pageEl.classList.toggle("pb-still",pageKey===lastPageKey);
  lastPageKey=pageKey;
  wire();renderThread();if(pfOn())pfWire();   /* vE E099 */
+ pnPaint();   /* vE E102 */
  renderXform();
  if(typeof demoSync==="function") demoSync();
 }
@@ -14335,7 +14340,7 @@ function wire(){
  q("[data-topeopleclients]").forEach(b=>b.onclick=()=>{PEOPLE_TAB="clients";view={name:"people"};render()});
  q("[data-ptab]").forEach(b=>b.onclick=()=>{PEOPLE_TAB=b.dataset.ptab;peopleMenu=null;render()});
  /* People v2 */
- q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
+ q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;if(pnOpen(r.dataset.ppopen)) return;   /* vE E102 */ PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
  q("[data-ptabp]").forEach(b=>b.onclick=()=>{PERSON_TAB=b.dataset.ptabp;render()});
  q("[data-ubtab]").forEach(b=>b.onclick=()=>{UB_TAB=b.dataset.ubtab;render()}); /* change 146: Usage & billing tabs */
  q("[data-pedit]").forEach(b=>b.onclick=()=>personEdit(b.dataset.pedit));
@@ -15254,6 +15259,208 @@ function e101Boot(s){E101.state=s; me_=s==="admin"?"priya":"owner"; solo=false; 
  if(s==="split"){e101SpOpen("sends"); UL.sp.menu="who"}
  if(s==="dayone"){UL.spDone=false; UL_K().forEach(x=>{if(isUnl(x)) return; Object.keys(RES[x].rows).forEach(id=>{const r=RES[x].rows[id]; r.cap=0; r.used=0; syncRes(x,r)})}); if(byId.ok) byId.ok.disabled=false}}
 
+/* ═══ vE E102, 28 Oct 2026. Hitesh: "No bro, we should remove detail page entirely and only side panel with different design".
+   R1 (161-person-panel/thinking.md): the person opens in a side panel over the screen they were clicked on. The draft is E048's
+   PA_ED (pxStart, pxDirty, pxInvalid, pxSave), so one person one login, the last Account Owner, Account Admins and Account
+   Owners keep every rule they had on the page. Phase 1 has no hand-over (Hitesh, 29 Oct 2026); it is Phase 2. PN={key,email,from,pick,menu,guard,focus,back}. ═══ */
+let PN=null;
+const E102={state:null};
+const PN_X='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const PN_PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+const PN_DOTS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+/* the panel belongs to the screen it opened over: when something else changes the screen, it closes */
+const pnHost=()=>ctx+"|"+(asClient?1:0)+"|"+view.name+"|"+(view.id||"")+"|"+(view.name==="record"&&typeof tab!=="undefined"?tab:"");
+const pnSet=(key,from)=>{const p=personOf(key); if(!p) return false; PN={key,email:p.email,from:from&&byId[from]?from:null,pick:false,menu:false,guard:false,focus:null,fresh:true,back:null,host:pnHost()}; PA_ED=pxStart(p); PX_MENU=false; return true};
+function pnPerson(){if(!PN) return null; let p=personOf(PN.key);
+ if(!p&&PN.email){const t=ppTeam().find(x=>x.email===PN.email), c=ppClients().find(x=>x.email===PN.email), k=t?"t:"+t.k:c?c.key:null; if(k){PN.key=k; p=personOf(k)}}
+ return p}
+function pnOpen(key,from){if(!canI("members")||ctx!=="agency"||asClient) return false; const back=document.activeElement;
+ if(!pnSet(key,from)) return false; PN.back=back; PP.menu=null; if(typeof RM!=="undefined"&&RM) RM.pop=null; render(); return true}
+function pnClose(force){if(!PN) return; const p=pnPerson();
+ if(!force&&p&&PA_ED&&pxDirty(p)){PN.guard=true; PN.menu=false; PN.pick=false; PN.focus="[data-pnkeep]"; pnPaint(); return}
+ const back=PN.back; PN=null; PA_ED=null; const L=document.getElementById("pnLayer"); if(L) L.remove(); document.body.classList.remove("pn-on"); render();
+ if(back&&back.isConnected) back.focus({preventScroll:true})}
+/* the person page has no route of its own any more: whatever asks for it lands on Users, or on the workspace's Members tab it
+   was opened from, with the panel open */
+function pnRoute(){if(!view||view.name!=="person") return; const k=view.id, f=view.from&&byId[view.from]?view.from:null;
+ if(f){view={name:"record",id:f}; tab="members"} else view={name:"people"};
+ if(canI("members")&&ctx==="agency"&&!asClient) pnSet(k,f)}
+const pnClientWs=p=>pxOrd(Object.keys(pxCast(p).cws).filter(id=>isMember(ME(),id)));
+const pnVis=id=>pxW(id)&&!pxW(id).deletedOn&&isMember(ME(),id);
+/* the rows: what they have now (A to Z, your own first), then what the draft adds, in the order added. null: every workspace */
+function pnRows(p){const c=pxCast(p), d=PA_ED.d, cl=d.side==="client";
+ const after=cl?pxTicked(d):d.role==="Owner"?null:d.ws; if(after===null) return null;
+ const before=c.kind==="client"?Object.keys(c.cws):(c.ws||[]), b=pxOrd(before.filter(pnVis)), add=after.filter(id=>pnVis(id)&&b.indexOf(id)<0);
+ return b.concat(add).map(id=>({id,was:b.indexOf(id)>-1,on:after.indexOf(id)>-1}))}
+function pnItemHTML(p,r,can,nOn){const w=pxW(r.id), d=PA_ED.d, cl=d.side==="client", nm=invEsc(w.name), k=` data-k="${invEsc(w.name.toLowerCase())}"`;
+ if(r.was&&!r.on){const rt=p.kind==="client"?pxCast(p).cws[r.id]:"";
+  return `<div class="pn-item"${k}><div class="pn-row${rt?"":" is-t"} is-gone"><span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span></span>${rt?`<span class="pn-rt">${rt}</span>`:""}<button type="button" class="linkbtn pn-undo" data-pnundo="${r.id}" aria-label="Undo removing from ${nm}">Undo</button></div></div>`}
+ const role=d.cr[r.id]||d.role;   /* Phase 1: no "what they own" line; nothing in Phase 1 acts on it */
+ const name=`<span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span>${w.disabled?'<span class="pop-tag">Disabled</span>':""}</span>`;
+ const sel=!cl?"":can?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}]):`<span class="pn-rt pn-rt--ro">${role}</span>`;
+ const only=cl&&p.kind==="client"&&r.was&&(w.users||[]).length===1;
+ const x=!can||(r.on&&nOn<=1)?"<span></span>":only?`<button type="button" class="pn-ib" disabled title="Only user here. Disable the workspace instead." aria-label="Only user here. Disable the workspace instead.">${PN_X}</button>`
+  :`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}">${PN_X}</button>`;
+ return `<div class="pn-item"${k}><div class="pn-row${cl?"":" is-t"}${PN.from===r.id?" is-hl":""}">${name}${sel}${x}</div></div>`}
+function pnAddHTML(p,rows){const cl=PA_ED.d.side==="client", have=rows.map(r=>r.id);
+ const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}">${PN_PLUS}Add to a workspace</button></div>`;
+ if(!PN.pick) return btn;
+ const L=wsPickOrder(fundedWorkspaces().filter(c=>pnVis(c.id)&&!(cl&&c.own)&&have.indexOf(c.id)<0));
+ return btn+`<div class="pn-pick">${L.length>WS_PICK_MAX?`<div class="inv-a2-wss">${srchI}<input type="text" data-pnaq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}<div class="pn-pl">${L.length?L.map(c=>`<button type="button" class="pn-pr" data-pnpick="${c.id}" data-k="${invEsc(wsHay(c))}">${av(c,24)}<span class="pn-pn">${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${PN_PLUS}</button>`).join("")+(L.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""):`<p class="pn-empty">In every workspace already.</p>`}</div></div>`}
+function pnMenuItems(p){const d=PA_ED.d, gate=!p.me&&canI("members"), I=[];
+ if(!p.disabled&&!p.invited) I.push(["reset","Send reset link",""]);   /* 167: a rare action, so it waits in ⋯ */
+ if(personCanEdit(p)&&!p.me){
+  if(d.side==="client") I.push(["side","Move to your team",""]);
+  else if(!(ME().role!=="Owner"&&p.kind==="team"&&p.role==="Admin")) I.push(["side","Make a client user",""])}   /* change 224: an Account Admin never moves another Account Admin to a client */
+ if(p.kind==="team"&&!p.invited&&gate) I.push(["dis",p.disabled?"Enable":"Disable",p.owner?PX_LOCK_WHY():personCanRemove(p)?"":"Only an Account Owner can disable an Account Admin."]);
+ if(p.me&&p.owner&&ME().role==="Owner") I.push(["transfer","Transfer ownership",transferCands().length&&!TRANSFER?"":"Needs an Account Admin or another Account Owner to hand to"]);
+ if(gate){const why=p.owner?PX_LOCK_WHY():personCanRemove(p)?"":"Only an Account Owner can remove an Account Admin.";
+  if(p.kind==="team") I.push(["rm","Remove from account",why]);
+  else {const ws=pnClientWs(p); if(ws.length) I.push(["rm",ws.length===1?"Remove from "+pxW(ws[0]).name:"Remove from all workspaces",why])}}
+ return I}
+/* 29 Oct 2026, Hitesh on the header: "can you improve and work on this part" (167-person-header/board.html, pick H1, tag and
+   field). Status is a tag beside the name only when it isn't Active (amber only for "Invite expired", which needs you);
+   type and when are one plain line; a teammate's account role is a real field; Send reset link moves into ⋯, which sits
+   beside Close; Resend invite stays in view while they are invited. */
+function pnHdHTML(p){const d=PA_ED.d, team=d.side==="team", can=personCanEdit(p), exp=p.invited&&invExpired(p.invited);
+ const tag=p.disabled?`<span class="pn-tag">Disabled</span>`:p.invited?`<span class="pn-tag${exp?" is-need":""}">${exp?"Invite expired":"Invited"}</span>`:"";
+ const when=p.invited?(p.invited==="never"?"invited":"invited "+AGE(p.invited).toLowerCase()):p.seen&&p.seen!=="never"&&p.seen!=="unknown"?"last sign-in "+p.seen.charAt(0).toLowerCase()+p.seen.slice(1):"never signed in";
+ const who=team?(can?"Your team":`${roleName(d.role)} on your team`):"Client user";
+ const dom=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?`, signs in at ${BRAND.domain}`:"";
+ const resend=p.invited&&!p.disabled?`<button type="button" class="linkbtn pn-lb" data-pnresend>Resend invite</button>`:"";
+ const roles=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]);
+ const role=team&&can?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:TEAM_ROLE_LINE[r]}))}])}</div>`:"";
+ const I=pnMenuItems(p);
+ const menu=PN.menu&&I.length?`<div class="menu pn-menu" role="menu">${I.map(([k,l,why])=>`<button type="button" role="menuitem" class="menu-i${k==="rm"?" is-rm":""}"${why?" disabled":` data-pnmi="${k}"`}><span class="menu-l">${l}</span>${why?`<span class="menu-d">${why}</span>`:""}</button>`).join("")}</div>`:"";
+ const more=I.length?`<span class="pn-morew"><button type="button" class="pn-ib pn-more" data-pnmore aria-haspopup="menu" aria-expanded="${!!PN.menu}" aria-label="More actions for ${invEsc(p.name)}">${PN_DOTS}</button>${menu}</span>`:"";
+ return `<div class="pn-hd"><div class="pn-top"><div class="pn-id">${ppAv(p.initials,PP_AV,40,!!p.invited)}<div class="pn-who"><div class="pn-nl"><h2 class="pn-nm" id="pnTitle">${invEsc(p.name)}${p.me?' <span class="pn-you">(you)</span>':""}</h2>${tag}</div>${p.kind==="team"||p.named?`<div class="pn-em">${invEsc(p.email)}</div>`:""}
+  <div class="pn-meta"><span>${who}, ${when}${dom}</span>${resend}</div></div></div>
+  <div class="pn-tr">${more}<button type="button" class="pn-x" data-pnclose aria-label="Close">${PN_X}</button></div></div>${role}</div>`}
+function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
+ if(p.owner&&!p.me&&canI("members")) h+=`<div class="px-lock pn-lock">${PX_LOCK_I}<span>${PX_LOCK_WHY()}</span></div>`;
+ if(TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)){const F=PEOPLE[TRANSFER.from], T=PEOPLE[TRANSFER.to], s=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
+  h+=`<div class="msg m-warn pn-msg" role="status">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name}; ${s(TRANSFER.from)}, ${s(TRANSFER.to)}. Nothing changes until both confirm. <button type="button" class="linkbtn" data-pntrcancel>Cancel transfer</button></span></div>`}
+ if(d.side!==p.kind) h+=`<p class="pn-note" data-pnff>${d.side==="client"?`${f} will sign in as a client: only the workspaces below, nothing outside them.`:`${f} will join your team: Admin Panel and the workspaces below.`} <button type="button" class="linkbtn pn-lb" data-pnside0>Undo</button></p>`;
+ else if(d.side==="team"&&d.role==="Owner"&&p.role!=="Owner") h+=`<p class="pn-note">Once saved, you can&rsquo;t change or remove ${f}.</p>`;
+ return h}
+function pnFtHTML(p){
+ if(PN.guard) return `<div class="pn-ft"><span class="pn-why pn-ask">Discard your changes?</span><button type="button" class="shd-button shd-button--tertiary" data-pnkeep>Keep editing</button><button type="button" class="shd-button shd-button--primary" data-pndiscard>Discard</button></div>`;
+ if(!pxDirty(p)) return "";
+ const why=pxInvalid(PA_ED.d)?"Keep at least one workspace":"";
+ return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':""}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
+function pnHTML(p,anim){const rows=pnRows(p), can=personCanEdit(p), nOn=rows?rows.filter(r=>r.on).length:0;
+ const list=rows===null?`<div class="pn-sec">Workspaces</div><p class="pn-line">Reaches every workspace.</p>`
+  :`<div class="pn-sec">Workspaces <span class="pn-n">${rows.length}</span></div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
+   +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
+ return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${list}</div>${pnFtHTML(p)}</aside>`}
+/* a selector that finds the same control after a repaint */
+function pnKeyOf(a){if(a.id) return "#"+CSS.escape(a.id); const dd=a.closest(".dd"); if(dd&&dd.id) return "#"+CSS.escape(dd.id)+" [data-ddtrig]";
+ for(const n of a.getAttributeNames()) if(/^data-pn/.test(n)) return `[${n}${a.getAttribute(n)?`="${CSS.escape(a.getAttribute(n))}"`:""}]`; return null}
+function pnPaint(){let L=document.getElementById("pnLayer");
+ if(PN&&(asClient||ctx!=="agency"||!canI("members")||PN.host!==pnHost())){PN=null; PA_ED=null}
+ const p=pnPerson();
+ if(!PN||!p){PN=null; if(L) L.remove(); document.body.classList.remove("pn-on"); document.querySelectorAll(".pn-sel").forEach(x=>x.classList.remove("pn-sel")); return}
+ if(!PA_ED||PA_ED.key!==p.key) PA_ED=pxStart(p);
+ const first=!L; if(!L){L=document.createElement("div"); L.id="pnLayer"; document.body.appendChild(L)}
+ const bd=L.querySelector(".pn-bd"), sc=bd?bd.scrollTop:0, a=document.activeElement, fk=PN.focus||(a&&L.contains(a)?pnKeyOf(a):null), qv=(L.querySelector("[data-pnq]")||{}).value||"";
+ L.innerHTML=pnHTML(p,first&&PN.fresh); PN.fresh=false; PN.focus=null; document.body.classList.add("pn-on");
+ const bd2=L.querySelector(".pn-bd"); if(bd2) bd2.scrollTop=sc;
+ const qi=L.querySelector("[data-pnq]"); if(qi&&qv){qi.value=qv; pnFilter(qi,".pn-list .pn-item")}
+ pnWire(L,p);
+ document.querySelectorAll(".pn-sel").forEach(x=>x.classList.remove("pn-sel"));
+ document.querySelectorAll("[data-ppopen],[data-rmrow]").forEach(r=>{const q=personOf(r.dataset.ppopen||r.dataset.rmrow); if(q&&q.email===p.email) r.classList.add("pn-sel")});
+ const f=(Array.isArray(fk)?fk:[fk]).map(k=>k&&L.querySelector(k)).find(Boolean); if(f) f.focus({preventScroll:true}); else if(first){const x=L.querySelector(".pn-x"); if(x) x.focus({preventScroll:true})}
+ if(f&&!f.matches("[data-pnkeep]")){const r=f.getBoundingClientRect(), b=L.querySelector(".pn-bd"); if(b&&b.contains(f)){const B=b.getBoundingClientRect(); if(r.bottom>B.bottom) b.scrollTop+=r.bottom-B.bottom+12}}}
+/* the search boxes filter in place, so typing keeps its focus */
+function pnFilter(i,sel){const t=i.value.trim().toLowerCase(), box=i.closest(".pn-bd"); let n=0;
+ box.querySelectorAll(sel).forEach(r=>{const on=!t||(r.dataset.k||"").indexOf(t)>-1; r.hidden=!on; if(on) n++});
+ const z=i.closest(".pn-pick")?i.closest(".pn-pick").querySelector(".pn-none"):box.querySelector(".pn-list>.pn-none"); if(z){z.hidden=n>0||!t; if(!z.hidden) z.innerHTML=nrHTML(i.value)}}
+function pnWire(L,p){const d=PA_ED.d;
+ wireDD(L,"pnrole",v=>{if(!v) return; pxPick(p,v); PN.focus="#pnrole [data-ddtrig]"; pnPaint()});
+ L.querySelectorAll(".dd[id^=pnr_]").forEach(x=>wireDD(L,x.id,v=>{if(!v) return; d.cr[x.id.slice(4)]=v; PN.focus="#"+x.id+" [data-ddtrig]"; pnPaint()}));
+ L.querySelectorAll("[data-pnq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-list .pn-item"));
+ L.querySelectorAll("[data-pnaq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-pl .pn-pr"));
+ L.onclick=e=>{const t=e.target.closest("button,[data-pnscrim]"); if(PN.menu&&!e.target.closest(".pn-morew")){PN.menu=false; if(!t||t.matches("[data-pnscrim]")){pnPaint(); return}}
+  if(!t||t.disabled) return; const D=t.dataset;
+  if(D.pnscrim!=null||D.pnclose!=null){pnClose(); return}
+  if(D.nrclear!=null){const i=t.closest(".pn-pick")?L.querySelector("[data-pnaq]"):L.querySelector("[data-pnq]"); if(i){i.value=""; i.oninput(); i.focus()} return}
+  if(D.pnx){const i=d.ws.indexOf(D.pnx); if(i>-1) d.ws.splice(i,1); PN.guard=false; PN.focus=`[data-pnundo="${D.pnx}"]`; pnPaint(); return}
+  if(D.pnundo){if(d.ws.indexOf(D.pnundo)<0) d.ws.push(D.pnundo); PN.focus=`[data-pnx="${D.pnundo}"]`; pnPaint(); return}
+  if(D.pnadd!=null){PN.pick=!PN.pick; PN.focus=PN.pick?["[data-pnaq]","[data-pnpick]"]:"[data-pnadd]"; pnPaint(); return}
+  if(D.pnpick){d.ws.push(D.pnpick); if(d.side==="client"&&!d.cr[D.pnpick]) d.cr[D.pnpick]=INV_LEVEL_DEFAULT; PN.pick=false; PN.guard=false; PN.focus=[`#pnr_${D.pnpick} [data-ddtrig]`,`[data-pnx="${D.pnpick}"]`]; pnPaint(); return}   /* change 292: least role first */
+  if(D.pnmore!=null){PN.menu=!PN.menu; PN.focus=PN.menu?".pn-menu [data-pnmi]":"[data-pnmore]"; pnPaint(); return}
+  if(D.pnmi){PN.menu=false; pnMenuDo(p,D.pnmi); return}
+  if(D.pnside0!=null){PA_ED=pxStart(p); PN.focus="[data-pnmore]"; pnPaint(); return}
+  if(D.pnkeep!=null){PN.guard=false; pnPaint(); return}
+  if(D.pndiscard!=null){pnClose(true); return}
+  if(D.pncancel!=null){PA_ED=pxStart(p); PN.pick=false; PN.focus="[data-pnclose]"; pnPaint(); return}
+  if(D.pnsave!=null){pnSave(); return}
+  if(D.pnreset!=null){ppToast(`Reset link sent to ${p.email}. It works for 24 hours.`,null,"reset link sent"); render(); return}
+  if(D.pnresend!=null){INVITED[p.kind==="team"?"t:"+p.k:p.key]="just now"; ppToast(`Invite resent to ${p.email}.`,null); render(); return}
+  if(D.pntrcancel!=null){transferCancel(); return}}}
+function pnMenuDo(p,k){const d=PA_ED.d;
+ if(k==="side"){if(d.side!==p.kind) PA_ED=pxStart(p); else pxPick(p,d.side==="client"?"Member":INV_LEVEL_DEFAULT); PN.focus="[data-pnside0]"; pnPaint(); return}
+ if(k==="reset"){ppToast(`Reset link sent to ${p.email}. It works for 24 hours.`,null,"reset link sent"); render(); return}
+ if(k==="dis"){if(p.disabled){modal={kind:"pconfirm",key:p.key,act:"enable"}; peopleModalOk("pconfirm")} else {modal={kind:"pconfirm",key:p.key,act:"disable",px:1}; pnPaint(); renderModal()} return}   /* Disable confirms first; Enable stays direct (E048) */
+ if(k==="transfer"){modal={kind:"transfer"}; pnPaint(); renderModal(); return}
+ if(k==="rm"){modal=p.kind==="team"?{kind:"prm",key:p.key,to:{}}:{kind:"prmw",key:p.key,ws:pnClientWs(p),to:{}}; pnPaint(); renderModal()}}
+/* Save: E048's write, whichever sides it crosses; the toast's Undo puts everything back. The panel stays on the person. */
+function pnSave(){const p=pnPerson(); if(!p||!PA_ED) return; if(!pxDirty(p)||pxInvalid(PA_ED.d)) return;
+ PN.guard=false; PN.pick=false; PN.focus="[data-pnclose]"; pxSave()}
+/* Phase 1. Hitesh, 29 Oct 2026: "Handover flow when we delete user would be something will take up in phase-2". No removal asks
+   who takes someone's records, and nothing says where records go (production says nothing today). Removing someone from the
+   account is production's Delete user confirm (users-and-teams/components/users/modals/delete-user-modal.tsx), its casing
+   fixed. E073's hand-over (hoOwed, hoApply, prmHTML's table) is switched off at hoOwed and left in the file for Phase 2. */
+const pnDelIds=p=>p.kind==="client"?((modal.ws&&modal.ws.length?modal.ws:pnClientWs(p)).filter(id=>pxW(id))):[];
+function pnDelHTML(){const p=personOf(modal.key); if(!p) return "";
+ if(p.kind==="client"){const ids=pnDelIds(p), only=ids.filter(id=>(pxW(id).users||[]).length===1);
+  if(only.length){const c=pxW(only[0]);   /* kept: the only sign-in of a workspace is never removed (change 297) */
+   return card(`Remove ${invEsc(p.named?p.name:p.email)}?`,`<div class="msg m-warn" role="status">${warnI}<span><b>${invEsc(p.name)}</b> is ${c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in. If the client is leaving, <button class="linkbtn" data-openrec="${c.id}">disable the workspace</button> instead.</span></div>`,`<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>`,"ac")}
+  if(Object.keys(pxCast(p).cws).some(id=>ids.indexOf(id)<0)){const place=listAnd(ids.map(id=>pxW(id).name));   /* an Account Admin removes them only from the workspaces they reach */
+   return card(`Remove ${invEsc(p.named?p.name:p.email)} from ${invEsc(place)}?`,`<p class="ac-lead">They lose access to ${invEsc(place)}. You can undo this.</p>`,`<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-prmgo>Remove</button>`,"ac")}}
+ return card("Delete user",`<p class="ac-lead">Are you sure you want to delete the selected user permanently?</p><p class="ac-lead pn-del2">If you delete this user, the user will no longer be a part of a Saleshandy account.</p>`,
+  `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-prmgo>Delete</button>`,"ac")}
+function pnDelGo(){const p=personOf(modal.key); if(!p) return;
+ if(p.kind==="team"){if(p.owner||p.me||!personCanRemove(p)) return; const P=PEOPLE[p.k]; delete PEOPLE[p.k]; logAct(null,`${p.name} deleted`); modal=null; renderModal(); if(PN) pnClose(true);
+  receipt("people",`${p.name} removed from the account.`,()=>{PEOPLE[p.k]=P},`${p.name} removed from the account`); RECEIPT.variant="neutral"; render(); return}
+ const ids=pnDelIds(p); if(ids.some(id=>(pxW(id).users||[]).length===1)) return; const back=[];
+ ids.forEach(id=>{const c=pxW(id), i=(c.users||[]).findIndex(u=>u[0]===p.email); if(i<0) return; const u=c.users[i]; c.users.splice(i,1); back.push(()=>c.users.splice(i,0,u)); logAct(id,`${p.email} removed from ${c.name}'s people`)});
+ const gone=!CLIENTS.some(c=>(c.users||[]).some(u=>u[0]===p.email));
+ modal=null; renderModal();
+ receipt("people",gone?`${p.name} removed from the account.`:`${p.name} removed from ${listAnd(ids.map(id=>pxW(id).name))}.`,()=>{back.reverse().forEach(f=>f())},`removed ${p.name}`); RECEIPT.variant="neutral";
+ render()}
+/* a role menu inside the panel floats like Invite's: right-aligned to its field, at least 240px, upward when the space below is short */
+function pnPlaceMenu(dd,m,again){if(!again) requestAnimationFrame(()=>{if(!m.hidden) pnPlaceMenu(dd,m,true)});
+ const hr=!!dd.closest(".pn-role"), t=dd.querySelector(".dd-trig").getBoundingClientRect(), w=Math.min(innerWidth-16,Math.max(t.width,dd.closest(".pn-row")?240:hr?280:0)), h=Math.min(m.scrollHeight,400), below=innerHeight-t.bottom-12, above=t.top-12;
+ Object.assign(m.style,{position:"fixed",zIndex:1300,right:"auto",minWidth:"0",width:w+"px",left:Math.max(8,Math.min(hr?t.left:t.right-w,innerWidth-w-8))+"px"});   /* the header's role field opens under itself, left-aligned (167) */
+ if(h>below&&above>below){m.style.top="auto"; m.style.bottom=(innerHeight-t.top+4)+"px"; m.style.maxHeight=Math.min(400,above)+"px"}
+ else {m.style.bottom="auto"; m.style.top=(t.bottom+4)+"px"; m.style.maxHeight=Math.min(400,below)+"px"}}
+document.addEventListener("scroll",e=>{const o=document.querySelector(".pn-pan .dd.is-open"); if(!o||(e.target.closest&&e.target.closest(".dd-menu"))) return; const t=o.querySelector("[data-ddtrig]"); if(t) t.click()},true);
+/* Esc: an open menu first, then the question, then the panel (which asks first when something is unsaved) */
+document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!PN||modal||document.querySelector(".pn-pan .dd.is-open")) return; e.preventDefault(); e.stopPropagation();
+ if(PN.menu||PN.pick){PN.focus=PN.menu?"[data-pnmore]":"[data-pnadd]"; PN.menu=false; PN.pick=false; pnPaint(); return}
+ if(PN.guard){PN.guard=false; pnPaint(); return} pnClose()},true);
+/* faces on the Workspaces page open the panel; the click must not reach the row. On touch a tap keeps showing the face
+   group's names (E071), so only a pointer that can hover opens it there */
+document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-pnopen]"); if(!f||!matchMedia("(hover: hover)").matches) return; e.preventDefault(); e.stopPropagation(); pnOpen(f.dataset.pnopen,f.dataset.pnfrom)},true);
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches("[data-pnopen]")){e.preventDefault(); pnOpen(e.target.dataset.pnopen,e.target.dataset.pnfrom)}});
+/* reviewer states (#e102=<state>) */
+function e102Go(s){const h="e102="+s+"&guide=off&p102"; if(location.hash==="#"+h) location.reload(); else location.hash=h}
+function e102Phone(){const d=document.createElement("div"); d.className="e102-ph";
+ d.innerHTML=`<div class="e102-phh"><span>Phone, 390 wide</span><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-e102close>Close phone view</button></div><iframe title="The person panel at 390 wide" src="${location.href.split("#")[0]}#e102=users&guide=off"></iframe>`;
+ document.body.appendChild(d); d.querySelector("[data-e102close]").onclick=()=>e102Go("users")}
+function e102Boot(s){E102.state=s; me_="owner"; solo=false; ctx="agency"; asClient=false; inMod=null; modal=null;
+ const ines="w:at|finance@northwind.co";
+ if(s==="members"){view={name:"record",id:"at"}; tab="members"; pnSet(ines,"at"); return}
+ view={name:"people"};
+ if(s==="phone"){setTimeout(e102Phone,400); return}
+ if(s==="team"){pnSet("t:priya"); return}
+ pnSet(ines);
+ if(s==="remove"){const d=PA_ED.d; d.ws=d.ws.filter(id=>id!=="nw")}
+ if(s==="add") PN.pick=true;
+ if(s==="guard"){PA_ED.d.cr.nw="Client Admin"; PN.guard=true}
+ if(s==="role") setTimeout(()=>{const t=document.querySelector("#pnr_nw [data-ddtrig]"); if(t) t.click()},900)}
+
 /* Deep links, so any screen can be opened and checked without clicking a path
    to it: #clients, #queue, #dash, #credits, #settings, #invite, #solo-plain
    for an ordinary account with no agency relationship, and #client=<id> for
@@ -15281,6 +15488,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
     for someone with no Home). Change 195: a Demo panel change keeps the
     screen it was made on instead (demoRestoreScreen, end of this block). */
  if(k==="demo"){demoScenario(v||"busy");ctx="agency";asClient=false;inMod=null;view=homeView()}
+ if(k==="e102") e102Boot(v||"users");   /* vE E102: reviewer states */
  if(k==="e101") e101Boot(v||"sends");   /* vE E101: reviewer states */
  if(k==="e105") e105Boot(v||"switcher-two-accounts");   /* vE E105: reviewer states */
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,limits:1,settings:1,invite:1,whitelabel:1,login:1},
@@ -17917,6 +18125,14 @@ TOPICS.push({k:"e101", t:"Plan, allocated, used and left to allocate on each res
  src:"159, 164, E101",
  e101st:[["sends","Emails sent with available"],["edit","A typed draft"],["nothing","Nothing left to allocate"],["admin","Account Admin"],["phone","Phone"],["split","Split, choosing who"],["dayone","Day one"]],
  go:()=>{e101Go("sends")}});
+/* vE E102, 28 Oct 2026: the person panel, for Hitesh's review */
+TOPICS.push({k:"e102", t:"A person opens in a side panel",
+ claim:"Clicking someone in Users or a workspace's Members opens them in a panel over the list: who they are, one row per workspace with their role, and Add to a workspace. Nothing changes until Save.",
+ ask:"You need to take Northwind away from someone. Show me how you would do it.",
+ watch:"If they hunt for an Edit button or a page, the rows don't read as editable. If they look for a confirmation after ×, the struck row and Undo are not read as the change.",
+ src:"160, 161, E102",
+ e102st:[["users","Client user in Users"],["members","From Atlas Members"],["role","Role menu"],["remove","Removing Northwind"],["add","Add to a workspace"],["guard","Unsaved, closing"],["team","Teammate"],["phone","Phone"]],
+ go:()=>{e102Go("users")}});
 const REACT=[["yes","Confirmed"],["no","Contradicted"],["meh","Did not care"],["new","New requirement"]];
 const RDOT={yes:"d-yes",no:"d-no",meh:"d-meh",new:"d-new"};
 
@@ -17952,6 +18168,7 @@ function sessRender(){
   <p class="sess-h">${sIdx+1}. ${T.t}</p>
   <p class="sess-sub">Testing a claim from ${T.src}</p>
   <p class="sess-q">${T.ask}</p>
+  ${T.e102st?`<div class="sess-foot"><span class="sub" style="color:var(--gray-15)">Open a state</span>${T.e102st.map(([k,l])=>`<button class="shd-button shd-button--sm ${E102.state===k?"shd-button--primary":"shd-button--tertiary"}" data-e102s="${k}">${l}</button>`).join("")}</div>`:""}
   ${T.e101st?`<div class="sess-foot e101-st"><span class="sub" style="color:var(--gray-15)">Open a state</span>${T.e101st.map(([k,l])=>`<button class="shd-button shd-button--sm ${E101.state===k?"shd-button--primary":"shd-button--tertiary"}" data-e101s="${k}">${l}</button>`).join("")}</div>`:""}
   <div class="sess-grid">
    <dl class="sess-cell"><dt>What this screen claims</dt><dd>${T.claim}</dd></dl>
@@ -17973,6 +18190,7 @@ function sessRender(){
    ${Object.keys(PEOPLE).map(k=>`<button class="shd-button shd-button--sm ${k===me_?"shd-button--primary":"shd-button--tertiary"}" data-sessswap="${k}" ${asClient||solo?"disabled":""}>${PEOPLE[k].name}, ${PEOPLE[k].role}</button>`).join("")}
   </div>`;
  el("sessMain").querySelectorAll("[data-sessswap]").forEach(b=>b.onclick=()=>swapMe(b.dataset.sessswap));
+ el("sessMain").querySelectorAll("[data-e102s]").forEach(b=>b.onclick=()=>e102Go(b.dataset.e102s));   /* vE E102 */
  el("sessMain").querySelectorAll("[data-e101s]").forEach(b=>b.onclick=()=>e101Go(b.dataset.e101s));   /* vE E101 */
  el("sessMain").querySelectorAll("[data-sessivx]").forEach(b=>b.onclick=()=>{ivxOpen(b.dataset.sessivx); render(); sessRender()});   /* vE E096 */
  el("sessMain").querySelectorAll("[data-sst]").forEach(b=>b.onclick=()=>e099Go(b.dataset.sst));   /* vE E099 */
@@ -18069,6 +18287,8 @@ document.addEventListener("keydown",e=>{
    unaffected.                                                              */
 /* vE E101: a state button reloads with p101, so the panel comes back open on its topic */
 if(/(^|[#&])p101\b/.test(location.hash)){sIdx=Math.max(0,TOPICS.findIndex(t=>t.k==="e101"));sOpen=true;sessShow(true)}
+else /* vE E102: a state button reloads with p102, so the panel comes back open on its topic */
+if(/(^|[#&])p102\b/.test(location.hash)){sIdx=Math.max(0,TOPICS.findIndex(t=>t.k==="e102"));sOpen=true;sessShow(true)}
 else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 /* item 6, 28 Sep 2026: reviewer scaffolding must not sit on a product screen
    by default. sessShow(false) also reveals the "Validation panel" reopen
@@ -18080,7 +18300,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="45c8a44";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="b98709e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19568,6 +19788,128 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
  .e101-sc .e101-sb .shd-button{flex:1 1 100%;height:auto;min-height:32px;padding-top:5px;padding-bottom:5px;white-space:normal;line-height:20px}
  .e101-dr .e101-sb .shd-button{flex:1 1 0}
 }
+</style>
+<style>
+/* ═══ vE E102: the person panel. Every number has a source:
+   Panel: production's right drawer, src/components/dialer/components/phone-numbers/components/compliance-list/components/
+   compliance-details-drawer/_compliance-details-drawer.scss: width min(515px, 36%), min-width 360px, max-width 100%, full
+   height, white, box-shadow -4px 0 24px #00000014, slide in from the right (translateX 100% to 0, 200ms ease-out), z-index
+   1050. Header padding 24px 24px 16px; close button 6px padding, 4px radius, Gray 400 16px cross, hover Gray 100 on Gray 800;
+   title 18/26 700 Gray 800; body padding 0 24px 24px. The tsx beside it: backdrop click and Esc close it, the close button
+   takes focus.
+   Dim: production's .modal-backdrop colour, src/assets/css/scss/_modal.scss (rgba(31,41,55,.7)), which the prospect details
+   panel (.prospect-details-modal, src/components/prospect/_prospect.scss) slides in over; its 5px blur is left off so the row
+   you opened stays readable.
+   Footer: vE's .modal-f, production's modal footer (20px 24px, 1px Gray 200 rule, 16px gap). Rows, role menu, hand-over and
+   the phone sheet: the R1 mock (161-person-panel/mocks/m161.js), which production has no panel for. ═══ */
+.pn-scrim{position:fixed;inset:0;background:rgba(31,41,55,.7);z-index:1050}
+.pn-pan{position:fixed;top:0;right:0;bottom:0;width:min(515px,36%);min-width:360px;max-width:100%;height:100%;background:#fff;box-shadow:0 0 #0000,0 0 #0000,-4px 0 24px #00000014;display:flex;flex-direction:column;z-index:1051;font-size:14px;line-height:20px;color:#1F2937;box-sizing:border-box}
+.pn-pan.is-in{animation:pnIn 200ms ease-out}
+@keyframes pnIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@media (prefers-reduced-motion:reduce){.pn-pan.is-in{animation:none}}
+.pn-hd{padding:24px 24px 16px 24px;flex:none;border-bottom:1px solid #E5E7EB}
+.pn-top{display:flex;align-items:flex-start;gap:12px}
+.pn-id{display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0}
+.pn-id>.pp-av{flex:none;font-weight:600}   /* E062: avatar text is the size x .4 */
+.pn-who{min-width:0}
+.pn-nm{margin:0;font-size:18px;line-height:26px;font-weight:700;color:#1F2937;overflow-wrap:anywhere}
+.pn-you{font-size:14px;font-weight:400;color:#6B7280}
+.pn-em{color:#4B5563;overflow-wrap:anywhere}
+.pn-nl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+/* the tag: vE's production pill (.ws-stat.is-need): 20px, 0 6px, 4px radius, 12/20 500. Amber only when it needs you */
+.pn-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap;background:#F3F4F6;color:#374151;flex:none}
+.pn-tag.is-need{background:#FEF3C7;color:#92400E}
+.pn-meta{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;color:#4B5563}   /* a wrapped Resend invite starts at the text edge */
+.pn-tr{display:flex;align-items:center;gap:4px;flex:none;margin:-1px -6px 0 0;position:relative}
+.pn-role{margin:12px 0 0 52px;width:200px}
+.pn-role .dd-trig{height:32px;padding:0 8px 0 12px}
+.pn-x{display:flex;align-items:center;justify-content:center;background:none;border:0;cursor:pointer;padding:6px;border-radius:4px;color:#9CA3AF;flex:none}
+.pn-x:hover{background:#F3F4F6;color:#1F2937}
+.pn-x svg{width:16px;height:16px;display:block}
+.pn-morew{display:inline-flex}
+.pn-ib.pn-more{width:28px;height:28px}
+.pn-ib.pn-more[aria-expanded="true"]{background:#F3F4F6;color:#1F2937}
+.pn-menu{position:absolute;top:calc(100% + 4px);right:0;left:auto;width:260px;z-index:20}
+.pn-bd{flex:1;overflow-y:auto;padding:0 24px 24px 24px;position:relative}
+.pn-lock{margin:0 -24px;padding:16px 24px 12px}
+.pn-msg{margin:16px 0 0}
+.pn-note{margin:16px 0 0;font-size:14px;line-height:20px;color:#4B5563}
+.pn-note .pn-lb{font-size:14px;line-height:20px;margin-left:4px}
+.pn-sec{display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px;font-size:14px;line-height:20px;font-weight:600;color:#1F2937}
+.pn-sec .pn-n{font-weight:400;color:#6B7280}
+.pn-line{margin:8px 0 0;color:#4B5563}
+.pn-item[hidden]{display:none}
+.pn-row{display:grid;grid-template-columns:minmax(0,1fr) 184px 32px;column-gap:8px;align-items:center;min-height:52px;padding:6px 0;border-bottom:1px solid #F3F4F6;box-sizing:border-box}
+.pn-row.is-t{grid-template-columns:minmax(0,1fr) 32px}
+.pn-row.is-gone.is-t{grid-template-columns:minmax(0,1fr) auto}
+.pn-row.is-gone:not(.is-t){grid-template-columns:minmax(0,1fr) 184px auto}
+.pn-row.is-hl{background:#F9FAFB}
+.pn-wn{display:flex;align-items:center;gap:10px;min-width:0}
+.pn-wn .avatar{flex:none}
+.pn-wn .pop-tag{margin-left:4px;flex:none}
+.pn-wt{display:flex;flex-direction:column;min-width:0}
+.pn-wt b{font-weight:500;color:#1F2937;overflow-wrap:anywhere}   /* E071: a name wraps, never cut */
+.pn-wt i{font-style:normal;font-size:12px;line-height:16px;color:#6B7280}
+.pn-row .dd{width:100%;margin:0}
+.pn-row .dd-trig{height:32px;padding:0 8px 0 12px}
+.pn-ib{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;background:none;border-radius:4px;color:#6B7280;cursor:pointer;padding:0}
+.pn-ib:hover:not(:disabled){background:#F3F4F6;color:#1F2937}
+.pn-ib:disabled{color:#D1D5DB;cursor:not-allowed}
+.pn-ib svg{width:16px;height:16px}
+.pn-rt{color:#4B5563;padding-left:12px}
+.pn-row.is-gone .pn-wt b{color:#9CA3AF;text-decoration:line-through}
+.pn-row.is-gone .avatar{opacity:.45}
+.pn-row.is-gone .pn-rt{color:#9CA3AF;text-decoration:line-through}
+.pn-undo,.pn-lb{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:14px;line-height:20px;font-weight:500}
+.pn-undo{justify-self:end}
+.pn-lb svg{width:16px;height:16px}
+.pn-add{display:flex;align-items:center;min-height:52px}
+.pn-del2{margin-top:8px}
+.pn-srch{margin:8px 0 4px;border:1px solid #E5E7EB;border-radius:4px}
+.pn-pick{border:1px solid #E5E7EB;border-radius:4px;background:#fff;margin:4px 0 8px}
+.pn-pl{max-height:240px;overflow:auto;padding:4px 0}
+.pn-pr{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:10px 12px;box-sizing:border-box;border:0;background:none;font:inherit;font-size:14px;line-height:20px;color:#1F2937;text-align:left;cursor:pointer}
+.pn-pr[hidden]{display:none}
+.pn-pr:hover,.pn-pr:focus-visible{background:#F3F4F6}
+.pn-pr .pn-pn{flex:1;min-width:0;overflow-wrap:anywhere}
+.pn-pr>svg{width:16px;height:16px;color:#6B7280;flex:none}
+.pn-pr .pop-tag{margin-left:0}
+.pn-none,.pn-empty{margin:0;padding:8px 12px;color:#6B7280}
+.pn-list>.pn-none{padding:12px 0}
+.pn-ft{display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:20px 24px;border-top:1px solid #E5E7EB;background:#fff;flex:none}
+.pn-why{margin-right:auto;font-size:14px;line-height:20px;color:#6B7280}
+.pn-why.pn-ask{color:#1F2937}
+.pp-row.pn-sel,.rmt-r.pn-sel td{background:#F3F4F6}
+.wsp-f[data-pnopen]{cursor:pointer}
+.wsp-f[data-pnopen]:focus-visible{outline:2px solid #1D4ED8;outline-offset:1px}
+.pn-menu .menu-i.is-rm .menu-l{color:var(--red-12)}
+/* the reviewer's Validation panel stays usable beside the person panel */
+@media (min-width:641px){body.pn-on #sess{z-index:1052;right:max(360px,min(515px,36%))}}
+body.pn-on #toastLayer{left:auto;right:0;width:min(515px,36%);min-width:360px;max-width:100%;padding:0 24px;box-sizing:border-box}
+body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
+.e102-ph{position:fixed;inset:0;z-index:8500;background:rgba(17,24,39,.64);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box}
+.e102-phh{display:flex;align-items:center;justify-content:space-between;gap:16px;width:390px;max-width:100%;color:#fff;font-size:14px;line-height:20px;font-weight:500}
+.e102-phh .shd-button{background:#fff}
+.e102-ph iframe{width:390px;max-width:100%;height:min(844px,calc(100vh - 88px));border:0;border-radius:8px;background:#fff}
+@media (max-width:640px){
+ .pn-pan{top:12px;left:0;width:100%;min-width:0;height:auto;border-radius:12px 12px 0 0}
+ .pn-pan.is-in{animation-name:pnUp}
+ .pn-pan::before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:#D1D5DB}
+ .pn-hd{padding:24px 16px 16px}
+ .pn-bd{padding:0 16px 16px}
+ .pn-lock{margin:0 -16px;padding:16px 16px 12px}
+ .pn-ft{padding:12px 16px;gap:8px;flex-wrap:wrap}
+ .pn-ft .shd-button{flex:1 1 0}
+ .pn-ft .pn-why{flex:1 1 100%}
+ .pn-role{margin-left:0;width:100%}
+ .pn-menu{width:min(260px,calc(100vw - 32px))}   /* the menu stays on the sheet (found by e048) */
+ .pn-row,.pn-row.is-gone:not(.is-t){grid-template-columns:minmax(0,1fr) 32px;row-gap:6px}
+ .pn-row .dd,.pn-row .pn-rt{grid-column:1;grid-row:2}
+ .pn-row>.pn-ib,.pn-row>span:last-child:empty,.pn-row .pn-undo{grid-column:2;grid-row:1/3}
+ .pn-row.is-gone .pn-undo{grid-column:2;grid-row:1/3}
+ body.pn-on #toastLayer{left:16px;right:16px;width:auto;min-width:0;padding:0}
+}
+@keyframes pnUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 </style>
 <script src="review-picker.js"></script>
 </body>
