@@ -8579,6 +8579,7 @@ function ulrLimHTML(k,c,ro){if(isUnl(k)) return `<span class="ulr-lb ulr-ro"><sp
  const r=RES[k].rows[c.id], key=k+"|"+c.id, v=ulDv(k,c.id), ch=v!==r.cap, bad=ulrBad(k,c.id), was=ch?`<span class="ulr-was">was ${f(r.cap)}</span>`:"";
 
 
+ if(e101SpOn(k)) return `<span class="ulr-lb ulr-ro"><span class="ulr-vv">${was}<span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`;   /* vE E101 R1: a preview while a split is open, with was */
  if(ro||!ul3CanEd(c,false)) return `<span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`;
  if(UL.ce===key||bad||UL.all) return `<input type="text" inputmode="numeric" autocomplete="off" class="ul-in ulr-in" data-ulri="${key}" value="${UL.nb&&UL.nb[key]?ncEscH(UL.nb[key].raw):f(v)}" aria-label="${c.name} ${RES[k].label} limit" aria-invalid="${!!bad}"${bad?' aria-describedby="ulrWhy"':""}>`;
  return `<button type="button" class="ulr-lb${ch?" is-ch":""}" data-ulce="${key}" aria-label="${c.name}, ${RES[k].label} limit ${f(v)}${ch?", was "+f(r.cap):""}. Change"><span class="ulr-vv">${was}<span class="ulr-lv">${f(v)}</span></span>${ULR_PEN}</button>`}
@@ -8601,6 +8602,7 @@ function ulrStopHTML(){const L=ulrStops(), n=L.length;
  return card(n===1?"Lower this limit?":"Lower these limits?",`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Keep editing</button><button class="shd-button shd-button--primary" data-ulrcfok>${n===1?"Lower limit":"Lower limits"}</button>`,"ulr-cfm")}
 function ulrBarHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length; if(!n&&!nb) return "";
+ return "";   /* vE E101: the draft lives in the summary (pattern 1); no bottom bar */
  const over=ul3E2Over(), low=ul3E2Lows(), st=ch.filter(ul3NewStop), ks=UL_K().filter(k=>ch.some(x=>x.k===k)), O=OWN_WS.name, many=ks.length>1;
  /* vE E070: Available after the draft, against Available now; only the resources whose Available moves */
  const avl=ks.map(k=>({k,v:ulDfree(k),was:compute(k).free})).filter(x=>x.v!==x.was&&x.v>=0);   /* vE E071 review: no negative Available in the bar */
@@ -8641,7 +8643,7 @@ function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};  
 function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), s=(t,x,a)=>`<span class="ulr-pace${x?" is-"+x:""}"${a?` aria-label="${a}"`:""}>${t}</span>`;
  if(c.disabled){const h=isUnl(k)?0:Math.max(0,v-r.used);
   return s(h?`Disabled, holds ${f(h)}`:"Disabled","q")   /* vE E045 */+(h&&!ulRo()&&v===r.cap?`<button type="button" class="linkbtn ulr-take" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`:"")}
- const L=ulrLast(k,r,isUnl(k)?null:v); return s(ulrPctT(L),L.x,L.a)}
+ const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)+(dn?'<span class="e101-chip">Almost used up</span>':"")}
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
@@ -8684,12 +8686,12 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const all=unl?"":ulrTerm(k)?`<span class="ulr-give"><b data-ulrav="${k}">${ulrAvHTML(k)}</b> available until ${ulrTerm(k).to}</span>`   /* vE E072 (row 23): what resets at renewal says until when */
   :`<span class="ulr-give">Available <b data-ulrav="${k}">${ulrAvHTML(k)}</b></span>`;
  /* the table's own toolbar: search and filters past 8 (fix 8), Available at its right end */
- const tb=ulfShow(k)?ulfToolbar().replace(/<\/div>$/,all+"</div>")+ulfChips():"";   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
- const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3>${ulfShow(k)?"":all}<span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
+ const tb=(e101Gc(k),ulfShow(k)?ulfToolbar()+ulfChips():"");   /* vE E101: Available moved into the summary; Gc opens day one and ends a finished split */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
+ const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span></div></td>`
   +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
- return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${tb}
+ return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${e101SumHTML(k,ro)/* vE E101 */}${tb}
   <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
@@ -8701,6 +8703,7 @@ function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P)
    if(!bad&&!UL.all&&UL.ce!==k+"|"+c.id&&document.activeElement!==i){UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,c,ro); UL.ceBusy=false}}
   else if(bad) l.innerHTML=ulrLimHTML(k,c,ro)});
  const tf=P.querySelector(".ulr-t tfoot"); if(tf&&!isUnl(k)){const W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), h=ulrTotHTML(k,W0,pg); if(h) tf.outerHTML=h}   /* vE E070: the Total row follows the draft */
+ e101Paint(P,k);   /* vE E101 */
  const d=P.querySelector("[data-ul3e2dock]"); if(d&&!ro) d.innerHTML=ulrBarHTML()}
 function ulrCeOpen(key){const [k,id]=key.split("|"), l=document.querySelector(`[data-ulrl="${id}"]`); if(!l||!byId[id]) return;
  UL.ce=key; UL.ceWas=ulDv(k,id); UL.ceBusy=true; l.innerHTML=ulrLimHTML(k,byId[id],ulRo()); UL.ceBusy=false;
@@ -15102,6 +15105,150 @@ function e105Boot(s){E105.state=s; solo=false; PREVIEW=false; E105X=null; inMod=
  if(s==="email-existing"||s==="accept-existing"){team("owner"); e105Pending(); view={name:"invite",e105:s==="email-existing"?"email":"accept",back:{name:"people"}}}
  if(s==="joined"){e105Pending(); const I=E105_INV; delete INVITED["w:"+I.ws+"|"+I.email]; LASTSEEN[I.email]="just now"; client(I.email,I.ws); open()}}
 
+/* ═══ vE E101, 28 Oct 2026. Hitesh: "On this screen for each resource - we can start with total in the plan and then how
+   much allocated and what's left to allocate then shortcuts to how allocate or rebalance and below detailed view we have today".
+   The summary reads E070's figures: Allocated is the plan less Available (every limit, or what is used when that is more;
+   disabled workspaces' held limits included), so In your plan = Allocated + Available always. The product never proposes an
+   amount: the status line only counts, and Take back is the row's own action. The rules are in experiments/e101/thinking.md. ═══ */
+const E101={state:null};
+const E101_S=(HASHX.route.match(/^e101=([\w-]+)/)||[])[1]||null;
+/* the rows this person can act on (P10): red-band workspaces (86%+, used up included) and disabled ones holding room */
+const e101Near=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; if(!r||c.disabled) return false; const v=ulDv(k,c.id); return v>0?ulPct(r.used,v)>=USE_BAND.red:r.used>0});
+const e101Held=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; return r&&c.disabled&&ulDv(k,c.id)>r.used});
+function e101Back(k){const ids=e101Held(k).map(c=>c.id), amt=ids.reduce((t,id)=>t+RES[k].rows[id].cap-RES[k].rows[id].used,0); if(!ids.length) return;
+ if(ids.length===1){ulrTake(k+"|"+ids[0]); return}
+ const D={}; ids.forEach(id=>{D[k+"|"+id]=0});
+ if(ul3Commit(D,"Applied")){RECEIPT.text=RECEIPT.short=`Took back ${f(amt)} from ${listAnd(ids.map(id=>byId[id].name))}. ${f(compute(k).free)} left to allocate.`; RECEIPT.variant="neutral"}
+ UL.ul3f="[data-e101sum]"; render()}
+const e101Dirty=()=>ulChanges().length>0||Object.keys(UL.nb||{}).length>0;
+/* the status line: one true sentence, text only; then Take back, the one action, when a disabled workspace holds room */
+function e101ShortHTML(k){const n=e101Near(k).length, H=e101Held(k), amt=H.reduce((t,c)=>t+RES[k].rows[c.id].cap-RES[k].rows[c.id].used,0);
+ let t=n?`${n} workspace${n===1?" is":"s are"} at or near ${n===1?"its":"their"} limit.`:"No workspace is near its limit.";
+ if(compute(k).free<=0) t+=" Nothing left to allocate.";
+ const eq=!ulRo()&&e101SpRows(k).length>=2?`<button type="button" class="shd-button shd-button--secondary" data-e101eq="${k}">Split equally</button>`:"";   /* E101 rev: a visible button beside Take back */
+ const b=H.length||eq?`<span class="e101-sb">${eq}${H.length?`<button type="button" class="shd-button shd-button--secondary" data-e101sc="back|${k}">Take back ${f(amt)} from ${H.length===1?H[0].name:H.length+" disabled workspaces"}</button>`:""}</span>`:"";
+ return `<div class="e101-sc"><p class="e101-st">${t}</p>${b}</div>`}
+/* save pattern 1: the draft in the summary, beside the figures it moves (today's bar's words and checks) */
+function e101DraftHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over(), st=ch.filter(ul3NewStop);
+ const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
+ return `<div class="e101-dr" role="region" aria-label="Unsaved changes"><div class="e101-dx"><p class="e101-dt">${n?e101Where(ch):""}${e101Keeps(ch)}${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${ulrNoticeHTML(ch)}</div>`
+  +`<span class="e101-sb"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${why?` disabled aria-describedby="ulrWhy"`:""}>Apply${n?" "+ul3N(n,"change"):""}</button></span></div>`}
+/* E101 fix 5: Same limit leaves out a workspace that has used more than an equal share; the draft line says so, in place of a tooltip */
+function e101Keeps(ch){const K=(UL.kept||[]).filter(x=>ch.some(c=>c.k===x.k)); if(!K.length) return ""; const multi=new Set(K.map(x=>x.k)).size>1, one=K.length===1;
+ return " "+listAnd(K.map(x=>`${byId[x.id].name} keeps ${f(x.v)}${multi?" on "+RES[x.k].label:""}`))+`: ${one?"it has":"they have"} already used more than an equal share.`}
+/* vE E101 review: the draft line says where the room comes from. Up to 3 workspaces a side are named, more are counted */
+function e101Where(ch){const ks=[...new Set(ch.map(x=>x.k))]; if(ks.length>1) return `${ul3N(ch.length,"change")} across ${ks.length} resources.`;
+ const k=ks[0], ord=ul3E2Rows(k).map(c=>c.id), by=(a,b)=>ord.indexOf(a.id)-ord.indexOf(b.id);   /* the table's order */
+ const up=ch.filter(x=>x.v>x.was).sort(by), dn=ch.filter(x=>x.v<x.was).sort(by), sm=L=>L.reduce((t,x)=>t+Math.abs(x.v-x.was),0), R=sm(up), L=sm(dn), fromAv=compute(k).free-Math.max(0,ulDfree(k));
+ const little=dn.every(x=>ulPct(RES[k].rows[x.id].used,x.was)<USE_BAND.yellow);
+ const nm=(A,lo)=>A.length<=3?listAnd(A.map(x=>byId[x.id].name)):`${A.length} workspaces${lo&&little?" using little":""}`;
+ if(!up.length) return `Takes back ${f(L)} from ${nm(dn,1)}.`;
+ const src=[fromAv>0?`${f(fromAv)} left to allocate`:"",L?`${f(L)} from ${nm(dn,1)}`:""].filter(Boolean), one=fromAv>0?"from what's left to allocate":`from ${nm(dn,1)}`;
+ if(fromAv<0) return `Gives ${f(R)} to ${nm(up)} from ${nm(dn,1)}. ${f(-fromAv)} is left to allocate.`;
+ return `Gives ${f(R)} to ${nm(up)}${src.length===1?" "+one:": "+src.join(", ")}.`}
+/* the summary: four figures in Hitesh's order (29 Oct: Used added), one bar, then the status line or the draft. Used is
+   this cycle's use across every workspace; a draft moves limits, not use, so Used never shows "was" */
+function e101SumHTML(k,ro){if(isUnl(k)) return ""; const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
+ const us=compute(k).used, w=n=>(Math.max(0,Math.min(pool,n))/pool*100).toFixed(2)+"%";
+  const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
+ if(!dirty) UL.kept=null;
+ const sp=!ro&&e101SpOn(k), low=ro?"":sp?e101SpHTML(k):dirty?e101DraftHTML():e101ShortHTML(k);
+ if(dirty&&!ro){setTimeout(e101Stick,0); setTimeout(e101Stick,300)}
+ return `<div class="e101-sum${dirty&&!ro&&!sp?" is-draft":""}${sp?" is-sp":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
+  <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}</div>${low}</div>`}
+function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outerHTML=e101SumHTML(k,ulRo()); e101Stick()}
+/* on a phone only the draft row stays in view: the summary sticks with its figures scrolled past (a negative top) */
+function e101Stick(){const m=document.querySelector(".e101-sum.is-draft"); if(!m) return; const d=m.querySelector(".e101-dr"); m.style.top=ulrPhone()&&d?-(d.offsetTop-12)+"px":"0px"}
+window.addEventListener("resize",e101Stick);
+/* the one click this panel adds: Take back */
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-e101sc]"); if(!t||t.disabled) return; e.stopPropagation();
+ const [kind,k]=t.dataset.e101sc.split("|"); if(kind==="back") e101Back(k)},true);
+/* ── Split equally (29 Oct 2026, Hitesh: "can we have shortcut for allocate all resource equally to everyone or workspace i
+   select"). You pick the rule and the workspaces; the product only divides. What's left: added on top, never lowers anyone.
+   Same limit: one limit for each; a workspace that has already used more than that share is left as it is (never lowered
+   below its use, never stopped) and the rest is shared by the others. Shares round down and
+   the remainder stays left to allocate (P1). The result is a draft in the summary: nothing changes until Apply (P8). ── */
+const e101SpRows=k=>ul3E2Rows(k).filter(c=>!c.disabled);
+const e101SpK=(k,all)=>all?UL_K().filter(x=>!isUnl(x)):[k];
+const e101Rnd=(k,x)=>RES[k].pool>=10000?Math.floor(x/100)*100:x;   /* E101 fix 7: 100s when the plan is 10,000 or more; the remainder stays left to allocate */
+function e101SpCalc(k,ids,mode){const R=RES[k], S=ids.filter(id=>R.rows[id]&&!byId[id].disabled), out={}, left=Math.max(0,ulDfree(k)), base=id=>Math.max(ulDv(k,id),R.rows[id].used);
+ if(!S.length) return {out,share:0,left,rest:left,fixed:[],kept:[]};
+ if(mode==="left"){const share=e101Rnd(k,Math.floor(left/S.length)); if(share>0) S.forEach(id=>{out[id]=base(id)+share}); return {out,share,left,rest:share>0?left-share*S.length:left,fixed:[],kept:[]}}
+ let T=S.reduce((t,id)=>t+base(id),0)+left, L=S.slice(), fixed=[], share=0;
+ for(;;){share=e101Rnd(k,Math.floor(T/L.length)); const over=L.filter(id=>R.rows[id].used>share); if(!over.length||over.length===L.length) break;
+  over.forEach(id=>{fixed.push(id); T-=base(id)}); L=L.filter(id=>over.indexOf(id)<0)}
+ L.forEach(id=>{out[id]=share}); return {out,share,left,rest:T-share*L.length,fixed,kept:fixed.map(id=>[id,base(id)])}}
+/* ── E101 R1 (29 Oct 2026; Hitesh picked R1 on the 166 board: "I think R1 looks good - let's try this in vE"). The summary turns
+   into one editable sentence: [Split the 28,000 left / Give the same limit] to [9 workspaces] on [Emails sent / all 6 resources].
+   The figures and every row preview the draft at once (was shown); one amber line only when limits go down; Cancel, or Apply
+   to N workspaces. UL.splitW records exactly what the split wrote, so Cancel and every re-draft remove only those rows. While a
+   split is open the table is a preview: limits are not typed. Day one (every workspace at 0) opens preset: same limit, every
+   workspace, every resource. ── */
+const e101SpOn=k=>!!UL.sp&&!isUnl(k)&&!ulRo();
+const e101N6=()=>UL_K().filter(x=>!isUnl(x)).length;
+function e101Unsplit(){const W=UL.splitW||{}; Object.keys(W).forEach(key=>{if(UL.draft[key]===W[key]) delete UL.draft[key]}); UL.splitW={}; UL.kept=null}
+function e101Redraft(k){e101Unsplit(); const sp=UL.sp, act=e101SpRows(k).map(c=>c.id); sp.ids=sp.ids.filter(id=>byId[id]&&!byId[id].disabled); sp.k=k;
+ const S=sp.ids.filter(id=>act.indexOf(id)>-1), all=!!sp.all, ids0=sp.ids.length?sp.ids:act, left0=Math.max(0,ulDfree(k));
+ const C=(m,ids)=>e101SpK(k,all).map(x=>({k:x,r:e101SpCalc(x,ids,m)})), leftOK=C("left",ids0).some(x=>x.r.share>0);
+ if(sp.mode==="left"&&!leftOK) sp.mode="same";   /* nothing to add: Same limit */
+ const L=C(sp.mode,sp.ids), W=UL.splitW={}, kept=[];
+ L.forEach(x=>{Object.keys(x.r.out).forEach(id=>{ulrSet(x.k,id,x.r.out[id]); const key=x.k+"|"+id; if(key in UL.draft) W[key]=UL.draft[key]}); if(sp.mode==="same") x.r.kept.forEach(([id,v])=>kept.push({k:x.k,id,v}))});
+ UL.kept=kept.length?kept:null;
+ const r=L[0].r;
+ sp.info={n:S.length,leftOK,left:left0,share:r.share,rest:r.rest,L:L.map(x=>({k:x.k,share:x.r.share,rest:x.r.rest}))}}
+/* a split that was applied, discarded or undone is over; another resource drafts the same choice there; day one opens preset */
+function e101Day(){const K=UL_K().filter(x=>!isUnl(x)&&RES[x].pool>0); return K.length>0&&K.every(x=>{const A=e101SpRows(x); return A.length>0&&A.every(c=>RES[x].rows[c.id].cap===0&&RES[x].rows[c.id].used===0)})}
+function e101Gc(k){if(UL.sp&&Object.keys(UL.splitW||{}).length&&!ulChanges().length){UL.sp=null; UL.splitW={}; UL.kept=null}
+ else if(UL.sp&&UL.sp.k&&UL.sp.k!==k&&!isUnl(k)) e101Redraft(k);
+ if(!UL.sp&&!UL.spDone&&!ulRo()&&!isUnl(k)&&e101Day()){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:true,mode:"same",menu:null,day:true,k}; e101Redraft(k)}}
+function e101SpOpen(k){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:false,mode:"left",menu:null,day:false,k}; e101Redraft(k)}
+/* repaint the page, keep the scroll, the menu's scroll and the focus */
+function e101SpPaint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0, pl=document.querySelector(".e101-pl"), ps=pl?pl.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc; const p2=document.querySelector(".e101-pl"); if(p2) p2.scrollTop=ps; const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
+const e101Tok=(id,lab,sp)=>`<span class="e101-tw"><button type="button" class="e101-tok${sp.menu===id?" is-open":""}" data-e101tok="${id}" aria-haspopup="true" aria-expanded="${sp.menu===id}">${lab}<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+function e101SpHTML(k){const sp=UL.sp, I=sp.info, n=I.n, all=sp.all, day=sp.day, N6=e101N6(), rows=e101SpRows(k);
+ const modeL=sp.mode==="left"?(all?"Split what's left":`Split the ${f(I.left)} left`):"Give the same limit", whoL=n===0?"no workspaces":day?`all ${n} workspaces`:n===1?"1 workspace":`${n} workspaces`, resL=all?`all ${N6} resources`:RES[k].label;
+ const opt=(a,lab,on,off,why)=>`<button type="button" class="e101-po${on?" is-on":""}" role="menuitemradio" aria-checked="${on}" data-e101opt="${a}"${off?" disabled":""}><span class="e101-tk">${on?'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>':""}</span><span>${lab}</span>${why?`<span class="e101-x">${why}</span>`:""}</button>`;
+ const leftLab=all?"Split what's left":`Split the ${f(I.left)} left`;
+ const popM=sp.menu==="mode"?`<div class="e101-pop" role="menu">${opt("mode:left",leftLab,sp.mode==="left",!I.leftOK,I.leftOK?"":"Nothing left to allocate")}${opt("mode:same","Give the same limit",sp.mode==="same")}</div>`:"";
+ const near=rows.filter(c=>{const r=RES[k].rows[c.id]; return r.cap>0?ulPct(r.used,r.cap)>=USE_BAND.red:r.used>0}).map(c=>c.id), popW=sp.menu==="who"?`<div class="e101-pop" role="menu"><div class="e101-qp"><button type="button" class="linkbtn" data-e101q="all">All ${rows.length} active</button>${near.length?`<button type="button" class="linkbtn" data-e101q="near">The ${near.length} near their limit</button>`:""}<button type="button" class="linkbtn" data-e101q="none">None</button></div><div class="e101-pl">${rows.map(c=>{const r=RES[k].rows[c.id]; return `<label class="e101-pr"><input type="checkbox" class="e101-ck" data-e101w="${c.id}"${sp.ids.indexOf(c.id)>-1?" checked":""}><span class="e101-wn">${invEsc(c.name)}</span><span class="e101-x">${ulPct(r.used,r.cap>0?r.cap:0)}%</span></label>`}).join("")}</div></div>`:"";
+ const popR=sp.menu==="res"?`<div class="e101-pop" role="menu">${opt("res:one",RES[k].label,!all)}${opt("res:all",`All ${N6} resources`,all)}</div>`:"";
+ const sent=`${e101Tok("mode",modeL,sp)}${popM}</span> ${sp.mode==="left"?"equally among":"to"} ${e101Tok("who",whoL,sp)}${popW}</span> on ${e101Tok("res",resL,sp)}${popR}</span>`;
+ /* the result line */
+ const keeps=e101Keeps(ulChanges()).trim(); let res;
+ if(!n) res="Pick at least one workspace.";
+ else if(all) res=(day&&!e101Downs().length?`All ${n} start at 0, so nobody goes down.`:`Each of ${n} gets the amounts below.`)+(keeps?" "+keeps:"");
+ else res=(sp.mode==="left"?`Each gets <b>${f(I.share)} more</b>. `:`Each gets <b>${f(I.share)}</b>. `)+(I.rest?`${f(I.rest)} stays left to allocate.`:"Nothing stays left to allocate.")+(keeps?" "+invEsc(keeps):"");
+ const grid=all&&n?`<div class="e101-g6"><div class="e101-g6r"><span>Resource</span><span>Each of ${n} gets</span><span>Stays left</span></div>${I.L.map(x=>`<div class="e101-g6r"><span>${RES[x.k].label}</span><b>${sp.mode==="left"?(x.share?f(x.share)+" more":"Nothing to add"):f(x.share)}</b><span>${f(x.rest)}</span></div>`).join("")}</div>`:"";
+ /* the one amber line: only when a limit goes down */
+ const D=e101Downs(); let note="";
+ if(D.length){const nm=[...new Set(D.map(d=>d.id))], names=nm.map(id=>byId[id].name), stops=D.filter(d=>d.k===k&&(d.v<=d.used||ulPct(d.used,d.v)>=USE_BAND.red)).sort((x,y)=>(x.v-x.used)-(y.v-y.used)).slice(0,1).map(d=>d.v<=d.used?`${byId[d.id].name} has used ${f(d.used)}, so it would stop ${UL3_STOP[d.k]||"working"} now.`:`${byId[d.id].name} has used ${f(d.used)}, so it would stop after ${f(d.v-d.used)} more.`), told=nm.filter(id=>!byId[id].own).map(id=>byId[id].name);
+  note=`<div class="e101-note" role="status"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l6.5 12h-13L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg><span>${D.length} limit${D.length===1?"":"s"} go${D.length===1?"es":""} down: ${invEsc(listAnd(names.length>3?[names.slice(0,3).join(", "),(names.length-3)+" more"]:names))}. ${invEsc(stops.join(" "))}${told.length?` The admins of ${invEsc(told.length>3?told.length+" workspaces":listAnd(told))} ${told.length===1?"is":"are"} told.`:""}</span></div>`}
+ const ap=n===0||!ulChanges().length;
+ return `<div class="e101-sp" role="group" aria-label="Split equally"><div class="e101-sent">${sent}</div>${grid}<div class="e101-sprow"><p class="e101-res">${res}</p><div class="e101-act"><button type="button" class="shd-button shd-button--secondary" data-e101spcancel>${day?"Not now":"Cancel"}</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${ap?" disabled":""}>Apply to ${n===1?"1 workspace":n+" workspaces"}</button></div></div>${note}</div>`}
+/* the limits this split lowers: workspace, resource, new limit, used */
+function e101Downs(){const o=[]; Object.keys(UL.splitW||{}).forEach(key=>{const [x,id]=key.split("|"), r=RES[x].rows[id]; if(r&&UL.draft[key]<r.cap) o.push({k:x,id,v:UL.draft[key],used:r.used})}); return o}
+document.addEventListener("click",e=>{const t=e.target; if(!t.closest) return;
+ const q=t.closest("[data-e101eq]"); if(q){e.stopPropagation(); UL.spDone=false; e101SpOpen(q.dataset.e101eq); e101SpPaint('[data-e101tok="mode"]'); const h=document.querySelector(".e101-sp"); if(h) h.scrollIntoView({block:"nearest"}); return}
+ if(!UL.sp) return;
+ const tk=t.closest("[data-e101tok]"); if(tk){e.stopPropagation(); const m=tk.dataset.e101tok; UL.sp.menu=UL.sp.menu===m?null:m; e101SpPaint(`[data-e101tok="${m}"]`); return}
+ const o=t.closest("[data-e101opt]"); if(o){e.stopPropagation(); if(o.disabled) return; const [a,v]=o.dataset.e101opt.split(":"); if(a==="mode") UL.sp.mode=v; else UL.sp.all=v==="all"; UL.sp.menu=null; e101Redraft(ul3E2K()); e101SpPaint(`[data-e101tok="${a}"]`); return}
+ const qq=t.closest("[data-e101q]"); if(qq){e.stopPropagation(); const k=ul3E2K(), rows=e101SpRows(k).map(c=>c.id), m=qq.dataset.e101q; UL.sp.ids=m==="all"?rows:m==="none"?[]:rows.filter(id=>{const r=RES[k].rows[id]; return r.cap>0?ulPct(r.used,r.cap)>=USE_BAND.red:r.used>0}); e101Redraft(k); e101SpPaint(`[data-e101q="${m}"]`); return}
+ if(t.closest("[data-e101spcancel]")){e.stopPropagation(); e101Unsplit(); UL.sp=null; UL.spDone=true; e101SpPaint("[data-e101eq]"); return}
+ if(UL.sp.menu&&!t.closest(".e101-tw")){UL.sp.menu=null; e101SpPaint()}},true);
+document.addEventListener("change",e=>{const t=e.target; if(!UL.sp||!t.matches||!t.matches("[data-e101w]")) return; const k=ul3E2K(), id=t.dataset.e101w, S=UL.sp.ids.slice(), i=S.indexOf(id); if(t.checked&&i<0) S.push(id); if(!t.checked&&i>-1) S.splice(i,1); UL.sp.ids=S; e101Redraft(k); e101SpPaint(`[data-e101w="${id}"]`)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UL.sp&&UL.sp.menu){e.stopPropagation(); const m=UL.sp.menu; UL.sp.menu=null; e101SpPaint(`[data-e101tok="${m}"]`)}},true);
+/* ── reviewer states (#e101=<state>) ── */
+function e101Go(s){const h="e101="+s+"&guide=off&p101"; if(location.hash==="#"+h) location.reload(); else location.hash=h}
+function e101Phone(){const d=document.createElement("div"); d.className="e101-ph";
+ d.innerHTML=`<div class="e101-phh"><span>Phone, 390 wide</span><button type="button" class="shd-button shd-button--secondary shd-button--sm" data-e101close>Close phone view</button></div><iframe title="Usage &amp; limits at 390 wide" src="${location.href.split("#")[0]}#e101=sends&guide=off"></iframe>`;
+ document.body.appendChild(d); d.querySelector("[data-e101close]").onclick=()=>e101Go("sends")}
+function e101Boot(s){E101.state=s; me_=s==="admin"?"priya":"owner"; solo=false; ctx="agency"; asClient=false; inMod=null; view={name:"limits"}; UL.drill=true; UL.focusK="sends";
+ if(s==="nothing"){const k="verification", R=RES[k], o=R.rows.ok, own=R.rows[OWN_ID]; o.cap=o.used; syncRes(k,o); own.cap+=rawFree(k); syncRes(k,own); UL.focusK=k}
+ if(s==="edit"){UL.draft["sends|sf"]=50000; UL.draft["sends|at"]=190000}   /* a typed draft: Summit raised, Atlas lowered to fund part of it */
+ if(s==="phone") setTimeout(e101Phone,400)
+ if(s==="split"){e101SpOpen("sends"); UL.sp.menu="who"}
+ if(s==="dayone"){UL.spDone=false; UL_K().forEach(x=>{if(isUnl(x)) return; Object.keys(RES[x].rows).forEach(id=>{const r=RES[x].rows[id]; r.cap=0; r.used=0; syncRes(x,r)})}); if(byId.ok) byId.ok.disabled=false}}
+
 /* Deep links, so any screen can be opened and checked without clicking a path
    to it: #clients, #queue, #dash, #credits, #settings, #invite, #solo-plain
    for an ordinary account with no agency relationship, and #client=<id> for
@@ -15129,6 +15276,7 @@ window.addEventListener("hashchange",()=>{if(SH_SKIP) return; location.reload()}
     for someone with no Home). Change 195: a Demo panel change keeps the
     screen it was made on instead (demoRestoreScreen, end of this block). */
  if(k==="demo"){demoScenario(v||"busy");ctx="agency";asClient=false;inMod=null;view=homeView()}
+ if(k==="e101") e101Boot(v||"sends");   /* vE E101: reviewer states */
  if(k==="e105") e105Boot(v||"switcher-two-accounts");   /* vE E105: reviewer states */
  const flat=Object.assign({clients:1,queue:1,dash:1,credits:1,limits:1,settings:1,invite:1,whitelabel:1,login:1},
    Object.fromEntries(Object.keys(MASTER_MOD).map(x=>[x,1])));
@@ -17756,6 +17904,14 @@ TOPICS.push({k:"e099", t:"One profile, every workspace",
  go:()=>e099Set("owner"),
  states:[["Open as Owner, from the Admin Panel","owner"],["Open as Member, inside Vertex Health","member"],["Open as client user, Whitelabel on","client-wl"],["Open as client user, Whitelabel off","client"],
   ["Change email, the code step","email"],["Change email, client user, Whitelabel on","client-email"],["Turn on Out of Office","ooo"],["Delete account, Owner","delete"],["Open as Admin","admin"]]});
+/* vE E101, 28 Oct 2026: the per-resource summary and the draft reviewed in it, for Hitesh's review */
+TOPICS.push({k:"e101", t:"Plan, allocated, used and left to allocate on each resource",
+ claim:"Each resource opens with what the plan holds, how much is allocated, how much is used and what is left to allocate. You set every limit yourself in the table; while you type, the summary shows the new figures with what they were, where the room comes from and who is told, and one Apply saves it all.",
+ ask:"When a client runs out mid-month, where do you look first, and what do you do next?",
+ watch:"If they still do the arithmetic on paper, the summary is not where they look, or its words are not theirs.",
+ src:"159, 164, E101",
+ e101st:[["sends","Emails sent with available"],["edit","A typed draft"],["nothing","Nothing left to allocate"],["admin","Account Admin"],["phone","Phone"],["split","Split, choosing who"],["dayone","Day one"]],
+ go:()=>{e101Go("sends")}});
 const REACT=[["yes","Confirmed"],["no","Contradicted"],["meh","Did not care"],["new","New requirement"]];
 const RDOT={yes:"d-yes",no:"d-no",meh:"d-meh",new:"d-new"};
 
@@ -17791,6 +17947,7 @@ function sessRender(){
   <p class="sess-h">${sIdx+1}. ${T.t}</p>
   <p class="sess-sub">Testing a claim from ${T.src}</p>
   <p class="sess-q">${T.ask}</p>
+  ${T.e101st?`<div class="sess-foot e101-st"><span class="sub" style="color:var(--gray-15)">Open a state</span>${T.e101st.map(([k,l])=>`<button class="shd-button shd-button--sm ${E101.state===k?"shd-button--primary":"shd-button--tertiary"}" data-e101s="${k}">${l}</button>`).join("")}</div>`:""}
   <div class="sess-grid">
    <dl class="sess-cell"><dt>What this screen claims</dt><dd>${T.claim}</dd></dl>
    <dl class="sess-cell"><dt>What would change our mind</dt><dd>${T.watch}</dd></dl>
@@ -17811,6 +17968,7 @@ function sessRender(){
    ${Object.keys(PEOPLE).map(k=>`<button class="shd-button shd-button--sm ${k===me_?"shd-button--primary":"shd-button--tertiary"}" data-sessswap="${k}" ${asClient||solo?"disabled":""}>${PEOPLE[k].name}, ${PEOPLE[k].role}</button>`).join("")}
   </div>`;
  el("sessMain").querySelectorAll("[data-sessswap]").forEach(b=>b.onclick=()=>swapMe(b.dataset.sessswap));
+ el("sessMain").querySelectorAll("[data-e101s]").forEach(b=>b.onclick=()=>e101Go(b.dataset.e101s));   /* vE E101 */
  el("sessMain").querySelectorAll("[data-sessivx]").forEach(b=>b.onclick=()=>{ivxOpen(b.dataset.sessivx); render(); sessRender()});   /* vE E096 */
  el("sessMain").querySelectorAll("[data-sst]").forEach(b=>b.onclick=()=>e099Go(b.dataset.sst));   /* vE E099 */
  el("sessList").querySelectorAll("[data-si]").forEach(b=>b.onclick=()=>sessGo(+b.dataset.si));
@@ -17904,7 +18062,9 @@ document.addEventListener("keydown",e=>{
 /* #present opens the session on topic 1. Without the hash the prototype boots
    exactly as it did, so every existing deep link and the whole harness are
    unaffected.                                                              */
-if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
+/* vE E101: a state button reloads with p101, so the panel comes back open on its topic */
+if(/(^|[#&])p101\b/.test(location.hash)){sIdx=Math.max(0,TOPICS.findIndex(t=>t.k==="e101"));sOpen=true;sessShow(true)}
+else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 /* item 6, 28 Sep 2026: reviewer scaffolding must not sit on a product screen
    by default. sessShow(false) also reveals the "Validation panel" reopen
    pill (it is the click-to-get-back-in affordance once a reviewer has had
@@ -17915,7 +18075,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="fa9fb99";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="7fa4435";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19320,6 +19480,88 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 @media (max-width:640px){
  .e105-mh{padding:16px}
  .e105-mb{padding:16px}
+}
+</style>
+<style>
+/* ═══ vE E101: the resource summary. Figures: production Billing's label-above-value (14/20 500 Gray 600 over 24/32 600
+   Gray 900); the bar: production ProgressBar's shape at 8px, three greys (not a usage bar, so no colour); the panel's own
+   24px gutters and 1px Gray 200 rules. While a draft is open (save pattern 1) the summary holds Discard and Apply and
+   sticks to the top of the page. ═══ */
+.e101-sum{display:flex;flex-direction:column;gap:16px;padding:20px 24px;border-bottom:1px solid #E5E7EB;background:#fff;box-sizing:border-box}
+.e101-sum.is-draft{position:sticky;top:0;z-index:5;box-shadow:0 8px 24px -12px rgba(17,24,39,.18)}
+.e101-fs{display:flex;flex-wrap:wrap;gap:16px 48px}
+.e101-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.e101-l{display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:20px;font-weight:500;color:#4B5563;white-space:nowrap}
+.e101-v{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.e101-v b{font-size:24px;line-height:32px;font-weight:600;color:#111827;font-variant-numeric:tabular-nums}
+.e101-was{font-size:12px;line-height:16px;font-weight:400;color:#6B7280;font-variant-numeric:tabular-nums}
+.e101-sc,.e101-dr{display:flex;align-items:center;flex-wrap:wrap;gap:12px;min-height:40px}
+.e101-st,.e101-dt{margin:0;font-size:14px;line-height:20px;color:#1F2937}
+.e101-st{flex:1 1 auto;min-width:0}
+.e101-dx{display:flex;flex-direction:column;gap:2px;flex:1 1 0;min-width:0}
+.e101-dr>.e101-dt{flex:1 1 0;min-width:0}
+.e101-sb{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-left:auto}
+/* the status line, then Take back under it, both on the summary's left edge */
+.e101-sc{flex-direction:column;align-items:flex-start;min-height:0}
+.e101-sc .e101-sb{margin-left:0}
+.e101-sc .e101-st{flex:none}
+/* the table selection: the design system's 16px checkbox before the avatar (a 16px spacer where there is none, so names
+   line up); a selected row takes the hover grey; the bar is the search row's own box, so the table doesn't jump */
+/* R1, from the 166 board: tokens 32px high, the sentence 16/24, the result 14/20, the amber line only when a limit goes down */
+.e101-ck{flex:none}
+.e101-sp{margin-top:4px}
+.e101-sent{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:16px;line-height:24px;color:#111827}
+.e101-tw{display:inline-flex;position:relative}
+.e101-tok{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font:500 16px/24px Inter,sans-serif;color:#1F2937;vertical-align:middle;white-space:nowrap;cursor:pointer;box-sizing:border-box}
+.e101-tok svg{flex:none;color:#6B7280}
+.e101-tok:hover{background:#F9FAFB}
+.e101-tok.is-open,.e101-tok:focus-visible{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:none}
+.e101-pop{position:absolute;z-index:8;top:36px;left:0;min-width:260px;width:max-content;max-width:320px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 24px rgba(17,24,39,.12);padding:8px 0;font-size:14px;line-height:20px;font-weight:400;box-sizing:border-box}
+.e101-qp{display:flex;flex-wrap:wrap;gap:4px 16px;padding:4px 16px 10px;border-bottom:1px solid #E5E7EB;font-size:12px;line-height:16px}
+.e101-qp .linkbtn{white-space:nowrap;font-size:12px;line-height:16px;font-weight:500}
+.e101-pl{max-height:252px;overflow:auto}
+.e101-pr{display:flex;align-items:center;gap:10px;height:36px;padding:0 16px;cursor:pointer;color:#1F2937;font-size:14px}
+.e101-pr:hover,.e101-po:hover:not(:disabled){background:#F9FAFB}
+.e101-wn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.e101-x{margin-left:auto;padding-left:12px;font-size:12px;line-height:16px;color:#6B7280;white-space:nowrap}
+.e101-po{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 16px;border:0;background:none;font:inherit;font-size:14px;color:#1F2937;text-align:left;cursor:pointer;box-sizing:border-box}
+.e101-po:disabled{color:#9CA3AF;cursor:default}
+.e101-po.is-on{font-weight:500}
+.e101-tk{flex:none;width:16px;height:16px}
+.e101-sprow{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-top:12px}
+.e101-res{margin:0;font-size:14px;line-height:20px;color:#374151;min-width:0}
+.e101-res b{font-weight:600;color:#111827}
+.e101-act{display:flex;gap:12px;align-items:center;flex:none}
+.e101-act .shd-button--secondary{border-color:#D1D5DB;color:#374151}
+.e101-note{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:8px 12px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:14px;line-height:20px}
+.e101-note svg{flex:none;margin-top:2px}
+.e101-g6{margin-top:16px;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden}
+.e101-g6r{display:grid;grid-template-columns:272px 160px minmax(0,1fr);column-gap:16px;align-items:center;height:40px;padding:0 16px;border-top:1px solid #E5E7EB;font-size:14px;color:#1F2937}
+.e101-g6r:first-child{border-top:0;background:#F9FAFB;font-size:12px;font-weight:500;color:#6B7280}
+.e101-g6r b{font-weight:600}
+.e101-chip{display:inline-flex;align-items:center;height:20px;margin-left:8px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap}
+@media (max-width:760px){
+ .e101-tw{position:static}
+ .e101-pop{left:0;right:0;top:100%;width:auto;max-width:none;margin-top:4px}
+ .e101-sprow{flex-direction:column;align-items:stretch;gap:12px}
+ .e101-act{display:grid;grid-template-columns:1fr 2fr;gap:12px}
+ .e101-g6r{grid-template-columns:minmax(0,1fr) auto auto;padding:0 12px;column-gap:12px}
+}
+.e101-ph{position:fixed;inset:0;z-index:8500;background:rgba(17,24,39,.64);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box}
+.e101-phh{display:flex;align-items:center;justify-content:space-between;gap:16px;width:390px;max-width:100%;color:#fff;font-size:14px;line-height:20px;font-weight:500}
+.e101-phh .shd-button{background:#fff}
+.e101-ph iframe{width:390px;max-width:100%;height:min(844px,calc(100vh - 88px));border:0;border-radius:8px;background:#fff}
+@media (max-width:760px){
+ .e101-sum{gap:12px;padding:16px}
+ .e101-fs{flex-direction:column;gap:8px}
+ .e101-f{flex-direction:row;align-items:baseline;justify-content:space-between;gap:12px}
+ .e101-v{flex-direction:column;align-items:flex-end;gap:0}
+ .e101-v b{font-size:16px;line-height:24px}
+ .e101-sc,.e101-dr{gap:12px}
+ .e101-st,.e101-dx,.e101-dr>.e101-dt{flex:1 1 100%}
+ .e101-sb{width:100%;margin-left:0}
+ .e101-sc .e101-sb .shd-button{flex:1 1 100%;height:auto;min-height:32px;padding-top:5px;padding-bottom:5px;white-space:normal;line-height:20px}
+ .e101-dr .e101-sb .shd-button{flex:1 1 0}
 }
 </style>
 <script src="review-picker.js"></script>
