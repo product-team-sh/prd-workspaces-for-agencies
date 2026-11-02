@@ -5608,6 +5608,10 @@ const WS_ROLE_LINE={
  "Client Viewer":"Sees everything in the workspace, changes nothing",
 };
 const roleLine=r=>WS_ROLE_LINE[r]||"";
+/* vE E104: one line per role, shared by the role guide (E094) and the Invite users role menus */
+const ROLE_SUM_ORDER=["Owner","Admin","Member","Client Admin","Client Collaborator","Client Viewer"];
+const ROLE_SUM={Owner:"Everything, billing included",Admin:"Runs assigned workspaces",Member:"Works on their own records",
+  "Client Admin":"Runs the client’s campaigns","Client Collaborator":"Email accounts and replies only","Client Viewer":"Sees everything, changes nothing"};
 const roleItems=()=>CLIENT_ROLES.map(x=>({value:x,label:x,desc:roleLine(x)}));
 /* the radio list: a role as one field of a form (Add a workspace, Invite people) */
 const validEmail=v=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v||"").trim());
@@ -6884,8 +6888,7 @@ function ppRolesHTML(){
  const sec=t=>`<tr class="rl2-sec"><td class="rl2-l">${t}</td>${[0,1,2,3,4,5].map(i=>`<td class="${gc(i)}"></td>`).join("")}</tr>`;
  const row=(l,vals)=>`<tr class="rl2-r"><td class="rl2-l">${l}</td>${vals.map(c).join("")}</tr>`;
  /* vE E094: one line under each role name says what the role is for, so the pick at Invite is easy */
- const RL_SUM=["Everything, billing included","Runs assigned workspaces","Works on their own records",
-  "Runs the client’s campaigns","Email accounts and replies only","Sees everything, changes nothing"];
+ const RL_SUM=ROLE_SUM_ORDER.map(r=>ROLE_SUM[r]);   /* vE E104: the same lines now also sit under each role in Invite */
  const th=(b,i)=>`<th class="rl2-th ${gc(i)}"><b>${b}</b><span class="rl2-sum">${RL_SUM[i]}</span></th>`;
  const W=[["Open workspaces",["Every one","Assigned ones","Assigned ones","Their own","Their own","Their own"]]];
  /* vE E094: 23 rows grouped into 11; a row merges only rows whose six answers were identical */
@@ -7437,13 +7440,13 @@ function invWsH(){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), r
  if(role==="Owner") return `<div class="inv-a2-f"><span class="flabel">Workspaces</span><p class="inv-a2-line" data-invall>Reaches every workspace.</p></div>`;
  const L=wsPickOrder(fundedWorkspaces().filter(c=>!cl||!c.own)), srch=L.length>WS_PICK_MAX, T=cl?f.cl:f.ws, q=f.q.trim().toLowerCase();
  const items=L.map(c=>{const on=T.indexOf(c.id)>-1, k=wsHay(c);
-  return `<div class="inv-a2-ws${rows&&on?" is-on":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}>${av(c,20)}<span class="inv-a2-wn">${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x)}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x)}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
+  return `<div class="inv-a2-ws${rows&&on?" is-on":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}>${av(c,20)}<span class="inv-a2-wn">${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
  const none=srch&&q&&!L.some(c=>wsHay(c).indexOf(q)>-1);
  return `<div class="inv-a2-f"><span class="flabel" id="invWsL">Workspaces</span><div class="inv-a2-wsl${rows?" is-roles":""}" role="group" aria-labelledby="invWsL">${wsBarH(L,id=>T.indexOf(id)>-1,srch?`${srchI}<input type="text" data-invwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(f.q)}">`:"","data-invwsall")}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${none?"":" hidden"}>${nrHTML(f.q)}</p></div></div></div>`}
 function invA2HTML(){const I=INV, f=I.f, lock=I.lock&&byId[I.lock], v=invVerdict(), J=invJudge(I.emails);
  const chips=I.emails.map((e,i)=>{const r=J[i]; return `<span class="rmt-chip${r.state==="bad"?" is-bad":""}${r.state==="block"?" is-mute":""}"><span class="cv u-tip" data-invchip="${i}" data-uwtip="Edit email">${invEsc(e)}</span><button type="button" data-invrm="${i}" aria-label="Remove ${invEsc(e)}">${RM_X}</button></span>`}).join("");
  const hints=J.filter(r=>r.msg), ph=I.emails.length?"Add another":lock?"name@"+(rmDom(lock.email)||"company.com"):"name@company.com";
- const fx=I.fix&&byId[I.fix], groups=lock?[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:roleLine(x)}))}]:[{label:"Your team",items:INV_TEAM_ROLES().filter(x=>!(fx&&x==="Owner")).map(x=>({value:x,label:roleName(x),desc:TEAM_ROLE_LINE[x]}))}].concat(fx&&fx.own?[]:[{label:"Client users",items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:roleLine(x)}))}]);   /* vE E083: fixed workspace */   /* vE E077 */
+ const fx=I.fix&&byId[I.fix], groups=lock?[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]:[{label:"Your team",items:INV_TEAM_ROLES().filter(x=>!(fx&&x==="Owner")).map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}].concat(fx&&fx.own?[]:[{label:"Client users",items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]);   /* vE E083: fixed workspace */   /* vE E077 */
  const kept=f.kept&&invRows()?f.cl.filter(id=>f.rr[id]&&!invHeld(id)).length:0;
  const mates=invMatesOnly(), mR=mates?[...new Set(invLiveCls().map(c=>c.person.role))]:[], addN=J.filter(r=>r.state==="add").length, newN=J.filter(r=>r.state!=="add"&&!r.c.bad&&!r.c.person).length;
  /* vE E086: Type first (Your team or Client user), then Role lists only that side */
@@ -7513,8 +7516,8 @@ function invA2Wire(L){const I=INV, f=I.f, inp=L.querySelector("#invEmail");
 let INV_MENU_AT=0;
 function invPlaceMenu(dd,m,again){INV_MENU_AT=Date.now(); if(!again) requestAnimationFrame(()=>{if(!m.hidden) invPlaceMenu(dd,m,true)});   /* again after the open scrolls the selected option into view */
  const t=dd.querySelector(".dd-trig").getBoundingClientRect(), cb=dd.closest(".modal"), o=cb&&getComputedStyle(cb).transform!=="none"?cb.getBoundingClientRect():{left:0,top:0,bottom:innerHeight};
- const w=t.width, h=Math.min(m.scrollHeight,400), below=innerHeight-t.bottom-12, above=t.top-12;   /* vE E077: 400, so all six roles with their lines show without a scroll where the window allows */
- Object.assign(m.style,{position:"fixed",zIndex:1300,right:"auto",minWidth:"0",width:w+"px",left:(Math.max(8,Math.min(t.left,innerWidth-w-8))-o.left)+"px"});
+ const rr=!!dd.closest(".inv-a2-rdd"), w=rr?Math.min(Math.max(t.width,272),innerWidth-16):t.width, h=Math.min(m.scrollHeight,400), below=innerHeight-t.bottom-12, above=t.top-12;   /* vE E077: 400, so all six roles with their lines show without a scroll where the window allows */
+ Object.assign(m.style,{position:"fixed",zIndex:1300,right:"auto",minWidth:"0",width:w+"px",left:(Math.max(8,Math.min(rr?t.right-w:t.left,innerWidth-w-8))-o.left)+"px"});
  if(h>below&&above>below){m.style.top="auto"; m.style.bottom=(o.bottom-t.top+4)+"px"; m.style.maxHeight=Math.min(400,above)+"px"}
  else {m.style.bottom="auto"; m.style.top=(t.bottom+4-o.top)+"px"; m.style.maxHeight=Math.min(400,below)+"px"}}
 document.addEventListener("scroll",e=>{const o=document.querySelector(".inv-a2 .dd.is-open,.px-fld .dd.is-open"); if(!o||Date.now()-INV_MENU_AT<300||(e.target.closest&&e.target.closest(".dd-menu"))) return; const t=o.querySelector("[data-ddtrig]"); if(t) t.click()},true);
@@ -17912,7 +17915,7 @@ if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessGo(0)}
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="dbbcd41";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="2235cd9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
