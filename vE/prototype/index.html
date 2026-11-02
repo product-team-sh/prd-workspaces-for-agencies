@@ -11183,7 +11183,12 @@ function renderToast(){
  L.innerHTML=`<div class="toast" role="status" style="--t-bd:${v.bd};--t-bg:${v.bg};--t-ic:${v.ic};--t-tx:${v.tx}"><span class="toast-ic">${TOAST_I[RECEIPT.variant||"neutral"]||TOAST_I.neutral}</span><span class="toast-t">${RECEIPT.text}</span>${RECEIPT.undo?'<button type="button" class="toast-act" data-toastundo>Undo</button>':""}${RECEIPT.preview?'<button type="button" class="toast-act" data-toastprev>Preview invite email</button>':""}<button type="button" class="toast-x" data-toastx aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`;
  const u=L.querySelector("[data-toastundo]"); if(u)u.onclick=()=>{const f=RECEIPT&&RECEIPT.undo;clearReceipt();if(f)f();renderToast();if(modal)renderModal();render()};
  L.querySelector("[data-toastx]").onclick=()=>{clearReceipt();renderToast()};
- const pv=L.querySelector("[data-toastprev]"); if(pv)pv.onclick=()=>{const I=RECEIPT&&RECEIPT.preview; if(!I) return; ivxOpen(I.kind==="team"?"e-team":I.wl?"e-clw":"e-cl",I); renderToast(); render()};   /* vE E096 */
+ const pv=L.querySelector("[data-toastprev]"); if(pv)pv.onclick=()=>{const I=RECEIPT&&RECEIPT.preview; if(!I) return; if(I.kind!=="team"&&ivxE105(I)){renderToast(); render(); return} ivxOpen(I.kind==="team"?"e-team":I.wl?"e-clw":"e-cl",I); renderToast(); render()};   /* vE E096; merge 29 Oct: E105 seam */
+/* merge 29 Oct (E096 x E105): an address that already has a login in another account gets E105's sign-in email, not the set-up email */
+function ivxE105(I){const a=String(I.to||"").toLowerCase(); if(!E105_LOGINS[a]) return false;
+ const c=CLIENTS.find(w=>!w.deletedOn&&INVITED["w:"+w.id+"|"+a]&&(w.users||[]).some(u=>u[0].toLowerCase()===a)); if(!c) return false;
+ const u=c.users.find(x=>x[0].toLowerCase()===a); E105_INV.email=a; E105_INV.ws=c.id; E105_INV.role=u[1];
+ const back=Object.assign({},view); clearReceipt(); modal=null; drawer=null; view={name:"invite",e105:"email",back}; return true}
 }
 /* slide the acted-on row out, then commit the change and repaint */
 function decide(btn,commit){const row=btn.closest("tr,.pri2");
@@ -18075,7 +18080,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7fa4435";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="45c8a44";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
