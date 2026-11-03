@@ -14562,7 +14562,7 @@ let WSF={status:[],usage:[],team:[],client:[]}, WSF_OPEN=null, WSF_Q="", WS_SIZE
 const wsfReset=()=>{WSF={status:[],usage:[],team:[],client:[]}};
 /* Used up is the red chip, Near limit the amber one (90% or more, or a renewing resource out in about 3 days), Fine the rest */
 const wsfUse=c=>{const N=!c.disabled&&usageNeed(c); return N&&N.tone==="bad"?"out":N&&N.tone==="warn"?"near":"fine"};
-const wsfTeamOpts=()=>ppTeam().filter(t=>t.role!=="Owner").map(t=>[t.k,t.name]).sort((a,b)=>a[1].localeCompare(b[1]));
+const wsfTeamOpts=()=>ppTeam().filter(t=>t.role!=="Owner").map(t=>[t.k,t.name,t.email]).sort((a,b)=>a[1].localeCompare(b[1]));
 const wsfOpts=k=>k==="team"?wsfTeamOpts():k==="status"&&!canI("destructive")?WSF_DEF[0][2].filter(o=>o[0]!=="Deleted"):WSF_DEF.concat([WSF_USAGE]).find(d=>d[0]===k)[2];   /* vE E025: Usage lives outside Home's list */
 const wsfCli=c=>{if(c.own) return []; const L=wsPeopleOf(c).client; return (L.some(x=>x.invited)?["invites"]:[]).concat(L.length?[]:["none"])};
 function wsfPass(c){
@@ -14579,7 +14579,7 @@ const WSF_CHEV='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strok
    with a search box once it lists more than 8 */
 function wsfDD(k,l){const S=WSF[k], O=wsfOpts(k), open=WSF_OPEN===k;
  const val=!S.length?l:l+": "+(S.length===1?wsfName(k,S[0]):S.length+" selected");
- const srch=O.length>WS_PICK_MAX, q=WSF_Q.trim().toLowerCase(), shown=srch&&q?O.filter(o=>o[1].toLowerCase().indexOf(q)>-1):O;
+ const srch=k==="team"||k==="client"||O.length>WS_PICK_MAX, q=WSF_Q.trim().toLowerCase(), shown=srch&&q?O.filter(o=>(o[1]+" "+(o[2]||"")).toLowerCase().indexOf(q)>-1):O;   /* vE E116: a search box on Your team and Client users, name and email */
  return '<div class="dd wsf'+(open?' is-open':'')+'" data-wsf="'+k+'"><button type="button" class="dd-trig" data-wsft="'+k+'" aria-haspopup="true" aria-expanded="'+open+'">'
   +'<span class="dd-val">'+wsfEsc(val)+'</span>'+WSF_CHEV+'</button>'
   +(open?'<div class="dd-menu wsf-m" role="group" aria-label="'+l+'">'
@@ -18338,7 +18338,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="9cd5e8d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="ccf4f5c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
