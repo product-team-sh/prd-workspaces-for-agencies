@@ -1696,6 +1696,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#page" data-skip>Skip to content</a>
 <div class="app">
   <nav class="sb" aria-label="Main navigation">
     <div class="sb-brand"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true">
@@ -1724,7 +1725,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
   <div class="main">
     <header class="topbar">
       <!-- 28 Sep 2026, Hitesh: the global search box and its Cmd+K palette are removed. Each screen keeps its own search. -->
-      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><span class="crumb-tail" id="crumbTail">Workspaces</span></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
+      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><h1 class="crumb-tail" id="crumbTail">Workspaces</h1></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
       <div class="util">
         <button class="ubtn u-tip" data-uwtip="Support" aria-label="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
         <button class="ubtn u-tip" data-uwtip="Quick actions" aria-label="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
@@ -1737,7 +1738,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
     </header>
     <div class="pop" id="mePop" hidden><div class="pop-l" id="mePopL"></div></div>
     <div class="ctx-bar" id="ctxBar"></div>
-    <div class="page" id="page"></div>
+    <main class="page" id="page" tabindex="-1"></main>
   </div>
 </div>
 <div id="layer"></div>
@@ -4114,7 +4115,7 @@ function vProfile(){
    ${ro("pfPass","Password","************",`<button type="button" class="pf-b2 pf-b2--pw" data-pfpw>Change Password</button>`)}
    <div class="pf-ph"><p>Phone number</p><div class="pf-phc"><span class="pf-flag" aria-hidden="true">${PF_FLAG[P.cc]||PF_FLAG.in}<i></i></span><input type="tel" class="pf-phi" id="pfPhone" value="${pfEsc(d.phone)}" placeholder="Enter phone number" aria-label="Phone number"></div></div>
    <div class="pf-f"><label class="pf-l" for="pfTz">Time Zone</label><span class="pf-tz"><select id="pfTz">${PF_TZ.map(z=>`<option${z===d.tz?" selected":""}>${z}</option>`).join("")}</select>${PF_I.chev}</span></div>
-   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfsave>Save</button><span class="pf-why" data-pftzwhy ${d.tz!==P.tz?"":"hidden"}>Changes how times show to you. Sending schedules keep their own time zone.</span></div>
+   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfsave aria-label="Save profile">Save</button><span class="pf-why" data-pftzwhy ${d.tz!==P.tz?"":"hidden"}>Changes how times show to you. Sending schedules keep their own time zone.</span></div>
   </form>
   ${showOoo?`<section class="pf-sec" aria-labelledby="pfOooH"><h2 class="pf-sh" id="pfOooH">Out of Office</h2>
    <div class="pf-tg"><button type="button" class="pf-sw" role="switch" aria-checked="${o.on}" aria-labelledby="pfOooL" data-pfooo></button><p id="pfOooL">Enable Out-of-Office Workflow</p></div>
@@ -4122,9 +4123,9 @@ function vProfile(){
     ${rad("date",`<p>Pause prospects as per the return date found in out-of-office email. If no date is found, pause them for</p>${num("date")}<p>days</p>`)}
     ${rad("manual",`<p>Pause prospects for</p>${num("manual")}<p>days when out-of-office reply is detected</p>`)}
    </div>
-   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfooosave ${pfOooDirty(o,P)?"":"disabled"}>Save</button>${seqWs.length?`<span class="pf-why" data-pfooowhy ${pfOooDirty(o,P)?"":"hidden"}>Applies to your sequences in ${listAnd(seqWs.map(c=>pfEsc(c.name)))}.</span>`:""}</div>
+   <div class="pf-save"><button type="button" class="shd-button shd-button--primary" data-pfooosave aria-label="Save Out of Office" ${pfOooDirty(o,P)?"":"disabled"}>Save</button>${seqWs.length?`<span class="pf-why" data-pfooowhy ${pfOooDirty(o,P)?"":"hidden"}>Applies to your sequences in ${listAnd(seqWs.map(c=>pfEsc(c.name)))}.</span>`:""}</div>
   </section>`:""}
-  ${P.owner?`<div class="pf-dz"><h2>Danger Zone</h2><p>Delete your Saleshandy account permanently.</p></div>
+  ${P.owner?`<div class="pf-dz"><h2>Danger Zone</h2><p>${(!P.client&&CLIENTS.length)?`Permanently delete your login and the ${pfEsc(AGENCY.name)} account with its ${pfAllWs().length} workspace${pfAllWs().length===1?"":"s"}.`:"Delete your Saleshandy account permanently."}</p></div>
    ${PF.free?delBtn:`<span class="u-tip pf-dzt" tabindex="0" data-uwtip="Your Saleshandy account must be on a free plan if you want to delete it.">${delBtn}</span>`}`:""}
  </div>`;
 }
@@ -5886,8 +5887,9 @@ function rmClients(c){const R=CLIENT_ROLES;
 function rmTeam(c){return ppTeam().filter(r=>r.ws===null||r.ws.indexOf(c.id)>-1).map(r=>({key:"t:"+r.k,k:r.k,P:r.P,name:r.name,label:r.name,email:r.email,ini:r.initials,col:RM_AV,
  acct:roleName(r.role),fixed:r.ws===null,role:roleName(r.role),seen:r.seen,isInv:r.seen==="never",sent:r.invited,off:r.disabled,me:r.me}))}
 /* Last sign-in: the status folds in here (no Status column, no green dot) */
-function rmSeen(c,r){
+function rmSeen(c,r,mem){
  const last=r.seen&&r.seen!=="never"&&r.seen!=="unknown"?r.seen:null, lbl='<span class="rmt-lbl">Last sign-in </span>';
+ if(r.off&&mem) return `<span class="rmt-seen is-quiet">${lbl}${last?rmCap(last):"Never"}</span>`;   /* E112: the Members tab shows Disabled by the name, so this says only when they last signed in */
  if(r.off) return `<span class="rmt-seen is-quiet">Disabled<span class="sub">${r.client?"Can't sign in":last?"Last signed in "+last:"Never signed in"}</span></span>`;
  if(c.disabled) return `<span class="rmt-seen is-quiet">No access while disabled<span class="sub">${last?"Last signed in "+last:r.isInv?"Invite not accepted yet":"Never signed in"}</span></span>`;
  if(r.isInv){const s=r.sent; if(s&&invExpired(s,!!r.k)) return `<span class="rmt-seen is-quiet">Invite expired<span class="sub">Sent ${AGE(s)}</span></span>`;
@@ -5926,15 +5928,15 @@ function rmClientRow(c,r,ed,link,ty){
  const only=(c.users||[]).length===1;
  const items=ed?[r.off?null:["access","Edit access"],["move","Move to another workspace"],r.isInv?["resend","Resend invite"]:null,[r.off?"enable":"disable",r.off?"Enable":"Disable"],
   ["remove","Remove from "+c.name,only?`Only user here. Disable the workspace instead.`:""]].filter(Boolean):[];
- return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user")}
-  <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
+ return `<tr class="rmt-r${r.off||c.disabled?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${r.off?`<div class="rmt-pw">${rmPerson(r,link)}<span class="rmt-dis">Disabled</span></div>`:rmPerson(r,link)}</td>${rmTypeCell(ty,"Client user")}
+  <td>${rmRoleCell(c,r,ed&&!r.off)}</td><td>${rmSeen(c,r,1)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 function rmTeamRow(c,r,ed,link,ty){
  const can=ed&&!r.fixed&&!r.off;
  /* change 349: every row has a kebab, or none does. A row with nothing to edit on this workspace (Owner, Admin, you, a disabled person) has one item, which opens their page in People */
  const items=!ed?[]:can&&!r.me?[["access","Edit access"],r.isInv?["resend","Resend invite"]:null,["remove","Remove from "+c.name]].filter(Boolean):[["people",personOf(r.key)&&personCanEdit(personOf(r.key))?"Edit access":"View access"]];   /* vE E102: it opens the panel here, not Users */
- return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
-  <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r)}</td>${rmMenuCell(r,items)}</tr>`;
+ return `<tr class="rmt-r${r.off?" is-off":""}" data-rmrow="${rmEsc(r.key)}"><td>${r.off?`<div class="rmt-pw">${rmPerson(r,link)}<span class="rmt-dis">Disabled</span></div>`:rmPerson(r,link)}</td>${rmTypeCell(ty,"Your team")}
+  <td>${rmRoleCell(c,r,can)}</td><td>${rmSeen(c,r,1)}</td>${rmMenuCell(r,items)}</tr>`;
 }
 const rmN=(n,one,many)=>`${n} ${n===1?one:many}`;
 /* change 333: the Members tab has no heading; rmHeading is kept for reference only, nothing calls it */
@@ -6002,16 +6004,16 @@ function rMembers(c){
  const admins=ppTeam().filter(r=>r.role!=="Member"&&!r.disabled).map(r=>r.name);
  const lead="";   /* change 320: the read-only line went; nothing to change shows no control to change it */
  const side=ro?""   /* change 333: each row says "No access while disabled"; the header has Enable */
-  :ed&&!RM.inv?`<button type="button" class="linkbtn rmt-invlink" data-rminvite aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>${c.own?"Add teammates":"Invite users"}</button>`:"";   /* change 348: a link in the table header, no filled button, no row of its own */
+  :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary rmt-invbtn" data-rminvite aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>${c.own?"Add teammates":"Invite users"}</button>`:"";   /* change 348: a link in the table header, no filled button, no row of its own */
  /* change 304: one list as People's, client users first; the Type column says which kind (not on the own workspace, which has one kind) */
  const ty=!c.own, nc=ty?5:4, none=t=>`<tr class="rmt-none"><td colspan="${nc}">${t}</td></tr>`;
  const noMember=ed&&!c.own&&!tm.some(r=>!r.fixed);
  /* with no select in the table, a role sits on its header; next to selects it lines up with their text */
  const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
  return `<div class="rmt">
-  ${lead}${rmInviteHTML(c)}${side?`<div class="rmt-pinv">${side}</div>`:""}
+  ${lead}${rmInviteHTML(c)}${side?`<div class="rmt-tb">${side}</div>`:""}
   <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
-   <thead><tr><th scope="col">User</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span>${side?`<div class="rmt-hl">${side}</div>`:""}</th></tr></thead>
+   <thead><tr><th scope="col">User</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span></th></tr></thead>
    <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite users</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`Nobody from your team is assigned to ${rmEsc(c.name)} yet; only Account Owners reach it.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
   </table></div></div>`;
 }
@@ -6342,7 +6344,7 @@ function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet re
  const rows=RKA.map(k=>rlRowHTML(k,c,gate)).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
  return `<div class="panel rlt-sheet"><table class="ulr-t ulr-tp rlt-t2"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>
-  <thead><tr class="th-one"><th>Resource</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r">Used</th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Usage (%)</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+  <thead><tr class="th-one"><th>Resource</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r">Used</th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Usage (%)${canI("limits")&&!RL&&!c.deletedOn?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
 function rlFxLine(D,k,id){if(RL&&RL.nb&&RL.nb[k]) return `<span class="ul3-mk">${NUM_ERR}</span>`;   /* vE E075 fix 5 */
  const e=ul3EdFx(D,k,id);
@@ -6399,7 +6401,7 @@ function rLimits(c){
  if(limGate(c)&&!ro) return `<div class="rlt">${grace()?rlGraceHTML():""}${RL&&RL.set&&can?slEditorHTML(c):slCardHTML(c)+rlSheetHTML(c)}</div>`;
  return `<div class="rlt">${grace()?rlGraceHTML():""}
   ${/* change 333: no "Limits" heading and no "Day 9 of 30"; a row only for what it still carries */
-   (ro||(can&&!ed))?`<div class="rlt-head rlt-tb">${ro||(can&&!ed)?`<div class="rlt-h">${ro?`<p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>`:""}${can&&!ed&&!c.deletedOn?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</div>`:""}</div>`:""}
+   ro?`<div class="rlt-head rlt-tb">${ro||(can&&!ed)?`<div class="rlt-h">${ro?`<p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>`:""}</div>`:""}</div>`:""}
   ${ed?rlEditorHTML(c):c.deletedOn?`<div class="panel rlt-sheet"><div class="panel-b"><div class="apu-col">${recDelRows(c)}</div></div></div>`/* vE E072 */:rlSheetHTML(c)}
   ${RC_REFUSED&&RC_REFUSED.id===c.id?`<div class="msg m-bad rc-refused" role="alert">${warnI}<span>${RC_REFUSED.text}</span></div>`:""}</div>`;
 }
@@ -8104,7 +8106,9 @@ function vPlatform(){
  /* Account Plan Usage lists the plan's monthly and level items in RES order (E004 adds Active prospects) */
  const LBL={sends:"Monthly Emails sent",active_prospects:"Active Prospects"};
  const ks=(typeof RKA!=="undefined"?RKA:RK).filter(k=>RES[k]&&(RES[k].kind==="monthly"||RES[k].kind==="level"));
- const items=ks.map(k=>bsxUse(LBL[k]||RES[k].label,compute(k).used,RES[k].pool,typeof isUnl==="function"&&isUnl(k)));
+ const items=ks.map(k=>{let h=bsxUse(LBL[k]||RES[k].label,compute(k).used,RES[k].pool,typeof isUnl==="function"&&isUnl(k));
+  if(k==="sends"&&ctx==="agency"&&canI("limits")) h=h.replace(/Remaining<\/span><\/div>$/,'Remaining <button type="button" class="linkbtn bsx-see" data-e112usage>See Usage &amp; limits</button></span></div>');   /* E112 */
+  return h});
  return `<div class="bsx-eoc"><div class="bsx-ec">${bsxPlanDetails(PLAN.name,[["Start Date",bsxD(PLAN.start)],["Next Billing Date",bsxD(PLAN.next)],["Next Billing Amount",PLAN.amount]],{pay:grace()})}</div>
   ${bsxUsage("Email quota resets on "+bsxD(PLAN.next,1),items)}${bsxLF()}</div>`;
 }
@@ -11683,7 +11687,7 @@ function drawerHTML(){
  const b1=`<div class="nc-namerow">${ncPreviewHTML()}
    <div class="field" style="flex:1;margin:0"><label class="flabel" for="ncn">Workspace name <span class="nc-req">*</span></label><input type="text" id="ncn" class="${ncNameMsg()?"is-err":""}" value="${nc.name.replace(/"/g,"&quot;")}" placeholder="e.g. Alloy &amp; Co." style="width:100%" aria-invalid="${ncNameMsg()?"true":"false"}" aria-describedby="ncnMsg"></div></div>
   ${ncNameMsgHTML()}
-  <div class="field"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" class="${ncSiteMsg()?"is-err":""}" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%" aria-invalid="${ncSiteMsg()?"true":"false"}" aria-describedby="ncsiteMsg">${ncSiteMsgHTML()}</div>
+  <div class="field nc-site"><label class="flabel" for="ncsite">Website <span class="opt">(optional)</span></label><input type="text" id="ncsite" class="${ncSiteMsg()?"is-err":""}" value="${(nc.site||"").replace(/"/g,"&quot;")}" placeholder="alloyco.com" style="width:100%" aria-invalid="${ncSiteMsg()?"true":"false"}" aria-describedby="ncsiteMsg">${ncSiteMsgHTML()}</div>
   <!-- change 358: a website with a logo replaces the colour, so Website comes first and the colour hides while a logo shows -->
   <!-- change E014: no colour control; a workspace with no logo gets a random unused colour from ncColour() -->
   <!-- 3 Oct 2026, Hitesh: no user at creation. The client's people are invited from the workspace once it is ready for them (handover step 5, the record's Access card). -->
@@ -11840,7 +11844,7 @@ function ncColour(){if(nc.colour) return nc.colour;
 function ncPreviewHTML(){const nm=(nc.name||"").trim(),col=ncColour();
  /* change 358: a logo found from the website replaces the tile; it is not a colour control then */
  if(nc.logo) return `<span class="nc-tile is-logo" id="ncPrev" role="img" aria-label="Logo from ${nc.logoFor}"><span class="avatar av-tint av-logo" style="--c:${col}"><img class="av-logo-i" src="${nc.logo}" alt="" draggable="false"></span></span>`;
- return `<span class="nc-tile is-logo${nm?"":" is-empty"}" id="ncPrev" role="img" aria-label="Workspace icon"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):"?"}</span></span>`}
+ return `<span class="nc-tile is-logo${nm?"":" is-empty"}" id="ncPrev" role="img" aria-label="Workspace icon"><span class="avatar av-tint" style="--c:${col}">${nm?initials(nm):'<svg class="nc-ph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>'}</span></span>`}
 /* repaints only the tile, so the name field never loses focus mid-keystroke
    and the swatch click never scrolls the drawer. Rebinds the swatch's own
    handler each time, since the node it lived on was just replaced. */
@@ -12983,7 +12987,7 @@ function modalHTML(){
      : `Every sequence pauses and its users are signed out. Your team can still open the record. You can enable it again any time.`}</p>${isDel&&mbxBought(c)?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">It holds ${mbxBought(c)} bought email account${mbxBought(c)===1?"":"s"}. ${mbxBought(c)===1?"It pauses and stays":"They pause and stay"} billed for 30 days, and ${mbxBought(c)===1?"comes":"come"} back if you restore it.</p>`:""}${isDel&&delOnlyTeam(c).length?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">${listAnd(delOnlyTeam(c).map(t=>t.name))} ${delOnlyTeam(c).length===1?"works":"work"} only in ${c.name}. They\u2019ll be disabled until you give them another workspace or restore this one.</p>`:""}${isDel
      ? `<p style="font-size:14px;line-height:20px;margin:16px 0 8px;color:#1F2937">Confirm by typing <span style="color:#B91C1C">delete</span> below.</p>
    <input type="text" id="delConfirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Type delete to confirm" style="display:block;width:100%;box-sizing:border-box">`:""}`,
-   `${isDel?'<span class="sub prm-why" id="delwhy">Type delete to continue.</span>':""}<button class="shd-button shd-button--tertiary" data-mclose>${isDel?"Keep":"Keep running"}</button>
+   `<button class="shd-button shd-button--tertiary" data-mclose>${isDel?"Keep":"Keep running"}</button>
     <button class="shd-button shd-button--${isDel?"danger":"primary"}" data-mconfirm${isDel?" disabled":""}>${isDel?"Delete workspace":"Disable"}</button>`,"modal--450");
 }
 function card(title,body,foot,cls){
@@ -18320,7 +18324,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8040f67";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3bac458";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19950,6 +19954,61 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
 @media (max-width:760px){.ulr-t.ulr-tp tr{grid-template-columns:var(--ulr-uw,6ch) minmax(0,1fr) auto}}
 @media (min-width:761px) and (max-width:990px){.ulr-t.ulr-tp tr{grid-template-columns:var(--ulr-uw,6ch) minmax(0,1fr) auto}}
 </style>
+
+<style id="e112">
+/* vE E112, 1 Nov 2026 */
+.skip-link{position:fixed;top:8px;left:8px;z-index:10000;padding:8px 16px;background:#fff;color:#1D4ED8;font-size:14px;line-height:20px;font-weight:600;border:2px solid #1D4ED8;border-radius:4px;text-decoration:none;transform:translateY(-200%)}
+.skip-link:focus,.skip-link:focus-visible{transform:none;outline:none}
+#page:focus{outline:none}
+h1.crumb-tail{margin:0}
+@media (max-width:640px){.topbar:not(.is-pf) .crumb:not(.hdr-multi)>h1#crumbTail{display:block;position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}   /* the phone header drops the page name from view; the h1 stays for screen readers */
+.u-tip:focus-visible,.wsp-f:focus-visible,.wsp-grp:focus-visible,.hero-v:focus-visible,.pp-chip--more:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}
+.search input::placeholder,.ubx-search input::placeholder,input::placeholder,textarea::placeholder,input.pf-i::placeholder,input.pf-phi::placeholder{color:#6B7280}
+.avatar.av-tint{color:color-mix(in srgb,var(--c,#1d4ed8) 90%,#000)}
+/* Add a workspace */
+.nc-tile.is-empty .avatar{background:#F3F4F6;border-color:#E5E7EB;color:#6B7280}
+.nc-tile .nc-ph{width:22px;height:22px}
+.nc-modal .nc-site{margin-left:64px}
+.nc-modal .nc-siteerr{padding-left:64px}
+.nc-modal input#ncn,.nc-modal input#ncsite{background:#fff}
+/* Members tab */
+.rmt-tb{display:flex;justify-content:flex-end}
+.rmt-tb .rmt-invbtn svg{width:16px;height:16px;margin-right:6px;flex:none}
+.rmt-pw{display:flex;align-items:center;gap:12px;min-width:0}
+.rmt-dis{flex:none;height:20px;padding:0 7px;border-radius:4px;background:#F3F4F6;color:#4B5563;font-size:12px;line-height:20px;font-weight:500}
+@media (max-width:640px){.rmt-pw{flex-wrap:wrap;gap:4px 12px}}
+/* Limits tab */
+.rlt-sheet .ulr-t.rlt-t2 th.ulr-p{position:relative;overflow:visible}
+.rlt-sheet .ulr-t.rlt-t2 th .rlt-chg{position:absolute;right:24px;top:50%;transform:translateY(-50%);margin:0;font-size:14px;line-height:20px;font-weight:500;white-space:nowrap}
+@media (max-width:760px){.rlt-sheet .ulr-t.rlt-t2 thead tr{position:relative}.rlt-sheet .ulr-t.rlt-t2 thead th.ulr-p{display:block;position:absolute;top:0;bottom:0;right:0;width:140px;padding:0;font-size:0;border:0}.rlt-sheet .ulr-t.rlt-t2 th .rlt-chg{right:16px;font-size:14px}}
+@media (min-width:1101px){
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-c1{width:264px}
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cg{width:96px}   /* the 80px usage bar after 16px, ending where Used starts, as on Usage & limits */
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 td.ulr-gc .ulr-bar{width:80px}
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cu{width:120px}
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cv{width:140px}
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cp{width:auto}
+}
+/* Billing */
+.bsx-use-r .bsx-see{margin-left:8px;font-size:12px;line-height:20px}
+@media (max-width:640px){.bsx-use-r .bsx-see{display:block;margin:0}}
+</style>
+<script id="e112js">
+/* vE E112: Skip to content, and every tooltip trigger reachable by keyboard whatever the role. */
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("[data-skip]"); if(!a) return; e.preventDefault(); const m=document.getElementById("page"); if(m){m.focus({preventScroll:false})}});
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-e112usage]"); if(!b) return; ctx="agency"; asClient=false; view={name:"limits"}; render()});
+(function(){let q=0;
+ const SEL=".u-tip[data-uwtip],.wsp-grp[data-uwtip],.wsp-f,.hero-v.u-tip,.pp-chip--more.u-tip";
+ const run=()=>{q=0; document.querySelectorAll(SEL).forEach(e=>{
+   if(e.hasAttribute("tabindex")||e.closest("button,a,[tabindex]")&&e.closest("button,a,[tabindex]")!==e&&e.matches(".u-tip")) return;
+   if(e.tagName==="BUTTON"||e.tagName==="A") return;
+   e.setAttribute("tabindex","0");
+   const t=e.getAttribute("data-uwtip"); if(t&&!e.hasAttribute("aria-description")&&!e.hasAttribute("aria-label")) e.setAttribute("aria-description",t)})};
+ const go=()=>{if(!q) q=requestAnimationFrame(run)};
+ new MutationObserver(go).observe(document.body,{childList:true,subtree:true});
+ go();
+})();
+</script>
 <script src="review-picker.js"></script>
 </body>
 </html>
