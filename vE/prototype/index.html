@@ -6777,7 +6777,7 @@ function ppClientAccess(r){const chip=x=>`<span class="pp-chip">${ppAvWs(x.c,18)
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
 /* change 121: a disabled person reads Disabled in grey; an invite older than 14 days reads expired, Resend stays */
 const ppStatus=r=>r.disabled?`<span class="pp-st pp-st--off"><i></i>Disabled</span>`
- :r.invited?`<span class="pp-st pp-st--inv${invExpired(r.invited,!!r.k)?" pp-st--exp":""}"><i></i>${invExpired(r.invited,!!r.k)?"Invite expired":r.invited==="never"?"Invited":"Invited "+AGE(r.invited)}</span><button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
+ :r.invited?`<span class="pp-st pp-st--inv${invExpired(r.invited,!!r.k)?" pp-st--exp":""}"><i></i>${invExpired(r.invited,!!r.k)?"Invite expired":r.invited==="never"?"Invited":"Invited "+AGE(r.invited)}</span> <button class="linkbtn" data-ppresend="${r.k||r.key}">Resend</button>`:`<span class="pp-st"><i></i>Active</span>`;
 function ppAccess(r){
  /* change 345: at most 2 workspace chips, then a +N chip; its tooltip lists the rest (change 266's fixed tooltip).
     vE E029: an Account Owner reads "All workspaces"; nobody has a role per workspace, so a chip names the
@@ -15418,8 +15418,13 @@ function pnDelHTML(){const p=personOf(modal.key); if(!p) return "";
    return card(`Remove ${invEsc(p.named?p.name:p.email)}?`,`<div class="msg m-warn" role="status">${warnI}<span><b>${invEsc(p.name)}</b> is ${c.name.split(" ")[0]}&rsquo;s only sign-in. Removing them leaves nobody to log in. If the client is leaving, <button class="linkbtn" data-openrec="${c.id}">disable the workspace</button> instead.</span></div>`,`<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button>`,"ac")}
   if(Object.keys(pxCast(p).cws).some(id=>ids.indexOf(id)<0)){const place=listAnd(ids.map(id=>pxW(id).name));   /* an Account Admin removes them only from the workspaces they reach */
    return card(`Remove ${invEsc(p.named?p.name:p.email)} from ${invEsc(place)}?`,`<p class="ac-lead">They lose access to ${invEsc(place)}. You can undo this.</p>`,`<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-prmgo>Remove</button>`,"ac")}}
- return card("Delete user",`<p class="ac-lead">Are you sure you want to delete the selected user permanently?</p><p class="ac-lead pn-del2">If you delete this user, the user will no longer be a part of a Saleshandy account.</p>`,
-  `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-prmgo>Delete</button>`,"ac")}
+ {const who=invEsc(p.named===false||!p.name?p.email:p.name), ag=invEsc(AGENCY.name);   /* E109: names the person, the account and their workspaces; says nothing about records (OQ23) */
+  const c=pxCast(p), ids=p.kind==="client"?pnClientWs(p):(c.ws||[]).filter(pnVis), nm=ids.map(id=>id==="own"?"your workspace":invEsc(pxW(id).name));
+  const list=p.role==="Owner"&&p.kind==="team"?"every workspace":nm.length>3?nm.slice(0,3).join(", ")+" and "+(nm.length-3)+" more":nm.length>1?nm.slice(0,-1).join(", ")+" and "+nm[nm.length-1]:nm[0]||"";
+  const body=p.invited?(list?`${who} is invited to ${list}. The invite stops working.`:`${who} is invited to ${ag}. The invite stops working.`)
+   :`${list?`${who} is in ${list}${/\.$/.test(list)?"":"."} `:""}${list?"They":who} lose${list?"":"s"} sign-in to ${ag}.`;
+  return card(`Remove ${who} from ${ag}?`,`<p class="ac-lead">${body}</p>`,
+  `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-prmgo>Remove</button>`,"ac")}}
 function pnDelGo(){const p=personOf(modal.key); if(!p) return;
  if(p.kind==="team"){if(p.owner||p.me||!personCanRemove(p)) return; const P=PEOPLE[p.k]; delete PEOPLE[p.k]; logAct(null,`${p.name} deleted`); modal=null; renderModal(); if(PN) pnClose(true);
   receipt("people",`${p.name} removed from the account.`,()=>{PEOPLE[p.k]=P},`${p.name} removed from the account`); RECEIPT.variant="neutral"; render(); return}
@@ -18300,7 +18305,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3211933";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="021c56a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19907,9 +19912,12 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
  .pn-row .dd,.pn-row .pn-rt{grid-column:1;grid-row:2}
  .pn-row>.pn-ib,.pn-row>span:last-child:empty,.pn-row .pn-undo{grid-column:2;grid-row:1/3}
  .pn-row.is-gone .pn-undo{grid-column:2;grid-row:1/3}
+ .pn-row.is-t{row-gap:0}   /* E109: one-line rows (teammates) have no second line, so the x sits level with the name */
+ .pn-row.is-t>.pn-ib,.pn-row.is-t>span:last-child:empty,.pn-row.is-t .pn-undo,.pn-row.is-gone.is-t .pn-undo{grid-row:1}
  body.pn-on #toastLayer{left:16px;right:16px;width:auto;min-width:0;padding:0}
 }
 @keyframes pnUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.pp-status .pp-st{flex:none}   /* E109: the status text kept shrinking into the Resend link, so 'ago' touched 'Resend' */
 </style>
 <style>
 /* vE E108 fix 3: the one-sentence confirm reads like the list's text, without the bullet's 20px */
