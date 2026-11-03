@@ -1973,8 +1973,7 @@ function startHandover(c){
     people get added. */
  handover={id:c.id,tile:clientTileHTML(c),
   roleLine:c.forClient===false?"Yours. Add users from Members when you need them.":(role?u[0]+" signs in as a "+role+".":"Invite its users when it is ready for them.")};
- renderXform();
- setTimeout(endHandover,REDUCED()?HANDOVER_MS_REDUCED:HANDOVER_MS);
+ endHandover();   /* vE E113: no "Workspace ready" beat; land where the beat used to lead */
 }
 function endHandover(){
  if(!handover) return;
@@ -7420,7 +7419,7 @@ function invJudge(list){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(ro
 function invVerdict(){const I=INV; if(invRows()) invPrune(); const f=Object.assign({},INV.f,{role:invRole()}), d=(I.draft||"").trim().toLowerCase(), all=I.emails.concat(INV_OK.test(d)&&I.emails.indexOf(d)<0?[d]:[]);
  if(!all.length) return {msg:"Add at least one email address."};
  const J=invJudge(all), bad=J.filter(r=>r.state==="bad");
- if(bad.length) return {msg:bad.length===1?`Fix ${bad[0].e} or remove it.`:`Fix ${bad.length} addresses or remove them.`,warn:1};
+ if(bad.length) return {msg:"",warn:1};   /* vE E113: the red line under each bad address says it; no footer repeat */
  const stop=J.filter(r=>r.state==="wrong"||r.state==="block"); if(stop.length) return {msg:`Remove ${stop[0].e} to send.`,warn:1};
  if(!f.role){const u=J.find(r=>r.c.unknown)||J.find(r=>r.c.client); return {msg:`Pick a role for ${u?u.e:"them"}.`,warn:1}}
  const fresh=J.filter(r=>r.state!=="add");
@@ -7441,7 +7440,8 @@ const PERSONAL_DOM=new Set(["gmail.com","googlemail.com","outlook.com","hotmail.
 const wsDoms=c=>{const s=new Set(); [rmDom(c.email),wsLogoDom(c.site||"")].forEach(x=>{if(x) s.add(x)}); return s};
 const domFits=(d,c)=>[...wsDoms(c)].some(x=>d===x||d.endsWith("."+x));
 const orJoin=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" or "+a[a.length-1];
-function domWarn(emails,ids){const E=[], W=[];
+function domWarn(emails,ids){return "";   /* vE E113: Hitesh removed the domain warning */
+ const E=[], W=[];
  emails.forEach(e=>{const d=rmDom(e); if(!d||PERSONAL_DOM.has(d)) return; const bad=ids.filter(id=>byId[id]&&!byId[id].own&&!domFits(d,byId[id])); if(!bad.length) return; E.push(e); bad.forEach(id=>{if(W.indexOf(id)<0) W.push(id)})});
  if(!E.length) return "";
  const who=E.length===1?E[0]:E.length===2?E.join(" and "):E.length+" addresses", names=W.map(id=>byId[id].name), nm=names.length>3?names.slice(0,3).join(", ")+" or "+(names.length-3)+" more":orJoin(names);
@@ -15369,7 +15369,7 @@ function pnFtHTML(p){
  return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':""}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
 function pnHTML(p,anim){const rows=pnRows(p), can=personCanEdit(p), nOn=rows?rows.filter(r=>r.on).length:0;
  const list=rows===null?`<div class="pn-sec">Workspaces</div><p class="pn-line">Reaches every workspace.</p>`
-  :`<div class="pn-sec">Workspaces <span class="pn-n">${rows.length}</span></div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
+  :`<div class="pn-sec">Workspaces</div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
    +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${PA_ED.d.side==="client"&&p.email?domWarn([p.email],pxTicked(PA_ED.d).filter(id=>!pxCast(p).cws[id])):""}${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
  return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${list}</div>${pnFtHTML(p)}</aside>`}
 /* a selector that finds the same control after a repaint */
@@ -16420,9 +16420,9 @@ td>.cs:only-child{display:block}
 .rc-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:4px}
 .rc-dact{display:flex;gap:8px;margin-top:12px}
 @media(max-width:640px){.ws-disbar{flex-wrap:wrap}.ws-disbar>span{flex:1 1 calc(100% - 26px);min-width:0}.ws-disbar .linkbtn{margin-left:26px}}   /* vE E076 fix 1 */
-.rc-deleted{display:flex;align-items:center;gap:10px;margin:0 24px 16px;padding:10px 14px;border-radius:4px;background:#fef2f2;border:1px solid #fecaca;font-size:13px;line-height:18px;color:#1f2937}
+.rc-deleted{display:flex;align-items:center;gap:10px;margin:20px 24px 0;padding:10px 14px;border-radius:4px;background:#fef2f2;border:1px solid #fecaca;font-size:13px;line-height:18px;color:#1f2937}
 .rc-deleted>svg{width:16px;height:16px;flex:none;color:#b91c1c}.rc-deleted .shd-button{margin-left:auto}
-@media(max-width:640px){.rc-deleted{margin:0 16px 16px;flex-wrap:wrap}.rc-deleted>span{flex:1 1 calc(100% - 26px);min-width:0}.rc-deleted .shd-button{margin-left:26px}}   /* vE E074 fix 6: .wrap pads 16px at this width */
+@media(max-width:640px){.rc-deleted{margin:16px 16px 0;flex-wrap:wrap}.rc-deleted>span{flex:1 1 calc(100% - 26px);min-width:0}.rc-deleted .shd-button{margin-left:26px}}   /* vE E074 fix 6: .wrap pads 16px at this width */
 .rc-dl input.is-err,.rc-dl input.is-err:focus{border-color:#dc2626!important;box-shadow:0 0 0 3px #fee2e2!important}.rc-dl .rd-nameerr{margin:6px 0 0}   /* vE E074 fix 5: as .nc-modal input#ncn.is-err */
 .toolbar.rc-off .semibold-3,.toolbar.rc-off .avatar{opacity:.6}
 .rc-mtb{display:flex;align-items:center;gap:16px;margin-bottom:16px}.rc-mtb .shd-button{margin-left:auto}
@@ -18324,7 +18324,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3bac458";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="eff661c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
