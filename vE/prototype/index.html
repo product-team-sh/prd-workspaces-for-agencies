@@ -8601,7 +8601,7 @@ function ulrApply(){const k=ul3E2K(), n=ulChanges().length; if(!n) return;
  RECEIPT.text=RECEIPT.short=`Applied ${ul3N(n,"change")}.`; RECEIPT.variant="neutral";   /* no green toasts */
  ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k; render()}
 function ulrStopHTML(){const L=ulrStops(), n=L.length;
- return card(n===1?"Lower this limit?":"Lower these limits?",`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,
+ return card(n===1?"Lower this limit?":"Lower these limits?",n===1?`<p class="ulr-cf1">${ulrStopTxt(L[0])}.</p>`:`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,   /* vE E108 */
   `<button class="shd-button shd-button--tertiary" data-mclose>Keep editing</button><button class="shd-button shd-button--primary" data-ulrcfok>${n===1?"Lower limit":"Lower limits"}</button>`,"ulr-cfm")}
 function ulrBarHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length; if(!n&&!nb) return "";
  return "";   /* vE E101: the draft lives in the summary (pattern 1); no bottom bar */
@@ -8651,7 +8651,7 @@ const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disable
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
 function ulrTake(key){const [k,id]=key.split("|"), c=byId[id], r=c&&RES[k].rows[id]; if(!r) return; const was=r.cap, d=was-r.used; if(d<=0) return;
  if(!setLimit(k,id,0,"taken back on Usage & limits")) return; delete UL.draft[key]; DECIDED.shift();
- receipt("ul",`Took back ${f(d)} from ${c.name}. ${f(compute(k).free)} left to allocate.`,()=>{r.cap=was; syncRes(k,r); logAct(id,`${RES[k].label} limit changed back to ${f(was)} (undo)`)},`took back ${c.name}'s ${RES[k].label.toLowerCase()}`); RECEIPT.variant="neutral";   /* no green toasts (E035's invite toast) */
+ receipt("ul",`Took back ${f(d)} from ${sentEnd(c.name)} ${f(compute(k).free)} left to allocate.`,()=>{r.cap=was; syncRes(k,r); logAct(id,`${RES[k].label} limit changed back to ${f(was)} (undo)`)},`took back ${c.name}'s ${RES[k].label.toLowerCase()}`); RECEIPT.variant="success";   /* vE E108: production's success toast; the neutral one reads as a warning here */
  UL.ul3f=`[data-ulce="${key}"]`; render()}
 /* vE E041 fix 2: a quiet Gray 500 dot on the rail where a workspace is used up or at 90% or more (saved figures, J's threshold) */
 function ulrMark(k){if(isUnl(k)) return ""; const o=ulRows().filter(c=>!c.disabled&&RES[k].rows[c.id]&&ulrLv(c,RES[k].rows[c.id].used,RES[k].rows[c.id].cap)===2).length; if(!o) return "";   /* vE E045: used up only */
@@ -8674,7 +8674,7 @@ function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
    sum of every used (disabled included), the limit the sum of every limit (held disabled limits included), which is the
    plan less Available (E070), so it follows the draft; the bar and "N% used" follow the rows' own rules. "Total, all workspaces"
    whenever search or a filter hides a row, or on a page past the first. None on an unlimited resource */
-function ulrTotHTML(k,W0,pg){if(isUnl(k)||!RES[k].rows[OWN_ID]) return ""; const seen=ul3E2Rows(k).map(c=>c.id), adm=!canI("billing"), ids=Object.keys(RES[k].rows).filter(id=>!adm||seen.indexOf(id)>-1), L=ids.reduce((t,id)=>t+ulDv(k,id),0), U=ids.reduce((t,id)=>t+RES[k].rows[id].used,0);
+function ulrTotHTML(k,W0,pg){if(isUnl(k)||!RES[k].rows[OWN_ID]) return ""; const seen=ul3E2Rows(k).map(c=>c.id), adm=!canI("billing"), ids=Object.keys(RES[k].rows).filter(id=>!adm||seen.indexOf(id)>-1), L=ids.reduce((t,id)=>t+Math.max(ulDv(k,id),RES[k].rows[id].used),0), U=ids.reduce((t,id)=>t+RES[k].rows[id].used,0);   /* vE E108: the larger of limit and used, the rule Allocated uses */
  const w=L>0?Math.min(100,U/L*100):U>0?100:0, P=ulrLast(k,{used:U,cap:L},L), all=W0.length<ul3E2Rows(k).length||pg.from>0;
  return `<tfoot><tr class="ulr-tot" data-ulrtot="${k}"><td><div class="ulr-ws"><span class="ulr-tsp" aria-hidden="true"></span><span class="ulr-nm">${adm?"Total, your workspaces":all?"Total, all workspaces":"Total"}</span></div></td><td class="ulr-gc"><span class="ulr-bar" role="img" aria-label="${P.t}"><span style="width:${+w.toFixed(1)}%;background:${useCol(U,L)}"></span></span></td><td class="ulr-ur"><span class="ulr-num">${f(U)}</span></td><td class="ulr-cl"><span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(L)}</span></span>${ULR_PEN0}</span></td><td class="ulr-pc"><span class="ulr-pace${P.x?" is-"+P.x:""}">${ulrPctT(P)}</span></td></tr></tfoot>`}
 function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
@@ -8694,7 +8694,7 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span></div></td>`
   +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${e101SumHTML(k,ro)/* vE E101 */}${tb}
-  <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -15128,7 +15128,7 @@ const e101Held=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; return r&&c
 function e101Back(k){const ids=e101Held(k).map(c=>c.id), amt=ids.reduce((t,id)=>t+RES[k].rows[id].cap-RES[k].rows[id].used,0); if(!ids.length) return;
  if(ids.length===1){ulrTake(k+"|"+ids[0]); return}
  const D={}; ids.forEach(id=>{D[k+"|"+id]=0});
- if(ul3Commit(D,"Applied")){RECEIPT.text=RECEIPT.short=`Took back ${f(amt)} from ${listAnd(ids.map(id=>byId[id].name))}. ${f(compute(k).free)} left to allocate.`; RECEIPT.variant="neutral"}
+ if(ul3Commit(D,"Applied")){RECEIPT.text=RECEIPT.short=`Took back ${f(amt)} from ${sentEnd(listAnd(ids.map(id=>byId[id].name)))} ${f(compute(k).free)} left to allocate.`; RECEIPT.variant="success"}
  UL.ul3f="[data-e101sum]"; render()}
 const e101Dirty=()=>ulChanges().length>0||Object.keys(UL.nb||{}).length>0;
 /* the status line: one true sentence, text only; then Take back, the one action, when a disabled workspace holds room */
@@ -15141,7 +15141,7 @@ function e101ShortHTML(k){const n=e101Near(k).length, H=e101Held(k), amt=H.reduc
 /* save pattern 1: the draft in the summary, beside the figures it moves (today's bar's words and checks) */
 function e101DraftHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over(), st=ch.filter(ul3NewStop);
  const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
- return `<div class="e101-dr" role="region" aria-label="Unsaved changes"><div class="e101-dx"><p class="e101-dt">${n?e101Where(ch):""}${e101Keeps(ch)}${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${ulrNoticeHTML(ch)}</div>`
+ return `<div class="e101-dr" role="region" aria-label="Unsaved changes"><div class="e101-dx"><p class="e101-dt">${n?e101Where(ch):""}${e101Keeps(ch)}${st.length?" "+sentEnd(listAnd(st.map(ulrStopTxt))):""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${ulrNoticeHTML(ch)}</div>`
   +`<span class="e101-sb"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${why?` disabled aria-describedby="ulrWhy"`:""}>Apply${n?" "+ul3N(n,"change"):""}</button></span></div>`}
 /* E101 fix 5: Same limit leaves out a workspace that has used more than an equal share; the draft line says so, in place of a tooltip */
 function e101Keeps(ch){const K=(UL.kept||[]).filter(x=>ch.some(c=>c.k===x.k)); if(!K.length) return ""; const multi=new Set(K.map(x=>x.k)).size>1, one=K.length===1;
@@ -15149,13 +15149,13 @@ function e101Keeps(ch){const K=(UL.kept||[]).filter(x=>ch.some(c=>c.k===x.k)); i
 /* vE E101 review: the draft line says where the room comes from. Up to 3 workspaces a side are named, more are counted */
 function e101Where(ch){const ks=[...new Set(ch.map(x=>x.k))]; if(ks.length>1) return `${ul3N(ch.length,"change")} across ${ks.length} resources.`;
  const k=ks[0], ord=ul3E2Rows(k).map(c=>c.id), by=(a,b)=>ord.indexOf(a.id)-ord.indexOf(b.id);   /* the table's order */
- const up=ch.filter(x=>x.v>x.was).sort(by), dn=ch.filter(x=>x.v<x.was).sort(by), sm=L=>L.reduce((t,x)=>t+Math.abs(x.v-x.was),0), R=sm(up), L=sm(dn), fromAv=compute(k).free-Math.max(0,ulDfree(k));
+ const up=ch.filter(x=>x.v>x.was).sort(by), dn=ch.filter(x=>x.v<x.was).sort(by), sm=L=>L.reduce((t,x)=>t+Math.abs(x.v-x.was),0), R=sm(up), L=sm(dn), Lf=dn.reduce((t,x)=>t+Math.max(x.was,RES[k].rows[x.id].used)-Math.max(x.v,RES[k].rows[x.id].used),0), fromAv=compute(k).free-Math.max(0,ulDfree(k));
  const little=dn.every(x=>ulPct(RES[k].rows[x.id].used,x.was)<USE_BAND.yellow);
  const nm=(A,lo)=>A.length<=3?listAnd(A.map(x=>byId[x.id].name)):`${A.length} workspaces${lo&&little?" using little":""}`;
- if(!up.length) return `Takes back ${f(L)} from ${nm(dn,1)}.`;
- const src=[fromAv>0?`${f(fromAv)} left to allocate`:"",L?`${f(L)} from ${nm(dn,1)}`:""].filter(Boolean), one=fromAv>0?"from what's left to allocate":`from ${nm(dn,1)}`;
- if(fromAv<0) return `Gives ${f(R)} to ${nm(up)} from ${nm(dn,1)}. ${f(-fromAv)} is left to allocate.`;
- return `Gives ${f(R)} to ${nm(up)}${src.length===1?" "+one:": "+src.join(", ")}.`}
+ if(!up.length) return Lf===L?sentEnd(`Takes back ${f(L)} from ${nm(dn,1)}`):Lf>0?`Frees ${f(Lf)}, the unused part.`:"Frees nothing, it is all in use.";   /* vE E108: say what is really freed */
+ const src=[fromAv>0?`${f(fromAv)} left to allocate`:"",Lf?`${f(Lf)} from ${nm(dn,1)}`:""].filter(Boolean), one=fromAv>0?"from what's left to allocate":`from ${nm(dn,1)}`;
+ if(fromAv<0) return sentEnd(`Gives ${f(R)} to ${nm(up)} from ${nm(dn,1)}`)+` ${f(-fromAv)} is left to allocate.`;
+ return sentEnd(`Gives ${f(R)} to ${nm(up)}${src.length===1?" "+one:": "+src.join(", ")}`)}
 /* the summary: four figures in Hitesh's order (29 Oct: Used added), one bar, then the status line or the draft. Used is
    this cycle's use across every workspace; a draft moves limits, not use, so Used never shows "was" */
 function e101SumHTML(k,ro){if(isUnl(k)) return ""; const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
@@ -18300,7 +18300,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b98709e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3211933";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19910,6 +19910,16 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
  body.pn-on #toastLayer{left:16px;right:16px;width:auto;min-width:0;padding:0}
 }
 @keyframes pnUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+</style>
+<style>
+/* vE E108 fix 3: the one-sentence confirm reads like the list's text, without the bullet's 20px */
+.ulr-cfm .ulr-cf1{margin:0;font-size:14px;line-height:20px;color:#1F2937}
+/* vE E108 fix 5: the pencil is there at rest (Gray 500, production's inline-edit icon), darker on hover and focus; the empty slot stays hidden */
+.ulr-pen{visibility:visible}
+.ulr-lb:hover .ulr-pen,.ulr-lb:focus-visible .ulr-pen{color:#1F2937}
+/* vE E108 fix 6: phone, the Used column is one width on every row, so the bars start on one x */
+@media (max-width:760px){.ulr-t.ulr-tp tr{grid-template-columns:var(--ulr-uw,6ch) minmax(0,1fr) auto}}
+@media (min-width:761px) and (max-width:990px){.ulr-t.ulr-tp tr{grid-template-columns:var(--ulr-uw,6ch) minmax(0,1fr) auto}}
 </style>
 <script src="review-picker.js"></script>
 </body>
