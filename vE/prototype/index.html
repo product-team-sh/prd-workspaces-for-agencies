@@ -7013,10 +7013,10 @@ function pxWsEdit(p){const E=PA_ED, d=E.d, cl=d.side==="client";
  const L=wsPickOrder(fundedWorkspaces().filter(c=>isMember(ME(),c.id)&&(!cl||!c.own))), ownOff=cl&&d.ws.some(id=>pxW(id)&&pxW(id).own);
  const all=ownOff&&!L.some(c=>c.own)?wsPickOrder(L.concat([OWN_WS])):L, srch=all.length>WS_PICK_MAX, q=E.q.trim().toLowerCase();
  const on=id=>d.ws.indexOf(id)>-1&&!(cl&&pxW(id).own), none=pxInvalid(d)&&E.tried;
- const items=all.map(c=>{const off=cl&&c.own, k=wsHay(c), hid=srch&&q&&k.indexOf(q)<0;
-  return `<div class="inv-a2-ws${cl&&on(c.id)?" is-on":""}" data-ddk="${invEsc(k)}"${hid?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"${off?` title="${PX_OWN_WHY}"`:""}><input type="checkbox" data-pxws="${c.id}" ${on(c.id)?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn"${off?` title="${PX_OWN_WHY}"`:""}>${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${cl&&on(c.id)?`<span class="inv-a2-rdd">${ddHTML("pxrr_"+c.id,d.cr[c.id]||d.role,[{items:PX_CLIENT_R.map(r=>({value:r,label:roleName(r)}))}])}</span>`:""}</div>`}).join("");
+ const cw0=(pxCast(p).cws)||{}, items=all.map(c=>{const dis=cl&&wsOffNew(c,on(c.id)||cw0[c.id]), off=cl&&c.own||dis, k=wsHay(c), hid=srch&&q&&k.indexOf(q)<0;
+  return `<div class="inv-a2-ws${cl&&on(c.id)?" is-on":""}${dis?" is-dis":""}" data-ddk="${invEsc(k)}"${hid?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"${cl&&c.own?` title="${PX_OWN_WHY}"`:""}><input type="checkbox" data-pxws="${c.id}" ${on(c.id)?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn"${cl&&c.own?` title="${PX_OWN_WHY}"`:""}>${invEsc(c.name)}${dis?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${cl&&on(c.id)?`<span class="inv-a2-rdd">${ddHTML("pxrr_"+c.id,d.cr[c.id]||d.role,[{items:PX_CLIENT_R.map(r=>({value:r,label:roleName(r)}))}])}</span>`:""}</div>`}).join("");
  const nm=srch&&q&&!all.some(c=>wsHay(c).indexOf(q)>-1);
- return `<div class="inv-a2-wsl${cl?" is-roles":""}" role="group" aria-label="Workspaces">${wsBarH(all.filter(c=>!(cl&&c.own)),on,srch?`${srchI}<input type="text" data-pxq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(E.q)}">`:"","data-pxwsall")}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${nm?"":" hidden"}>${nrHTML(E.q)}</p></div></div>${none?`<p class="px-err" role="alert">Pick at least one workspace.</p>`:""}`}
+ return `<div class="inv-a2-wsl${cl?" is-roles":""}" role="group" aria-label="Workspaces">${wsBarH(all.filter(c=>!(cl&&c.own)&&!(cl&&wsOffNew(c,on(c.id)||cw0[c.id]))),on,srch?`${srchI}<input type="text" data-pxq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(E.q)}">`:"","data-pxwsall",cl)}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${nm?"":" hidden"}>${nrHTML(E.q)}</p></div></div>${none?`<p class="px-err" role="alert">Pick at least one workspace.</p>`:""}${cl&&p.email?domWarn([p.email],d.ws.filter(id=>pxW(id)&&!pxW(id).own&&!cw0[id])):""}`}
 /* the read-only shapes */
 function pxWsView(p,c){
  if(p.kind==="team"&&p.role==="Owner") return `<b>All workspaces</b>`;
@@ -7076,7 +7076,7 @@ function pxWire(){
    const tr=document.querySelector("#hox_"+id+" [data-ddtrig]"); if(tr) tr.setAttribute("aria-label","Who takes the records in "+pxW(id).name)});   /* vE E073 */
   /* vE E098: Select all and Clear, as in Invite users; a client's new workspace takes the same role the single tick gives */
   A("[data-pxwsall]").forEach(b=>b.onclick=()=>{const d=PA_ED.d, cl=d.side==="client";
-   const ids=[...document.querySelectorAll(".px-fld .inv-a2-ws:not([hidden]) [data-pxws]:not([disabled])")].map(c=>c.dataset.pxws), all=ids.every(id=>d.ws.indexOf(id)>-1);
+   const ids=[...document.querySelectorAll(".px-fld .inv-a2-ws:not([hidden]) [data-pxws]:not([disabled])")].map(c=>c.dataset.pxws), all=cl||ids.every(id=>d.ws.indexOf(id)>-1);
    ids.forEach(id=>{const i=d.ws.indexOf(id); if(all){if(i>-1) d.ws.splice(i,1)} else if(i<0){d.ws.push(id); if(cl&&!d.cr[id]) d.cr[id]=/^Client/.test(d.role)&&pxCast(p).cws[id]?pxCast(p).cws[id]:/^Client/.test(d.role)?d.role:"Client Viewer"}});
    if(pxInvalid(d)) PA_ED.tried=true; pxPaint("[data-pxwsall]")});
   A("[data-pxq]").forEach(i=>i.oninput=()=>{PA_ED.q=i.value; const t=i.value.trim().toLowerCase(); let n=0;
@@ -7415,7 +7415,7 @@ function invJudge(list){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(ro
   else if(cl&&c.team){r.state="wrong"; r.msg=`<b>${E}</b> is ${invAn(invEsc(AGENCY.name))} address. Your team goes in its own invite. <button type="button" class="linkbtn" data-invdrop="${E}">Remove it</button>`}
   return r})}
 /* Send waits on every blocking error: a bad address, a mixed batch, someone already there, no workspace */
-function invVerdict(){const I=INV, f=Object.assign({},INV.f,{role:invRole()}), d=(I.draft||"").trim().toLowerCase(), all=I.emails.concat(INV_OK.test(d)&&I.emails.indexOf(d)<0?[d]:[]);
+function invVerdict(){const I=INV; if(invRows()) invPrune(); const f=Object.assign({},INV.f,{role:invRole()}), d=(I.draft||"").trim().toLowerCase(), all=I.emails.concat(INV_OK.test(d)&&I.emails.indexOf(d)<0?[d]:[]);
  if(!all.length) return {msg:"Add at least one email address."};
  const J=invJudge(all), bad=J.filter(r=>r.state==="bad");
  if(bad.length) return {msg:bad.length===1?`Fix ${bad[0].e} or remove it.`:`Fix ${bad.length} addresses or remove them.`,warn:1};
@@ -7434,17 +7434,32 @@ function invSum(){const I=INV, f=I.f; if(!invRows()) return ""; const t=f.cl.fil
  return `<p class="inv-a2-sum" data-invsum>${invEsc(who)} ${verb} as ${R.map(r=>`<span class="inv-a2-sumr u-tip uw-f" tabindex="0" data-uwlg data-uwtip="${by[r].map(W).join("\n")}" aria-label="${roleName(r)} in ${by[r].length} workspace${by[r].length>1?"s":""}: ${by[r].map(W).join(", ")}">${roleName(r)} in ${by[r].length} workspace${by[r].length>1?"s":""}</span>`).join(", ")}</p>`}
 /* vE E098: past six workspaces, a count and Select all (Clear once every shown row is ticked) */
 const WS_BAR_MIN=7;
-function wsBarH(L,isOn,srchHTML,attr){if(L.length<WS_BAR_MIN&&!srchHTML) return "";
+/* vE E111: client users never get Select all; the domain check and the disabled rule live here */
+const PERSONAL_DOM=new Set(["gmail.com","googlemail.com","outlook.com","hotmail.com","hotmail.co.uk","live.com","msn.com","yahoo.com","yahoo.co.uk","icloud.com","me.com","aol.com","proton.me","protonmail.com","gmx.com"]);
+const wsDoms=c=>{const s=new Set(); [rmDom(c.email),wsLogoDom(c.site||"")].forEach(x=>{if(x) s.add(x)}); return s};
+const domFits=(d,c)=>[...wsDoms(c)].some(x=>d===x||d.endsWith("."+x));
+const orJoin=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" or "+a[a.length-1];
+function domWarn(emails,ids){const E=[], W=[];
+ emails.forEach(e=>{const d=rmDom(e); if(!d||PERSONAL_DOM.has(d)) return; const bad=ids.filter(id=>byId[id]&&!byId[id].own&&!domFits(d,byId[id])); if(!bad.length) return; E.push(e); bad.forEach(id=>{if(W.indexOf(id)<0) W.push(id)})});
+ if(!E.length) return "";
+ const who=E.length===1?E[0]:E.length===2?E.join(" and "):E.length+" addresses", names=W.map(id=>byId[id].name), nm=names.length>3?names.slice(0,3).join(", ")+" or "+(names.length-3)+" more":orJoin(names);
+ return `<p class="inv-help inv-a2-dw" data-domwarn role="status">${invEsc(who)} ${E.length===1?"is":"are"} not from ${invEsc(nm)}${/\.$/.test(nm)?"":"."}</p>`}
+const WS_OFF_WHY="Enable this workspace to add client users.";
+const wsOffNew=(c,held)=>!!c.disabled&&!c.own&&!held;
+function wsBarH(L,isOn,srchHTML,attr,noAll){if(L.length<WS_BAR_MIN&&!srchHTML) return "";
  const n=L.filter(c=>isOn(c.id)).length, all=n===L.length;
- const tail=L.length<WS_BAR_MIN?"":`<span class="inv-a2-wsc" data-wscount>${n} of ${L.length} selected</span><button type="button" class="linkbtn inv-a2-wsall" ${attr}>${all?"Clear":"Select all"}</button>`;
+ const tail=L.length<WS_BAR_MIN?"":`<span class="inv-a2-wsc" data-wscount>${n} of ${L.length} selected</span>${(noAll?n>1:true)?`<button type="button" class="linkbtn inv-a2-wsall" ${attr}>${noAll||all?"Clear":"Select all"}</button>`:""}`;
  return `<div class="inv-a2-wss${srchHTML?"":" is-bare"}">${srchHTML}${tail}</div>`}
+/* a disabled workspace cannot be ticked for a new client user, also when a context or an earlier tick left it in the list */
+function invPrune(){const I=INV; if(I.lock) return; for(let i=I.f.cl.length-1;i>=0;i--){const c=byId[I.f.cl[i]]; if(c&&wsOffNew(c,invHeld(c.id))){I.f.cl.splice(i,1); delete I.f.rr[c.id]}}}
 function invWsH(){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), rows=invRows();
  if(role==="Owner") return `<div class="inv-a2-f"><span class="flabel">Workspaces</span><p class="inv-a2-line" data-invall>Reaches every workspace.</p></div>`;
  const L=wsPickOrder(fundedWorkspaces().filter(c=>!cl||!c.own)), srch=L.length>WS_PICK_MAX, T=cl?f.cl:f.ws, q=f.q.trim().toLowerCase();
- const items=L.map(c=>{const on=T.indexOf(c.id)>-1, k=wsHay(c);
-  return `<div class="inv-a2-ws${rows&&on?" is-on":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}>${av(c,20)}<span class="inv-a2-wn">${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
+ if(cl) invPrune();
+ const items=L.map(c=>{const on=T.indexOf(c.id)>-1, k=wsHay(c), off=cl&&wsOffNew(c,invHeld(c.id));
+  return `<div class="inv-a2-ws${rows&&on?" is-on":""}${off?" is-dis":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn">${invEsc(c.name)}${off?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
  const none=srch&&q&&!L.some(c=>wsHay(c).indexOf(q)>-1);
- return `<div class="inv-a2-f"><span class="flabel" id="invWsL">Workspaces</span><div class="inv-a2-wsl${rows?" is-roles":""}" role="group" aria-labelledby="invWsL">${wsBarH(L,id=>T.indexOf(id)>-1,srch?`${srchI}<input type="text" data-invwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(f.q)}">`:"","data-invwsall")}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${none?"":" hidden"}>${nrHTML(f.q)}</p></div></div></div>`}
+ return `<div class="inv-a2-f"><span class="flabel" id="invWsL">Workspaces</span><div class="inv-a2-wsl${rows?" is-roles":""}" role="group" aria-labelledby="invWsL">${wsBarH(cl?L.filter(c=>!wsOffNew(c,invHeld(c.id))):L,id=>T.indexOf(id)>-1,srch?`${srchI}<input type="text" data-invwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(f.q)}">`:"","data-invwsall",cl)}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${none?"":" hidden"}>${nrHTML(f.q)}</p></div></div>${cl?domWarn(I.emails.filter(e=>{const c=invCls(e); return !c.bad&&!c.person&&!c.team}),f.cl.filter(id=>!invHeld(id))):""}</div>`}
 function invA2HTML(){const I=INV, f=I.f, lock=I.lock&&byId[I.lock], v=invVerdict(), J=invJudge(I.emails);
  const chips=I.emails.map((e,i)=>{const r=J[i]; return `<span class="rmt-chip${r.state==="bad"?" is-bad":""}${r.state==="block"?" is-mute":""}"><span class="cv u-tip" data-invchip="${i}" data-uwtip="Edit email">${invEsc(e)}</span><button type="button" data-invrm="${i}" aria-label="Remove ${invEsc(e)}">${RM_X}</button></span>`}).join("");
  const hints=J.filter(r=>r.msg), ph=I.emails.length?"Add another":lock?"name@"+(rmDom(lock.email)||"company.com"):"name@company.com";
@@ -7504,7 +7519,7 @@ function invA2Wire(L){const I=INV, f=I.f, inp=L.querySelector("#invEmail");
   if(inp&&inp.value.trim()){I.draft=inp.value; invCommit()} invPaint()});
  /* vE E098: Select all ticks every row the search shows; Clear unticks them */
  L.querySelectorAll("[data-invwsall]").forEach(b=>b.onclick=()=>{const cl=!!invRole()&&invIsC(invRole()), T=cl?f.cl:f.ws;
-  const ids=[...L.querySelectorAll(".inv-a2-ws:not([hidden]) [data-invws]")].map(c=>c.dataset.invws), all=ids.every(id=>T.indexOf(id)>-1);
+  const ids=[...L.querySelectorAll(".inv-a2-ws:not([hidden]) [data-invws]")].map(c=>c.dataset.invws), all=cl||ids.every(id=>T.indexOf(id)>-1);
   if(cl) f.clTouched=true;
   ids.forEach(id=>{const k=T.indexOf(id); if(all){if(k>-1){T.splice(k,1); delete f.rr[id]}} else if(k<0) T.push(id)});
   if(all) f.kept=f.cl.some(x=>f.rr[x])?f.kept:0;
@@ -7524,7 +7539,7 @@ function invPlaceMenu(dd,m,again){INV_MENU_AT=Date.now(); if(!again) requestAnim
  else {m.style.bottom="auto"; m.style.top=(t.bottom+4-o.top)+"px"; m.style.maxHeight=Math.min(400,below)+"px"}}
 document.addEventListener("scroll",e=>{const o=document.querySelector(".inv-a2 .dd.is-open,.px-fld .dd.is-open"); if(!o||Date.now()-INV_MENU_AT<300||(e.target.closest&&e.target.closest(".dd-menu"))) return; const t=o.querySelector("[data-ddtrig]"); if(t) t.click()},true);
 /* sending creates exactly what the form shows */
-function invA2Send(){const I=INV, f=I.f; invCommit(); const v=invVerdict(); if(!v.ok){invPaint(); return}
+function invA2Send(){const I=INV, f=I.f; invCommit(); if(invRows()) invPrune(); const v=invVerdict(); if(!v.ok){invPaint(); return}
  const made=[], fresh=v.live.filter(r=>r.state!=="add"), adds=v.live.filter(r=>r.state==="add"); let txt="";
  if(invIsC(invRole())){const T=I.lock?[I.lock]:f.cl.slice();
   fresh.forEach(r=>{const e=r.e, had=e in LASTSEEN;
@@ -15306,7 +15321,7 @@ function pnAddHTML(p,rows){const cl=PA_ED.d.side==="client", have=rows.map(r=>r.
  const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}">${PN_PLUS}Add to a workspace</button></div>`;
  if(!PN.pick) return btn;
  const L=wsPickOrder(fundedWorkspaces().filter(c=>pnVis(c.id)&&!(cl&&c.own)&&have.indexOf(c.id)<0));
- return btn+`<div class="pn-pick">${L.length>WS_PICK_MAX?`<div class="inv-a2-wss">${srchI}<input type="text" data-pnaq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}<div class="pn-pl">${L.length?L.map(c=>`<button type="button" class="pn-pr" data-pnpick="${c.id}" data-k="${invEsc(wsHay(c))}">${av(c,24)}<span class="pn-pn">${invEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${PN_PLUS}</button>`).join("")+(L.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""):`<p class="pn-empty">In every workspace already.</p>`}</div></div>`}
+ return btn+`<div class="pn-pick">${L.length>WS_PICK_MAX?`<div class="inv-a2-wss">${srchI}<input type="text" data-pnaq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}<div class="pn-pl">${L.length?L.map(c=>{const off=cl&&wsOffNew(c,0); return `<button type="button" class="pn-pr${off?" is-dis":""}" data-pnpick="${c.id}" data-k="${invEsc(wsHay(c))}"${off?" disabled":""}>${av(c,24)}<span class="pn-pn">${invEsc(c.name)}${off?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${PN_PLUS}</button>`}).join("")+(L.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""):`<p class="pn-empty">In every workspace already.</p>`}</div></div>`}
 function pnMenuItems(p){const d=PA_ED.d, gate=!p.me&&canI("members"), I=[];
  if(!p.disabled&&!p.invited) I.push(["reset","Send reset link",""]);   /* 167: a rare action, so it waits in ⋯ */
  if(personCanEdit(p)&&!p.me){
@@ -15351,7 +15366,7 @@ function pnFtHTML(p){
 function pnHTML(p,anim){const rows=pnRows(p), can=personCanEdit(p), nOn=rows?rows.filter(r=>r.on).length:0;
  const list=rows===null?`<div class="pn-sec">Workspaces</div><p class="pn-line">Reaches every workspace.</p>`
   :`<div class="pn-sec">Workspaces <span class="pn-n">${rows.length}</span></div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
-   +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
+   +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${PA_ED.d.side==="client"&&p.email?domWarn([p.email],pxTicked(PA_ED.d).filter(id=>!pxCast(p).cws[id])):""}${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
  return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${list}</div>${pnFtHTML(p)}</aside>`}
 /* a selector that finds the same control after a repaint */
 function pnKeyOf(a){if(a.id) return "#"+CSS.escape(a.id); const dd=a.closest(".dd"); if(dd&&dd.id) return "#"+CSS.escape(dd.id)+" [data-ddtrig]";
@@ -18305,7 +18320,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="021c56a";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="8040f67";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19553,6 +19568,12 @@ button.hdr-chip{cursor:pointer}
 .inv-a2-wsl.is-roles .inv-a2-wsg{grid-template-columns:1fr;max-height:248px}
 .inv-a2-wsl.is-roles .inv-a2-ws{height:40px}
 .inv-a2-rdd{flex:none;width:200px}
+/* vE E111: a disabled workspace row carries its reason as text; the domain warning reads like the other warnings */
+.inv-a2-ws.is-dis{height:auto;min-height:40px;padding-top:4px;padding-bottom:4px}
+.inv-a2-ws.is-dis .inv-a2-wn{white-space:normal}.inv-a2-why{display:block;font-size:12px;line-height:18px;color:#6B7280}
+.inv-a2-wl.is-off .inv-a2-why{color:#6B7280}
+.inv-help.inv-a2-dw{margin-top:8px;color:var(--orange-12)}
+.pn-list+.inv-a2-dw{margin:8px 0 0}.pn-pr.is-dis{cursor:not-allowed}.pn-pr.is-dis:hover{background:none}.pn-pr.is-dis .pn-pn,.pn-pr.is-dis .avatar,.pn-pr.is-dis>svg{opacity:1}.pn-pr.is-dis .pn-pn{color:#9CA3AF}.pn-pr.is-dis .inv-a2-why{color:#6B7280}
 .inv-a2 .inv-a2-rdd .dd-trig{height:32px;padding:0 8px 0 12px}
 .modal.inv-a2m .modal-f{flex-wrap:wrap;row-gap:12px;justify-content:flex-end}
 .modal.inv-a2m .modal-f .shd-button{flex:none}
