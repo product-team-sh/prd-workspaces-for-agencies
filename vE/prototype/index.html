@@ -1683,8 +1683,8 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
 #popL .hdr-wsr[data-xs="flat"]::before,#popL .hdr-wsr[data-xs="hide"]::before{transform:scaleY(0);opacity:0}
 #popL .hdr-wsr[data-xs="flat"]::after,#popL .hdr-wsr[data-xs="hide"]::after{opacity:0}
 .pop-r .pop-cur .xs-spin{display:block;margin:1px;box-sizing:border-box}
-#pop.pop--in{animation:popIn .18s cubic-bezier(.2,0,0,1) both;transform-origin:12px 0}
-@keyframes popIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}   /* vE E093: opens down from the header */
+#pop.pop--in{animation:popIn .18s cubic-bezier(.2,0,0,1) both;transform-origin:12px 100%}
+@keyframes popIn{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}   /* vE E115: opens up from the rail tile again */
 /* the trigger on the Account level: Account's tile, as on the switcher's top row (.pop-r .pop-ico) */
 #wsAv.ws-acct{border:0;border-radius:4px;background:var(--gray-16);color:var(--gray-12)}
 #wsAv.ws-acct svg{width:14px;height:14px;opacity:1;transform:none;color:var(--gray-12)}
@@ -1725,7 +1725,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
   <div class="main">
     <header class="topbar">
       <!-- 28 Sep 2026, Hitesh: the global search box and its Cmd+K palette are removed. Each screen keeps its own search. -->
-      <div class="crumb"><span class="hdr-sep hdr-lvsep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span><span class="hdr-path" id="crumbPath"></span><h1 class="crumb-tail" id="crumbTail">Workspaces</h1></div>   <!-- vE E093: the level crumb (#sbWs) goes first -->
+      <div class="crumb"><span class="hdr-path" id="crumbPath"></span><h1 class="crumb-tail" id="crumbTail">Workspaces</h1></div>   <!-- vE E115: the switcher is back in the rail; the place is named after the profile -->
       <div class="util">
         <button class="ubtn u-tip" data-uwtip="Support" aria-label="Support" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18a3 3 0 0 1-3 3h-3"/></svg></button>
         <button class="ubtn u-tip" data-uwtip="Quick actions" aria-label="Quick actions" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></button>
@@ -1734,6 +1734,7 @@ table.cmp td:not(:first-child),table.cmp th:not(:first-child){width:88px}
           <span id="meNm" style="display:none">Alex Meridian</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="color:var(--gray-500)" aria-hidden="true"><path d="M5.293 8.293a1 1 0 0 1 1.414 0L12 13.586l5.293-5.293a1 1 0 1 1 1.414 1.414l-6 6a1 1 0 0 1-1.414 0l-6-6a1 1 0 0 1 0-1.414Z"/></svg>
         </button>
+        <span class="hdr-place" id="hdrPlace" hidden></span>   <!-- vE E115: where you are, after the profile -->
       </div>
     </header>
     <div class="pop" id="mePop" hidden><div class="pop-l" id="mePopL"></div></div>
@@ -2045,6 +2046,14 @@ function renderBrandMark(){const b=document.querySelector(".sb-brand"); if(!b)re
  const f=document.getElementById("favicon"); if(f)f.href=on?BRAND.favicon:"";
  tabTitle()}
 /* vE E095: the tab names the page and the workspace, so clients open in several tabs can be told apart */
+/* vE E115: the header names the place after the profile: the switcher's own name (the workspace, or Admin Panel). CSS cuts
+   a long one by the room there is; the tooltip (data-uwcut) gives the full name only while it is cut. On a phone, when the
+   page name and the place do not both fit whole, the place hides (the rail's switcher still names it). */
+function hdrPlace(){const h=el("hdrPlace"); if(!h) return; const n=el("wsNm")||el("wsStaticNm"), t=n?n.textContent.trim():"";
+ if(h.textContent!==t) h.textContent=t; h.hidden=!t; h.setAttribute("data-uwcut",""); h.setAttribute("aria-label","Current: "+t);
+ if(t&&window.innerWidth<=640){const c=el("crumbTail"); if(h.scrollWidth>h.clientWidth+1||(c&&c.scrollWidth>c.clientWidth+1)) h.hidden=true}}
+{const w=document.getElementById("sbWs"); if(w) new MutationObserver(()=>hdrPlace()).observe(w,{subtree:true,childList:true,characterData:true})}
+window.addEventListener("resize",()=>hdrPlace());
 function tabTitle(){const n=el("wsNm")||el("wsStaticNm"), ct=el("crumbTail"), ws=n?n.textContent.trim():"", pg=ct?ct.textContent.trim():"";
  const lead=[pg,ws].filter((x,i,a)=>x&&a.indexOf(x)===i).join(" – ");
  document.title=(lead?lead+" | ":"")+brandTitle()+(window.__B?", "+window.__B:"")}
@@ -2102,13 +2111,14 @@ let me_="owner";
    with its popover and the transformation layer inside) is one node that moves
    into the rail foot after each rail render; nothing is duplicated. */
 const SW_POS="F";
-/* vE E093 (26 Oct 2026, board 138 C): the switcher is the header's first crumb. #sbWs sits first in .topbar .crumb, out
-   of the rail, so a rail render never touches it; #pop, its scrim and the handover layer move to body. */
-function swPark(){placeSwitcher()}
+/* vE E115 (2 Nov 2026, Hitesh: "move switcher to original position in button left panel"): E093's header crumb is
+   undone; the switcher is the rail foot's tile again (placement F above). The handover layer goes back inside #sbWs;
+   the listing sits in #sbWs as a menu and on body as the phone sheet (placePop); the sheet's scrim stays on body. */
+function swPark(){const ws=el("sbWs"),brand=document.querySelector(".sb-brand"); if(ws&&brand&&brand.nextElementSibling!==ws) brand.insertAdjacentElement("afterend",ws)}
 function placeSwitcher(){
- const ws=el("sbWs"), cr=document.querySelector(".topbar .crumb"); if(!ws) return; document.body.dataset.swpos="H";
- if(cr&&cr.firstElementChild!==ws) cr.insertAdjacentElement("afterbegin",ws);
- ["pop","xformLayer"].forEach(id=>{const n=el(id); if(n&&n.parentNode!==document.body) document.body.appendChild(n)});
+ const ws=el("sbWs"), foot=document.querySelector(".sb-foot"); if(!ws) return; document.body.dataset.swpos="F";
+ if(foot) foot.insertAdjacentElement("beforeend",ws); else swPark();
+ const L=el("xformLayer"); if(L&&L.parentNode!==ws) ws.appendChild(L);
  if(!el("popScrim")) document.body.insertAdjacentHTML("beforeend",'<div class="pop-scrim" id="popScrim" hidden></div>');
 }
 
@@ -3951,6 +3961,7 @@ function renderShell(){
  {const tb=document.querySelector(".topbar"); if(tb) tb.classList.toggle("is-pf",pfOn())}   /* vE E099: the level crumb hides on My Profile */
  hdrApply();   /* change 328: the path, its trailing slot and the phone form */
  tabTitle();   /* vE E095 */
+ hdrPlace();   /* vE E115 */
  swPark(); renderRail(); placeSwitcher(); fitRail();
 }
 function renderPop(q=""){
@@ -4003,13 +4014,16 @@ function renderPop(q=""){
  if(xform) xsMark(el("popL"));   /* vE E038: rows still being set up show it */
 }
 /* vE E038: auto (true) is the one opening by the first conversion: a short reveal and no focus moved */
-/* vE E093: the listing opens from the header crumb: 4px under the bar, from the crumb's left edge and never past the
-   right edge (board 138 C), or at 640px and under as change 334's bottom sheet */
+/* vE E115: the listing opens from the rail tile again: above it when the tile sits in the lower half of the window (the
+   rail foot), from its left edge and never past the right edge (pre-E093); at 640px and under, E093's bottom sheet.
+   As a menu it lives inside #sbWs, so the open rail stays open while the pointer is on it (pre-E093); as a sheet, on body. */
 const popSheet=()=>window.innerWidth<=640;
-function placePop(){const P=el("pop"), sh=popSheet(), sc=el("popScrim"); P.classList.toggle("pop--sheet",sh); if(sc) sc.hidden=!sh;
+function placePop(){const P=el("pop"), sh=popSheet(), sc=el("popScrim"), home=sh?document.body:el("sbWs");
+ if(home&&P.parentNode!==home) home.appendChild(P);
+ P.classList.toggle("pop--sheet",sh); if(sc) sc.hidden=!sh;
  if(sh){P.style.top="";P.style.left="";P.style.bottom=""; return}
- const T=document.querySelector(".topbar").getBoundingClientRect(), R=el("sbWs").getBoundingClientRect();
- P.style.bottom="auto"; P.style.top=Math.round(T.bottom+4)+"px";
+ const R=el("sbWs").getBoundingClientRect(), below=R.bottom+6, roomBelow=window.innerHeight-below;
+ if(roomBelow<320&&R.top>roomBelow){P.style.top="auto";P.style.bottom=Math.round(window.innerHeight-R.top+6)+"px"} else {P.style.bottom="auto";P.style.top=Math.round(below)+"px"}
  P.style.left=Math.max(8,Math.min(Math.round(R.left),window.innerWidth-P.offsetWidth-8))+"px"}   /* E038: its real width, not 280 */
 const openPop=auto=>{popOpen=true;const P=el("pop");
  P.hidden=false;el("wsBtn").setAttribute("aria-expanded","true");el("popQ").value="";renderPop();
@@ -4019,7 +4033,7 @@ const openPop=auto=>{popOpen=true;const P=el("pop");
     moves focus nowhere useful */
  if(auto!==true&&!isNormal())el("popQ").focus()};
 const closePop=()=>{popOpen=false;XS_POP=false;el("pop").hidden=true;const sc=el("popScrim"),b=el("wsBtn"); if(sc) sc.hidden=true; if(b) b.setAttribute("aria-expanded","false")};   /* vE E093: and the sheet's scrim */
-/* vE E093: a resize keeps the listing on its crumb; crossing 640px closes it rather than swap menu and sheet under the hand */
+/* vE E093 (E115: on its tile): a resize keeps the listing in place; crossing 640px closes it rather than swap menu and sheet under the hand */
 window.addEventListener("resize",()=>{if(!popOpen) return; if(el("pop").classList.contains("pop--sheet")!==popSheet()) closePop(); else placePop()});
 
 /* item 1, 28 Sep 2026: the header chip used to cycle the acting reviewer on a
@@ -18324,7 +18338,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="eff661c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="9cd5e8d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19418,7 +19432,7 @@ button.hdr-chip{cursor:pointer}
  header.topbar,header.topbar:has(.crumb-tail){padding:4px 16px}   /* above vE's later phone .topbar rules (fix 44) */
  header.topbar:has(.crumb-tail) .crumb{margin:0}
  .topbar #sbWs .ws-btn .avatar{display:none}
- .topbar .crumb>.hdr-lvsep,.topbar .crumb:not(.hdr-multi)>#crumbTail,.topbar .crumb:not(.hdr-multi)>.crumb-extra{display:none}
+ .topbar .crumb:not(.hdr-multi)>.crumb-extra{display:none}   /* vE E115: the level crumb left; E112 still hides the page name from view */
  /* a record, a sequence, a person: the level crumb takes the first line, 328's back, name and slot the second */
  .topbar .crumb.hdr-multi{flex:1 1 0;flex-wrap:wrap;row-gap:4px}   /* basis 0: the utilities keep their width */
  .topbar .crumb.hdr-multi>#sbWs{flex:1 0 100%}
@@ -19429,6 +19443,24 @@ button.hdr-chip{cursor:pointer}
 /* content starts 16px under the tab row or the bar */
 .hdr-sh~.wrap,.wrap.hdr-top{padding-top:20px}
 .page>.toolbar:first-child{padding-top:20px}   /* vE E063: Settings starts 20px below the top bar like every page */
+/* vE E115 (2 Nov 2026): the place after the profile, production's .agency--client-name (header.tsx, _header.scss):
+   14px 600 $blue-15 #1F2937, a 1px $blue-14 #D1D5DB rule on its left, 20px from the profile button (the row's 6px gap
+   and 14px) and 20px to the name; one line, at most 240px, cut by the room there is with an ellipsis and the full name
+   on hover (data-uwcut, E071), not production's 20-character cut (Hitesh, 3 Nov 2026). */
+/* vE E115: while the rail widens, the tile's name column grows from 0 and the name broke a letter a line (pre-E093 too),
+   the tile shot up over the rail and pushed nav items into More for 300ms. The column keeps its open width (157px at the
+   240px rail) from the start, so the name breaks once, where it will rest; the closed rail clips it as before. */
+.sb .ws-btn .nm{min-width:157px}
+.topbar .util{flex:0 1 auto;min-width:0}
+.topbar .util>*:not(.hdr-place){flex:none}
+.hdr-place{display:block;flex:0 1 auto;min-width:0;max-width:240px;box-sizing:border-box;margin-left:14px;padding-left:20px;border-left:1px solid #d1d5db;
+ font-size:14px;line-height:20px;font-weight:600;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* vE E115 (Hitesh, 3 Nov 2026): the rail tile keeps E095's up-down icon, as E095 drew it: 16px glyph in a 24px box,
+   Gray 500 #6B7280, Gray 700 #374151 on hover and while open; never turned (the rail's old chevron rule turned it) */
+.sb .ws-btn .ws-lvdd{width:24px;height:24px;display:grid;place-items:center;border-radius:4px;color:#6b7280;flex:none}
+.sb .ws-btn .ws-lvdd svg{width:16px;height:16px;display:block;color:inherit;transform:none}
+.sb #wsBtn:hover .ws-lvdd,.sb #wsBtn[aria-expanded=true] .ws-lvdd{color:#374151}
+.hdr-place[hidden],.topbar.is-pf .hdr-place{display:none}   /* My Profile names no level (E099) */
 .ws-btn,.ubtn,.me{font-family:inherit;font-size:14px}   /* vE E063: the browser default 13.33px is off the scale (tile, bell, help and avatar buttons) */
 .wrap.hdr-top:has(>.hdr-sh--bleed:first-child){padding-top:0}
 .wrap>.hdr-sh--bleed{margin:0 -24px -4px;max-width:none}
@@ -19457,6 +19489,10 @@ button.hdr-chip{cursor:pointer}
 /* phone, 640px and under: back, the name and the slot; then actions; then tabs */
 @media (max-width:640px){
  .topbar{padding:0 16px;gap:8px}
+ /* vE E115 (Hitesh, 3 Nov 2026): the page name shows on a phone, cut cleanly with an ellipsis (E112 had it out of view
+    while the level crumb held the bar); hdrPlace() hides the place after the profile first when both do not fit whole */
+ .topbar .crumb:not(.hdr-multi){flex:0 1 auto;min-width:0}
+ header.topbar:not(.is-pf) .crumb:not(.hdr-multi)>h1#crumbTail{position:static;width:auto;height:auto;margin:0;padding:0;clip:auto;flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
  .topbar .ubtn[data-uwtip="Support"],.topbar .ubtn[data-uwtip="Quick actions"],.topbar .me>svg{display:none}
  .topbar .me{padding-right:4px}
  .crumb.hdr-multi .hdr-seg,.crumb.hdr-multi .hdr-sep,.crumb.hdr-multi .hdr-morew,.crumb.hdr-multi .hdr-wsw,.crumb .hdr-avw{display:none}
