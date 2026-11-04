@@ -6173,7 +6173,8 @@ document.addEventListener("click",e=>{if(!rmOn()) return; const c=byId[view.id];
   if(st.some(x=>x[1].bad)||!send.length){render(); rmFocus("#rmEmail"); return}
   const role=RM.inv.role, added=send.map(v=>[v,role]), newSeen=send.filter(v=>!(v in LASTSEEN));
   added.forEach(u=>{c.users=c.users||[]; c.users.push(u); INVITED["w:"+c.id+"|"+u[0]]="just now"}); newSeen.forEach(v=>LASTSEEN[v]="never");
-  rmToast(c,send.length>1?`${send.length} invites sent.`:`Invite sent to ${send[0]}.`,()=>{added.forEach(u=>{const i=c.users.indexOf(u); if(i>-1) c.users.splice(i,1); delete INVITED["w:"+c.id+"|"+u[0]]}); newSeen.forEach(v=>delete LASTSEEN[v])},`invited ${listAnd(send)}`);
+  rmToast(c,invToastTxt(send.length),()=>{added.forEach(u=>{const i=c.users.indexOf(u); if(i>-1) c.users.splice(i,1); delete INVITED["w:"+c.id+"|"+u[0]]}); newSeen.forEach(v=>delete LASTSEEN[v])},`invited ${listAnd(send)}`);
+  RECEIPT.variant="success";   /* vE E131 */
   logAct(c.id,`Invited ${listAnd(send)} as ${role}`); RM.inv=null; render(); rmFocus("[data-rminvite]"); return}
  if(d.rmaddmates!=null){const ks=RM.inv.mates.filter(k=>PEOPLE[k]); if(!ks.length) return;
   const was=ks.map(k=>[k,(PEOPLE[k].ws||[]).slice()]);
@@ -7628,6 +7629,7 @@ function domWarn(emails,ids){return "";   /* vE E113: Hitesh removed the domain 
  if(!E.length) return "";
  const who=E.length===1?E[0]:E.length===2?E.join(" and "):E.length+" addresses", names=W.map(id=>byId[id].name), nm=names.length>3?names.slice(0,3).join(", ")+" or "+(names.length-3)+" more":orJoin(names);
  return `<p class="inv-help inv-a2-dw" data-domwarn role="status">${invEsc(who)} ${E.length===1?"is":"are"} not from ${invEsc(nm)}${/\.$/.test(nm)?"":"."}</p>`}
+const invToastTxt=n=>`Invitation sent to ${n} user${n===1?"":"s"}`;   /* vE E131: production's get-invite-user-message copy */
 const WS_OFF_WHY="Enable this workspace to add client users.";
 const wsOffNew=(c,held)=>!!c.disabled&&!c.own&&!held;
 function wsBarH(L,isOn,srchHTML,attr,noAll){if(L.length<WS_BAR_MIN&&!srchHTML) return "";
@@ -7641,7 +7643,7 @@ function invWsH(){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), r
  const L=wsPickOrder(fundedWorkspaces().filter(c=>!cl||!c.own)), srch=L.length>WS_PICK_MAX, T=cl?f.cl:f.ws, q=f.q.trim().toLowerCase();
  if(cl) invPrune();
  const items=L.map(c=>{const on=T.indexOf(c.id)>-1, k=wsHay(c), off=cl&&wsOffNew(c,invHeld(c.id));
-  return `<div class="inv-a2-ws${rows&&on?" is-on":""}${off?" is-dis":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn">${invEsc(c.name)}${off?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}</label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
+  return `<div class="inv-a2-ws${rows&&on?" is-on":""}${off?" is-dis":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn${off?" u-tip":""}"${off?` tabindex="0" title="" data-uwtip="${WS_OFF_WHY}"`:""}>${invEsc(c.name)}${c.disabled?'<span class="chip hdr-chip hdr-chip--mute inv-a2-dchip">Disabled</span>':""}</span></label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
  const none=srch&&q&&!L.some(c=>wsHay(c).indexOf(q)>-1);
  return `<div class="inv-a2-f"><span class="flabel" id="invWsL">Workspaces</span><div class="inv-a2-wsl${rows?" is-roles":""}" role="group" aria-labelledby="invWsL">${wsBarH(cl?L.filter(c=>!wsOffNew(c,invHeld(c.id))):L,id=>T.indexOf(id)>-1,srch?`${srchI}<input type="text" data-invwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(f.q)}">`:"","data-invwsall",cl)}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${none?"":" hidden"}>${nrHTML(f.q)}</p></div></div>${cl?domWarn(I.emails.filter(e=>{const c=invCls(e); return !c.bad&&!c.person&&!c.team}),f.cl.filter(id=>!invHeld(id))):""}</div>`}
 function invA2HTML(){const I=INV, f=I.f, lock=I.lock&&byId[I.lock], v=invVerdict(), J=invJudge(I.emails);
@@ -7732,17 +7734,16 @@ function invA2Send(){const I=INV, f=I.f; invCommit(); if(invRows()) invPrune(); 
     made.push(()=>{const i=c.users.indexOf(row); if(i>-1) c.users.splice(i,1); delete INVITED[k]})});
    if(!had){LASTSEEN[e]="never"; made.push(()=>{delete LASTSEEN[e]})}});
   const one=fresh[0], T1=one?T.filter(id=>(one.c.existing||[]).indexOf(id)<0):[];
-  txt=fresh.length>1?`${fresh.length} invites sent.`:T1.length>1&&new Set(T1.map(id=>I.lock?f.role:invEff(id))).size>1?`Invited ${one.e} to ${T1.length} workspaces.`:`Invited ${one.e} to ${listAnd(T1.map(invWsName))} as ${roleA(I.lock?f.role:invEff(T1[0]))}.`}
+  txt=invToastTxt(Math.max(1,fresh.length))}   /* vE E131 */
  else {
   fresh.forEach(r=>{const addr=r.e; let key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
    const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), owner=f.role==="Owner"&&ME().role==="Owner";
    PEOPLE[key]={name:nm,initials:initials(nm),role:owner?"Owner":f.role==="Admin"?"Admin":"Member",email:addr,ws:owner?null:f.ws.slice()}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now";
    made.push(()=>{delete PEOPLE[key]; delete LASTSEEN[nm]; delete INVITED["t:"+key]})});
   adds.forEach(r=>{const P=PEOPLE[r.c.person.k]; if(!P) return; const was=(P.ws||[]).slice(); P.ws=was.concat(r.add); r.add.forEach(id=>logAct(id,`${P.name} added`)); made.push(()=>{P.ws=was})});
-  txt=!fresh.length?`Added ${adds[0].c.person.name} to ${listAnd(adds[0].add.map(invWsName))}.`:fresh.length+adds.length>1?`${fresh.length+adds.length} invites sent.`:`Invited ${fresh[0].e} as ${roleA(f.role==="Owner"&&ME().role==="Owner"?"Owner":f.role)}.`}
+  txt=!fresh.length?`Added ${adds[0].c.person.name} to ${listAnd(adds[0].add.map(invWsName))}.`:invToastTxt(fresh.length+adds.length)}   /* vE E131 */
  const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
- receipt(scope,txt,()=>made.forEach(u=>u()),`sent ${v.live.length} invite${v.live.length===1?"":"s"}`); RECEIPT.variant="neutral";
- RECEIPT.preview=ivxSent(fresh.map(r=>r.e));   /* vE E096 */
+ receipt(scope,txt,()=>made.forEach(u=>u()),`sent ${v.live.length} invite${v.live.length===1?"":"s"}`); RECEIPT.variant=fresh.length?"success":"neutral";   /* vE E131: green as E123; the Preview link is off the toast */
  PEOPLE_FLASH=null; INV=null; modal=null; renderModal(); render()}
 function invPropose(addr){
  const d=(addr.split("@")[1]||"").toLowerCase();
@@ -7900,8 +7901,8 @@ function inviteSend(){
  });
  const n=made.length;
  const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
- receipt(scope,n===1?`Invited ${I.emails[0]}${lastWhere} as ${roleA(lastRole)}.`:`${n} invites sent.`,()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
- if(n) RECEIPT.preview=ivxSent(I.emails);   /* vE E096 */
+ receipt(scope,invToastTxt(n),()=>made.forEach(f=>f()),`sent ${n} invite${n===1?"":"s"}`);
+ if(n&&RECEIPT) RECEIPT.variant="success";   /* vE E131 */
  PEOPLE_FLASH=null; INV=null; modal=null; renderModal();
  render();
 }
@@ -13973,7 +13974,7 @@ function wire(){
    const row=c.users.find(x=>x[0]===addr);
    if(row) row[1]=NCU.role; else { c.users.push([addr,NCU.role]); LASTSEEN[addr]="never" }
    NCU={email:"",role:DEFAULT_CLIENT_ROLE};
-   receipt("members:"+cid,`Invite sent to ${addr}.`,null,`invited ${addr} to ${c.name}`);
+   receipt("members:"+cid,invToastTxt(1),null,`invited ${addr} to ${c.name}`); RECEIPT.variant="success";   /* vE E131 */
    render()});
  q("[data-staffaddgo]").forEach(b=>b.onclick=()=>{if(!canI("members"))return;
    const cid=b.dataset.staffaddgo, sel=el("staffAddPick"); if(!sel||!sel.value) return;
@@ -18522,7 +18523,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="64b61b0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="917d4d4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19865,6 +19866,9 @@ button.hdr-chip{cursor:pointer}
 }
 .px-idg .pacc-r:first-child{border-top:1px solid #E5E7EB}
 .dd-opt.is-off{color:#9CA3AF;cursor:not-allowed}.dd-opt.is-off:hover{background:transparent}
+.inv-a2-wn .hdr-chip{height:22px;padding:0 8px;border:1px solid #e5e7eb;border-radius:4px;background:#f3f4f6;color:#374151;font-family:Inter,sans-serif;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;margin:-2px 0 -2px 8px;vertical-align:middle}   /* vE E131: the E118 chip, after the name */
+.inv-a2-wl.is-off .inv-a2-wn .hdr-chip{color:#374151}
+.dq-fore.uw-tip{z-index:1300}   /* vE E131: above a modal's scrim, so a tooltip inside a dialog shows */
 .inv-a2-wl.is-off{cursor:not-allowed}.inv-a2-wl.is-off .inv-a2-wn{color:#9CA3AF}.inv-a2-wl.is-off svg,.inv-a2-wl.is-off .avatar{opacity:.5}
 @media (max-width:640px){
  .px-wlr:has(.px-wrole){grid-template-columns:minmax(0,1fr) auto}
