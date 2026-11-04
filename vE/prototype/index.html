@@ -6952,9 +6952,28 @@ function ppClients(){
 /* vE E075 fix 17 (PRD 3.4 one person, one login): a client user in several workspaces is one row; the first workspace A to Z keys it */
 function ppClientsMerged(){const by={}, out=[]; ppClients().forEach(r=>{const k=r.email.toLowerCase(); if(by[k]) by[k].all.push(r); else{by[k]=Object.assign({},r,{all:[r]}); out.push(by[k])}});
  out.forEach(r=>{r.all.sort((a,b)=>a.c.name.localeCompare(b.c.name))}); return out}
-const ppClientRole=r=>new Set(r.all.map(x=>x.role)).size>1?"By workspace":roleName(r.role);
-function ppClientAccess(r){const chip=x=>`<span class="pp-chip">${ppAvWs(x.c,18)}<span class="pp-chip-n" data-uwcut>${x.c.name}</span><span class="pp-chip-r">${ppShort(x.role)}</span></span>`, rest=r.all.slice(2),
- tip=rest.map(x=>x.c.name+": "+roleName(x.role)).join("\n").replace(/"/g,"&quot;");
+const ppClientRole=r=>new Set(r.all.map(x=>x.role)).size>1?"Multiple roles":roleName(r.role);   /* vE E129 */
+/* vE E129: several roles read "Multiple roles", a blue value that opens a Workspace and Role table (production's prospect
+   View Outcomes popover, prospect-list-table/helpers/outcome-cell.tsx, .sequence-name-popover in _prospect.scss) */
+const ppClientRoleCell=r=>new Set(r.all.map(x=>x.role)).size>1?`<button type="button" class="pp-mr" data-ppmr="${r.key}" aria-haspopup="dialog" aria-expanded="false">Multiple roles</button>`:roleName(r.role);
+let ppMrAt=null;
+function ppMrClose(back){const el=document.getElementById("ppMrPop"); if(el) el.remove(); const a=ppMrAt; ppMrAt=null;
+ if(a&&a.isConnected){a.setAttribute("aria-expanded","false"); a.classList.remove("is-open"); if(back) a.focus({preventScroll:true})}}
+function ppMrPlace(){const el=document.getElementById("ppMrPop"), a=ppMrAt; if(!el||!a||!a.isConnected) return ppMrClose();
+ const r=a.getBoundingClientRect(), w=el.offsetWidth, h=el.offsetHeight, vw=document.documentElement.clientWidth, vh=innerHeight, gap=12;
+ const up=r.bottom+gap+h>vh-8&&r.top-gap-h>8, x=Math.max(8,Math.min(vw-8-w,r.left+r.width/2-w/2)), y=up?r.top-gap-h:r.bottom+gap;
+ el.style.left=Math.round(x)+"px"; el.style.top=Math.round(y)+"px"; el.classList.toggle("is-up",up);
+ el.querySelector(".pp-mrar").style.left=Math.round(Math.max(12,Math.min(w-28,r.left+r.width/2-x-8)))+"px"}
+function ppMrOpen(b){ppMrClose(); const r=ppClientsMerged().find(x=>x.key===b.dataset.ppmr); if(!r) return;
+ const el=document.createElement("div"); el.id="ppMrPop"; el.className="pp-mrpop"; el.setAttribute("role","dialog"); el.setAttribute("aria-label","Roles of "+r.name);
+ el.innerHTML=`<i class="pp-mrar" aria-hidden="true"></i><div class="pp-mrin"><div class="pp-mrh"><span class="pp-mrw">Workspace</span><span class="pp-mrv">Role</span></div><div class="pp-mrb">${r.all.map(x=>`<div class="pp-mrr"><span class="pp-mrw">${invEsc(x.c.name)}</span><span class="pp-mrv">${roleName(x.role)}</span></div>`).join("")}</div></div>`;
+ document.body.appendChild(el); ppMrAt=b; b.setAttribute("aria-expanded","true"); b.classList.add("is-open"); ppMrPlace()}
+document.addEventListener("click",e=>{if(!ppMrAt) return; if(e.target.closest&&e.target.closest("#ppMrPop,[data-ppmr]")) return; ppMrClose()},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ppMrAt){e.preventDefault(); e.stopPropagation(); ppMrClose(true)}},true);
+window.addEventListener("scroll",e=>{if(ppMrAt&&!(e.target.closest&&e.target.closest("#ppMrPop"))) ppMrClose()},true);
+window.addEventListener("resize",()=>{if(ppMrAt) ppMrClose()});
+function ppClientAccess(r){const chip=x=>`<span class="pp-chip">${ppAvWs(x.c,18)}<span class="pp-chip-n" data-uwcut>${x.c.name}</span></span>`, rest=r.all.slice(2),   /* vE E129: the workspace name only; Role says the role */
+ tip=rest.map(x=>x.c.name).join("\n").replace(/"/g,"&quot;");
  return r.all.slice(0,2).map(chip).join("")+(rest.length?`<span class="pp-chip pp-chip--more u-tip" tabindex="0" title="" data-uwlg data-uwmouse data-uwtip="${tip}" aria-label="${tip.replace(/\n/g,"; ")}">+${rest.length}</span>`:"")}
 const ppMatch=(q,...f)=>!q||f.some(x=>String(x||"").toLowerCase().includes(q));
 /* change 121: a disabled person reads Disabled in grey; an invite older than 14 days reads expired, Resend stays */
@@ -7012,7 +7031,7 @@ function vPeople(){
    <span class="pp-end">${r.role==="Owner"?"":'<span class="pp-kebab">'+kebab+'</span>'}</span></div>`;
  const clRow=r=>`<div class="pp-row is-link" style="${cols}" data-ppopen="${r.key}">
    <span class="pp-person${r.named?"":" is-addr"}">${ppAv(r.initials,PP_AV,32,!!r.invited)}<span><b>${r.name}</b>${r.named?`<i>${r.email}</i>`:""}</span></span>
-   ${typeCell("Client user")}<span class="pp-roletxt">${ppClientRole(r)}</span>
+   ${typeCell("Client user")}<span class="pp-roletxt">${ppClientRoleCell(r)}</span>
    <span class="pp-access">${ppClientAccess(r)}</span>
    <span class="pp-seen${r.invited||r.seen==="unknown"?" is-never":""}">${r.invited||r.seen==="unknown"?"Never":rmCap(r.seen)}</span>
    <span class="pp-status">${ppStatus(r)}</span>
@@ -7439,7 +7458,7 @@ function vPerson(){
  <div class="wrap">${PERSON_TAB==="activity"?logSoon("person"):personAccessHTML(p)}</div>`;
 }
 /* vE E048: Edit access edits in place, with Invite's fields, where the Role and Workspaces rows are */
-function personEdit(key){if(PN&&PN.key===key) return;   /* vE E102: the panel is the edit */
+function personEdit(key){if(PN&&PN.key===key){const q=personOf(key); if(q&&!pnEdWhy(q)){PN.ed=true; PN.focus=["#pnrole [data-ddtrig]",".pn-row .dd [data-ddtrig]"]; pnPaint()} return}   /* vE E102: the panel is the edit; vE E129: with the role on */
 
  const p=personOf(key); if(!p||!personCanEdit(p)) return;
  PA_ED=pxStart(p); PX_MENU=false; render(); pxFocus();
@@ -8800,8 +8819,10 @@ function ulrNoticeHTML(ch){ch=ch.filter(x=>x.v<x.was&&!byId[x.id].own); const id
  const txt=id=>ch.filter(x=>x.id===id).map(ulrNoteTxt).join(" "), tip=ids.length===1?txt(ids[0]):ids.map(id=>`${byId[id].name}: ${txt(id)}`).join(" ");
  return `<p class="ulr-sbn"><span class="u-tip" tabindex="0" data-uwtip="${tip.replace(/"/g,"&quot;")}" aria-label="${ids.length===1?byId[ids[0]].name+"’s":ul3N(ids.length,"workspace")+"’"} Client Admins and assigned Account Admins are told: ${tip.replace(/"/g,"&quot;")}">${ids.length===1?byId[ids[0]].name+"’s":ul3N(ids.length,"workspace")+"’"} Client Admins and assigned Account Admins are told</span></p>`}
 function ulrApply(){const k=ul3E2K(), n=ulChanges().length; if(!n) return;
+ const sp=UL.sp&&UL.sp.info&&UL.sp.info.n?UL.sp:null, given=ulChanges().filter(x=>x.k===k).reduce((t,x)=>t+x.v-x.was,0);
  if(!ul3Commit(UL.draft,"Applied")){render(); return}
- RECEIPT.text=RECEIPT.short=`Applied ${ul3N(n,"change")}.`; RECEIPT.variant="neutral";   /* no green toasts */
+ if(sp){const w=e101Ws(sp.info.n), a=sp.all; RECEIPT.text=RECEIPT.short=sp.mode==="left"?(a?`Split what’s left among ${w}, on ${e101N6()} resources.`:`Split ${f(given)} among ${w}.`):(a?`Gave ${w} the same limit on ${e101N6()} resources.`:`Gave ${w} the same limit.`); RECEIPT.variant="success"}   /* vE E136: the toast names the result */
+ else{RECEIPT.text=RECEIPT.short=`Applied ${ul3N(n,"change")}.`; RECEIPT.variant="neutral"}   /* no green toasts */
  ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k; render()}
 function ulrStopHTML(){const L=ulrStops(), n=L.length;
  return card(n===1?"Lower this limit?":"Lower these limits?",n===1?`<p class="ulr-cf1">${ulrStopTxt(L[0])}.</p>`:`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,   /* vE E108 */
@@ -14548,6 +14569,8 @@ function wire(){
  q("[data-topeopleclients]").forEach(b=>b.onclick=()=>{PEOPLE_TAB="clients";view={name:"people"};render()});
  q("[data-ptab]").forEach(b=>b.onclick=()=>{PEOPLE_TAB=b.dataset.ptab;peopleMenu=null;render()});
  /* People v2 */
+ if(ppMrAt&&!ppMrAt.isConnected) ppMrClose();   /* vE E129: a repaint closes the roles popover */
+ q("[data-ppmr]").forEach(b=>b.onclick=e=>{e.stopPropagation(); if(ppMrAt===b) ppMrClose(); else ppMrOpen(b)});
  q("[data-ppopen]").forEach(r=>r.onclick=e=>{if(e.target.closest("button,a,select,.menu"))return;PP.menu=null;if(pnOpen(r.dataset.ppopen)) return;   /* vE E102 */ PERSON_TAB="access";PA_KIND="all";PA_WS="all";view={name:"person",id:r.dataset.ppopen};render()});
  q("[data-ptabp]").forEach(b=>b.onclick=()=>{PERSON_TAB=b.dataset.ptabp;render()});
  q("[data-ubtab]").forEach(b=>b.onclick=()=>{UB_TAB=b.dataset.ubtab;render()}); /* change 146: Usage & billing tabs */
@@ -15331,7 +15354,6 @@ function e105Boot(s){E105.state=s; solo=false; PREVIEW=false; E105X=null; inMod=
 const E101={state:null};
 const E101_S=(HASHX.route.match(/^e101=([\w-]+)/)||[])[1]||null;
 /* the rows this person can act on (P10): red-band workspaces (86%+, used up included) and disabled ones holding room */
-const e101Near=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; if(!r||c.disabled) return false; const v=ulDv(k,c.id); return v>0?ulPct(r.used,v)>=USE_BAND.red:r.used>0});
 const e101Held=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; return r&&c.disabled&&ulDv(k,c.id)>r.used});
 function e101Back(k){const ids=e101Held(k).map(c=>c.id), amt=ids.reduce((t,id)=>t+RES[k].rows[id].cap-RES[k].rows[id].used,0); if(!ids.length) return;
  if(ids.length===1){ulrTake(k+"|"+ids[0]); return}
@@ -15339,45 +15361,42 @@ function e101Back(k){const ids=e101Held(k).map(c=>c.id), amt=ids.reduce((t,id)=>
  if(ul3Commit(D,"Applied")){RECEIPT.text=RECEIPT.short=`Took back ${f(amt)} from ${sentEnd(listAnd(ids.map(id=>byId[id].name)))} ${f(compute(k).free)} left to allocate.`; RECEIPT.variant="success"}
  UL.ul3f="[data-e101sum]"; render()}
 const e101Dirty=()=>ulChanges().length>0||Object.keys(UL.nb||{}).length>0;
-/* the status line: one true sentence, text only; then Take back, the one action, when a disabled workspace holds room */
-function e101ShortHTML(k){const n=e101Near(k).length, H=e101Held(k), amt=H.reduce((t,c)=>t+RES[k].rows[c.id].cap-RES[k].rows[c.id].used,0);
- let t=n?`${n} workspace${n===1?" is":"s are"} at or near ${n===1?"its":"their"} limit.`:"No workspace is near its limit.";
- if(compute(k).free<=0) t+=" Nothing left to allocate.";
- const eq=!ulRo()&&e101SpRows(k).length>=2?`<button type="button" class="shd-button shd-button--secondary" data-e101eq="${k}">Split equally</button>`:"";   /* E101 rev: a visible button beside Take back */
- const b=H.length||eq?`<span class="e101-sb">${eq}${H.length?e121Back(k,H,amt):""}</span>`:"";
- return `<div class="e101-sc"><p class="e101-st">${t}</p>${b}</div>`}
+/* vE E136: no status line (the table below sorts highest use first). Split equally and Take back sit on the figures row, right-aligned.
+   Split equally is one button; its menu shows each job's result before you pick (D2, 171). */
+const E101_CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const E101_WARN='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l6.5 12h-13L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
+const E101_BUSY="Apply or discard your changes first";
+let E101M=false;   /* the Split equally menu is open */
+const e101Ws=n=>n===1?"1 workspace":n+" workspaces";
+function e101MenuHTML(k){const ids=e101SpRows(k).map(c=>c.id), L=Math.max(0,ulDfree(k)), a=e101SpCalc(k,ids,"left").share, s=e101SpCalc(k,ids,"same").share, ok=L>0&&a>0;
+ return `<div class="e101-pop e101-menu" role="menu"><button type="button" class="e101-mi" role="menuitem" data-e101open="left"${ok?"":" disabled"}><span>${L>0?`Split the ${f(L)} left`:"Split what’s left"}</span><span class="e101-mv">${ok?`<b>${f(a)}</b> more each`:"Nothing left"}</span></button><button type="button" class="e101-mi" role="menuitem" data-e101open="same"><span>Same limit for all ${ids.length}</span><span class="e101-mv"><b>${f(s)}</b> each</span></button></div>`}
+function e101ActsHTML(k,dirty){if(ulRo()) return "";
+ const H=e101Held(k), amt=H.reduce((t,c)=>t+RES[k].rows[c.id].cap-RES[k].rows[c.id].used,0); let eq="";
+ if(e101SpRows(k).length>=2) eq=dirty?`<span class="u-tip" tabindex="0" title="" data-uwtip="${E101_BUSY}"><button type="button" class="shd-button shd-button--secondary" disabled>Split equally${E101_CHEV}</button></span>`
+  :`<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E101M}">Split equally${E101_CHEV}</button>${E101M?e101MenuHTML(k):""}</span>`;
+ const tb=!dirty&&H.length?e121Back(k,H,amt):"";
+ if(dirty){const d=e101DraftState(); return `<div class="e101-fa e101-fd"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button>${eq}</div>`}   /* vE E136c: in a typed draft the figures row holds Discard, Apply, then the greyed Split equally */
+ return eq||tb?`<div class="e101-fa">${eq}${tb}</div>`:""}
 /* vE E121: the button says only "Take back"; why is on hover (who is disabled, what they hold, where it goes) */
 function e121Back(k,H,amt){const who=H.length<=3?listAnd(H.map(c=>c.name)):H.length+" disabled workspaces", one=H.length===1;
  const tip=`${H.length<=3?who+(one?" is":" are")+" disabled and":who} still hold${one?"s":""} ${f(amt)} ${one?"it":"they"} can\u2019t use. Take back adds it to Left to allocate.`;
  return `<button type="button" class="shd-button shd-button--secondary u-tip" title="" data-uwtip="${hdrEsc(tip)}" data-e101sc="back|${k}" aria-label="Take back ${f(amt)} from ${hdrEsc(who)}">Take back</button>`}
-/* save pattern 1: the draft in the summary, beside the figures it moves (today's bar's words and checks) */
-function e101DraftHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over(), st=ch.filter(ul3NewStop);
+/* save pattern 1: the draft in the summary, beside the figures it moves. vE E136: the row says only what blocks Apply; the table already shows the rest */
+function e101DraftState(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over();
  const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
- return `<div class="e101-dr" role="region" aria-label="Unsaved changes"><div class="e101-dx"><p class="e101-dt">${n?e101Where(ch):""}${e101Keeps(ch)}${st.length?" "+sentEnd(listAnd(st.map(ulrStopTxt))):""}${why?` <span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${ulrNoticeHTML(ch)}</div>`
-  +`<span class="e101-sb"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${why?` disabled aria-describedby="ulrWhy"`:""}>Apply${n?" "+ul3N(n,"change"):""}</button></span></div>`}
-/* E101 fix 5: Same limit leaves out a workspace that has used more than an equal share; the draft line says so, in place of a tooltip */
-function e101Keeps(ch){const K=(UL.kept||[]).filter(x=>ch.some(c=>c.k===x.k)); if(!K.length) return ""; const multi=new Set(K.map(x=>x.k)).size>1, one=K.length===1;
- return " "+listAnd(K.map(x=>`${byId[x.id].name} keeps ${f(x.v)}${multi?" on "+RES[x.k].label:""}`))+`: ${one?"it has":"they have"} already used more than an equal share.`}
-/* vE E101 review: the draft line says where the room comes from. Up to 3 workspaces a side are named, more are counted */
-function e101Where(ch){const ks=[...new Set(ch.map(x=>x.k))]; if(ks.length>1) return `${ul3N(ch.length,"change")} across ${ks.length} resources.`;
- const k=ks[0], ord=ul3E2Rows(k).map(c=>c.id), by=(a,b)=>ord.indexOf(a.id)-ord.indexOf(b.id);   /* the table's order */
- const up=ch.filter(x=>x.v>x.was).sort(by), dn=ch.filter(x=>x.v<x.was).sort(by), sm=L=>L.reduce((t,x)=>t+Math.abs(x.v-x.was),0), R=sm(up), L=sm(dn), Lf=dn.reduce((t,x)=>t+Math.max(x.was,RES[k].rows[x.id].used)-Math.max(x.v,RES[k].rows[x.id].used),0), fromAv=compute(k).free-Math.max(0,ulDfree(k));
- const little=dn.every(x=>ulPct(RES[k].rows[x.id].used,x.was)<USE_BAND.yellow);
- const nm=(A,lo)=>A.length<=3?listAnd(A.map(x=>byId[x.id].name)):`${A.length} workspaces${lo&&little?" using little":""}`;
- if(!up.length) return Lf===L?sentEnd(`Takes back ${f(L)} from ${nm(dn,1)}`):Lf>0?`Frees ${f(Lf)}, the unused part.`:"Frees nothing, it is all in use.";   /* vE E108: say what is really freed */
- const src=[fromAv>0?`${f(fromAv)} left to allocate`:"",Lf?`${f(Lf)} from ${nm(dn,1)}`:""].filter(Boolean), one=fromAv>0?"from what's left to allocate":`from ${nm(dn,1)}`;
- if(fromAv<0) return sentEnd(`Gives ${f(R)} to ${nm(up)} from ${nm(dn,1)}`)+` ${f(-fromAv)} is left to allocate.`;
- return sentEnd(`Gives ${f(R)} to ${nm(up)}${src.length===1?" "+one:": "+src.join(", ")}`)}
+ return {n,why}}
+function e101DraftHTML(){const why=e101DraftState().why;
+ return why?`<div class="e101-dr" role="region" aria-label="Unsaved changes"><p class="e101-dt"><span class="ulr-why" id="ulrWhy">${why}</span></p></div>`:""}
 /* the summary: four figures in Hitesh's order (29 Oct: Used added), one bar, then the status line or the draft. Used is
    this cycle's use across every workspace; a draft moves limits, not use, so Used never shows "was" */
 function e101SumHTML(k,ro){if(isUnl(k)) return ""; const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
  const us=compute(k).used, w=n=>(Math.max(0,Math.min(pool,n))/pool*100).toFixed(2)+"%";
   const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
  if(!dirty) UL.kept=null;
- const sp=!ro&&e101SpOn(k), low=ro?"":sp?e101SpHTML(k):dirty?e101DraftHTML():e101ShortHTML(k);
+ const sp=!ro&&e101SpOn(k), low=ro?"":sp?e101SpHTML(k):dirty?e101DraftHTML():"", fa=ro||sp?"":e101ActsHTML(k,dirty);
  if(dirty&&!ro){setTimeout(e101Stick,0); setTimeout(e101Stick,300)}
  return `<div class="e101-sum${dirty&&!ro&&!sp?" is-draft":""}${sp?" is-sp":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
-  <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}</div>${low}</div>`}
+  <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}${fa}</div>${low}</div>`}
 function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outerHTML=e101SumHTML(k,ulRo()); e101Stick()}
 /* on a phone only the draft row stays in view: the summary sticks with its figures scrolled past (a negative top) */
 function e101Stick(){const m=document.querySelector(".e101-sum.is-draft"); if(!m) return; const d=m.querySelector(".e101-dr"); m.style.top=ulrPhone()&&d?-(d.offsetTop-12)+"px":"0px"}
@@ -15422,43 +15441,59 @@ function e101Redraft(k){e101Unsplit(); const sp=UL.sp, act=e101SpRows(k).map(c=>
 function e101Day(){const K=UL_K().filter(x=>!isUnl(x)&&RES[x].pool>0); return K.length>0&&K.every(x=>{const A=e101SpRows(x); return A.length>0&&A.every(c=>RES[x].rows[c.id].cap===0&&RES[x].rows[c.id].used===0)})}
 function e101Gc(k){if(UL.sp&&Object.keys(UL.splitW||{}).length&&!ulChanges().length){UL.sp=null; UL.splitW={}; UL.kept=null}
  else if(UL.sp&&UL.sp.k&&UL.sp.k!==k&&!isUnl(k)) e101Redraft(k);
- if(!UL.sp&&!UL.spDone&&!ulRo()&&!isUnl(k)&&e101Day()){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:true,mode:"same",menu:null,day:true,k}; e101Redraft(k)}}
-function e101SpOpen(k){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:false,mode:"left",menu:null,day:false,k}; e101Redraft(k)}
+ if(!UL.sp&&!UL.spDone&&!ulRo()&&!isUnl(k)&&e101Day()){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:true,mode:"left",menu:null,day:true,k}; e101Redraft(k)}}
+function e101SpOpen(k,mode){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:false,mode:mode||"left",menu:null,day:false,k}; e101Redraft(k)}
 /* repaint the page, keep the scroll, the menu's scroll and the focus */
 function e101SpPaint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0, pl=document.querySelector(".e101-pl"), ps=pl?pl.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc; const p2=document.querySelector(".e101-pl"); if(p2) p2.scrollTop=ps; const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
 const e101Tok=(id,lab,sp)=>`<span class="e101-tw"><button type="button" class="e101-tok${sp.menu===id?" is-open":""}" data-e101tok="${id}" aria-haspopup="true" aria-expanded="${sp.menu===id}">${lab}<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+/* E136 exploration helper: per resource, who goes up, down, stays; who would be almost used up; Left to allocate now and was */
+function e136R(xk){const sp=UL.sp, R=RES[xk], ids=sp.ids.filter(id=>R.rows[id]&&!byId[id].disabled), inSplit=Object.keys(UL.splitW||{}).some(q=>q.indexOf(xk+"|")===0);
+ const c=inSplit?null:e101SpCalc(xk,ids,sp.mode), val=id=>{const key=xk+"|"+id; return inSplit?(key in UL.draft?UL.draft[key]:R.rows[id].cap):(id in c.out?c.out[id]:R.rows[id].cap)};
+ const up=[],dn=[],eq=[],hot=[]; let moved=0;
+ ids.forEach(id=>{const r=R.rows[id], v=val(id); moved+=v-r.cap; if(v>r.cap) up.push(id); else if(v<r.cap){dn.push(id); if(r.used>=v||ulPct(r.used,v)>=USE_BAND.red) hot.push({id,v,used:r.used})} else eq.push(id)});
+ const rest=inSplit?Math.max(0,ulDfree(xk)):c.rest, was=inSplit?rest+moved:c.left, L=(sp.info.L.find(y=>y.k===xk)||{}), share=inSplit?L.share:c.share;
+ return {k:xk,label:R.label,share,up,dn,eq,hot,rest,was,inSplit}}
+const e136Names=ids=>hdrEsc(listAnd(ids.map(id=>byId[id].name)));
+const e136Hot=h=>hdrEsc(h.map(o=>o.used>=o.v?`${byId[o.id].name} would stop now.`:`${byId[o.id].name} would stop after ${f(o.v-o.used)} more.`).join("\n"));
+const e136Cnt=(ids,cls)=>ids.length?`<span class="u-tip e101-kt${cls||""}" tabindex="0" title="" data-uwtip="${e136Names(ids)}">${ids.length}<span class="e101-kw"> workspace${ids.length===1?"":"s"}</span></span>`:`<span class="e136-z">0</span>`;
+const e136Chip=h=>h.length?`<span class="e101-chip e136-chip u-tip" tabindex="0" title="" data-uwlg data-uwtip="${e136Hot(h)}">${h.length}<span class="e101-kw">&nbsp;workspace${h.length===1?"":"s"}</span></span>`:`<span class="e136-z">0</span>`;
+const e136Left=x=>`<span class="e136-lv"><span>${f(x.rest)}</span>${x.was!==x.rest?`<span class="e101-was">was ${f(x.was)}</span>`:""}</span>`;
+const e136Each=(x,same)=>same?`<b>${f(x.share)}</b>`:x.share?`<b>${f(x.share)} more</b>`:`<span class="e136-z">Nothing to add</span>`;
 function e101SpHTML(k){const sp=UL.sp, I=sp.info, n=I.n, all=sp.all, day=sp.day, N6=e101N6(), rows=e101SpRows(k);
- const modeL=sp.mode==="left"?(all?"Split what's left":`Split the ${f(I.left)} left`):"Give the same limit", whoL=n===0?"no workspaces":day?`all ${n} workspaces`:n===1?"1 workspace":`${n} workspaces`, resL=all?`all ${N6} resources`:RES[k].label;
- const opt=(a,lab,on,off,why)=>`<button type="button" class="e101-po${on?" is-on":""}" role="menuitemradio" aria-checked="${on}" data-e101opt="${a}"${off?" disabled":""}><span class="e101-tk">${on?'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>':""}</span><span>${lab}</span>${why?`<span class="e101-x">${why}</span>`:""}</button>`;
- const leftLab=all?"Split what's left":`Split the ${f(I.left)} left`;
- const popM=sp.menu==="mode"?`<div class="e101-pop" role="menu">${opt("mode:left",leftLab,sp.mode==="left",!I.leftOK,I.leftOK?"":"Nothing left to allocate")}${opt("mode:same","Give the same limit",sp.mode==="same")}</div>`:"";
- const near=rows.filter(c=>{const r=RES[k].rows[c.id]; return r.cap>0?ulPct(r.used,r.cap)>=USE_BAND.red:r.used>0}).map(c=>c.id), popW=sp.menu==="who"?`<div class="e101-pop" role="menu"><div class="e101-qp"><button type="button" class="linkbtn" data-e101q="all">All ${rows.length} active</button>${near.length?`<button type="button" class="linkbtn" data-e101q="near">The ${near.length} near their limit</button>`:""}<button type="button" class="linkbtn" data-e101q="none">None</button></div><div class="e101-pl">${rows.map(c=>{const r=RES[k].rows[c.id]; return `<label class="e101-pr"><input type="checkbox" class="e101-ck" data-e101w="${c.id}"${sp.ids.indexOf(c.id)>-1?" checked":""}><span class="e101-wn">${invEsc(c.name)}</span><span class="e101-x">${ulPct(r.used,r.cap>0?r.cap:0)}%</span></label>`}).join("")}</div></div>`:"";
+ const whoL=n===0?"no workspaces":day?`all ${n} workspaces`:e101Ws(n), resL=all?`all ${N6} resources`:RES[k].label;
+ const opt=(a,lab,on)=>`<button type="button" class="e101-po${on?" is-on":""}" role="menuitemradio" aria-checked="${on}" data-e101opt="${a}"><span class="e101-tk">${on?'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>':""}</span><span>${lab}</span></button>`;
+ /* the workspaces picker: no quick picks (Hitesh, 4 Nov); Invite users' bar instead: search past WS_PICK_MAX, "N of M selected", Select all or Clear */
+ const wq=sp.q||"", q=wq.trim().toLowerCase(), srch=rows.length>WS_PICK_MAX, miss=srch&&!!q&&!rows.some(c=>wsHay(c).indexOf(q)>-1);
+ const popW=sp.menu==="who"?`<div class="e101-pop e101-wp" role="menu">${wsBarH(rows,id=>sp.ids.indexOf(id)>-1,srch?`${srchI}<input type="text" data-e101wq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(wq)}">`:"","data-e101all")}<div class="e101-pl">${rows.map(c=>{const r=RES[k].rows[c.id], hk=wsHay(c); return `<label class="e101-pr" data-ddk="${invEsc(hk)}"${srch&&q&&hk.indexOf(q)<0?" hidden":""}><input type="checkbox" class="e101-ck" data-e101w="${c.id}"${sp.ids.indexOf(c.id)>-1?" checked":""}><span class="e101-wn">${invEsc(c.name)}</span><span class="e101-x">${ulPct(r.used,r.cap>0?r.cap:0)}%</span></label>`}).join("")}<p class="inv-a2-none"${miss?"":" hidden"}>${nrHTML(wq)}</p></div></div>`:"";
  const popR=sp.menu==="res"?`<div class="e101-pop" role="menu">${opt("res:one",RES[k].label,!all)}${opt("res:all",`All ${N6} resources`,all)}</div>`:"";
- const sent=`${e101Tok("mode",modeL,sp)}${popM}</span> ${sp.mode==="left"?"equally among":"to"} ${e101Tok("who",whoL,sp)}${popW}</span> on ${e101Tok("res",resL,sp)}${popR}</span>`;
- /* the result line */
- const keeps=e101Keeps(ulChanges()).trim(); let res;
- if(!n) res="Pick at least one workspace.";
- else if(all) res=(day&&!e101Downs().length?`All ${n} start at 0, so nobody goes down.`:`Each of ${n} gets the amounts below.`)+(keeps?" "+keeps:"");
- else res=(sp.mode==="left"?`Each workspace\u2019s ${RES[k].label} limit goes up by <b>${f(I.share)}</b>. `:`Each workspace\u2019s ${RES[k].label} limit becomes <b>${f(I.share)}</b>. `)   /* vE E124: which limit, and what happens to it */+(I.rest?`${f(I.rest)} stays left to allocate.`:"Nothing stays left to allocate.")+(keeps?" "+invEsc(keeps):"");
- const grid=all&&n?`<div class="e101-g6"><div class="e101-g6r"><span>Resource</span><span>Each of ${n} gets</span><span>Stays left</span></div>${I.L.map(x=>`<div class="e101-g6r"><span>${RES[x.k].label}</span><b>${sp.mode==="left"?(x.share?f(x.share)+" more":"Nothing to add"):f(x.share)}</b><span>${f(x.rest)}</span></div>`).join("")}</div>`:"";
- /* the one amber line: only when a limit goes down */
- const D=e101Downs(); let note="";
- if(D.length){const nm=[...new Set(D.map(d=>d.id))], names=nm.map(id=>byId[id].name), stops=D.filter(d=>d.k===k&&(d.v<=d.used||ulPct(d.used,d.v)>=USE_BAND.red)).sort((x,y)=>(x.v-x.used)-(y.v-y.used)).slice(0,1).map(d=>d.v<=d.used?`${byId[d.id].name} has used ${f(d.used)}, so it would stop ${UL3_STOP[d.k]||"working"} now.`:`${byId[d.id].name} has used ${f(d.used)}, so it would stop after ${f(d.v-d.used)} more.`), told=nm.filter(id=>!byId[id].own).map(id=>byId[id].name);
-  note=`<div class="e101-note" role="status"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l6.5 12h-13L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg><span>${D.length} limit${D.length===1?"":"s"} go${D.length===1?"es":""} down: ${invEsc(listAnd(names.length>3?[names.slice(0,3).join(", "),(names.length-3)+" more"]:names))}. ${invEsc(stops.join(" "))}${told.length?` The admins of ${invEsc(told.length>3?told.length+" workspaces":listAnd(told))} ${told.length===1?"is":"are"} told.`:""}</span></div>`}
- const ap=n===0||!ulChanges().length;
- return `<div class="e101-sp" role="group" aria-label="Split equally"><div class="e101-sent">${sent}</div>${grid}<div class="e101-sprow"><p class="e101-res">${res}</p><div class="e101-act"><button type="button" class="shd-button shd-button--secondary" data-e101spcancel>${day?"Not now":"Cancel"}</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${ap?" disabled":""}>Apply to ${n===1?"1 workspace":n+" workspaces"}</button></div></div>${note}</div>`}
+ const who=`${e101Tok("who",whoL,sp)}${popW}</span>`, res=`${e101Tok("res",resL,sp)}${popR}</span>`, S=t=>`<span>${t}</span>`;
+ const sent=sp.mode==="left"?(all||!n?`${S("Split what’s left among")} ${who} ${S("on")} ${res}`:`${S(`Add <b class="e101-n">${f(I.share)}</b> to each of`)} ${who} ${S("on")} ${res}`)
+  :(all||!n?`${S("Give")} ${who} ${S("the same limit on")} ${res}`:`${S("Set")} ${who} ${S(`to <b class="e101-n">${f(I.share)}</b> each on`)} ${res}`);
+ /* E136 A: what moves, per resource. Same limit, Goes down, Almost used up (amber, on its row), Left to allocate with was */
+ const same=sp.mode==="same", X=all&&n?I.L.map(x=>e136R(x.k)):[];
+ const grid=all&&n?(same?`<div class="e101-g6 e136a"><div class="e101-g6r"><span>Resource</span><span>Same limit</span><span>Goes down</span><span>Almost used up</span><span>Left to allocate</span></div>${X.map(x=>`<div class="e101-g6r"><span>${x.label}</span>${e136Each(x,1)}<span>${e136Cnt(x.dn)}</span><span>${e136Chip(x.hot)}</span>${e136Left(x)}</div>`).join("")}</div>`
+  :`<div class="e101-g6 e136a e136a-l"><div class="e101-g6r"><span>Resource</span><span>Each gets</span><span>Left to allocate</span></div>${X.map(x=>`<div class="e101-g6r"><span>${x.label}</span>${e136Each(x,0)}${e136Left(x)}</div>`).join("")}</div>`):"";
+ const ap=n===0||!ulChanges().length, chg=new Set(Object.keys(UL.splitW||{}).map(q=>q.split("|")[1])).size;   /* vE E136c: Apply counts the workspaces that change; the picker keeps the count chosen */
+ return `<div class="e101-sp" role="group" aria-label="${sp.mode==="left"?"Split what’s left":"Same limit for all"}"><div class="e101-sprow"><div class="e101-sent">${sent}</div><div class="e101-act"><button type="button" class="shd-button shd-button--secondary" data-e101spcancel>${day?"Not now":"Cancel"}</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${ap?" disabled":""}>${n&&!chg?"Apply":"Apply to "+e101Ws(n?chg:n)}</button></div></div>${grid}</div>`}
 /* the limits this split lowers: workspace, resource, new limit, used */
 function e101Downs(){const o=[]; Object.keys(UL.splitW||{}).forEach(key=>{const [x,id]=key.split("|"), r=RES[x].rows[id]; if(r&&UL.draft[key]<r.cap) o.push({k:x,id,v:UL.draft[key],used:r.used})}); return o}
 document.addEventListener("click",e=>{const t=e.target; if(!t.closest) return;
- const q=t.closest("[data-e101eq]"); if(q){e.stopPropagation(); UL.spDone=false; e101SpOpen(q.dataset.e101eq); e101SpPaint('[data-e101tok="mode"]'); const h=document.querySelector(".e101-sp"); if(h) h.scrollIntoView({block:"nearest"}); return}
+ const mn=t.closest("[data-e101menu]"); if(mn){e.stopPropagation(); E101M=!E101M; e101SpPaint("[data-e101menu]"); return}
+ const q=t.closest("[data-e101open]"); if(q){e.stopPropagation(); if(q.disabled) return; UL.spDone=false; E101M=false; e101SpOpen(ul3E2K(),q.dataset.e101open); e101SpPaint("[data-e101spcancel]"); const h=document.querySelector(".e101-sp"); if(h) h.scrollIntoView({block:"nearest"}); return}
+ if(E101M&&!t.closest(".e101-ew")){E101M=false; e101SpPaint()}
  if(!UL.sp) return;
  const tk=t.closest("[data-e101tok]"); if(tk){e.stopPropagation(); const m=tk.dataset.e101tok; UL.sp.menu=UL.sp.menu===m?null:m; e101SpPaint(`[data-e101tok="${m}"]`); return}
- const o=t.closest("[data-e101opt]"); if(o){e.stopPropagation(); if(o.disabled) return; const [a,v]=o.dataset.e101opt.split(":"); if(a==="mode") UL.sp.mode=v; else UL.sp.all=v==="all"; UL.sp.menu=null; e101Redraft(ul3E2K()); e101SpPaint(`[data-e101tok="${a}"]`); return}
- const qq=t.closest("[data-e101q]"); if(qq){e.stopPropagation(); const k=ul3E2K(), rows=e101SpRows(k).map(c=>c.id), m=qq.dataset.e101q; UL.sp.ids=m==="all"?rows:m==="none"?[]:rows.filter(id=>{const r=RES[k].rows[id]; return r.cap>0?ulPct(r.used,r.cap)>=USE_BAND.red:r.used>0}); e101Redraft(k); e101SpPaint(`[data-e101q="${m}"]`); return}
- if(t.closest("[data-e101spcancel]")){e.stopPropagation(); e101Unsplit(); UL.sp=null; UL.spDone=true; e101SpPaint("[data-e101eq]"); return}
+ const o=t.closest("[data-e101opt]"); if(o){e.stopPropagation(); if(o.disabled) return; const [a,v]=o.dataset.e101opt.split(":"); UL.sp.all=v==="all"; UL.sp.menu=null; e101Redraft(ul3E2K()); e101SpPaint(`[data-e101tok="${a}"]`); return}
+ const sa=t.closest("[data-e101all]"); if(sa){e.stopPropagation(); const k=ul3E2K(), vis=[...document.querySelectorAll(".e101-pr:not([hidden]) [data-e101w]")].map(x=>x.dataset.e101w), all=vis.every(id=>UL.sp.ids.indexOf(id)>-1);
+  UL.sp.ids=e101SpRows(k).map(c=>c.id).filter(id=>vis.indexOf(id)>-1?!all:UL.sp.ids.indexOf(id)>-1); e101Redraft(k); e101SpPaint("[data-e101all]"); return}
+ if(t.closest("[data-e101spcancel]")){e.stopPropagation(); e101Unsplit(); UL.sp=null; UL.spDone=true; e101SpPaint("[data-e101menu]"); return}
  if(UL.sp.menu&&!t.closest(".e101-tw")){UL.sp.menu=null; e101SpPaint()}},true);
 document.addEventListener("change",e=>{const t=e.target; if(!UL.sp||!t.matches||!t.matches("[data-e101w]")) return; const k=ul3E2K(), id=t.dataset.e101w, S=UL.sp.ids.slice(), i=S.indexOf(id); if(t.checked&&i<0) S.push(id); if(!t.checked&&i>-1) S.splice(i,1); UL.sp.ids=S; e101Redraft(k); e101SpPaint(`[data-e101w="${id}"]`)});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UL.sp&&UL.sp.menu){e.stopPropagation(); const m=UL.sp.menu; UL.sp.menu=null; e101SpPaint(`[data-e101tok="${m}"]`)}},true);
+document.addEventListener("input",e=>{const t=e.target; if(!UL.sp||!t.matches||!t.matches("[data-e101wq]")) return; UL.sp.q=t.value; const q=t.value.trim().toLowerCase(); let n=0;
+ document.querySelectorAll(".e101-pr[data-ddk]").forEach(r=>{const on=!q||r.dataset.ddk.indexOf(q)>-1; r.hidden=!on; if(on) n++});
+ const z=document.querySelector(".e101-wp .inv-a2-none"); if(z){z.hidden=n>0||!q; if(!z.hidden) z.innerHTML=nrHTML(t.value)}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&E101M){e.stopPropagation(); E101M=false; e101SpPaint("[data-e101menu]"); return}
+ if(e.key==="Escape"&&UL.sp&&UL.sp.menu){e.stopPropagation(); const m=UL.sp.menu; UL.sp.menu=null; e101SpPaint(`[data-e101tok="${m}"]`)}},true);
 /* ── reviewer states (#e101=<state>) ── */
 function e101Go(s){const h="e101="+s+"&guide=off&p101"; if(location.hash==="#"+h) location.reload(); else location.hash=h}
 function e101Phone(){const d=document.createElement("div"); d.className="e101-ph";
@@ -15482,7 +15517,7 @@ const PN_PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const PN_DOTS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
 /* the panel belongs to the screen it opened over: when something else changes the screen, it closes */
 const pnHost=()=>ctx+"|"+(asClient?1:0)+"|"+view.name+"|"+(view.id||"")+"|"+(view.name==="record"&&typeof tab!=="undefined"?tab:"");
-const pnSet=(key,from)=>{const p=personOf(key); if(!p) return false; PN={key,email:p.email,from:from&&byId[from]?from:null,pick:false,menu:false,guard:false,focus:null,fresh:true,back:null,host:pnHost()}; PA_ED=pxStart(p); PX_MENU=false; return true};
+const pnSet=(key,from)=>{const p=personOf(key); if(!p) return false; PN={key,email:p.email,from:from&&byId[from]?from:null,pick:false,ed:false,menu:false,guard:false,focus:null,fresh:true,back:null,host:pnHost()}; PA_ED=pxStart(p); PX_MENU=false; return true};
 function pnPerson(){if(!PN) return null; let p=personOf(PN.key);
  if(!p&&PN.email){const t=ppTeam().find(x=>x.email===PN.email), c=ppClients().find(x=>x.email===PN.email), k=t?"t:"+t.k:c?c.key:null; if(k){PN.key=k; p=personOf(k)}}
  return p}
@@ -15509,7 +15544,7 @@ function pnItemHTML(p,r,can,nOn){const w=pxW(r.id), d=PA_ED.d, cl=d.side==="clie
   return `<div class="pn-item"${k}><div class="pn-row${rt?"":" is-t"} is-gone"><span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span></span>${rt?`<span class="pn-rt">${rt}</span>`:""}<button type="button" class="linkbtn pn-undo" data-pnundo="${r.id}" aria-label="Undo removing from ${nm}">Undo</button></div></div>`}
  const role=d.cr[r.id]||d.role;   /* Phase 1: no "what they own" line; nothing in Phase 1 acts on it */
  const name=`<span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span>${w.disabled?'<span class="pop-tag">Disabled</span>':""}</span>`;
- const sel=!cl?"":can?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}]):`<span class="pn-rt pn-rt--ro">${role}</span>`;
+ const sel=!cl?"":can&&(PN.ed||!r.was)?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}]):`<span class="pn-rt pn-rt--ro">${role}</span>`;
  const only=cl&&p.kind==="client"&&r.was&&(w.users||[]).length===1;
  const x=!can||(r.on&&nOn<=1)?"<span></span>":only?`<button type="button" class="pn-ib" disabled title="Only user here. Disable the workspace instead." aria-label="Only user here. Disable the workspace instead.">${PN_X}</button>`
   :`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}">${PN_X}</button>`;
@@ -15534,22 +15569,24 @@ function pnMenuItems(p){const d=PA_ED.d, gate=!p.me&&canI("members"), I=[];
    field). Status is a tag beside the name only when it isn't Active (amber only for "Invite expired", which needs you);
    type and when are one plain line; a teammate's account role is a real field; Send reset link moves into ⋯, which sits
    beside Close; Resend invite stays in view while they are invited. */
-function pnHdHTML(p){const d=PA_ED.d, team=d.side==="team", can=personCanEdit(p), exp=p.invited&&invExpired(p.invited);
+function pnHdHTML(p){const exp=p.invited&&invExpired(p.invited);   /* vE E129: the header is who they are; Role sits in the body */
  const tag=p.disabled?`<span class="pn-tag">Disabled</span>`:p.invited?`<span class="pn-tag${exp?" is-need":""}">${exp?"Invite expired":"Invited"}</span>`:"";
- const when=p.invited?(p.invited==="never"?"invited":"invited "+AGE(p.invited).toLowerCase()):p.seen&&p.seen!=="never"&&p.seen!=="unknown"?"last sign-in "+p.seen.charAt(0).toLowerCase()+p.seen.slice(1):"never signed in";
- const who=team?(can?"Your team":`${roleName(d.role)} on your team`):"Client user";
- const dom=p.kind==="client"&&!p.invited&&brandOn()&&BRAND.domain?`, signs in at ${BRAND.domain}`:"";
  const resend=p.invited&&!p.disabled?`<button type="button" class="linkbtn pn-lb" data-pnresend>Resend invite</button>`:"";
- const roles=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]);
- const role=team&&can?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:TEAM_ROLE_LINE[r]}))}])}</div>`:"";
  const I=pnMenuItems(p);
- const menu=PN.menu&&I.length?`<div class="menu pn-menu" role="menu">${I.map(([k,l,why])=>`<button type="button" role="menuitem" class="menu-i${k==="rm"?" is-rm":""}"${why?" disabled":` data-pnmi="${k}"`}><span class="menu-l">${l}</span>${why?`<span class="menu-d">${why}</span>`:""}</button>`).join("")}</div>`:"";
+ const menu=PN.menu&&I.length?`<div class="menu pn-menu" role="menu">${I.map(([k,l,why])=>`<button type="button" role="menuitem" class="menu-i${k==="rm"?" is-rm":""}${why?" u-tip":""}"${why?` aria-disabled="true" title="" data-uwtip="${why}"`:` data-pnmi="${k}"`}><span class="menu-l">${l}</span></button>`).join("")}</div>`:"";
  const more=I.length?`<span class="pn-morew"><button type="button" class="pn-ib pn-more" data-pnmore aria-haspopup="menu" aria-expanded="${!!PN.menu}" aria-label="More actions for ${invEsc(p.name)}">${PN_DOTS}</button>${menu}</span>`:"";
- return `<div class="pn-hd"><div class="pn-top"><div class="pn-id">${ppAv(p.initials,PP_AV,40,!!p.invited)}<div class="pn-who"><div class="pn-nl"><h2 class="pn-nm" id="pnTitle">${invEsc(p.name)}${p.me?' <span class="pn-you">(you)</span>':""}</h2>${tag}</div>${p.kind==="team"||p.named?`<div class="pn-em">${invEsc(p.email)}</div>`:""}
-  <div class="pn-meta"><span>${who}, ${when}${dom}</span>${resend}</div></div></div>
-  <div class="pn-tr">${more}<button type="button" class="pn-x" data-pnclose aria-label="Close">${PN_X}</button></div></div>${role}</div>`}
+ return `<div class="pn-hd"><div class="pn-top${p.kind==="team"||p.named||resend?"":" pn-top--one"}"><div class="pn-id">${ppAv(p.initials,PP_AV,40,!!p.invited)}<div class="pn-who"><div class="pn-nl"><h2 class="pn-nm" id="pnTitle">${invEsc(p.name)}${p.me?' <span class="pn-you">(you)</span>':""}</h2>${tag}</div>${p.kind==="team"||p.named?`<div class="pn-em">${invEsc(p.email)}</div>`:""}
+  ${resend?`<div class="pn-meta">${resend}</div>`:""}</div></div>
+  <div class="pn-tr">${more}<button type="button" class="pn-x" data-pnclose aria-label="Close">${PN_X}</button></div></div></div>`}
+/* vE E129: Role, read-only until Edit role. Edit role is off, with the reason on hover and focus, wherever the role cannot change today */
+const PN_SELF_WHY="Transfer ownership to change your role.";
+const pnEdWhy=p=>personCanEdit(p)?"":p.me?PN_SELF_WHY:PX_LOCK_WHY();
+const pnEdBtn=why=>`<button type="button" class="linkbtn pn-lb pn-edr${why?" u-tip":""}"${why?` aria-disabled="true" title="" data-uwtip="${why}"`:" data-pnedit"}>Edit role</button>`;
+function pnRoleHTML(p){const d=PA_ED.d; if(d.side!=="team") return ""; const why=pnEdWhy(p), ed=!why&&PN.ed;
+ const roles=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]);
+ const val=ed?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:TEAM_ROLE_LINE[r]}))}])}</div>`:`<span class="pn-rv">${roleName(d.role)}</span>`;
+ return `<div class="pn-sec pn-sec--role">Role${ed?"":pnEdBtn(why)}</div><div class="pn-rrow">${val}</div>`}
 function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
- if(p.owner&&!p.me&&canI("members")) h+=`<div class="px-lock pn-lock">${PX_LOCK_I}<span>${PX_LOCK_WHY()}</span></div>`;
  if(TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)){const F=PEOPLE[TRANSFER.from], T=PEOPLE[TRANSFER.to], s=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
   h+=`<div class="msg m-warn pn-msg" role="status">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name}; ${s(TRANSFER.from)}, ${s(TRANSFER.to)}. Nothing changes until both confirm. <button type="button" class="linkbtn" data-pntrcancel>Cancel transfer</button></span></div>`}
  if(d.side!==p.kind) h+=`<p class="pn-note" data-pnff>${d.side==="client"?`${f} will sign in as a client: only the workspaces below, nothing outside them.`:`${f} will join your team: Admin Panel and the workspaces below.`} <button type="button" class="linkbtn pn-lb" data-pnside0>Undo</button></p>`;
@@ -15557,14 +15594,14 @@ function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  return h}
 function pnFtHTML(p){
  if(PN.guard) return `<div class="pn-ft"><span class="pn-why pn-ask">Discard your changes?</span><button type="button" class="shd-button shd-button--tertiary" data-pnkeep>Keep editing</button><button type="button" class="shd-button shd-button--primary" data-pndiscard>Discard</button></div>`;
- if(!pxDirty(p)) return "";
+ if(!pxDirty(p)&&!PN.ed) return "";   /* vE E129 */
  const why=pxInvalid(PA_ED.d)?"Keep at least one workspace":"";
- return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':""}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
+ return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':pxDirty(p)?"":" disabled"}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
 function pnHTML(p,anim){const rows=pnRows(p), can=personCanEdit(p), nOn=rows?rows.filter(r=>r.on).length:0;
  const list=rows===null?`<div class="pn-sec">Workspaces</div><p class="pn-line">Reaches every workspace.</p>`
-  :`<div class="pn-sec">Workspaces</div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
+  :`<div class="pn-sec">Workspaces${PA_ED.d.side==="client"&&can&&!PN.ed&&rows.some(r=>r.was)?pnEdBtn(""):""}</div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
    +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${PA_ED.d.side==="client"&&p.email?domWarn([p.email],pxTicked(PA_ED.d).filter(id=>!pxCast(p).cws[id])):""}${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
- return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${list}</div>${pnFtHTML(p)}</aside>`}
+ return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${pnRoleHTML(p)}${list}</div>${pnFtHTML(p)}</aside>`}
 /* a selector that finds the same control after a repaint */
 function pnKeyOf(a){if(a.id) return "#"+CSS.escape(a.id); const dd=a.closest(".dd"); if(dd&&dd.id) return "#"+CSS.escape(dd.id)+" [data-ddtrig]";
  for(const n of a.getAttributeNames()) if(/^data-pn/.test(n)) return `[${n}${a.getAttribute(n)?`="${CSS.escape(a.getAttribute(n))}"`:""}]`; return null}
@@ -15593,7 +15630,8 @@ function pnWire(L,p){const d=PA_ED.d;
  L.querySelectorAll("[data-pnq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-list .pn-item"));
  L.querySelectorAll("[data-pnaq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-pl .pn-pr"));
  L.onclick=e=>{const t=e.target.closest("button,[data-pnscrim]"); if(PN.menu&&!e.target.closest(".pn-morew")){PN.menu=false; if(!t||t.matches("[data-pnscrim]")){pnPaint(); return}}
-  if(!t||t.disabled) return; const D=t.dataset;
+  if(!t||t.disabled||t.getAttribute("aria-disabled")==="true") return; const D=t.dataset;
+  if(D.pnedit!=null){PN.ed=true; PN.focus=["#pnrole [data-ddtrig]",".pn-row .dd [data-ddtrig]"]; pnPaint(); return}   /* vE E129 */
   if(D.pnscrim!=null||D.pnclose!=null){pnClose(); return}
   if(D.nrclear!=null){const i=t.closest(".pn-pick")?L.querySelector("[data-pnaq]"):L.querySelector("[data-pnq]"); if(i){i.value=""; i.oninput(); i.focus()} return}
   if(D.pnx){const i=d.ws.indexOf(D.pnx); if(i>-1) d.ws.splice(i,1); PN.guard=false; PN.focus=`[data-pnundo="${D.pnx}"]`; pnPaint(); return}
@@ -15602,23 +15640,23 @@ function pnWire(L,p){const d=PA_ED.d;
   if(D.pnpick){d.ws.push(D.pnpick); if(d.side==="client"&&!d.cr[D.pnpick]) d.cr[D.pnpick]=INV_LEVEL_DEFAULT; PN.pick=false; PN.guard=false; PN.focus=[`#pnr_${D.pnpick} [data-ddtrig]`,`[data-pnx="${D.pnpick}"]`]; pnPaint(); return}   /* change 292: least role first */
   if(D.pnmore!=null){PN.menu=!PN.menu; PN.focus=PN.menu?".pn-menu [data-pnmi]":"[data-pnmore]"; pnPaint(); return}
   if(D.pnmi){PN.menu=false; pnMenuDo(p,D.pnmi); return}
-  if(D.pnside0!=null){PA_ED=pxStart(p); PN.focus="[data-pnmore]"; pnPaint(); return}
+  if(D.pnside0!=null){PA_ED=pxStart(p); PN.ed=false; PN.focus="[data-pnmore]"; pnPaint(); return}
   if(D.pnkeep!=null){PN.guard=false; pnPaint(); return}
   if(D.pndiscard!=null){pnClose(true); return}
-  if(D.pncancel!=null){PA_ED=pxStart(p); PN.pick=false; PN.focus="[data-pnclose]"; pnPaint(); return}
+  if(D.pncancel!=null){PA_ED=pxStart(p); PN.pick=false; PN.ed=false; PN.focus=["[data-pnedit]","[data-pnclose]"]; pnPaint(); return}
   if(D.pnsave!=null){pnSave(); return}
   if(D.pnreset!=null){ppToast(`Reset link sent to ${p.email}. It works for 24 hours.`,null,"reset link sent"); render(); return}
   if(D.pnresend!=null){INVITED[p.kind==="team"?"t:"+p.k:p.key]="just now"; ppToast(`Invite resent to ${p.email}.`,null); render(); return}
   if(D.pntrcancel!=null){transferCancel(); return}}}
 function pnMenuDo(p,k){const d=PA_ED.d;
- if(k==="side"){if(d.side!==p.kind) PA_ED=pxStart(p); else pxPick(p,d.side==="client"?"Member":INV_LEVEL_DEFAULT); PN.focus="[data-pnside0]"; pnPaint(); return}
+ if(k==="side"){if(d.side!==p.kind) PA_ED=pxStart(p); else pxPick(p,d.side==="client"?"Member":INV_LEVEL_DEFAULT); PN.ed=PA_ED.d.side!==p.kind; PN.focus="[data-pnside0]"; pnPaint(); return}
  if(k==="reset"){ppToast(`Reset link sent to ${p.email}. It works for 24 hours.`,null,"reset link sent"); render(); return}
  if(k==="dis"){if(p.disabled){modal={kind:"pconfirm",key:p.key,act:"enable"}; peopleModalOk("pconfirm")} else {modal={kind:"pconfirm",key:p.key,act:"disable",px:1}; pnPaint(); renderModal()} return}   /* Disable confirms first; Enable stays direct (E048) */
  if(k==="transfer"){modal={kind:"transfer"}; pnPaint(); renderModal(); return}
  if(k==="rm"){modal=p.kind==="team"?{kind:"prm",key:p.key,to:{}}:{kind:"prmw",key:p.key,ws:pnClientWs(p),to:{}}; pnPaint(); renderModal()}}
 /* Save: E048's write, whichever sides it crosses; the toast's Undo puts everything back. The panel stays on the person. */
 function pnSave(){const p=pnPerson(); if(!p||!PA_ED) return; if(!pxDirty(p)||pxInvalid(PA_ED.d)) return;
- PN.guard=false; PN.pick=false; PN.focus="[data-pnclose]"; pxSave()}
+ PN.guard=false; PN.pick=false; PN.ed=false; PN.focus="[data-pnclose]"; pxSave()}
 /* Phase 1. Hitesh, 29 Oct 2026: "Handover flow when we delete user would be something will take up in phase-2". No removal asks
    who takes someone's records, and nothing says where records go (production says nothing today). Removing someone from the
    account is production's Delete user confirm (users-and-teams/components/users/modals/delete-user-modal.tsx), its casing
@@ -15675,7 +15713,8 @@ function e102Boot(s){E102.state=s; me_="owner"; solo=false; ctx="agency"; asClie
  pnSet(ines);
  if(s==="remove"){const d=PA_ED.d; d.ws=d.ws.filter(id=>id!=="nw")}
  if(s==="add") PN.pick=true;
- if(s==="guard"){PA_ED.d.cr.nw="Client Admin"; PN.guard=true}
+ if(s==="guard"){PA_ED.d.cr.nw="Client Admin"; PN.guard=true; PN.ed=true}
+ if(s==="role") PN.ed=true;   /* vE E129 */
  if(s==="role") setTimeout(()=>{const t=document.querySelector("#pnr_nw [data-ddtrig]"); if(t) t.click()},900)}
 
 /* Deep links, so any screen can be opened and checked without clicking a path
@@ -18523,7 +18562,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="917d4d4";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="0d05914";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19979,21 +20018,31 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .e101-v{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .e101-v b{font-size:24px;line-height:32px;font-weight:600;color:#111827;font-variant-numeric:tabular-nums}
 .e101-was{font-size:12px;line-height:16px;font-weight:400;color:#6B7280;font-variant-numeric:tabular-nums}
-.e101-sc,.e101-dr{display:flex;align-items:center;flex-wrap:wrap;gap:12px;min-height:40px}
-.e101-st,.e101-dt{margin:0;font-size:14px;line-height:20px;color:#1F2937}
-.e101-st{flex:1 1 auto;min-width:0}
+.e101-dr{display:flex;align-items:center;flex-wrap:wrap;gap:12px;min-height:40px}
+.e101-dt{margin:0;font-size:14px;line-height:20px;color:#1F2937}
 .e101-dx{display:flex;flex-direction:column;gap:2px;flex:1 1 0;min-width:0}
 .e101-dr>.e101-dt{flex:1 1 0;min-width:0}
 .e101-sb{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-left:auto}
-/* the status line, then Take back under it, both on the summary's left edge */
-.e101-sc{flex-direction:column;align-items:flex-start;min-height:0}
-.e101-sc .e101-sb{margin-left:0}
-.e101-sc .e101-st{flex:none}
+/* vE E136: the actions follow Left to allocate at the figures' own 48px column gap (Hitesh, 4 Nov: "too much space"), level with the value row (their 32px box is the number's 32px line); the rest of the row stays empty */
+.e101-fa{display:flex;align-items:center;gap:12px;align-self:flex-end}
+.e101-ew{position:relative;display:inline-flex}
+.e101-ew>.shd-button svg{flex:none;margin-right:-4px}   /* flex:none keeps the chevron at 16px in the phone's full-width button */
+.e101-ew .e101-pop{left:auto;right:0;top:36px}
+.e101-pop.e101-menu{min-width:320px}
+.e101-mi{display:flex;align-items:center;gap:24px;width:100%;height:40px;padding:0 16px;border:0;background:none;font:inherit;font-size:14px;line-height:20px;color:#1F2937;text-align:left;cursor:pointer;box-sizing:border-box}
+.e101-mi:hover:not(:disabled){background:#F9FAFB}
+.e101-mi:disabled{color:#9CA3AF;cursor:default}
+.e101-mv{margin-left:auto;font-size:14px;color:#4B5563;font-variant-numeric:tabular-nums;white-space:nowrap}
+.e101-mv b{font-weight:600;color:#111827}
+.e101-mi:disabled .e101-mv{color:#9CA3AF}
+.e101-sent b.e101-n{font-weight:600;font-variant-numeric:tabular-nums}
+.e101-sent{flex:1 1 auto;min-width:0}
+.e101-kt{border-bottom:1px dashed #9CA3AF;cursor:default}
 /* the table selection: the design system's 16px checkbox before the avatar (a 16px spacer where there is none, so names
    line up); a selected row takes the hover grey; the bar is the search row's own box, so the table doesn't jump */
 /* R1, from the 166 board: tokens 32px high, the sentence 16/24, the result 14/20, the amber line only when a limit goes down */
 .e101-ck{flex:none}
-.e101-sp{margin-top:4px}
+.e101-sp{margin-top:0}
 .e101-sent{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:16px;line-height:24px;color:#111827}
 .e101-tw{display:inline-flex;position:relative}
 .e101-tok{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font:500 16px/24px Inter,sans-serif;color:#1F2937;vertical-align:middle;white-space:nowrap;cursor:pointer;box-sizing:border-box}
@@ -20001,8 +20050,13 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .e101-tok:hover{background:#F9FAFB}
 .e101-tok.is-open,.e101-tok:focus-visible{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:none}
 .e101-pop{position:absolute;z-index:8;top:36px;left:0;min-width:260px;width:max-content;max-width:320px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 24px rgba(17,24,39,.12);padding:8px 0;font-size:14px;line-height:20px;font-weight:400;box-sizing:border-box}
-.e101-qp{display:flex;flex-wrap:wrap;gap:4px 16px;padding:4px 16px 10px;border-bottom:1px solid #E5E7EB;font-size:12px;line-height:16px}
-.e101-qp .linkbtn{white-space:nowrap;font-size:12px;line-height:16px;font-weight:500}
+/* vE E136: Invite users' bar heads the picker, flush with the popover's top edge; its 16px inset lines the search icon up with the checkboxes */
+.e101-pop.e101-wp{width:360px;max-width:360px}   /* room for the full "Search workspaces" placeholder beside the count and the link */
+.e101-wp .inv-a2-wss{margin-top:-8px;padding:0 16px}
+.e101-wp .inv-a2-none{padding:8px 16px}
+@media (max-width:640px){.e101-wp .inv-a2-wss:not(.is-bare){padding:0 16px 8px}}
+@media (max-width:760px){.e101-pop.e101-wp{width:auto;max-width:none}}
+.e101-pr[hidden]{display:none}
 .e101-pl{max-height:252px;overflow:auto}
 .e101-pr{display:flex;align-items:center;gap:10px;height:36px;padding:0 16px;cursor:pointer;color:#1F2937;font-size:14px}
 .e101-pr:hover,.e101-po:hover:not(:disabled){background:#F9FAFB}
@@ -20012,9 +20066,7 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .e101-po:disabled{color:#9CA3AF;cursor:default}
 .e101-po.is-on{font-weight:500}
 .e101-tk{flex:none;width:16px;height:16px}
-.e101-sprow{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-top:12px}
-.e101-res{margin:0;font-size:14px;line-height:20px;color:#374151;min-width:0}
-.e101-res b{font-weight:600;color:#111827}
+.e101-sprow{display:flex;justify-content:space-between;align-items:center;gap:24px}
 .e101-act{display:flex;gap:12px;align-items:center;flex:none}
 .e101-act .shd-button--secondary{border-color:#D1D5DB;color:#374151}
 .e101-note{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:8px 12px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:14px;line-height:20px}
@@ -20023,13 +20075,44 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .e101-g6r{display:grid;grid-template-columns:272px 160px minmax(0,1fr);column-gap:16px;align-items:center;height:40px;padding:0 16px;border-top:1px solid #E5E7EB;font-size:14px;color:#1F2937}
 .e101-g6r:first-child{border-top:0;background:#F9FAFB;font-size:12px;font-weight:500;color:#6B7280}
 .e101-g6r b{font-weight:600}
+.e136a .e101-g6r{grid-template-columns:240px 120px 128px 140px minmax(0,1fr)}
+.e136a.e136a-l .e101-g6r{grid-template-columns:240px 120px minmax(0,1fr)}
+.e136a .e101-g6r>*{font-variant-numeric:tabular-nums}
+.e136-z{color:#9CA3AF}
+.e136-lv{display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap}
+.e101-chip.e136-chip{margin-left:0;cursor:default}
+@media (max-width:760px){
+ .e136a .e101-g6r{grid-template-columns:minmax(0,1fr) 64px 72px}
+ .e136a .e101-g6r>:nth-child(3){display:none}
+ .e136a .e101-g6r>:nth-child(4){display:block}
+ .e136a .e101-g6r>:last-child{display:none}
+ .e136a.e136a-l .e101-g6r{grid-template-columns:minmax(0,1fr) 112px}
+ .e136a.e136a-l .e101-g6r>:nth-child(3){display:none}
+ .e101-g6.e136a .e101-g6r:first-child>span{white-space:normal}
+}
 .e101-chip{display:inline-flex;align-items:center;height:20px;margin-left:8px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap}
 @media (max-width:760px){
  .e101-tw{position:static}
  .e101-pop{left:0;right:0;top:100%;width:auto;max-width:none;margin-top:4px}
  .e101-sprow{flex-direction:column;align-items:stretch;gap:12px}
  .e101-act{display:grid;grid-template-columns:1fr 2fr;gap:12px}
- .e101-g6r{grid-template-columns:minmax(0,1fr) auto auto;padding:0 12px;column-gap:12px}
+ .e101-g6r{grid-template-columns:minmax(0,1fr) 112px;padding:0 12px;column-gap:12px}
+ .e101-g6r>:last-child{display:none}
+ .e101-g6r{height:auto;min-height:40px;padding-top:8px;padding-bottom:8px}
+ .e101-g6r>span{min-width:0}
+ .e101-g6r:first-child>span:not(:first-child){white-space:nowrap}
+ .e101-kw{display:none}
+ .e101-fa{position:relative;width:100%;margin-left:0;align-self:stretch}
+ .e101-fa>.u-tip,.e101-ew{flex:1 1 0;min-width:0;position:static}
+ .e101-fa .shd-button,.e101-ew>.shd-button{width:100%}
+ .e101-fa>.u-tip{display:flex}
+ .e101-fd{flex-wrap:wrap}   /* three buttons need 374px; the phone panel gives 269, so the greyed Split equally takes the line under Discard and Apply */
+ .e101-fd>[data-ul3discard]{width:auto;flex:0 0 auto}
+ .e101-fd>[data-ulrapply]{flex:1 1 0;min-width:0;white-space:nowrap}
+ .e101-fd>.u-tip{flex:1 1 100%}
+ .e101-ew .e101-pop.e101-menu{left:0;right:0;top:calc(100% + 4px);width:auto;min-width:0;margin-top:0}
+ .e101-mi{height:auto;min-height:40px;padding:10px 16px;gap:12px}
+ .e101-mi>span:first-child{min-width:0}
 }
 .e101-ph{position:fixed;inset:0;z-index:8500;background:rgba(17,24,39,.64);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box}
 .e101-phh{display:flex;align-items:center;justify-content:space-between;gap:16px;width:390px;max-width:100%;color:#fff;font-size:14px;line-height:20px;font-weight:500}
@@ -20041,10 +20124,10 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
  .e101-f{flex-direction:row;align-items:baseline;justify-content:space-between;gap:12px}
  .e101-v{flex-direction:column;align-items:flex-end;gap:0}
  .e101-v b{font-size:16px;line-height:24px}
- .e101-sc,.e101-dr{gap:12px}
- .e101-st,.e101-dx,.e101-dr>.e101-dt{flex:1 1 100%}
+ .e101-dr{gap:12px}
+ .e101-dx,.e101-dr>.e101-dt{flex:1 1 100%}
+ .e101-dx:empty{display:none}
  .e101-sb{width:100%;margin-left:0}
- .e101-sc .e101-sb .shd-button{flex:1 1 100%;height:auto;min-height:32px;padding-top:5px;padding-bottom:5px;white-space:normal;line-height:20px}
  .e101-dr .e101-sb .shd-button{flex:1 1 0}
 }
 </style>
@@ -20172,6 +20255,38 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
 }
 @keyframes pnUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .pp-status .pp-st{flex:none}   /* E109: the status text kept shrinking into the Resend link, so 'ago' touched 'Resend' */
+/* vE E129: Role in the panel body. The value sits on a 32px line so Edit role swaps text for the 32px field without a jump */
+.pn-sec .pn-edr{margin-left:auto}
+.pn-edr[aria-disabled="true"]{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
+.pn-rrow{display:flex;align-items:center;min-height:32px;margin:4px 0 0}
+.pn-rv{color:#1F2937}
+.pn-bd .pn-role{margin:0;width:200px}
+.pn-rrow+.pn-sec{margin-top:24px}
+.pn-top--one,.pn-top--one .pn-id{align-items:center}   /* one line of text: centred on the 40px avatar, not top-aligned */
+.pn-top--one .pn-tr{margin-top:0}
+.pn-menu .menu-i[aria-disabled="true"]{cursor:not-allowed}
+.pn-menu .menu-i[aria-disabled="true"] .menu-l{color:#9CA3AF}
+.pn-menu .menu-i[aria-disabled="true"]:hover{background:none}
+/* vE E129: Multiple roles, production's View Outcomes link (regular-2 blue-txt-11 font-medium, underlined while open) and its
+   popover (.bs-popover-inner: 8px radius, 4px padding, the three-layer shadow; content 12px 16px; a 204px first column; 144px then scroll) */
+.pp-mr{background:none;border:0;padding:0;margin:0;font:inherit;font-weight:500;color:#1D4ED8;cursor:pointer;text-align:left;white-space:nowrap}
+.pp-mr.is-open{text-decoration:underline}
+.pp-mr:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:2px}
+.pp-mrpop{position:fixed;z-index:1040;width:max-content;max-width:min(34rem,calc(100vw - 16px));background:#fff;border-radius:8px;padding:4px;box-sizing:border-box;box-shadow:0 3px 6px -4px rgba(0,0,0,.12),0 6px 16px 0 rgba(0,0,0,.08),0 9px 28px 8px rgba(0,0,0,.05);font-family:Inter,sans-serif}
+.pp-mrar{position:absolute;top:-8px;width:16px;height:8px;overflow:hidden}
+.pp-mrar::before{content:"";position:absolute;left:0;top:0;border-style:solid;border-width:0 8px 8px;border-color:transparent transparent #fff}
+.pp-mrpop.is-up .pp-mrar{top:auto;bottom:-8px}
+.pp-mrpop.is-up .pp-mrar::before{border-width:8px 8px 0;border-color:#fff transparent transparent}
+.pp-mrin{padding:12px 16px}
+.pp-mrh{display:flex;margin-bottom:12px;font-size:14px;line-height:22px;font-weight:600;color:#4B5563}
+.pp-mrb{max-height:9rem;overflow-y:auto;overflow-x:hidden}
+.pp-mrb::-webkit-scrollbar{width:.225rem}
+.pp-mrr{display:flex;align-items:center}
+.pp-mrw{flex:0 1 12.75rem;width:12.75rem;min-width:0;box-sizing:border-box;padding-right:16px;overflow-wrap:anywhere}
+.pp-mrv{flex:none;white-space:nowrap}
+.pp-mrr .pp-mrw,.pp-mrr .pp-mrv{padding-top:8px;padding-bottom:8px;font-size:14px;line-height:22px;color:#1F2937}
+/* vE E129: on the phone sheet a read-only role is the row's second line, so it starts under the workspace name (24px logo + 10px gap) */
+@media (max-width:640px){.pn-row:not(.is-gone) .pn-rt--ro{padding-left:34px}}
 </style>
 <style>
 /* vE E108 fix 3: the one-sentence confirm reads like the list's text, without the bullet's 20px */
