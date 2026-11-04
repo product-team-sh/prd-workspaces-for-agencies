@@ -594,9 +594,18 @@ table.organism tr.att>td{background:transparent}
    title 16px/700 Gray800 with 24px line-height, sub-title 14px/500 Gray500
    with 20px line-height and a 16px gap, action 32px below.                 */
 .empty{text-align:center;padding:56px 24px}
-.empty-t{font-size:16px;font-weight:700;line-height:24px;color:var(--blue-15);margin:0}
-.empty-s{font-size:14px;font-weight:500;line-height:20px;color:var(--gray-15);margin:16px auto 0;max-width:420px}
-.empty .shd-button{margin-top:32px}
+/* vE E125: the illustration spec. Main 168x128 at 128px with 20px below; secondary 96x80 at 80px with 16px below.
+   Title 16/24 600 #111827; description 14/20 #6B7280, 384 wide, 6px above; action 20px below, 36px tall. */
+.empty .ill{display:block;width:168px;height:128px;margin:0 auto 20px;flex:none}
+.empty .ill--sm{width:96px;height:80px;margin-bottom:16px}
+.empty--sm{padding:32px 24px}
+/* vE E125: in a table that scrolls sideways, the empty block stays centred in the part you can see */
+.tscroll:has(td>.empty){container-type:inline-size}
+.tscroll td:has(>.empty){padding-left:0!important;padding-right:0!important}
+.tscroll td>.empty{position:sticky;left:0;max-width:100cqw;box-sizing:border-box}
+.empty-t{font-size:16px;font-weight:600;line-height:24px;color:#111827;margin:0}
+.empty-s{font-size:14px;font-weight:400;line-height:20px;color:#6B7280;margin:6px auto 0;max-width:384px}
+.empty .shd-button{margin-top:20px;height:36px;padding:0 16px;border-radius:4px;font-size:14px;font-weight:500;line-height:20px}
 /* 18 Sep: the Clients empty state as a centred hero, not a sliver */
 .cempty-wrap{min-height:calc(100vh - 52px - 68px - 32px);justify-content:center;align-items:center}
 .cempty{width:100%;max-width:880px;padding:36px 40px 32px}
@@ -3560,8 +3569,8 @@ function auActs(c){const L=canI("limits"), B=canI("billing"), ks=RK.filter(k=>RE
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-culim]"); if(!b) return;
  if(b.dataset.culim){const [id,k]=b.dataset.culim.split("|"), c=byId[id]; if(!c) return;
   ORIGIN=null; ctx="agency"; asClient=false; view={name:"record",id}; tab="limits"; FOCUS_LIM=null; LM_DECL=null;
-  RL=canI("limits")&&!(c.disabled||c.deletedOn)?{id,D:{}}:null; render();
-  let n=0; const go=()=>{const i=k?el("rlin-"+k):document.querySelector("[data-rlin]"); if(!i){if(++n<75) setTimeout(go,40); return} i.focus({preventScroll:true}); i.select(); i.scrollIntoView({block:"center"})}; go(); return}   /* after the page skeleton */
+  RL=null; RLI=canI("limits")&&!c.deletedOn&&!c.own&&!limGate(c)?{id,D:{},nb:{},ce:(k&&RES[k]&&RES[k].rows[id]&&!isUnl(k)?k:RKA.find(x=>RES[x].rows[id]&&!isUnl(x)&&UL_K().indexOf(x)>-1))+"|"+id,ceWas:null}:null; render();   /* vE E130: no resource named, the first row opens */
+  let n=0; const go=()=>{const i=k?document.querySelector(`[data-rli="${k}|${id}"]`):document.querySelector("[data-rli],[data-rlce]"); if(!i){if(++n<75) setTimeout(go,40); return} i.focus({preventScroll:true}); if(i.select) i.select(); i.scrollIntoView({block:"center"})}; go(); return}   /* after the page skeleton */
 });
 /* the workspace-switcher trigger's own markup, captured once so renderShell
    can remove it from the DOM for a client-role session and re-insert the
@@ -3595,9 +3604,9 @@ function hdrChip(text,tone,attrs,tip){
 /* the workspace record's status, always a short chip with the details on hover (change 328
    review): "Disabled" (grey; who and when in the tooltip) or a used-up limit (red; which limits) */
 function hdrRecSlot(c){
- return "";   /* change 337: the bar carries no status chip; the tabs and banners say it */
  if(c.deletedOn) return "";
- if(c.disabled) return hdrChip("Disabled","mute","",`Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}`);
+ if(c.disabled) return hdrChip("Disabled","mute","",`Disabled by ${c.disabledBy||ME().name.split(" ")[0]} on ${c.disabledOn||TODAY_D}`);   /* vE E118: the Disabled chip is back */
+ return "";   /* change 337: no other status chip in the bar; the tabs and banners say it */
  const at=RK.filter(k=>RES[k].rows[c.id]&&rowState(k,c.id,compute(k)).room===0).map(k=>RES[k].label);
  if(!at.length) return "";
  const stop=at.indexOf(RES.sends.label)>-1;
@@ -3743,6 +3752,86 @@ function wsMatch(c,q){q=String(q||"").trim().toLowerCase(); return !q||wsHay(c).
 const nrEsc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const nrText=q=>"No results for '"+nrEsc(String(q==null?"":q).trim())+"'";
 const nrHTML=q=>nrText(q)+'. <button type="button" class="linkbtn" data-nrclear>Clear search</button>';
+/* vE E125: illustrations. Inline SVG only, grey line-and-fill UI objects on a floor shadow; the one blue badge marks the action.
+   ILL.<object>(glyph) draws a 168x128 empty state (glyph: "plus" or "check" adds the badge; none means no action, no badge);
+   ILL.<object>Sm() a 96x80 informational state; ILL.search() the 96x80 nothing-matched state, fully grey. */
+const ILL=(()=>{
+ const L=b=>'<svg class="ill" viewBox="0 0 168 128" fill="none" aria-hidden="true">'+b+'</svg>';
+ const S=b=>'<svg class="ill ill--sm" viewBox="0 0 96 80" fill="none" aria-hidden="true">'+b+'</svg>';
+ const bar=(x,y,w,h,c)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+h/2+'" fill="'+c+'"/>';
+ const T=(x,y,w)=>bar(x,y,w,5,"#D9DDE3"), B=(x,y,w)=>bar(x,y,w,4,"#E8EAEE");
+ const disc=(cx,cy,r,ring)=>'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#E2E5EA"'+(ring?' stroke="#FFFFFF" stroke-width="'+ring+'"':'')+'/>';
+ /* the 168 frame: floor, ghost card at 6 degrees, white card, header strip; then the object; then badge; then decoration */
+ const base='<ellipse cx="84" cy="114" rx="62" ry="7" fill="#F3F4F6"/>'
+  +'<rect x="44" y="20" width="88" height="76" rx="8" fill="#DCE0E6" transform="rotate(6 88 58)"/>'
+  +'<rect x="36" y="22" width="88" height="80" rx="8" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.5"/>'
+  +'<path d="M36.75 30a7.25 7.25 0 0 1 7.25-7.25h72A7.25 7.25 0 0 1 123.25 30v8H36.75z" fill="#EEF0F3"/>';
+ const GLYPH={plus:"M122 88.5v11M116.5 94h11",check:"M116.5 94.5l3.75 3.75 7.25-8"};
+ const badge=g=>g&&GLYPH[g]?'<circle cx="122" cy="94" r="13" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="3"/>'
+  +'<path d="'+GLYPH[g]+'" stroke="#FFFFFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>':"";
+ const deco='<path d="M138 26v6M135 29h6" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+  +'<circle cx="26" cy="46" r="2.5" fill="#E5E7EB"/><circle cx="146" cy="58" r="2" fill="#E5E7EB"/>';
+ const big=(obj,g)=>L(base+obj+badge(g)+deco);
+ /* the 96 frame: the same pieces at the small size, card rx 4 */
+ const baseSm='<ellipse cx="48" cy="71" rx="34" ry="4" fill="#F3F4F6"/>'
+  +'<rect x="28" y="12" width="48" height="48" rx="4" fill="#DCE0E6" transform="rotate(6 52 36)"/>'
+  +'<rect x="22" y="14" width="50" height="50" rx="4" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.5"/>'
+  +'<path d="M22.75 18a3.25 3.25 0 0 1 3.25-3.25h42A3.25 3.25 0 0 1 71.25 18v5H22.75z" fill="#EEF0F3"/>';
+ const decoSm='<path d="M83 15v5M80.5 17.5h5" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+  +'<circle cx="12" cy="36" r="2" fill="#E5E7EB"/><circle cx="86" cy="48" r="2" fill="#E5E7EB"/>';
+ const small=obj=>S(baseSm+obj+decoSm);
+ const person=disc(56,44,11,3)+'<circle cx="56" cy="41" r="4" fill="#C3C8D0"/><path d="M48.5 50.5a8 8 0 0 1 15 0" fill="#C3C8D0"/>';
+ return {
+  /* a workspace card: logo tile, name, a line, and its three counts (sequences, prospects, email accounts) */
+  workspace:g=>big('<rect x="45" y="32" width="22" height="22" rx="5" fill="#E2E5EA" stroke="#FFFFFF" stroke-width="3"/>'
+   +'<rect x="50" y="40.5" width="12" height="8.5" rx="1.5" fill="#C3C8D0"/><path d="M53.5 40.5V39a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 58.5 39v1.5" stroke="#C3C8D0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +T(46,62,44)+B(46,71,58)+bar(46,81,16,12,"#EEF0F3")+bar(66,81,16,12,"#EEF0F3")+bar(86,81,16,12,"#EEF0F3"),g),
+  /* a limits card: title, then three usage rows (label and bar) */
+  limits:g=>big(T(46,46,44)
+   +B(46,57,14)+bar(66,56,40,6,"#EEF0F3")+bar(66,56,26,6,"#D9DDE3")
+   +B(46,69,14)+bar(66,68,40,6,"#EEF0F3")+bar(66,68,16,6,"#D9DDE3")
+   +B(46,81,14)+bar(66,80,40,6,"#EEF0F3")+bar(66,80,32,6,"#D9DDE3"),g),
+  /* a sequence card: name, then three steps on one line */
+  sequence:g=>big(T(46,27.5,40)
+   +'<path d="M52 53v26" stroke="#E5E7EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +disc(52,51,4)+disc(52,67,4)+disc(52,83,4)
+   +T(62,48.5,40)+B(62,64.5,52)+B(62,80.5,34),g),
+  /* a message thread: subject in the header strip, two messages from two people */
+  thread:g=>big(T(46,27.5,44)
+   +disc(52,50,6)+T(62,45,30)+B(62,53,46)
+   +'<path d="M46 64h68" stroke="#EEF0F3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +disc(52,76,6)+T(62,71,26)+B(62,79,40)+B(62,87,30),g),
+  /* an analytics card: title and a column chart on a baseline */
+  chart:g=>big(T(46,46,36)
+   +[[48,14,"#E8EAEE"],[60,22,"#D9DDE3"],[72,16,"#E8EAEE"],[84,30,"#D9DDE3"],[96,24,"#E8EAEE"]].map(([x,h,c])=>'<rect x="'+x+'" y="'+(92-h)+'" width="8" height="'+h+'" rx="2" fill="'+c+'"/>').join("")
+   +'<path d="M44 93h64" stroke="#E5E7EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',g),
+  /* a settings card: title, then three rows with a switch each */
+  settings:g=>big(T(46,46,40)
+   +B(46,62,40)+bar(98,60,16,8,"#E2E5EA")+'<circle cx="110" cy="64" r="2.5" fill="#FFFFFF"/>'
+   +B(46,74,32)+bar(98,72,16,8,"#E2E5EA")+'<circle cx="102" cy="76" r="2.5" fill="#FFFFFF"/>'
+   +B(46,86,36)+bar(98,84,16,8,"#E2E5EA")+'<circle cx="110" cy="88" r="2.5" fill="#FFFFFF"/>',g),
+  /* a document (template, task list or any record without a picture of its own): title and lines */
+  doc:g=>big(T(46,50,44)+B(46,60,64)+B(46,69,52)+B(46,78,58)+B(46,87,40),g),
+  /* a profile card: the spec's reference */
+  person:g=>big(person+T(46,62,44)+B(46,72,64)+B(46,81,52),g),
+  /* 96x80, informational (no badge) */
+  threadSm:()=>small(disc(31,32,5)+T(40,28,22)+B(40,36,24)+B(30,46,34)+B(30,54,26)),
+  personSm:()=>small(disc(33,29,7,2)+'<circle cx="33" cy="27.5" r="2.5" fill="#C3C8D0"/><path d="M28.5 33.25a5 5 0 0 1 9 0" fill="#C3C8D0"/>'
+   +T(30,42,24)+B(30,50,34)+B(30,57,26)),
+  /* 96x80, nothing matched: backdrop disc, a small card, the magnifier and a question mark. No accent. */
+  search:()=>S('<circle cx="48" cy="40" r="32" fill="#F3F4F6"/>'
+   +'<rect x="27" y="20" width="38" height="32" rx="4" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.5"/>'
+   +T(33,27,18)+B(33,36,26)+B(33,43,16)
+   +'<circle cx="60" cy="50" r="9" fill="#FFFFFF" stroke="#9CA3AF" stroke-width="2.25"/>'
+   +'<path d="M66.5 56.5l5.5 5.5" stroke="#9CA3AF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M57.75 47.75a2.25 2.25 0 1 1 3.1 2.08c-.5.22-.85.62-.85 1.17v.5" stroke="#9CA3AF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<circle cx="60" cy="54.4" r="1" fill="#9CA3AF"/>'
+   +'<circle cx="16" cy="22" r="2" fill="#E5E7EB"/><circle cx="82" cy="20" r="2" fill="#E5E7EB"/>')};
+})();
+/* vE E125: one empty block. sm: the 96x80 size and its tighter padding */
+function emptyHTML(ill,t,s,act,sm){return '<div class="empty'+(sm?' empty--sm':'')+'">'+ill+'<p class="empty-t">'+t+'</p>'+(s?'<p class="empty-s">'+s+'</p>':'')+(act||'')+'</div>'}
+/* vE E125: nothing matched. The title, and Clear search (or Clear) under it when there is one */
+const noneHTML=(t,clear)=>emptyHTML(ILL.search(),t,clear||"","",true);
 const nrNum=n=>typeof n==="number"&&isFinite(n)?f(n)+" "+n:"";
 const nrTags=h=>String(h).replace(/<[^>]+>/g," ").replace(/&amp;/g,"&");
 function wsHomeHay(c){const P=wsPeopleOf(c), st=c.deletedOn?"Deleted":wsStatus(c), sub=c.deletedOn?c.deletedOn+", 30 days to restore":st==="Disabled"?"since "+(c.disabledOn||TODAY_D):st==="Paused"?"payment failed":"";
@@ -3793,7 +3882,7 @@ function hdrWsKey(e){
 }
 const hdrSnap=()=>({ctx,view:Object.assign({},view),tab,inMod,asClient,PREVIEW,cView,openSeq,seqTab,openProspect,setSel,apiTab,UB_TAB,PERSON_TAB});
 function hdrRestore(s){ctx=s.ctx;view=Object.assign({},s.view);tab=s.tab;inMod=s.inMod;asClient=s.asClient;PREVIEW=s.PREVIEW;cView=s.cView;openSeq=s.openSeq;seqTab=s.seqTab;openProspect=s.openProspect;setSel=s.setSel;apiTab=s.apiTab;UB_TAB=s.UB_TAB;PERSON_TAB=s.PERSON_TAB;
- ORIGIN=null;RL=null;PA_ED=null;openReply=null;qFrom=null;focusMb=null;render()}
+ ORIGIN=null;RL=null;RLI=null;PA_ED=null;openReply=null;qFrom=null;focusMb=null;render()}
 /* the hash a reload would land on: the record and its tab, or the workspace and its module */
 const hdrHash=s=>demoHash([s.ctx==="agency"?"client="+s.view.id:"ws="+s.ctx,s.ctx==="agency"?(s.tab&&s.tab!=="overview"?"tab="+s.tab:""):"mod="+(s.view.name==="clients"?s.inMod:s.view.name),HASHX.p.as?"as="+HASHX.p.as:"",HASHX.p.model?"model="+HASHX.p.model:"",demoGuideParam()]);
 function hdrWsPick(id){
@@ -3801,7 +3890,7 @@ function hdrWsPick(id){
  const prev=hdrSnap(), from=ctx==="agency"?(view.name==="record"?view.id:view.from):ctx;
  hdrWsClose(false);
  if(id===from&&!(ctx==="agency"&&view.name==="person")) return;
- hdrLeave(); RL=null; FOCUS_LIM=null; LM_DECL=null; PA_ED=null;
+ hdrLeave(); RL=null; RLI=null; FOCUS_LIM=null; LM_DECL=null; PA_ED=null;
  if(ctx==="agency"){if(view.name!=="record") tab="members"; view={name:"record",id}}   /* a record keeps its tab; a person page goes to the record's Members */
  else if(c.disabled){ctx="agency"; asClient=false; view={name:"record",id}; tab="overview"}
  else ctx=id;   /* the same module, Settings page or API & Integrations, in the other workspace */
@@ -5088,7 +5177,7 @@ function vClients(){
  }
  if(myClients().length===0) return `
  <div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
- <div class="wrap"><div class="panel"><div class="empty">
+ <div class="wrap"><div class="panel"><div class="empty">${ILL.workspace()}
    <p class="empty-t">Nothing assigned to you yet</p>
    <p class="empty-s">${ME().name} is not a member of any
      workspace. An Account Owner or Account Admin can add ${ME().name.split(" ")[0]} to one.</p>
@@ -5118,9 +5207,10 @@ function vClients(){
    They keep their data attributes, so the same handlers and the flow-h
    assertions find them whether the menu is open or not. */
 function recMenuHTML(c){
- const items=[];
+ const items=[]; const ta=recTabAct(c), tl=(ta.match(/>([^<]+)<\/button>$/)||[])[1];
+ if(ta) items.push(ta.replace('class="shd-button shd-button--secondary rec-tact"','class="menu-i rec-tact-m" role="menuitem"').replace(/>([^<]+)<\/button>$/,`><span class="menu-l">${tl}</span></button>`));   /* vE E122: phone only */
  /* 2 Oct 2026 (S2, doc 65 §6): plain words, the product's own consequence */
- if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its users out. You can enable it again.</span></button>`);
+ if(canI("disable")&&!c.disabled) items.push(`<button class="menu-i" role="menuitem" data-disable="${c.id}"><span class="menu-l">Disable</span><span class="menu-d">Pauses every sequence and signs its client users out. You can enable it again.</span></button>`);
  if(canI("destructive")) items.push(`<button class="menu-i" role="menuitem" data-delete="${c.id}"><span class="menu-l" style="color:var(--red-12)">Delete</span><span class="menu-d">Removes it for everyone. You can restore it within 30 days.</span></button>`);
  if(!items.length) return "";
  return `<span style="position:relative;display:inline-flex"><button class="shd-button shd-button--tertiary rec-kebab" id="recMenuBtn" aria-haspopup="menu" aria-expanded="${recMenu}" aria-label="More actions"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
@@ -5160,7 +5250,7 @@ function vRecord(id){
     deleted shows a bar with Restore and nothing else to act on. */
  const T=[["overview","Overview"],["members","Members"]/* change 293; 318: no count in the tab */,["limits","Limits"],["activity","Activity"]];
  if(!T.some(t=>t[0]===tab)) tab=T[0][0];
- if(tab!=="limits"&&RL) RL=null;   /* change 269 */
+ if(tab!=="limits"&&RL) RL=null;   /* change 269 */ if(tab!=="limits") RLI=null;   /* vE E130 */
  const dead=!!c.deletedOn, off=!!c.disabled;
  /* change 328 (Hitesh, 18 Oct 2026: "let's build H into vC", H revised): the name is in the
     bar ("Workspaces › Northwind Logistics" plus its one status), so the 84px band goes. Tabs
@@ -5171,13 +5261,17 @@ function vRecord(id){
  return `
  <div class="hdr-sh rec-sh${off||dead?" rc-off":""}">
   <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" role="tab" data-t="${l}" aria-selected="${tab===k}"${k==="activity"?' class="wss-tabbtn"':''}>${k==="activity"?logTabLabel(l):l}</button>`).join("")}</div>
-  <div class="hdr-sh-r">${acts}${dead?"":recMenuHTML(c)}</div>
+  <div class="hdr-sh-r">${dead?"":recTabAct(c)}${acts}${dead?"":recMenuHTML(c)}</div>
  </div>
  ${dead?`<div class="rc-deleted" role="status">${warnI}<span><b>Deleted on ${c.deletedOn} by ${c.deletedBy}.</b> Everything is kept for 30 days, then removed.</span>${canI("destructive")?`<button class="shd-button shd-button--secondary shd-button--sm" data-restore="${c.id}">Restore workspace</button>`:""}</div>`:""}
  ${receiptBar("client:"+c.id)}
  <div class="wrap">${
   tab==="overview"?rOverview(c):tab==="members"?rMembers(c)/* change 293: read only is drawn by the tab itself */:tab==="limits"?rLimits(c)/* change 269: read only is drawn by the tab itself */:logSoon("ws",c)/* E037 */}</div>`;
 }
+/* vE E122: the open tab's own action, a secondary button left of Open workspace (one primary per screen) */
+function recTabAct(c){if(c.deletedOn) return "";
+ if(tab==="members"&&canI("members")&&!c.disabled&&!(RM.id===c.id&&RM.inv)) return `<button type="button" class="shd-button shd-button--secondary rec-tact" data-rminvite aria-haspopup="dialog">Invite users</button>`;
+ return ""}
 /* what happened last in this workspace, newest first. Derived from the same
    fixtures the queue and the inbox read, so the three agree. */
 function activityList(c){
@@ -5237,10 +5331,11 @@ function recAccessRows(c){
 let REC_ACCESS_MAX=4;
 function recAccessCard(c,ro){
  const rows=recAccessRows(c), nU=(c.users||[]).length, nT=rows.length-nU;   /* change 316: everyone is listed, no "+N more" */
- const line=c.own||nU?"":`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
+ const e120=!c.own&&!nU&&!c.deletedOn;   /* vE E120: no client users yet is the Members tab line, not a tinted box */
+ const line=c.own||nU||e120?"":`<span class="rc-noone"><b>No one from ${c.name.split(" ")[0]} yet.</b> Invite their first user when the workspace is ready for them; until then only your team can open it.</span>`;
  const row=r=>`<div class="rc-prow"><span class="pp-av" style="--c:${r.col};width:32px;height:32px;font-size:13px">${r.ini}</span><span class="rc-pname"><span${r.sub?"":' class="rc-addr"'}>${r.name}</span>${r.sub?`<span class="cs">${r.sub}</span>`:""}</span><span class="rc-prole">${r.role}</span></div>`;
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Access</span><span class="c-a"><button class="linkbtn" data-tab="members">${canI("members")&&!c.deletedOn?"Manage members":"Members"}</button></span></div>
-  <div class="panel-b rc-abody">${line?`<div class="sub" style="margin-bottom:4px">${line}</div>`:""}<div class="rc-alist" style="--rcn:${Math.min(rows.length,3)}"><div class="rc-ascroll" tabindex="0" role="region" aria-label="Users with access to ${c.name}">${rows.map(row).join("")}</div></div></div></div>`;
+  <div class="panel-b rc-abody">${e120?`<div class="e-noone">No client users yet.${canI("members")&&!c.deletedOn?`<button type="button" class="linkbtn" data-rminvite>Invite users</button>`:""}</div>`:""}${line?`<div class="sub" style="margin-bottom:4px">${line}</div>`:""}<div class="rc-alist" style="--rcn:${Math.min(rows.length,3)}"><div class="rc-ascroll" tabindex="0" role="region" aria-label="Users with access to ${c.name}">${rows.map(row).join("")}</div></div></div></div>`;
 }
 function recDelRows(c){return RKA.map(k=>{const R=RES[k], r=R.rows[c.id]; if(R.unlimited) return unlApu(k,c); if(!r) return "";
   return `<div class="apu-i rc-apu"><div class="apu-r"><span class="apu-l">${R.label}</span><span class="apu-u">${f(r.used)} used</span></div></div>`}).join("")}   /* vE E072 */
@@ -5253,7 +5348,7 @@ function recLimitsCard(c,ro){
  /* vE E072: a deleted workspace has no limits (they went to Available), so its card says only what it used */
  if(c.deletedOn) return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span></div><div class="panel-b"><div class="apu-col">${recDelRows(c)}</div></div></div>`;
  /* change E002: no limits yet is said as such, never as six empty bars */
- if(limGate(c)) return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span>${canI("limits")&&!ro?`<span class="c-a"><button class="linkbtn" data-rledit="${c.id}">Set limits</button></span>`:""}</div><div class="panel-b"><dl class="dl rc-dl sl-dl">${RK.filter(k=>RES[k].rows[c.id]).map(k=>`<dt>${RES[k].label}</dt><dd>0</dd>`).join("")}</dl></div></div>`;
+ if(limGate(c)) return `<div class="panel rc-card e-limc"><div class="panel-h"><span class="panel-t">Limits</span></div><div class="panel-b">${limEmptyHTML(c,ro)}</div></div>`;   /* vE E120: option C */
  return `<div class="panel rc-card"><div class="panel-h"><span class="panel-t">Limits</span><span class="c-a">${canI("limits")?`<button class="linkbtn" data-rledit="${c.id}">Change limits</button>`/* change 269 */:`<button class="linkbtn" data-tab="limits">View limits</button>`}</span></div><div class="panel-b">${rows?'<div class="apu-col">'+rows+'</div>':'<p class="sub" style="margin:0">On its own plan.</p>'}</div></div>`;
 }
 /* change 358: the logo Details shows while editing: the one found for a changed website, else the saved one */
@@ -5277,7 +5372,7 @@ function recDetailsCard(c,ro){
 }
 function rOverview(c){
  const S=steps(c),done=doneN(c), ro=!!(c.disabled||c.deletedOn);
- return `${!ro&&limGate(c)?slCardHTML(c):""}${ro||c.own?"":rcSetup(c,S,done)}<div class="rc-cards"><div class="rc-stack">${recDetailsCard(c,ro)}${recAccessCard(c,ro)}</div>${recLimitsCard(c,ro)}</div>`;
+ return `${""/* vE E120: option C instead of the setup strip (Hitesh, 3 Nov): no banner, no Setup strip, in any state */}<div class="rc-cards"><div class="rc-stack">${recDetailsCard(c,ro)}${recAccessCard(c,ro)}</div>${recLimitsCard(c,ro)}</div>`;
 }
 /* ═══ Activity, 2 Oct 2026 (S2): fed only by events the workspaces feature
    itself writes (created, invited, role changed, limit changed, disabled
@@ -6025,7 +6120,7 @@ function rMembers(c){
  /* with no select in the table, a role sits on its header; next to selects it lines up with their text */
  const anySel=ed&&(cl.some(r=>!r.off)||tm.some(r=>!r.fixed&&!r.off));
  return `<div class="rmt">
-  ${lead}${rmInviteHTML(c)}${side?`<div class="rmt-tb">${side}</div>`:""}
+  ${lead}${rmInviteHTML(c)}
   <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
    <thead><tr><th scope="col">User</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span></th></tr></thead>
    <tbody>${c.own?"":cl.length?cl.map(r=>rmClientRow(c,r,ed,can,ty)).join(""):none(`No client users yet.${ed&&!RM.inv?` <button type="button" class="linkbtn" data-rminvite>Invite users</button>`:""}`)}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`Nobody from your team is assigned to ${rmEsc(c.name)} yet; only Account Owners reach it.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
@@ -6150,7 +6245,7 @@ function utPage(c){
    <button type="button" class="shd-button shd-button--primary" data-utinvite aria-haspopup="dialog">${plus}Invite users</button></div>
   <div class="panel rmt-sheet"><table class="rmt-t rmt-t--plain${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
    <thead><tr><th scope="col">User</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span></th></tr></thead>
-   <tbody>${rows.length?rows.map(r=>utRow(c,r,ty)).join(""):`<tr class="rmt-none"><td colspan="${ty?5:4}">${nrText(UT.q)}. <button type="button" class="linkbtn" data-utclear>Clear search</button></td></tr>`}</tbody></table>
+   <tbody>${rows.length?rows.map(r=>utRow(c,r,ty)).join(""):`<tr class="rmt-none rmt-nr"><td colspan="${ty?5:4}">${noneHTML(nrText(UT.q),'<button type="button" class="linkbtn" data-utclear>Clear search</button>')}</td></tr>`}</tbody></table>
    <div class="rmt-foot ut-foot">Disable or remove someone from the whole account in <button type="button" class="linkbtn" data-utpeople>Users</button>.</div></div>
  </section>`}
 /* a role change here is the person page's Save (pxSave) with only this workspace changed: one write, whichever
@@ -6348,17 +6443,17 @@ function rlPace(k,r){const p=paceLine(k,r); return p==="None left"?"":p}
 function rlRowHTML(k,c,gate){const R=RES[k], unl=!!R.unlimited, r=R.rows[c.id]; if(unl&&!unlHas(c.id)) return ""; if(!unl&&!r) return "";
  const sub=unl?R.nature:ulrRenewTxt(k), cls=`rlt-row ulr-tr${FOCUS_LIM===k?" is-focus":""}${unl?" is-unl":""}`;
  let used, gauge, lim, last;
- if(unl){used=f(unlUsed(k,c.id)); gauge='<span class="ulr-bar is-none"></span>'; lim=`<span class="ulr-lv">${UNL_TXT}</span>`; last='<span class="ulr-pace is-q">&ndash;</span>'}
+ if(unl){used=f(unlUsed(k,c.id)); gauge='<span class="ulr-bar is-none"></span>'; lim=c.own?`<span class="ulr-lv">${UNL_TXT}</span>`:`<span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${UNL_TXT}</span></span>${ULR_PEN0}</span>`; last='<span class="ulr-pace is-q">&ndash;</span>'}
  else if(gate){used=f(r.used); gauge='<span class="ulr-bar is-none"></span>'; lim='<span class="ulr-lv rlt-ns">Not set</span>'; last='<span class="ulr-pace is-q">&ndash;</span>'}
- else{const lv=ulrLv(c,r.used,r.cap), p=ulPct(r.used,r.cap), w=r.cap>0?Math.min(100,r.used/r.cap*100):lv===2?100:0, L=ulrLast(k,r,r.cap);
-  used=f(r.used); gauge=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,r.cap)}"></span></span>`; lim=`<span class="ulr-lv">${f(r.cap)}</span>`; last=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${ulrPctT(L)}</span>`}
+ else{const v=rlDv(k,c.id), lv=ulrLv(c,r.used,v), p=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0, L=ulrLast(k,r,v);
+  used=f(r.used); gauge=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,v)}"></span></span>`; lim=c.own?`<span class="ulr-lv">${f(r.cap)}</span>`:rlLimHTML(k,c); last=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${ulrPctT(L)}</span>`}
  return `<tr class="${cls}" id="rlim-${k}" data-rl="${k}"${unl?` data-unl="${k}"`:""}><td class="rlt-c1"><div class="ulr-ws"><span class="rlt-rn"><span class="ulr-nm">${R.label}</span><span class="sub">${sub}</span></span></div></td>`
   +`<td class="ulr-gc">${gauge}</td><td class="ulr-ur rlt-c2"><span class="ulr-num">${used}</span></td><td class="ulr-cl">${lim}</td><td class="ulr-pc">${last}</td></tr>`}
 function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet reads "Not set", never "None left" */
  const rows=RKA.map(k=>rlRowHTML(k,c,gate)).join("");
  if(!rows) return `<div class="panel rlt-sheet"><p class="sub rlt-own">On its own plan.</p></div>`;
- return `<div class="panel rlt-sheet"><table class="ulr-t ulr-tp rlt-t2"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>
-  <thead><tr class="th-one"><th>Resource</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r">Used</th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Usage (%)${canI("limits")&&!RL&&!c.deletedOn?`<button type="button" class="linkbtn rlt-chg" data-rledit="${c.id}">Change limits</button>`:""}</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+ return `<div class="panel rlt-sheet">${c.own?"":`<div data-rlsumw>${rlSumHTML()}</div>`}<table class="ulr-t ulr-tp rlt-t2" ${c.own?"":` style="--ulr-uw:${rlUw(c)}ch;--ulr-lvw:${rlLvw(c)}ch"`}><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>
+  <thead><tr class="th-one"><th>Resource</th><th class="ulr-gh" aria-label="Bar"></th><th class="ulr-r">Used</th><th class="ulr-r ulr-lh">Limit</th><th class="ulr-p">Usage (%)</th></tr></thead><tbody>${rows}</tbody></table></div>`}
 /* the consequence line: 263's wording, plus where more capacity lives when the plan is short */
 function rlFxLine(D,k,id){if(RL&&RL.nb&&RL.nb[k]) return `<span class="ul3-mk">${NUM_ERR}</span>`;   /* vE E075 fix 5 */
  const e=ul3EdFx(D,k,id);
@@ -6406,13 +6501,79 @@ function rlRoLine(){const P=Object.values(PEOPLE).filter(p=>(p.role==="Owner"||p
 const rlGraceHTML=()=>`<div class="msg grace grace-bar grace-amb" role="alert">${warnI}<span class="grace-t"><strong>Payment failed on ${GRACE.failedOn}, so nothing sends from any workspace, this one included.</strong>
   Update the card within ${GRACE.daysLeft} days or the account pauses. Limits can still change; sending starts again once the payment goes through.</span>
   ${canI("billing")?'<button class="shd-button shd-button--primary shd-button--sm grace-go" data-gobill>Update payment</button>':'<span class="grace-who">An Account Owner can update the card.</span>'}</div>`;
+/* ═══ vE E130 (Chintan: "This looks confusing for user. Can we modify to simplify just as we have done for the limit table?"; Hitesh:
+   "match edit here as same as how we do in Usage and Limits screen"): the Limits tab edits the way Usage & limits does. The pencil at the end of
+   the Limit cell, the input in place, "was N", one draft row (Discard, Apply N changes), the same errors and the same stop confirm, the same
+   Saved receipt with Undo. The draft is RLI = {id, D, nb, ce, ceWas}: D keyed "resource|workspace" as UL.draft is, so 263's helpers (ul3Set, ul3Ch,
+   ul3Free, ul3Commit) are reused. A workspace with no limits yet keeps E120's block and its Set limits editor (RL). ═══ */
+let RLI=null;
+const rlCan=c=>canI("limits")&&!c.own&&!c.deletedOn&&!limGate(c)&&ul3CanEd(c,false);
+const rlD=c=>RLI&&RLI.id===c.id?RLI.D:{};
+function rlDv(k,id){const x=RLI&&RLI.id===id?RLI.D[k+"|"+id]:null; return x==null?RES[k].rows[id].cap:x}
+const rlEd=k=>UL_K().indexOf(k)>-1&&!isUnl(k);
+const rlBad=(k,id)=>RLI&&RLI.nb[k+"|"+id]?"num":RLI&&ul3Free(RLI.D,k)<0&&rlDv(k,id)>RES[k].rows[id].cap?"over":"";
+const rlOnly=k=>Math.max(0,ul3Free(RLI.D,k)+ul3Ch(RLI.D).filter(x=>x.k===k&&x.v>x.was).reduce((t,x)=>t+Math.max(x.v,RES[k].rows[x.id].used)-Math.max(x.was,RES[k].rows[x.id].used),0));
+function rlUw(c){return Math.max(3,...RKA.filter(k=>RES[k].rows[c.id]&&!isUnl(k)).map(k=>f(RES[k].rows[c.id].used).length))}
+function rlLvw(c){return Math.max(1,...RKA.filter(k=>RES[k].rows[c.id]&&!isUnl(k)).map(k=>{const t=f(rlDv(k,c.id)); return t.length-(t.split(",").length-1)/2}))}
+/* the Limit cell: ulrLimHTML's markup, for one workspace's resource */
+function rlLimHTML(k,c){const r=RES[k].rows[c.id], key=k+"|"+c.id, v=rlDv(k,c.id), ch=v!==r.cap, bad=rlBad(k,c.id), was=ch?`<span class="ulr-was">was ${f(r.cap)}</span>`:"";
+ if(!rlCan(c)||!rlEd(k)) return `<span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`;
+ if((RLI&&RLI.ce===key)||bad) return `<input type="text" inputmode="numeric" autocomplete="off" class="ul-in ulr-in" data-rli="${key}" value="${RLI&&RLI.nb[key]?ncEscH(RLI.nb[key].raw):f(v)}" aria-label="${c.name} ${RES[k].label} limit" aria-invalid="${!!bad}"${bad?' aria-describedby="ulrWhy"':""}>`;
+ return `<button type="button" class="ulr-lb${ch?" is-ch":""}" data-rlce="${key}" aria-label="${RES[k].label} limit ${f(v)}${ch?", was "+f(r.cap):""}. Change"><span class="ulr-vv">${was}<span class="ulr-lv">${f(v)}</span></span>${ULR_PEN}</button>`}
+/* the draft row: e101DraftHTML's markup and rules, on this workspace's limits */
+function rlWhere(ch,c){const ks=[...new Set(ch.map(x=>x.k))]; if(ks.length>1) return `${ul3N(ch.length,"change")} across ${ks.length} resources.`;
+ const k=ks[0], x=ch[0], r=RES[k].rows[c.id], d=Math.max(x.v,r.used)-Math.max(x.was,r.used);
+ if(x.v>x.was) return sentEnd(`Gives ${f(x.v-x.was)} to ${c.name} from what's left to allocate`);
+ return d===x.was-x.v?sentEnd(`Takes back ${f(x.was-x.v)} from ${c.name}`):-d>0?`Frees ${f(-d)}, the unused part.`:"Frees nothing, it is all in use."}
+const rlStops=()=>RLI?ul3Ch(RLI.D).filter(x=>{const c=byId[x.id], r=RES[x.k].rows[x.id]; return !c.disabled&&r.cap>r.used&&x.v<=r.used}):[];
+function rlSumHTML(){if(!RLI) return ""; const c=byId[RLI.id], ch=ul3Ch(RLI.D), n=ch.length, nb=Object.keys(RLI.nb).length; if(!c||(!n&&!nb)) return "";
+ const over=UL_K().filter(k=>ul3Free(RLI.D,k)<0), st=rlStops();
+ const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(rlOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(rlOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`):"";
+ return `<div class="e101-sum is-draft rl-sum"><div class="e101-dr" role="region" aria-label="Unsaved changes"><div class="e101-dx"><p class="e101-dt">${st.length?sentEnd(listAnd(st.map(ulrStopTxt))):""}${why?`${st.length?" ":""}<span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p></div>`
+  +`<span class="e101-sb"><button type="button" class="shd-button shd-button--secondary" data-rldiscard>Discard</button><button type="button" class="shd-button shd-button--primary" data-rlapply${why?` disabled aria-describedby="ulrWhy"`:""}>Apply${n?" "+ul3N(n,"change"):""}</button></span></div></div>`}
+function rlStopHTML(){const L=rlStops(), n=L.length;
+ return card(n===1?"Lower this limit?":"Lower these limits?",n===1?`<p class="ulr-cf1">${ulrStopTxt(L[0])}.</p>`:`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,
+  `<button class="shd-button shd-button--tertiary" data-mclose>Keep editing</button><button class="shd-button shd-button--primary" data-rlcfok>${n===1?"Lower limit":"Lower limits"}</button>`,"ulr-cfm")}
+function rlApply(){if(!RLI) return; const id=RLI.id, ch=ul3Ch(RLI.D); if(!ch.length) return;
+ if(!ul3Commit(RLI.D,"Saved","set on its Limits tab")){render(); return}
+ RLI=null; render(); const b=document.querySelector(`[data-rlce="${ch[0].k}|${id}"]`); if(b) b.focus({preventScroll:true})}
+/* typing repaints the row's bar, Usage (%), the Limit cell and the draft row, not the page, so the caret stays */
+function rlPaintI(){const P=document.querySelector(".rlt-sheet"); if(!P||!RLI) return; const c=byId[RLI.id]; if(!c) return;
+ RKA.forEach(k=>{if(!rlEd(k)||!RES[k].rows[c.id]) return; const row=P.querySelector(`#rlim-${k}`); if(!row) return; const r=RES[k].rows[c.id], v=rlDv(k,c.id), lv=ulrLv(c,r.used,v), pc=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0, L=ulrLast(k,r,v), key=k+"|"+c.id;
+  row.querySelector("td.ulr-gc").innerHTML=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":pc+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,v)}"></span></span>`;
+  row.querySelector("td.ulr-pc").innerHTML=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${ulrPctT(L)}</span>`;
+  const l=row.querySelector("td.ulr-cl"), i=l.querySelector("[data-rli]"), bad=rlBad(k,c.id);
+  if(i){i.setAttribute("aria-invalid",String(!!bad)); if(bad) i.setAttribute("aria-describedby","ulrWhy"); else i.removeAttribute("aria-describedby");
+   if(!bad&&RLI.ce!==key&&document.activeElement!==i){RLI.busy=true; l.innerHTML=rlLimHTML(k,c); RLI.busy=false}}
+  else if(bad) l.innerHTML=rlLimHTML(k,c)});
+ const t=P.querySelector("table"); if(t) t.style.setProperty("--ulr-lvw",rlLvw(c)+"ch");
+ const w=P.querySelector("[data-rlsumw]"); if(w) w.innerHTML=rlSumHTML()}
+function rlCeOpen(key){const [k,id]=key.split("|"), c=byId[id], l=document.querySelector(`#rlim-${k} td.ulr-cl`); if(!l||!c) return;
+ if(!RLI||RLI.id!==id) RLI={id,D:{},nb:{},ce:null,ceWas:null}; RLI.ce=key; RLI.ceWas=rlDv(k,id); RLI.busy=true; l.innerHTML=rlLimHTML(k,c); RLI.busy=false;
+ const i=l.querySelector("[data-rli]"); if(i){i.focus(); i.select()}}
+function rlCeEnd(key,fb){if(!RLI) return; if(RLI.ce===key) RLI.ce=null; const [k,id]=key.split("|"), c=byId[id], l=document.querySelector(`#rlim-${k} td.ulr-cl`); if(!l||!c) return;
+ RLI.busy=true; l.innerHTML=rlLimHTML(k,c); RLI.busy=false; if(fb){const n=l.querySelector("button,input"); if(n) n.focus({preventScroll:true})}}
+document.addEventListener("click",e=>{if(view.name!=="record") return; const t=e.target.closest("[data-rlce],[data-rlapply],[data-rldiscard]"); if(!t||t.disabled) return; const d=t.dataset;
+ if(d.rlce){e.stopPropagation(); rlCeOpen(d.rlce); return}
+ if(d.rldiscard!=null){e.stopPropagation(); const id=RLI&&RLI.id, k=RLI&&Object.keys(RLI.D)[0]; RLI=null; render(); const b=k&&document.querySelector(`[data-rlce="${k}"]`); if(b) b.focus({preventScroll:true}); return}
+ if(d.rlapply!=null){e.stopPropagation(); if(rlStops().length){modal={kind:"rlstop"}; renderModal(); const b=document.querySelector("[data-rlcfok]"); if(b) b.focus()} else rlApply(); return}},true);
+document.addEventListener("input",e=>{if(view.name!=="record"||!RLI) return; const t=e.target; if(!t.dataset||!t.dataset.rli) return; const [k,id]=t.dataset.rli.split("|"), nv=numParse(t.value);
+ if(nv==null) RLI.nb[t.dataset.rli]={raw:t.value}; else{delete RLI.nb[t.dataset.rli]; ul3Set(RLI.D,k,id,nv)} rlPaintI()});
+document.addEventListener("focusin",e=>{const t=e.target; if(!RLI||!t.dataset||!t.dataset.rli) return; if(RLI.ce!==t.dataset.rli){const [k,id]=t.dataset.rli.split("|"); RLI.ce=t.dataset.rli; RLI.ceWas=rlDv(k,id)}});
+document.addEventListener("focusout",e=>{const t=e.target; if(!RLI||!t.dataset||!t.dataset.rli||RLI.busy||!t.isConnected) return; const key=t.dataset.rli;
+ setTimeout(()=>{if(RLI&&document.activeElement!==t) rlCeEnd(key,false)},0)});
+document.addEventListener("keydown",e=>{if(view.name!=="record"||!RLI) return; const t=e.target; if(!t.dataset||!t.dataset.rli) return; const key=t.dataset.rli, [k,id]=key.split("|");
+ if(e.key==="Enter"){e.preventDefault(); rlCeEnd(key,true); return}
+ if(e.key==="Escape"){e.preventDefault(); e.stopImmediatePropagation(); delete RLI.nb[key]; if(RLI.ceWas!=null&&RLI.ce===key) ul3Set(RLI.D,k,id,RLI.ceWas); RLI.ce=key; rlPaintI(); rlCeEnd(key,true); return}
+ if(e.key==="Tab"){const L=RKA.filter(x=>rlEd(x)&&RES[x].rows[id]), i=L.indexOf(k), n=L[i+(e.shiftKey?-1:1)]; if(i<0||!n) return; e.preventDefault(); rlCeOpen(n+"|"+id)}},true);
 function rLimits(c){
  const ro=!!(c.disabled||c.deletedOn), can=canI("limits");
  if(RL&&(RL.id!==c.id||!can)) RL=null;
- const ed=!!RL&&can;
+ if(RL&&!RL.set) RL=null; if(RLI&&(RLI.id!==c.id||!can||c.own||c.deletedOn)) RLI=null;   /* vE E130 */
+ const ed=false;   /* vE E130: an existing workspace edits in the table; rlEditorHTML is no longer reached */
  /* change E002: no limits yet: the Set limits card over the sheet, or the Set limits editor */
  if(RL&&RL.set&&!limGate(c)) RL=null;
- if(limGate(c)&&!ro) return `<div class="rlt">${grace()?rlGraceHTML():""}${RL&&RL.set&&can?slEditorHTML(c):slCardHTML(c)+rlSheetHTML(c)}</div>`;
+ if(limGate(c)&&!ro) return `<div class="rlt">${grace()?rlGraceHTML():""}${RL&&RL.set&&can?slEditorHTML(c):`<div class="panel e-limc"><div class="panel-b">${limEmptyHTML(c,ro)}</div></div>`/* vE E120: option C */}</div>`;
  return `<div class="rlt">${grace()?rlGraceHTML():""}
   ${/* change 333: no "Limits" heading and no "Day 9 of 30"; a row only for what it still carries */
    ro?`<div class="rlt-head rlt-tb">${ro||(can&&!ed)?`<div class="rlt-h">${ro?`<p class="sub rlt-sub">${rlHeadLine(c,ro)}</p>`:""}</div>`:""}</div>`:""}
@@ -6423,7 +6584,7 @@ function rLimits(c){
 document.addEventListener("click",e=>{if(view.name!=="record") return;
  const t=e.target.closest("[data-rledit],[data-rlcancel],[data-rlsave],[data-rlmove],[data-rlraise],[data-askld],[data-askldx]"); if(!t||t.disabled) return;
  const d=t.dataset, c=byId[view.id]; if(!c) return;
- if(d.rledit!=null){if(!canI("limits")) return; RL=limGate(c)?slNew(c.id)/* change E002 */:{id:c.id,D:{}}; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("slin-sends")||el("rlin-sends")||document.querySelector("[data-rlin],[data-slin]"); if(i){i.focus(); i.select()} return}
+ if(d.rledit!=null){if(!canI("limits")) return; RL=limGate(c)?slNew(c.id)/* change E002 */:null; RLI=null; tab="limits"; FOCUS_LIM=null; LM_DECL=null; render(); const i=el("slin-sends")||document.querySelector("[data-slin],[data-rlce]"); if(i){i.focus(); if(i.select) i.select()} return}
  if(d.rlcancel!=null){RL=null; render(); const b=document.querySelector("[data-rledit]"); if(b) b.focus(); return}
  if(d.rlsave!=null&&RL){if(ul3Commit(RL.D,"Saved","set on its Limits tab")) RL=null; render(); return}
  /* more than the plan has: 263's roster editor on Usage & limits takes the draft and offers a donor */
@@ -6455,6 +6616,10 @@ function disBanner(c){ if(!wsOff(c)) return ""; const can=canI("disable");
  return `<div class="msg m-warn ws-disbar" role="status">${warnI}<span><b>${c.name} is disabled.</b> Nothing sends, and nothing can be created or imported.${can?"":" Ask an Account Owner to turn it back on."}</span>${can?`<button type="button" class="linkbtn" data-enable="${c.id}">Enable workspace</button>`:""}</div>`}
 const SL_STOP={sends:"sending",lead_finder:"revealing leads",verification:"verifying emails",ai:"using AI",dialer:"calling",radar:"running inbox placement tests"};
 const SL_SHOW=4;
+/* vE E120 (Chintan: "this is good, we can show this when the user clicks the limit tab"; Hitesh: "let's go with this version instead of setup strip"):
+   one empty block for a workspace with no limit set, on the Overview card and the Limits tab. Production's .empty pattern; one Set limits button. */
+function limEmptyHTML(c,ro){const can=canI("limits")&&!ro;   /* vE E125: the limits card, + badge only with Set limits */
+ return `<div class="empty">${ILL.limits(can?"plus":"")}<p class="empty-t">No limits yet</p><p class="empty-s">Nothing sends from ${c.name} until it has limits.</p>${can?`<button type="button" class="shd-button shd-button--secondary" data-rledit="${c.id}">Set limits</button>`:""}</div>`}   /* vE E122: secondary */
 function slCardHTML(c){const can=canI("limits");
  return `<div class="msg dn-req sl-card" role="status">${infoI}<span class="dn-req-t">${can?SL_LINE:"Nothing sends from this workspace until an Account Owner or Account Admin sets its limits."}</span>${can?`<button type="button" class="shd-button shd-button--primary shd-button--sm sl-go" data-rledit="${c.id}">Set limits</button>`:""}</div>`}
 /* the line on every place that would send */
@@ -6551,7 +6716,7 @@ function slDo(){if(!RL||!RL.set) return; const W=RL.id, c=byId[W], D=RL.D; if(!s
  const restore=()=>prev.forEach(p=>{const r=slR(p.k,p.id); r.cap=p.was; if(p.custom==null) delete r.custom; else r.custom=p.custom; syncRes(p.k,r)});
  for(const x of ch){if(!setLimit(x.k,x.id,x.v,x.id===W?"set on its Limits tab":`moved to ${c.name}`)){restore(); const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; RL=null; receipt("client:"+W,t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; render(); return}}
  const low=[...new Set(ch.filter(x=>x.id!==W).map(x=>x.id))], n=ch.filter(x=>x.id===W).length;
- receipt("client:"+W,`Set ${n===1?"1 limit":n+" limits"} for ${c.name}.${low.length?` Lowered ${listAnd(low.map(id=>byId[id].name))}.`:""}`,()=>{restore(); render()},`set ${c.name}'s limits`);
+ receipt("client:"+W,`Set ${n===1?"1 limit":n+" limits"} for ${c.name}.${low.length?` Lowered ${listAnd(low.map(id=>byId[id].name))}.`:""}`,()=>{restore(); render()},`set ${c.name}'s limits`); RECEIPT.variant="success";   /* vE E123 */
  RL=null; render(); const b=document.querySelector('[data-tab="limits"]'); if(b) b.focus({preventScroll:true})}
 document.addEventListener("click",e=>{const g=e.target.closest("[data-slgo]"); if(g){const id=g.dataset.slgo; if(!byId[id]||!canI("limits")) return;
   ORIGIN=null; ctx="agency"; asClient=false; view={name:"record",id}; tab="limits"; RL=limGate(byId[id])?slNew(id):null; render(); const i=el("slin-sends"); if(i){i.focus(); i.select()} return}
@@ -6654,7 +6819,7 @@ function rMail(c){
       :m[1]==="Reconnecting"
       ?`<span class="sub" aria-disabled="true">Reconnecting</span>`
       :""}</td>`}</tr>${sq.length>1&&MB_SEQ===sqK?`<tr class="mbseq-row"><td colspan="${showAct?4:3}"><div class="tools" style="flex-wrap:wrap;gap:6px 16px">${sq.map(nm=>`<button class="linkbtn" data-mbseqgo="${c.id}|${nm.replace(/"/g,"&quot;")}">${nm}</button>`).join("")}</div></td></tr>`:""}`;}).join("")
-    :'<tr><td colspan="'+(showAct?4:3)+'"><span class="sub">'+(mbHealth==="all"?"No email accounts yet. This workspace cannot send.":"None in this state.")+'</span></td></tr>'}
+    :'<tr><td colspan="'+(showAct?4:3)+'">'+(mbHealth==="all"?'<span class="sub">No email accounts yet. This workspace cannot send.</span>':noneHTML("None in this state"))+'</td></tr>'}
    </tbody></table></div>
   ${filt.length>10?`<div class="panel-b" style="border-top:1px solid var(--gray-13)">
     <span class="sub">Showing ${rows.length} of ${filt.length}</span>
@@ -6854,7 +7019,9 @@ function vPeople(){
  const row=r=>r.c?clRow(r):teamRow(r);
  const wsOpts=myClients();
  const ph=on?"Search invites":all?"Search all users":tab==="team"?"Search your team":"Search client users";
- const empty=on?(invN?"No invite matches.":"No invites waiting. Everyone has signed in."):PP.ws!=="all"&&!PP.ws.length?"Tick at least one workspace.":all?"No one matches.":tab==="team"?"No one on your team matches.":"No client user matches.";
+ const empty=on?(invN?"No invite matches":"No invites waiting"):PP.ws!=="all"&&!PP.ws.length?"Tick at least one workspace":all?"No one matches":tab==="team"?"No one on your team matches":"No client user matches";   /* vE E125: titles now, no full stop */
+ const emptyBlock=q?noneHTML(nrText(PP.q),'<button type="button" class="linkbtn" data-ppclear>Clear search</button>')
+  :on&&!invN?emptyHTML(ILL.personSm(),empty,"Everyone has signed in.","",true):noneHTML(empty);   /* vE E125 */
  return `<div class="wrap pp-wrap">${receiptBar("people")}
   <div class="pp-tb"><div class="pp-tb-f">
     <span class="search">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
@@ -6863,7 +7030,7 @@ function vPeople(){
     ${tab==="team"?ddHTML("ppRole",PP.role,[{items:[{value:"all",label:"Account role: All"},{value:"Owner",label:"Account Owner"},{value:"Admin",label:"Account Admin"},{value:"Member",label:"Account Member"}]}],{}):""}</div>
    <div class="pp-tb-a"><button type="button" class="linkbtn pp-rolelink" data-pproles>What each role can do</button>
    <button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite users</button></div></div>
-  ${`<section class="pp-sec">${head}${rows.length?rows.map(row).join(""):`<div class="pp-empty">${q?`${nrText(PP.q)}. <button type="button" class="linkbtn" data-ppclear>Clear search</button>`:empty}</div>`}</section>
+  ${`<section class="pp-sec">${head}${rows.length?rows.map(row).join(""):emptyBlock}</section>
   ${rows.length<total?`<span class="sub pp-foot">Showing ${rows.length} of ${total} ${on?"invites":all?"users":tab==="team"?"on your team":"client users"}</span>`:""}`}</div>`;
 }
 /* vE E084: the People Workspace filter as a checkbox list: Select all on top (mixed when some are ticked), then every
@@ -8514,9 +8681,10 @@ function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on 
  for(const x of ch.slice().sort((a,b)=>(a.v-a.was)-(b.v-b.was))){
   if(!setLimit(x.k,x.id,x.v,where||"set on Usage & limits")){
    restore(); const t=RC_REFUSED&&RC_REFUSED.text; RC_REFUSED=null; receipt("ul",t||"Not saved.",null,"limits not saved"); RECEIPT.variant="error"; renderToast(); return false}}
- const n=ch.length, ids=[...new Set(ch.map(x=>x.id))], told=ids.filter(id=>!byId[id].own);
- const text=ul3Dot(`${verb} ${ul3N(n,"change")} ${verb==="Saved"?"for":"to"} ${verb==="Saved"?listAnd(ids.map(id=>byId[id].name)):ul3N(ids.length,"workspace")}`)+(told.length?` ${told.length===1?"Its":"Their"} admins were told.`:"");
- receipt("ul",text,restore,`${verb.toLowerCase()} ${ul3N(n,"limit change")}`);
+ const n=ch.length, ids=[...new Set(ch.map(x=>x.id))];
+ /* vE E123: what was saved, nothing more ("admins were told" is gone); a save is a success */
+ const text=verb==="Saved"?(ids.length===1?`Saved ${byId[ids[0]].name}\u2019s limits.`:sentEnd(`Saved limits for ${listAnd(ids.map(id=>byId[id].name))}`)):ul3Dot(`${verb} ${ul3N(n,"change")} to ${ul3N(ids.length,"workspace")}`);
+ receipt("ul",text,restore,`${verb.toLowerCase()} ${ul3N(n,"limit change")}`); if(verb==="Saved"&&RECEIPT) RECEIPT.variant="success";
  return true}
 
 /* ── Edit limits: one resource at a time, the draft (UL.draft) carried across tabs ── */
@@ -8654,11 +8822,11 @@ function ulrBarHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{
    Dialer is its own subscription, monthly on the 14th; Inbox Radar on the 1st. ═══ */
 function ulrRule(k){const pro=PLAN_TIER==="pro", nx=PLAN.next.split(",")[0], M={day:CYCLE.day,days:CYCLE.days,from:"1 Sep",to:nx}, on=(T,lost)=>({term:T,on:"On "+T.to,lost});
  if(k==="sends") return Object.assign({head:"Renews "+nx+", emails not sent this month don't carry over.",act:"Change plan",cli:nx},on(M,"Unused is lost"));
- if(k==="lead_finder") return pro?Object.assign({head:"Renews with your add-on on 1 May 2027, unused credits don't carry over.",act:"Add-on or upgrade",cli:"1 May 2027"},on({day:132,days:365,from:"1 May 2026",to:"1 May 2027"},"Unused is lost, add-on too"))
-  :Object.assign({head:"Renews "+nx+", unused credits don't carry over.",act:"Add-on or upgrade",cli:nx},on(M,"Unused is lost"));
+ if(k==="lead_finder") return pro?Object.assign({head:"Renews with your add-on on 1 May 2027, unused credits don't carry over.",act:"Change plan",cli:"1 May 2027"},on({day:132,days:365,from:"1 May 2026",to:"1 May 2027"},"Unused is lost, add-on too"))
+  :Object.assign({head:"Renews "+nx+", unused credits don't carry over.",act:"Change plan",cli:nx},on(M,"Unused is lost"));
  if(k==="dialer") return Object.assign({head:"Renews 14 Sep, bought credits carry over and plan credits don't.",act:"Buy more",cli:"14 Sep"},on({day:27,days:31,from:"14 Aug",to:"14 Sep"},"Plan credits lost, bought kept"));
- if(k==="radar") return pro?{head:"Doesn't renew, tests stay until used.",keep:"Tests are kept",act:"Get an Inbox Radar plan",cli:null}
-  :Object.assign({head:"Renews 1 Oct, unused tests don't carry over.",act:"Change Inbox Radar plan",cli:"1 Oct"},on(Object.assign({},M,{to:"1 Oct"}),"Unused is lost"));
+ if(k==="radar") return pro?{head:"Doesn't renew, tests stay until used.",keep:"Tests are kept",act:"Change plan",cli:null}
+  :Object.assign({head:"Renews 1 Oct, unused tests don't carry over.",act:"Change plan",cli:"1 Oct"},on(Object.assign({},M,{to:"1 Oct"}),"Unused is lost"));
  if(RES[k]&&RES[k].kind==="level") return {head:isUnl(k)?"Unlimited on your plan.":"Doesn't renew, frees up as prospects finish their sequences.",act:"Change plan",cli:null};
  return {head:"Doesn't renew, credits stay until used.",keep:"Never expires",act:"Buy more",cli:null}}
 const ulrTerm=k=>isUnl(k)?null:ulrRule(k).term||null;
@@ -8816,9 +8984,9 @@ function vLimits(){
  if(!canI("limits")) return denied("see usage and limits");
  const W=ulRows(), ro=ulRo(), cl=W.filter(c=>!c.own);
  const sub=`<p class="ul-sub">${PLAN.name.replace(/\s*\(.*\)$/,"")} plan, day ${CYCLE.day} of ${CYCLE.days}. ${renewLine()}</p>`;
- if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel ul-empty"><div class="c-b"><span class="ul-empty-ic">${svg("limits")}</span><p class="ul-empty-t">No workspaces to share your plan with yet</p>
-   <p class="sub">Usage &amp; limits shows what each workspace uses of its limits. Your workspace holds the whole plan; add a workspace, then give it limits from yours.</p>
-   ${canI("limits")?`${addBlock()?`<span class="sub add-why" id="uladdwhy">${addBlock()}</span>`:""}<button class="shd-button shd-button--primary" data-uladd${addBlock()?' disabled aria-describedby="uladdwhy"':""}>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;
+ if(!cl.length) return `<div class="wrap ul-wrap">${sub}<div class="panel ul-panel"><div class="empty">${ILL.workspace(canI("limits")?"plus":"")}<p class="empty-t">No workspaces to share your plan with yet</p>
+   <p class="empty-s">Usage &amp; limits shows what each workspace uses of its limits. Your workspace holds the whole plan; add a workspace, then give it limits from yours.</p>
+   ${canI("limits")?`${addBlock()?`<p class="empty-s add-why" id="uladdwhy">${addBlock()}</p>`:""}<button class="shd-button shd-button--primary" data-uladd${addBlock()?' disabled aria-describedby="uladdwhy"':""}>${ADD_I}Add a workspace</button>`:""}</div></div></div>`;   /* vE E125: the shared empty block */
  return `<div class="wrap ul-wrap">${graceBanner()}${ulLimitsHTML(!canI("limits"))/* change 290: Your plan and the roster are one panel *//* change 230: limits stay editable while the payment has failed */}</div>`}
 
 /* ── the one-cell editor and the review sheet live in their own layer, outside the page ── */
@@ -9262,7 +9430,7 @@ function vDash(){
   +'<span class="c-a">'+(canI("limits")?(addBlock()?'<span class="sub add-why" id="addwhy">'+addBlock()+'</span>':'')+'<button class="shd-button shd-button--primary" id="dashAdd"'+(addBlock()?' disabled aria-describedby="addwhy"':'')+'>'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
   +wsfChips()
   +wsTableOpen()+wsHeadHTML()
-  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="5"><span class="sub">'+(cliQ.trim()?nrText(cliQ)+'. <button type="button" class="linkbtn" data-cliqclr>Clear search</button>':'No workspaces match. <button type="button" class="linkbtn" data-cliclear>Clear</button>')+'</span></td></tr>')+'</tbody></table></div>'
+  +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="5">'+(cliQ.trim()?noneHTML(nrText(cliQ),'<button type="button" class="linkbtn" data-cliqclr>Clear search</button>'):noneHTML('No workspaces match','<button type="button" class="linkbtn" data-cliclear>Clear</button>'))+'</td></tr>')+'</tbody></table></div>'   /* vE E125 */
   +wslPager(wsAll.length)
   +'</div>';
  /* single-use: whether or not FLASH_CID matched a row above, it does not
@@ -9473,6 +9641,8 @@ function heroCards(mine,tch,rep,items){
 /* ═══ #solo-plain: an ordinary Saleshandy account ═══════════════════════════
    Phase 1 has no path from a plain account to an agency relationship, so this
    is just the plain product: nothing here hints that agencies exist at all. */
+/* vE E125: the object each module manages, for its placeholder */
+const soloIll=k=>(ILL[{seq:"sequence",inbox:"thread",analytics:"chart",crm:"person",leads:"person",dialer:"person",refer:"person"}[k]||"doc"])();
 function vSolo(){
  const c=byId[ctx];
  if(soloMod!=="settings"){
@@ -9484,7 +9654,7 @@ function vSolo(){
     <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="settings">Settings</button></div>
    </div>
    <div class="wrap">
-    <div class="panel"><div class="empty">
+    <div class="panel"><div class="empty">${soloIll(soloMod)}
       <p class="empty-t">${label} for ${c.company}</p>
       <p class="empty-s">Your own Saleshandy account, exactly as it is today. This prototype does not
       redraw the product you already use.</p>
@@ -9500,7 +9670,7 @@ function vSolo(){
    <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="seq">Back to Sequences</button></div>
   </div>
   <div class="wrap">${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar("solo:settings"))}
-   <div class="panel"><div class="empty">
+   <div class="panel"><div class="empty">${ILL.settings()}
      <p class="empty-t">Settings for ${c.company}</p>
      <p class="empty-s">Your own Saleshandy account, exactly as it is today. This prototype does not
      redraw the product you already use.</p>
@@ -9591,7 +9761,7 @@ const ubxI={search:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" 
  seq:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
  ext:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
  up:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 7A2 2 0 0 1 17.5 21H7V10l4.5-7a2.5 2.5 0 0 1 3.5 2.9z"/></svg>',
- bubbles:'<svg viewBox="0 0 64 64" width="72" height="72" fill="none" aria-hidden="true"><rect x="8" y="14" width="34" height="24" rx="6" fill="#e5e7eb"/><rect x="24" y="28" width="32" height="22" rx="6" fill="#cbd5e1"/><circle cx="34" cy="39" r="2" fill="#fff"/><circle cx="40" cy="39" r="2" fill="#fff"/><circle cx="46" cy="39" r="2" fill="#fff"/><path d="M14 38v8l8-8" fill="#e5e7eb"/></svg>'};
+};   /* vE E125: bubbles retired; the reading pane draws ILL.thread() */
 function ubxCard(r){
  const c=ubxClient(r), un=ubxUnread(r), pos=r.positive;
  return `<button class="ubx-th${un?" is-unread":""}" data-ubxopen="${r.id}" aria-current="${UBX.open===r.id}" aria-label="${r.from}, ${c.name}">
@@ -9604,9 +9774,10 @@ function ubxCard(r){
 }
 function ubxListHTML(){
  const th=ubxThreads();
- if(UBX.tab==="scheduled"||UBX.tab==="draft") return `<div class="ubx-none"><p class="empty-t" style="font-size:14px">${UBX.tab==="scheduled"?"Nothing scheduled":"No drafts"}</p>
-   <p class="sub" style="margin:6px 0 0">${UBX.tab==="scheduled"?"Replies you schedule from any workspace's thread wait here.":"A reply you start and leave waits here, filed under its workspace."}</p></div>`;
- if(!th.length) return `<div class="ubx-none"><p class="empty-t" style="font-size:14px">No threads</p><p class="sub" style="margin:6px 0 0">${UBX.q?"Nothing matches \\u201c"+UBX.q+"\\u201d.":"Nothing waiting in this view."}</p></div>`;
+ if(UBX.tab==="scheduled"||UBX.tab==="draft") return emptyHTML(ILL.threadSm(),UBX.tab==="scheduled"?"Nothing scheduled":"No drafts",
+   UBX.tab==="scheduled"?"Replies you schedule from any workspace's thread wait here.":"A reply you start and leave waits here, filed under its workspace.","",true);   /* vE E125 */
+ if(!th.length) return UBX.q?emptyHTML(ILL.search(),"No threads","Nothing matches \\u201c"+UBX.q+"\\u201d.","",true)
+   :emptyHTML(ILL.threadSm(),"No threads","Nothing waiting in this view.","",true);   /* vE E125 */
  /* one group per client, busiest first, the agency's own last. Not by unread:
     reading a thread must not reorder the list under the cursor. */
  const ids=[...new Set(th.map(r=>r.client))].sort((a,b)=>(a==="own")-(b==="own")||th.filter(r=>r.client===b).length-th.filter(r=>r.client===a).length||ubxClient({client:a}).name.localeCompare(ubxClient({client:b}).name));
@@ -9658,8 +9829,8 @@ function ubxPaneHTML(){
     ?"Every thread is filed under its workspace; only that workspace's members see it."
     :(()=>{const cc=ubxClient({client:cid}), n=UBX_ALL.filter(x=>x.client===cid).length;
       return "Only users added to "+cc.name+" see these "+n+" thread"+(n===1?"":"s")+".";})();
-  return `<div class="ubx-empty">${ubxI.bubbles}<span>No conversations selected</span>
-   <span class="sub">${line}</span></div>`;
+  return `<div class="ubx-empty"><div class="empty">${ILL.thread()}<p class="empty-t">No conversations selected</p>
+   <p class="empty-s">${line}</p></div></div>`;
  }
  const c=ubxClient(r), own=r.client==="own";
  const mbx=((c.mailboxes||[]).find(m=>m[1]==="Healthy")||(c.mailboxes||[])[0]||["their mailbox"])[0];
@@ -9762,7 +9933,7 @@ function vAgencyMod(){
       <td class="ar tnum">${rp?rp.toFixed(1)+"%":"–"}</td>
       <td><span class="chip c-${st==="Active"?"ok":st==="Paused"?"warn":"mute"}">${st}</span></td></tr>`).join("")}
     </tbody></table></div></div>`
-   :`<div class="panel"><div class="empty"><p class="empty-t">No sequences of its own</p>
+   :`<div class="panel"><div class="empty">${ILL.sequence()}<p class="empty-t">No sequences of its own</p>
      <p class="empty-s">${AGENCY.name} runs campaigns for clients but none for itself.</p></div></div>`;
  } else if(k==="tmpl"){
   const shared=tmplShared().length, locked=TEMPLATES.filter(t=>t.locked).length;
@@ -10098,11 +10269,11 @@ function vAgencyAnalytics(){
   return bar+`<div class="wrap">${receiptBar("analytics")}
    <div class="panel"><div class="tscroll" style="margin-top:0"><table class="organism" style="min-width:${anTab==="team"?720:900}px">
      <thead><tr>${cols.map(anTh).join("")}</tr></thead>
-     <tbody>${empty?`<tr><td colspan="${cols.length}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`:rows.map(row=>`<tr>${cols.map(c=>anTd(row,c)).join("")}</tr>`).join("")}</tbody>
+     <tbody>${empty?`<tr><td colspan="${cols.length}">${noneHTML("No rows for this filter","Widen the workspace filter to see results.")}</td></tr>`:rows.map(row=>`<tr>${cols.map(c=>anTd(row,c)).join("")}</tr>`).join("")}</tbody>
      ${empty?"":"<tfoot>"+(anTab==="team"?anTotalsRow(cols,rows,wss.length,anTeamTotals(wss),rows.length):anTotalsRow(cols,rows,wss.length))+"</tfoot>"}
    </table></div></div></div>`;
  }
- if(!wss.length) return bar+`<div class="wrap an-wrap">${receiptBar("analytics")}<div class="panel an-empty"><div class="empty">
+ if(!wss.length) return bar+`<div class="wrap an-wrap">${receiptBar("analytics")}<div class="panel an-empty"><div class="empty">${ILL.chart("check")}
    <p class="empty-t">No workspace selected</p><p class="empty-s">Pick at least one workspace to see results.</p>
    <button class="shd-button shd-button--primary" data-anwsall>Select all workspaces</button></div></div></div>`;
  const rows=anSeqRowsFull(wss), pts=anSeries(wss);
@@ -10134,7 +10305,7 @@ function vAgencyAnalytics(){
  const sorted=anSorted(rows);
  const table=`<div class="panel"><div class="tscroll" style="margin-top:0"><table class="organism an-table" style="min-width:1320px">
    <thead><tr>${cols.map(th).join("")}<th class="colact"><button class="ubtn colsel-t" aria-label="Choose columns" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg></button></th></tr></thead>
-   <tbody>${sorted.length?sorted.map(r=>`<tr>${cols.map(c=>td(r,c)).join("")}<td class="colact"></td></tr>`).join(""):`<tr><td colspan="${cols.length+1}"><span class="sub">No rows for this filter. Widen the workspace filter to see results.</span></td></tr>`}</tbody></table></div></div>`;
+   <tbody>${sorted.length?sorted.map(r=>`<tr>${cols.map(c=>td(r,c)).join("")}<td class="colact"></td></tr>`).join(""):`<tr><td colspan="${cols.length+1}">${noneHTML("No rows for this filter","Widen the workspace filter to see results.")}</td></tr>`}</tbody></table></div></div>`;
  return bar+`<div class="wrap an-wrap">${receiptBar("analytics")}<div class="panel an-chartpanel">${ctl}${anChart(pts)}</div>${tiles}${table}</div>`;
 }
 
@@ -12815,6 +12986,7 @@ function modalHTML(){
     (23 §3.2: deleting the only client returns the account to where it was).  */
  if(modal.kind==="pf") return pfModalHTML();   /* vE E099 */
  if(modal.kind==="ulrstop") return ulrStopHTML();   /* vE E045 */
+ if(modal.kind==="rlstop") return rlStopHTML();   /* vE E130 */
  if(modal.kind==="limedit") return ledHTML(c);   /* change 220 */
  if(modal.kind==="share"){
   const sc=c, cur=modal.share!=null?modal.share:(SHARE0[sc.id]||sc.share||NC_SHARE_DEFAULT);
@@ -12999,7 +13171,7 @@ function modalHTML(){
  return card(`${isDel?"Delete":"Disable"} ${c.name}?`,`
    <p style="font-size:14px;line-height:21px;margin:0">${isDel
      ? `Its sequences, prospects, email accounts and users are removed for everyone. You can restore it within 30 days; after that it is gone.`
-     : `Every sequence pauses and its users are signed out. Your team can still open the record. You can enable it again any time.`}</p>${isDel&&mbxBought(c)?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">It holds ${mbxBought(c)} bought email account${mbxBought(c)===1?"":"s"}. ${mbxBought(c)===1?"It pauses and stays":"They pause and stay"} billed for 30 days, and ${mbxBought(c)===1?"comes":"come"} back if you restore it.</p>`:""}${isDel&&delOnlyTeam(c).length?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">${listAnd(delOnlyTeam(c).map(t=>t.name))} ${delOnlyTeam(c).length===1?"works":"work"} only in ${c.name}. They\u2019ll be disabled until you give them another workspace or restore this one.</p>`:""}${isDel
+     : `Every sequence pauses. ${c.name}\u2019s client users are signed out and can\u2019t sign in until you enable it again. Your team can still open the record.`}</p>${isDel&&mbxBought(c)?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">It holds ${mbxBought(c)} bought email account${mbxBought(c)===1?"":"s"}. ${mbxBought(c)===1?"It pauses and stays":"They pause and stay"} billed for 30 days, and ${mbxBought(c)===1?"comes":"come"} back if you restore it.</p>`:""}${isDel&&delOnlyTeam(c).length?`<p style="font-size:14px;line-height:21px;margin:12px 0 0">${listAnd(delOnlyTeam(c).map(t=>t.name))} ${delOnlyTeam(c).length===1?"works":"work"} only in ${c.name}. They\u2019ll be disabled until you give them another workspace or restore this one.</p>`:""}${isDel
      ? `<p style="font-size:14px;line-height:20px;margin:16px 0 8px;color:#1F2937">Confirm by typing <span style="color:#B91C1C">delete</span> below.</p>
    <input type="text" id="delConfirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Type delete to confirm" style="display:block;width:100%;box-sizing:border-box">`:""}`,
    `<button class="shd-button shd-button--tertiary" data-mclose>${isDel?"Keep":"Keep running"}</button>
@@ -13019,6 +13191,7 @@ function renderModal(){
  if(modal&&modal.kind==="pf") pfModalWire(L);   /* vE E099 */
  if(modal&&modal.kind==="limedit") ledWire(L);   /* change 220 */
  L.querySelectorAll("[data-ulrcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); ulrApply()});   /* vE E045 */
+ L.querySelectorAll("[data-rlcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); rlApply()});   /* vE E130 */
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; if(!back){INV=null;PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
  {const sc=L.querySelector("#mscrim"); if(sc&&modal&&(modal.kind==="ppperson"||modal.kind==="pproles")) sc.onclick=e=>{if(e.target===sc){modal=modal.back||null;PP.addws=false;PP.removeConfirm=false;renderModal()}}}
  L.querySelectorAll("[data-agencyok]").forEach(b=>b.onclick=()=>{
@@ -14722,7 +14895,7 @@ function ulfChips(){if(!ulfOn()) return "";
    return '<span class="wsf-chip"><span class="wsf-cn">'+l+':</span><span class="wsf-cv" title="'+wsfEsc(v)+'">'+wsfEsc(v)+'</span>'
     +'<button type="button" class="wsf-x" data-ulfx="'+k+'" aria-label="Remove the '+l+' filter">'+WSF_X+'</button></span>'}).join("")
   +'<button type="button" class="linkbtn wsf-clr" data-ulfclear>Clear all</button></div>'}
-const ulfNone=n=>'<tr class="ws-none"><td colspan="'+(n||3)+'"><span class="sub">'+(ulQ.trim()?nrText(ulQ)+'. <button type="button" class="linkbtn" data-ulqclr>Clear search</button>':'No workspaces match. <button type="button" class="linkbtn" data-ulfnone>Clear</button>')+'</span></td></tr>';
+const ulfNone=n=>'<tr class="ws-none"><td colspan="'+(n||3)+'">'+(ulQ.trim()?noneHTML(nrText(ulQ),'<button type="button" class="linkbtn" data-ulqclr>Clear search</button>'):noneHTML('No workspaces match','<button type="button" class="linkbtn" data-ulfnone>Clear</button>'))+'</td></tr>';   /* vE E125 */
 function ulfPager(N){if(N<=RA_SIZES[0]) return ""; const g=pageOf("ul",N,UL_SIZE); return pgBar("ul",N,UL_SIZE,g.p,g.n)}
 function ulfClose(focus){const k=ULF_OPEN; if(!k) return; ULF_OPEN=null; render(); if(focus){const t=document.querySelector('[data-ulft="'+k+'"]'); if(t) t.focus()}}
 document.addEventListener("mousedown",e=>{if(ULF_OPEN&&!(e.target.closest&&e.target.closest(".wsf.is-open"))) ulfClose(false)},true);
@@ -15170,8 +15343,12 @@ function e101ShortHTML(k){const n=e101Near(k).length, H=e101Held(k), amt=H.reduc
  let t=n?`${n} workspace${n===1?" is":"s are"} at or near ${n===1?"its":"their"} limit.`:"No workspace is near its limit.";
  if(compute(k).free<=0) t+=" Nothing left to allocate.";
  const eq=!ulRo()&&e101SpRows(k).length>=2?`<button type="button" class="shd-button shd-button--secondary" data-e101eq="${k}">Split equally</button>`:"";   /* E101 rev: a visible button beside Take back */
- const b=H.length||eq?`<span class="e101-sb">${eq}${H.length?`<button type="button" class="shd-button shd-button--secondary" data-e101sc="back|${k}">Take back ${f(amt)} from ${H.length===1?H[0].name:H.length+" disabled workspaces"}</button>`:""}</span>`:"";
+ const b=H.length||eq?`<span class="e101-sb">${eq}${H.length?e121Back(k,H,amt):""}</span>`:"";
  return `<div class="e101-sc"><p class="e101-st">${t}</p>${b}</div>`}
+/* vE E121: the button says only "Take back"; why is on hover (who is disabled, what they hold, where it goes) */
+function e121Back(k,H,amt){const who=H.length<=3?listAnd(H.map(c=>c.name)):H.length+" disabled workspaces", one=H.length===1;
+ const tip=`${H.length<=3?who+(one?" is":" are")+" disabled and":who} still hold${one?"s":""} ${f(amt)} ${one?"it":"they"} can\u2019t use. Take back adds it to Left to allocate.`;
+ return `<button type="button" class="shd-button shd-button--secondary u-tip" title="" data-uwtip="${hdrEsc(tip)}" data-e101sc="back|${k}" aria-label="Take back ${f(amt)} from ${hdrEsc(who)}">Take back</button>`}
 /* save pattern 1: the draft in the summary, beside the figures it moves (today's bar's words and checks) */
 function e101DraftHTML(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over(), st=ch.filter(ul3NewStop);
  const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
@@ -15261,7 +15438,7 @@ function e101SpHTML(k){const sp=UL.sp, I=sp.info, n=I.n, all=sp.all, day=sp.day,
  const keeps=e101Keeps(ulChanges()).trim(); let res;
  if(!n) res="Pick at least one workspace.";
  else if(all) res=(day&&!e101Downs().length?`All ${n} start at 0, so nobody goes down.`:`Each of ${n} gets the amounts below.`)+(keeps?" "+keeps:"");
- else res=(sp.mode==="left"?`Each gets <b>${f(I.share)} more</b>. `:`Each gets <b>${f(I.share)}</b>. `)+(I.rest?`${f(I.rest)} stays left to allocate.`:"Nothing stays left to allocate.")+(keeps?" "+invEsc(keeps):"");
+ else res=(sp.mode==="left"?`Each workspace\u2019s ${RES[k].label} limit goes up by <b>${f(I.share)}</b>. `:`Each workspace\u2019s ${RES[k].label} limit becomes <b>${f(I.share)}</b>. `)   /* vE E124: which limit, and what happens to it */+(I.rest?`${f(I.rest)} stays left to allocate.`:"Nothing stays left to allocate.")+(keeps?" "+invEsc(keeps):"");
  const grid=all&&n?`<div class="e101-g6"><div class="e101-g6r"><span>Resource</span><span>Each of ${n} gets</span><span>Stays left</span></div>${I.L.map(x=>`<div class="e101-g6r"><span>${RES[x.k].label}</span><b>${sp.mode==="left"?(x.share?f(x.share)+" more":"Nothing to add"):f(x.share)}</b><span>${f(x.rest)}</span></div>`).join("")}</div>`:"";
  /* the one amber line: only when a limit goes down */
  const D=e101Downs(); let note="";
@@ -16926,6 +17103,12 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
 .sk-bill{flex-direction:row;align-items:flex-start}.sk-nav{width:240px;flex:none;background:var(--gray-1);border:1px solid var(--gray-16);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column}.sk-main{flex:1;display:flex;flex-direction:column;gap:16px}
 .page.pg-in>*{animation:pgIn .2s ease-out}@keyframes pgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.page.pg-in>*{animation:none}}
+/* vE E120: Access line without the tinted box, and the empty Limits block (from e114 option C) */
+.e-noone{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 0 8px;border-bottom:1px solid #e5e7eb;font-size:13px;line-height:20px;color:#6b7280}
+.e-noone .linkbtn{font-size:13px}
+.e-limc{display:flex;flex-direction:column}
+.e-limc .panel-b{flex:1;display:flex;align-items:center;justify-content:center}
+.e-limc .empty{padding:40px 24px}
 .rc-noone{display:block;padding:10px 12px;border-radius:6px;background:var(--blue-17);font-size:13px;line-height:18px;color:var(--gray-15);margin-bottom:6px}.rc-noone b{color:var(--gray-17);font-weight:600}
 
 /* 3 Oct 2026, change 101 (canvas row 15e): Invite people as the rows you are about to add. SD list row, radio cards, multiselect chips. */
@@ -18339,7 +18522,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="19558cd";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="64b61b0";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19475,6 +19658,8 @@ button.hdr-chip{cursor:pointer}
 .main:has(>.page>.hdr-sh:first-child) .topbar,.main:has(>.page>.wrap>.hdr-sh--bleed:first-child) .topbar,.main:has(>.page>.hdr-wl) .topbar{box-shadow:none}
 /* phone-only menu item */
 @media (min-width:641px){.hdr-ph{display:none!important}}
+@media (min-width:641px){.rec-tact-m{display:none!important}}   /* vE E122 */
+@media (max-width:640px){.hdr-sh-r .rec-tact{display:none}}   /* vE E122: on a phone it is the first item in More actions */
 /* "More" for tabs that do not fit */
 .hdr-tmorew{position:relative;display:flex;align-items:stretch;flex:none}
 .hdr-tmore{display:flex;align-items:center;gap:4px;margin:0;padding:0;border:0;background:none;font-size:14px;line-height:22px;color:#6b7280;cursor:pointer;white-space:nowrap}
@@ -19493,6 +19678,8 @@ button.hdr-chip{cursor:pointer}
  /* vE E115 (Hitesh, 3 Nov 2026): the page name shows on a phone, cut cleanly with an ellipsis (E112 had it out of view
     while the level crumb held the bar); hdrPlace() hides the place after the profile first when both do not fit whole */
  .topbar .crumb:not(.hdr-multi){flex:0 1 auto;min-width:0}
+ .topbar .crumb.hdr-multi{flex:0 1 auto;min-width:0}   /* vE E118: a record's bar too */
+ header.topbar:not(.is-pf) .crumb.hdr-multi>h1#crumbTail{flex:0 1 auto;min-width:0;max-width:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
  header.topbar:not(.is-pf) .crumb:not(.hdr-multi)>h1#crumbTail{position:static;width:auto;height:auto;margin:0;padding:0;clip:auto;flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
  .topbar .ubtn[data-uwtip="Support"],.topbar .ubtn[data-uwtip="Quick actions"],.topbar .me>svg{display:none}
  .topbar .me{padding-right:4px}
@@ -19729,6 +19916,7 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
  .home-tbl thead{display:none}.home-tbl,.home-tbl tbody{display:block;width:100%}
  .home-tbl tr.crow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"name name" "status act" "cli team";row-gap:10px;column-gap:12px;padding:12px 16px;align-items:start;border-bottom:1px solid var(--gray-16)}
  .home-tbl tr.crow>td{display:block;padding:0;border:0;min-width:0;width:auto;height:auto!important}
+ .home-tbl tr.ws-none,.home-tbl tr.ws-none>td{display:block;width:auto;height:auto;border:0}   /* vE E125 */
  .home-tbl tr.crow>td:nth-child(1){grid-area:name}.home-tbl tr.crow>td:nth-child(2){grid-area:status;align-self:center}.home-tbl tr.crow>td:nth-child(3){grid-area:cli}.home-tbl tr.crow>td:nth-child(4){grid-area:team}
  .home-tbl tr.crow>td:nth-child(3)::before,.home-tbl tr.crow>td:nth-child(4)::before{display:block;margin-bottom:4px;font-size:12px;line-height:16px;font-weight:600;color:#4B5563}
  .home-tbl tr.crow>td:nth-child(3)::before{content:"Client users"}.home-tbl tr.crow>td:nth-child(4)::before{content:"Your team"}
@@ -20023,7 +20211,7 @@ h1.crumb-tail{margin:0}
  .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cg{width:96px}   /* the 80px usage bar after 16px, ending where Used starts, as on Usage & limits */
  .rlt-sheet .ulr-t.ulr-tp.rlt-t2 td.ulr-gc .ulr-bar{width:80px}
  .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cu{width:120px}
- .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cv{width:140px}
+ .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cv{width:200px}   /* vE E130: Usage & limits' Limit column, room for the pencil and "was N" */
  .rlt-sheet .ulr-t.ulr-tp.rlt-t2 col.ulr-cp{width:auto}
 }
 /* Billing */
