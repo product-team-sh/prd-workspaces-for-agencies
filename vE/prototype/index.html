@@ -7313,7 +7313,7 @@ function pxSave(){const E=PA_ED; if(!E) return; const p=personOf(E.key); if(!p){
   P.role=d.role; P.ws=d.role==="Owner"?null:pxOrd(d.ws).concat(hidden);
   if(d.role==="Owner"&&p.role!=="Owner") logAct(null,`made ${nm} an Account Owner`);
   else if(d.role!=="Owner") d.ws.filter(id=>before.indexOf(id)<0).forEach(id=>logAct(id,`${nm} added as ${roleA(d.role)}`));
-  t=d.role==="Owner"?`${nm} is now an Account Owner.`:cross?`${first} is now ${art(d.role)}.`:rc&&wc?`${nm} is now ${art(d.role)}, in ${names}.`:rc?`${nm} is now ${art(d.role)}.`:`${nm} now works in ${sentEnd(names)}`}
+  t=d.role==="Owner"?`${nm} is now an Account Owner.`:cross?`${first} is now ${art(d.role)}.`:rc&&!wc?`${nm} is now ${art(d.role)}.`:`Saved ${nm}&rsquo;s access.`}
  else {
   const nw={}; pxTicked(d).forEach(id=>{nw[id]=d.cr[id]||d.role}); const old=c.kind==="client"?c.cws:{};
   const ch=Object.keys(Object.assign({},nw,old)).filter(id=>nw[id]!==old[id]);
@@ -7325,9 +7325,9 @@ function pxSave(){const E=PA_ED; if(!E) return; const p=personOf(E.key); if(!p){
    if(u) u[1]=nw[id]; else {w.users.push(p.named||cross?[email,nw[id],nm]:[email,nw[id]]); logAct(id,`${email} added as ${ppShort(nw[id])}`)}
    if(u&&old[id]!==nw[id]) logAct(id,`${email}'s role set to ${ppShort(nw[id])}`)});
   const keep=nw[p.c&&p.c.id]?p.c.id:pxOrd(Object.keys(nw))[0]; key="w:"+keep+"|"+email;
-  t=cross?`${first} is now a client user.`:ch.length===1?(nw[ch[0]]?(old[ch[0]]?`${nm} is now ${art(nw[ch[0]])} in ${sentEnd(wn(ch[0]))}`:`${nm} now opens ${wn(ch[0])} as ${art(nw[ch[0]])}.`):`${nm} no longer opens ${sentEnd(wn(ch[0]))}`):`${nm}&rsquo;s access changed in ${ch.length} workspaces.`}
+  t=cross?`${first} is now a client user.`:`Saved ${nm}&rsquo;s access.`}
  PA_ED=null; PX_MENU=false; if(PN) PN.key=key; else view={name:"person",id:key};   /* vE E102 */
- receipt("people",t+(HO.sentence?" "+HO.sentence:""),()=>{snap(); HO.undo(); if(view.name==="person"&&view.id===key) view={name:"person",id:p.key}; if(PN&&PN.key===key){PN.key=p.key; PA_ED=null}},`updated ${nm}'s access`);
+ receipt("people",t+(HO.sentence?" "+HO.sentence:""),()=>{snap(); HO.undo(); if(view.name==="person"&&view.id===key) view={name:"person",id:p.key}; if(PN&&PN.key===key){PN.key=p.key; PA_ED=null}},`updated ${nm}'s access`); if(RECEIPT) RECEIPT.variant="success";   /* vE E137 */
  render();
 }
 function paCancel(){const p=PA_ED&&personOf(PA_ED.key); if(p&&pxDirty(p)){PA_ED.ask=true; render(); return} PA_ED=null; render()}
@@ -7473,8 +7473,8 @@ function personSave(){
   if(r.kind==="client"){const c=byId[r.ws]; delete PEOPLE[p.k]; c.users=c.users||[]; c.users.push([p.email,r.level]); newKey="w:"+c.id+"|"+p.email; what=`${p.name} is now a client user of ${c.name}, ${roleA(r.level)}.`; logAct(c.id,`${p.name} moved to ${c.name}'s people as ${ppShort(r.level)}`)}
   else {const was=P.role, wasWs=(P.ws||[]).slice(), to=r.kind==="admin"?"Admin":"Member", names=listAnd(r.wsList.map(id=>byId[id].name));   /* vE E029 */
    P.role=to; P.ws=r.wsList.slice();
-   if(was!==to) what=`${p.name} is now ${roleA(to)}, in ${names}.`;
-   else if(wasWs.join()!==P.ws.join()) what=`${p.name} now works in ${names}.`;
+   if(was!==to&&wasWs.join()===P.ws.join()) what=`${p.name} is now ${roleA(to)}.`;
+   else if(was!==to||wasWs.join()!==P.ws.join()) what=`Saved ${p.name}&rsquo;s access.`;
    r.wsList.filter(id=>wasWs.indexOf(id)<0).forEach(id=>logAct(id,`${p.name} added as ${roleA(to)}`))}}
  modal=null; INV=null; renderModal();
  if(what) receipt("people",what+" Changes apply on their next request.",restore,`updated ${p.name}'s access`);
@@ -7972,7 +7972,7 @@ function peopleModalOk(kind){
    receipt("people",`${r.name} is now ${roleA(to)}.`,()=>{P.role=was.role;P.ws=was.ws},`changed ${r.name}'s role`)}
   else {const u=r.c.users.find(x=>x[0]===r.email), was=u[1]; u[1]=to; receipt("people",`${r.email} is now ${roleA(to)} of ${r.c.name}.`,()=>{u[1]=was},`changed ${r.email}'s role`)}}
  if(kind==="assignws"){const pick=modal.ws||[];
-  if(r.kind==="team"){const P=PEOPLE[r.key.slice(2)], was=P.ws; P.ws=pick.slice(); receipt("people",`${r.name} now works in ${pick.length?sentEnd(listAnd(pick.map(id=>byId[id].name))):"no workspace."}`,()=>{P.ws=was},`assigned ${r.name}'s workspaces`)}
+  if(r.kind==="team"){const P=PEOPLE[r.key.slice(2)], was=P.ws; P.ws=pick.slice(); receipt("people",`Saved ${r.name}&rsquo;s access.`,()=>{P.ws=was},`assigned ${r.name}'s workspaces`); if(RECEIPT) RECEIPT.variant="success"}
   else {const to=byId[pick[0]]; if(!to||to===r.c)return; const u=r.c.users.find(x=>x[0]===r.email), from=r.c; from.users.splice(from.users.indexOf(u),1); to.users=to.users||[]; to.users.push(u);
    receipt("people",`${r.email} moved from ${from.name} to ${to.name}.`,()=>{to.users.splice(to.users.indexOf(u),1);from.users.push(u)},`moved ${r.email}`)}}
  if(kind==="pconfirm"){const a=modal.act;
@@ -8868,7 +8868,7 @@ function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};  
 /* the last cell at the typed limit. vE E041 fix 6: a disabled workspace says what it still holds, and gives it back in one click */
 function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), s=(t,x,a)=>`<span class="ulr-pace${x?" is-"+x:""}"${a?` aria-label="${a}"`:""}>${t}</span>`;
  if(c.disabled){const h=isUnl(k)?0:Math.max(0,v-r.used);
-  return s(h?`Disabled, holds ${f(h)}`:"Disabled","q")   /* vE E045 */+(h&&!ulRo()&&v===r.cap?`<button type="button" class="linkbtn ulr-take" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`:"")}
+  if(h&&!ulRo()&&v===r.cap) return `<button type="button" class="linkbtn ulr-take u-tip" title="" data-uwtip="${hdrEsc(c.name+" is disabled and still holds "+f(h)+" it can\u2019t use. Take back adds it to Left to allocate.")}" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`}   /* vE E128: the Disabled chip sits by the name; here Take back alone, its reason on hover; a disabled row holding nothing shows its percentage like any row */
  const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)+(dn?'<span class="e101-chip">Almost used up</span>':"")}
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
@@ -8915,7 +8915,7 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const tb=(e101Gc(k),ulfShow(k)?ulfToolbar()+ulfChips():"");   /* vE E101: Available moved into the summary; Gc opens day one and ends a finished split */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
- const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span></div></td>`
+ const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span>${c.disabled?'<span class="chip hdr-chip hdr-chip--mute ulr-dchip">Disabled</span>':""}</div></td>`
   +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${e101SumHTML(k,ro)/* vE E101 */}${tb}
   <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
@@ -14751,7 +14751,7 @@ const wsHomeOrder=list=>list.slice().sort((a,b)=>{const t=c=>c.own?0:c.disabled|
 const wslRows=mine=>{const del=WSF.status.indexOf("Deleted")>-1&&canI("destructive")?CLIENTS.filter(c=>c.deletedOn):[];   /* vE E075 fix 3: deleted workspaces are listed only when Deleted is chosen */
  return hsApply(wsHomeOrder(mine.concat(del)).filter(c=>wsHomeMatch(c,cliQ)&&wsfPass(c)),"ws")};
 /* vE E025: Home has no Usage filter; Usage & limits keeps it (ULF_DEF) */
-const WSF_USAGE=["usage","Usage",[["out","Used up"],["near","Near limit"],["fine","Fine"]]];   /* the Highest usage cell's own rule (usageNeed) */
+const WSF_USAGE=["usage","Usage",[["r0","0–50%"],["r51","51–85%"],["r86","86–99%"],["r100","100%"]]];   /* vE E128: the usage bar's own bands (green under 51, yellow 51 to 85, red 86 up), Chintan: show the range, not words */
 const WSF_DEF=[
  ["status","Status",[["Active","Active"],["Disabled","Disabled"],["Deleted","Deleted"]]],   /* the real statuses only (change 359); vE E075 fix 3: Deleted, offered to Account Owners only (wsfOpts); vE E090: no Paused (it only means a failed payment, every workspace at once) */
  ["team","Your team",null],   /* vE E029: the people assigned per workspace, Account Admins and Account Members (wsfTeamOpts) */
@@ -14888,9 +14888,10 @@ let ulQ="", ULF={status:[],usage:[]}, ULF_OPEN=null, UL_SIZE=25;
 const ULF_DEF=[WSF_DEF[0],WSF_USAGE];   /* vE E025: Home dropped Usage, so it is named here */   /* Status, Usage: the same options as Home's */
 const ulfReset=()=>{ULF={status:[],usage:[]}};
 const ulfOn=()=>ULF_DEF.some(([k])=>ULF[k].length);
-/* Usage here is this resource: used up or 90% or more of the saved limit (the bar's own rule, ulrLv); a disabled
-   workspace and an Unlimited resource are Fine. Saved figures, so a row never leaves the list while its limit is typed. */
-const ulfUse=(k,c)=>{const r=RES[k].rows[c.id]; return !r||isUnl(k)?"fine":["fine","near","out"][ulrLv(c,r.used,r.cap)]};
+/* vE E128: Usage here is the whole percent this resource's bar shows (ulPct, so 85.7% is 86 and 99.6% stays 99); 100% is used up.
+   Unlimited has no percentage and matches no range. Saved figures, so a row never leaves the list while its limit is typed. */
+const ulfUse=(k,c)=>{const r=RES[k].rows[c.id]; if(!r||isUnl(k)) return null; const p=r.cap>0?ulPct(r.used,r.cap):(r.used>0?100:0);
+ return p>=100?"r100":p>=USE_BAND.red?"r86":p>=USE_BAND.yellow?"r51":"r0"};
 const ulfPass=(k,c)=>(!ULF.status.length||ULF.status.indexOf(wsStatus(c))>-1)&&(!ULF.usage.length||ULF.usage.indexOf(ulfUse(k,c))>-1);
 /* the sort reads what the cells show: the workspace name, used, and the saved limit; Unlimited has no limit to sort */
 const ulfVal=k=>(col,c)=>{const r=RES[k].rows[c.id]; return col==="pace"?ulrPaceV(k,c):col==="name"?String(c.name):col==="used"?(isUnl(k)?unlUsed(k,c.id):r.used):isUnl(k)?null:r.cap};
@@ -14900,7 +14901,7 @@ const ulfShow=k=>ul3E2Rows(k).length>WS_PICK_MAX;
    each with and without its thousands separator */
 function ulHay(k,c){const r=RES[k].rows[c.id], out=[c.name]; if(!r) return out.join(" ").toLowerCase();
  const unl=isUnl(k), v=unl?0:ulDv(k,c.id);
- out.push(nrNum(unl?unlUsed(k,c.id):r.used));
+ out.push(nrNum(unl?unlUsed(k,c.id):r.used)); if(c.disabled) out.push("disabled");   /* vE E128: the chip says it */
  if(unl) out.push(UNL_TXT); else out.push(nrNum(v),nrNum(r.cap),ulrLv(c,r.used,v)===2?"Used up":ulPct(r.used,v)+"%");
  out.push(nrTags(ulrPaceHTML(k,c))); return out.join(" ").toLowerCase()}
 const ulMatch=(k,c,q)=>{q=String(q||"").trim().toLowerCase(); return !q||ulHay(k,c).indexOf(q)>-1};
@@ -18562,7 +18563,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0d05914";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="28c88d2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -18972,6 +18973,8 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ulr-t col.ulr-c1{width:30%}.ulr-t col.ulr-c3{width:200px}
 .ulr-ws{display:flex;align-items:center;gap:10px;min-width:0}
 .ulr-ws>.avatar{flex:none}
+.ulr-ws:has(.ulr-dchip) .ulr-nm{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal}   /* vE E128: when the name and chip cannot share the line the name wraps, as your workspace's does (E043) */
+.ulr-ws .ulr-dchip{flex:none;height:22px;padding:0 8px;border:1px solid #e5e7eb;border-radius:4px;background:#f3f4f6;color:#374151;font-family:Inter,sans-serif;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;margin:-2px 0 -2px -2px}   /* vE E128: the E118 chip, 8px after the name (10px row gap less 2) */
 .ulr-ws .ulr-nm{display:block;font-size:14px;line-height:20px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ulr-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid #E5E7EB;border-radius:4px;background:#F9FAFB;color:#4B5563;font-size:12px;line-height:18px;font-weight:500;flex:none;box-sizing:border-box}
 .ulr-t tr.is-off .ulr-nm,.ulr-t tr.is-off .ulr-num,.ulr-t tr.is-off .ulr-w{color:#9CA3AF}
@@ -19107,7 +19110,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
    "was" figure, the number and the pencil slot, 166px), the last column 280 (24px in: "Disabled, 10,000 held" and
    Take back, 224px). Under a 960px table: 124, 56 (so your workspace name wraps in two lines at 1024), 120 ("was" above the number), 184 (16px in, wraps balanced). */
 .ulr-main{container-type:inline-size}
-.ulr-t.ulr-tp col.ulr-c1{width:auto}.ulr-t.ulr-tp col.ulr-cu{width:136px}.ulr-t.ulr-tp col.ulr-cg{width:96px}.ulr-t.ulr-tp col.ulr-cv{width:200px}.ulr-t.ulr-tp col.ulr-cp{width:280px}
+.ulr-t.ulr-tp col.ulr-c1{width:auto}.ulr-t.ulr-tp col.ulr-cu{width:136px}.ulr-t.ulr-tp col.ulr-cg{width:96px}.ulr-t.ulr-tp col.ulr-cv{width:200px}.ulr-t.ulr-tp col.ulr-cp{width:240px}   /* vE E128: was 280, the name and its Disabled chip take the 40px */
 .ulr-t.ulr-tp th.ulr-lh{padding-right:40px}
 .ulr-tb .ulr-all{flex:none;margin-left:auto}
 /* vE E045 (D): Available (E070), 16/24 Gray 600 with the figure Gray 800 600, on the toolbar's right edge (x-give-figure option A) */
@@ -19118,6 +19121,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ulr-tb:not(:has(.search)) .ulr-give{min-height:32px;display:inline-flex;align-items:center;gap:4px}   /* vE E070: the space between "Available" and the figure */
 .ulr-t tr[data-ulws="own"] .ulr-ws .ulr-nm{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal}   /* vE E041: your workspace's name is never cut (E043); it wraps inside the 52px row */
 .ulr-take{margin-left:12px;font-size:14px;line-height:20px;font-weight:500;white-space:nowrap}
+.ulr-pc .ulr-take:only-child{margin-left:0}   /* vE E128 */
 .ulr-mk{display:inline-flex;align-items:center;justify-content:center;width:12px;height:20px;flex:none;margin-left:-2px}
 .ulr-mk i{display:block;width:6px;height:6px;border-radius:50%;background:#F87171}   /* vE E045: used up is red; E064: production red, the used-up bar's colour */
 .ulr-t.ulr-tp th.ulr-r .hs-b{margin-right:-14px}
@@ -19128,7 +19132,7 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ulr-t.ulr-tp thead th:last-child .hs-b{margin-right:0}
 .ulr-t.ulr-tp th.ulr-p,.ulr-t.ulr-tp td.ulr-pc{padding-left:24px}
 @container (max-width:960px){
- .ulr-t.ulr-tp col.ulr-cu{width:124px}.ulr-t.ulr-tp col.ulr-cg{width:52px}.ulr-t.ulr-tp col.ulr-cv{width:116px}.ulr-t.ulr-tp col.ulr-cp{width:192px}   /* vE E045: "Disabled, holds 10,000" on one line above Take back at 1024; the bar and Limit give 4px each */
+ .ulr-t.ulr-tp col.ulr-cu{width:124px}.ulr-t.ulr-tp col.ulr-cg{width:52px}.ulr-t.ulr-tp col.ulr-cv{width:116px}.ulr-t.ulr-tp col.ulr-cp{width:168px}   /* vE E128: was 192; Take back and 96% + Almost used up fit in 168. vE E045: "Disabled, holds 10,000" on one line above Take back at 1024; the bar and Limit give 4px each */
  .ulr-t.ulr-tp td.ulr-gc{padding-left:12px}.ulr-t.ulr-tp td.ulr-gc .ulr-bar{min-width:0}
  .ulr-t.ulr-tp th.ulr-p,.ulr-t.ulr-tp td.ulr-pc{padding-left:16px}
  .ulr-t.ulr-tp td.ulr-pc{text-wrap:balance}
