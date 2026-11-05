@@ -2237,6 +2237,8 @@ const CLIENTS=[
 ];/* D14: every seeded workspace is for a client; a workspace created later says so itself */
 CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
 
+(()=>{try{const m=decodeURIComponent(location.hash).match(/(^|[#&])dis=(\d+)/); if(!m) return; let n=Math.min(+m[2],5)-CLIENTS.filter(c=>c.disabled).length;
+ for(const id of ["sf","at","cp","bl","al"]){if(n<=0) break; const c=CLIENTS.find(x=>x.id===id); if(c&&!c.disabled&&!c.deletedOn){c.disabled=true;c.disabledBy="Alex";c.disabledOn="30 Aug"; n--}}}catch(e){}})();   /* vE E146: demo only, #dis=3 */
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 let ACTIVITY=[];
 /* change 114: a few seeded entries so a person's Activity tab (and a workspace's)
@@ -14780,7 +14782,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="guide"||k==="slow"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)||/^ul(q|status|usage|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E022: the Limits table's keys */   /* vE E021: the list's state */ if(!route) route=seg});
+  if(k==="as"||k==="dis"||k==="guide"||k==="slow"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)||/^ul(q|status|usage|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E022: the Limits table's keys */   /* vE E021: the list's state */ if(!route) route=seg});
  return {route,p}})();
 /* vE E029, 23 Oct 2026: one role model (Hitesh's final setup); the access model switch and `model=atm` are gone. */
 const H0=HASHX.route?"#"+HASHX.route:"";
@@ -15463,8 +15465,8 @@ function e101ActsHTML(k,dirty){if(ulRo()) return "";
  if(dirty){const d=e101DraftState(); return `<div class="e101-fa e101-fd"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button></div>`}   /* vE E140: in a draft Discard and Apply take the place of Split equally and Take back (both need saved limits); the figures no longer widen with "was", so the buttons start where they always do */
  return eq||tb?`<div class="e101-fa">${eq}${tb}</div>`:""}
 /* vE E121: the button says only "Take back"; why is on hover (who is disabled, what they hold, where it goes) */
-function e121Back(k,H,amt){const who=H.length<=3?listAnd(H.map(c=>c.name)):H.length+" disabled workspaces", one=H.length===1;
- const tip=`${H.length<=3?who+(one?" is":" are")+" disabled and":who} still hold${one?"s":""} ${f(amt)} ${one?"it":"they"} can\u2019t use. Take back adds it to Left to allocate.`;
+function e121Back(k,H,amt){const one=H.length===1, who=one?H[0].name:H.length+" disabled workspaces";   /* vE E146: names are never listed; the rows below carry them */
+ const tip=`${one?who+" is disabled and still holds":who+" still hold"} ${f(amt)} ${one?"it":"they"} can\u2019t use. Take back adds it to Left to allocate.`;
  return `<button type="button" class="shd-button shd-button--secondary u-tip" title="" data-uwtip="${hdrEsc(tip)}" data-e101sc="back|${k}" aria-label="Take back ${f(amt)} from ${hdrEsc(who)}">Take back</button>`}
 /* save pattern 1: the draft in the summary, beside the figures it moves. vE E136: the row says only what blocks Apply; the table already shows the rest */
 /* vE E142 F2: the Split preview dismisses with Discard, the typed draft's word; day one keeps "Not now" */
@@ -18649,7 +18651,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1490978";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="7541387";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
