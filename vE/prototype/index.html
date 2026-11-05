@@ -2237,8 +2237,6 @@ const CLIENTS=[
 ];/* D14: every seeded workspace is for a client; a workspace created later says so itself */
 CLIENTS.forEach(c=>{if(c.forClient==null)c.forClient=true});
 
-(()=>{try{const m=decodeURIComponent(location.hash).match(/(^|[#&])dis=(\d+)/); if(!m) return; let n=Math.min(+m[2],5)-CLIENTS.filter(c=>c.disabled).length;
- for(const id of ["sf","at","cp","bl","al"]){if(n<=0) break; const c=CLIENTS.find(x=>x.id===id); if(c&&!c.disabled&&!c.deletedOn){c.disabled=true;c.disabledBy="Alex";c.disabledOn="30 Aug"; n--}}}catch(e){}})();   /* vE E146: demo only, #dis=3 */
 const byId=Object.fromEntries(CLIENTS.map(c=>[c.id,c]));
 let ACTIVITY=[];
 /* change 114: a few seeded entries so a person's Activity tab (and a workspace's)
@@ -8949,16 +8947,11 @@ function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};  
 /* the last cell at the typed limit. vE E041 fix 6: a disabled workspace says what it still holds, and gives it back in one click */
 function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), s=(t,x,a)=>`<span class="ulr-pace${x?" is-"+x:""}"${a?` aria-label="${a}"`:""}>${t}</span>`;
  if(isUnl(k)) return s("&ndash;","q");   /* vE E142 F18: Unlimited reads the dash, as the record's Limits tab */
- if(c.disabled){const h=isUnl(k)?0:Math.max(0,v-r.used);
-  if(h&&!ulRo()&&v===r.cap) return `<button type="button" class="linkbtn ulr-take u-tip" title="" data-uwtip="${hdrEsc(c.name+" is disabled and still holds "+f(h)+" it can\u2019t use. Take back adds it to Left to allocate.")}" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`}   /* vE E128: the Disabled chip sits by the name; here Take back alone, its reason on hover; a disabled row holding nothing shows its percentage like any row */
+ /* vE E148: no Take back; a disabled row reads its percentage like any row */
  const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)}   /* vE E145: the red bar says it; no chip */
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
-function ulrTake(key){const [k,id]=key.split("|"), c=byId[id], r=c&&RES[k].rows[id]; if(!r) return; const was=r.cap, d=was-r.used; if(d<=0) return;
- if(!setLimit(k,id,0,"taken back on Usage & limits")) return; delete UL.draft[key]; DECIDED.shift();
- receipt("ul",`Took back ${f(d)} from ${sentEnd(c.name)} ${f(compute(k).free)} left to allocate.`,()=>{r.cap=was; syncRes(k,r); logAct(id,`${RES[k].label} limit changed back to ${f(was)} (undo)`)},`took back ${c.name}'s ${RES[k].label.toLowerCase()}`); RECEIPT.variant="success";   /* vE E108: production's success toast; the neutral one reads as a warning here */
- UL.ul3f=`[data-ulce="${key}"]`; render()}
 /* vE E041 fix 2: a quiet Gray 500 dot on the rail where a workspace is used up or at 90% or more (saved figures, J's threshold) */
 function ulrMark(k){if(isUnl(k)) return ""; const o=ulRows().filter(c=>!c.disabled&&RES[k].rows[c.id]&&ulrLv(c,RES[k].rows[c.id].used,RES[k].rows[c.id].cap)===2).length; if(!o) return "";   /* vE E045: used up only */
  const t=`${o} workspace${o===1?"":"s"} used up`;   /* vE E071 row 21: a noun, and keyboard focus on the resource shows it */
@@ -9037,14 +9030,13 @@ function ul3Wire(){if(UL.ed&&!byId[UL.ed.id]) UL.ed=null; ul3Lock();
  if(UL.ul3f){const n=document.querySelector(UL.ul3f); UL.ul3f=null; if(n){n.focus({preventScroll:true}); if(n.select) n.select(); const r=n.getBoundingClientRect(); if(r.top<60||r.bottom>innerHeight-40) n.scrollIntoView({block:"center"})}}}
 /* one listener per event for both flows, so a partial repaint never needs rewiring */
 document.addEventListener("click",e=>{if(view.name!=="limits"||ctx!=="agency") return;
- const t=e.target.closest("[data-ul3ed],[data-ul3take],[data-ul3untake],[data-ul3save],[data-ul3cancel],[data-ul3buy],[data-ul3owner],[data-ul3tab],[data-ul3rv],[data-ul3back],[data-ul3apply],[data-ul3discard],[data-ulrapply],[data-uledit],[data-ulce],[data-ulrback],[data-ulrall],[data-ulrtake]");
+ const t=e.target.closest("[data-ul3ed],[data-ul3take],[data-ul3untake],[data-ul3save],[data-ul3cancel],[data-ul3buy],[data-ul3owner],[data-ul3tab],[data-ul3rv],[data-ul3back],[data-ul3apply],[data-ul3discard],[data-ulrapply],[data-uledit],[data-ulce],[data-ulrback],[data-ulrall]");
  if(!t||t.disabled) return; const d=t.dataset, E=UL.ed;
  if(d.uledit!=null){UL.ed=null; UL.rv2=false; return}   /* ulWire opens Edit limits */
  e.stopPropagation();
  if(d.ul3ed!=null){const [id,k]=d.ul3ed.split("|"); ul3EdOpen(id,k); return}
  if(d.ulce){ulrCeOpen(d.ulce); return}   /* vE E016 */
  if(d.ulrall!=null){UL.all=!UL.all; UL.ce=null; UL.ul3f=UL.all?"[data-ulri]":"[data-ulrall]"; render(); return}   /* vE E041 fix 1 */
- if(d.ulrtake){ulrTake(d.ulrtake); return}   /* vE E041 fix 6 */
  if(d.ulrback!=null){UL.drill=false; UL.ce=null; UL.ul3f="#ul3tab-"+ul3E2K(); render(); return}
  if(E&&d.ul3take){const [k,s]=d.ul3take.split("|"), sel=el("ul3dn-"+k), dn=sel&&sel.value; if(!dn) return; ul3Set(E.D,k,dn,ul3Dv(E.D,k,dn)-(+s)); ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
  if(E&&d.ul3untake){const [k,id]=d.ul3untake.split("|"); delete E.D[k+"|"+id]; ul3EdPaint(); const i=el("ul3in-"+k); if(i) i.focus(); return}
@@ -14782,7 +14774,7 @@ function resetToNormal(){
    keeps its k=v meaning, and the params ride along across the reload. */
 const HASHX=(()=>{const raw=decodeURIComponent(location.hash.replace(/^#/,""));const p={};let route="";
  raw.split("&").filter(Boolean).forEach(seg=>{const i=seg.indexOf("="),k=i<0?seg:seg.slice(0,i),v=i<0?"":seg.slice(i+1);
-  if(k==="as"||k==="dis"||k==="guide"||k==="slow"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)||/^ul(q|status|usage|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E022: the Limits table's keys */   /* vE E021: the list's state */ if(!route) route=seg});
+  if(k==="as"||k==="guide"||k==="slow"||k==="chrome"||k==="model"||k==="cols"||k==="from"||k==="plan"||/^ws(q|status|usage|team|client|sort|page|size)$/.test(k)||/^ul(q|status|usage|sort|page|size)$/.test(k)){p[k]=v;return}   /* vE E022: the Limits table's keys */   /* vE E021: the list's state */ if(!route) route=seg});
  return {route,p}})();
 /* vE E029, 23 Oct 2026: one role model (Hitesh's final setup); the access model switch and `model=atm` are gone. */
 const H0=HASHX.route?"#"+HASHX.route:"";
@@ -15441,12 +15433,6 @@ function e105Boot(s){E105.state=s; solo=false; PREVIEW=false; E105X=null; inMod=
 const E101={state:null};
 const E101_S=(HASHX.route.match(/^e101=([\w-]+)/)||[])[1]||null;
 /* the rows this person can act on (P10): red-band workspaces (86%+, used up included) and disabled ones holding room */
-const e101Held=k=>ul3E2Rows(k).filter(c=>{const r=RES[k].rows[c.id]; return r&&c.disabled&&ulDv(k,c.id)>r.used});
-function e101Back(k){const ids=e101Held(k).map(c=>c.id), amt=ids.reduce((t,id)=>t+RES[k].rows[id].cap-RES[k].rows[id].used,0); if(!ids.length) return;
- if(ids.length===1){ulrTake(k+"|"+ids[0]); return}
- const D={}; ids.forEach(id=>{D[k+"|"+id]=0});
- if(ul3Commit(D,"Applied")){RECEIPT.text=RECEIPT.short=`Took back ${f(amt)} from ${sentEnd(listAnd(ids.map(id=>byId[id].name)))} ${f(compute(k).free)} left to allocate.`; RECEIPT.variant="success"}
- UL.ul3f="[data-e101sum]"; render()}
 const e101Dirty=()=>ulChanges().length>0||Object.keys(UL.nb||{}).length>0;
 /* vE E136: no status line (the table below sorts highest use first). Split equally and Take back sit on the figures row, right-aligned.
    Split equally is one button; its menu shows each job's result before you pick (D2, 171). */
@@ -15458,16 +15444,11 @@ const e101Ws=n=>n===1?"1 workspace":n+" workspaces";
 function e101MenuHTML(k){const ids=e101SpRows(k).map(c=>c.id), L=Math.max(0,ulDfree(k)), a=e101SpCalc(k,ids,"left").share, s=e101SpCalc(k,ids,"same").share, ok=L>0&&a>0;
  return `<div class="e101-pop e101-menu" role="menu"><button type="button" class="e101-mi" role="menuitem" data-e101open="left"${ok?"":" disabled"}><span>${L>0?`Split the ${f(L)} left`:"Split what’s left"}</span><span class="e101-mv">${ok?`<b>${f(a)}</b> more each`:"Nothing left"}</span></button><button type="button" class="e101-mi" role="menuitem" data-e101open="same"><span>Same limit for all ${ids.length}</span><span class="e101-mv"><b>${f(s)}</b> each</span></button></div>`}
 function e101ActsHTML(k,dirty){if(ulRo()) return "";
- const H=e101Held(k), amt=H.reduce((t,c)=>t+RES[k].rows[c.id].cap-RES[k].rows[c.id].used,0); let eq="";
+ let eq="";
  if(e101SpRows(k).length>=2) eq=dirty?`<span class="u-tip" tabindex="0" title="" data-uwtip="${E101_BUSY}"><button type="button" class="shd-button shd-button--secondary" disabled>Split equally${E101_CHEV}</button></span>`
   :`<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E101M}">Split equally${E101_CHEV}</button>${E101M?e101MenuHTML(k):""}</span>`;
- const tb=!dirty&&H.length?e121Back(k,H,amt):"";
  if(dirty){const d=e101DraftState(); return `<div class="e101-fa e101-fd"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button></div>`}   /* vE E140: in a draft Discard and Apply take the place of Split equally and Take back (both need saved limits); the figures no longer widen with "was", so the buttons start where they always do */
- return eq||tb?`<div class="e101-fa">${eq}${tb}</div>`:""}
-/* vE E121: the button says only "Take back"; why is on hover (who is disabled, what they hold, where it goes) */
-function e121Back(k,H,amt){const one=H.length===1, who=one?H[0].name:H.length+" disabled workspaces";   /* vE E146: names are never listed; the rows below carry them */
- const tip=`${one?who+" is disabled and still holds":who+" still hold"} ${f(amt)} ${one?"it":"they"} can\u2019t use. Take back adds it to Left to allocate.`;
- return `<button type="button" class="shd-button shd-button--secondary u-tip" title="" data-uwtip="${hdrEsc(tip)}" data-e101sc="back|${k}" aria-label="Take back ${f(amt)} from ${hdrEsc(who)}">Take back</button>`}
+ return eq?`<div class="e101-fa">${eq}</div>`:""}   /* vE E148: Split equally alone; no Take back */
 /* save pattern 1: the draft in the summary, beside the figures it moves. vE E136: the row says only what blocks Apply; the table already shows the rest */
 /* vE E142 F2: the Split preview dismisses with Discard, the typed draft's word; day one keeps "Not now" */
 function e101DraftState(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over();
@@ -15489,9 +15470,6 @@ function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outer
 /* on a phone only the draft row stays in view: the summary sticks with its figures scrolled past (a negative top) */
 function e101Stick(){const m=document.querySelector(".e101-sum.is-draft"); if(!m) return; const d=m.querySelector(".e101-dr"); m.style.top=ulrPhone()&&d?-(d.offsetTop-12)+"px":"0px"}
 window.addEventListener("resize",e101Stick);
-/* the one click this panel adds: Take back */
-document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-e101sc]"); if(!t||t.disabled) return; e.stopPropagation();
- const [kind,k]=t.dataset.e101sc.split("|"); if(kind==="back") e101Back(k)},true);
 /* ── Split equally (29 Oct 2026, Hitesh: "can we have shortcut for allocate all resource equally to everyone or workspace i
    select"). You pick the rule and the workspaces; the product only divides. What's left: added on top, never lowers anyone.
    Same limit: one limit for each; a workspace that has already used more than that share is left as it is (never lowered
@@ -18651,7 +18629,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7541387";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="77510e2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19208,8 +19186,6 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
 .ulr-give .ulr-rs{display:none!important}
 .ulr-tb:not(:has(.search)) .ulr-give{min-height:32px;display:inline-flex;align-items:center;gap:4px}   /* vE E070: the space between "Available" and the figure */
 .ulr-t tr[data-ulws="own"] .ulr-ws .ulr-nm{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal}   /* vE E041: your workspace's name is never cut (E043); it wraps inside the 52px row */
-.ulr-take{margin-left:12px;font-size:14px;line-height:20px;font-weight:500;white-space:nowrap}
-.ulr-pc .ulr-take:only-child{margin-left:0}   /* vE E128 */
 .ulr-mk{display:inline-flex;align-items:center;justify-content:center;width:12px;height:20px;flex:none;margin-left:-2px}
 .ulr-mk i{display:block;width:6px;height:6px;border-radius:50%;background:#F87171}   /* vE E045: used up is red; E064: production red, the used-up bar's colour */
 .ulr-t.ulr-tp th.ulr-r .hs-b{margin-right:-14px}
@@ -19224,7 +19200,6 @@ button.ul3-rl:disabled{cursor:not-allowed;color:#6B7280}
  .ulr-t.ulr-tp td.ulr-gc{padding-left:12px}.ulr-t.ulr-tp td.ulr-gc .ulr-bar{min-width:0}
  .ulr-t.ulr-tp th.ulr-p,.ulr-t.ulr-tp td.ulr-pc{padding-left:16px}
  .ulr-t.ulr-tp td.ulr-pc{text-wrap:balance}
- .ulr-take{display:table;margin-left:0}
  .ulr-vv{flex-direction:column;align-items:flex-end}.ulr-vv .ulr-was{margin-right:0}
  .ulr-t .ulr-in.ul-in{width:90px}
 }
