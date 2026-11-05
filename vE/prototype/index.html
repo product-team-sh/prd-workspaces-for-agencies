@@ -331,7 +331,7 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 .crumb{display:flex;align-items:center;gap:8px;color:var(--gray-15);font-size:14px;min-width:0}
 .crumb-tail{font-weight:600;color:var(--gray-17);font-size:20px;line-height:28px}
 .util{margin-left:auto;display:flex;align-items:center;gap:6px}
-.pp-resend.ubtn{width:28px;height:28px;margin:-4px 0 -4px 2px;vertical-align:middle;color:var(--blue-11)}.pp-resend.ubtn svg{width:16px;height:16px}.pp-resend.ubtn:hover{background:#EFF6FF;color:var(--blue-12)}
+.pp-resend.ubtn{width:28px;height:28px;margin:-4px 0 -4px 2px;vertical-align:middle;color:#1F2937}.pp-resend.ubtn svg{width:16px;height:16px}.pp-resend.ubtn:hover{background:transparent;color:var(--blue-11)}
 .ubtn{width:32px;height:32px;border-radius:var(--radius-input);border:0;background:none;display:grid;place-items:center;cursor:pointer;
  color:var(--gray-12);position:relative}
 .ubtn:hover{background:var(--gray-16)}
@@ -3767,7 +3767,7 @@ const ILL=(()=>{
   +'<rect x="44" y="20" width="88" height="76" rx="8" fill="#DCE0E6" transform="rotate(6 88 58)"/>'
   +'<rect x="36" y="22" width="88" height="80" rx="8" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.5"/>'
   +'<path d="M36.75 30a7.25 7.25 0 0 1 7.25-7.25h72A7.25 7.25 0 0 1 123.25 30v8H36.75z" fill="#EEF0F3"/>';
- const GLYPH={plus:"M122 88.5v11M116.5 94h11",check:"M116.5 94.5l3.75 3.75 7.25-8"};
+ const GLYPH={plus:"M122 88.5v11M116.5 94h11",check:"M116.5 94.5l3.75 3.75 7.25-8",edit:"M117.25 98.75l.9-3.4 6.6-6.6a1.55 1.55 0 0 1 2.2 2.2l-6.6 6.6zM123.5 90l2.2 2.2"};
  const badge=g=>g&&GLYPH[g]?'<circle cx="122" cy="94" r="13" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="3"/>'
   +'<path d="'+GLYPH[g]+'" stroke="#FFFFFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>':"";
  const deco='<path d="M138 26v6M135 29h6" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -6009,7 +6009,7 @@ function rmSeen(c,r,mem){
  const last=r.seen&&r.seen!=="never"&&r.seen!=="unknown"?r.seen:null, lbl='<span class="rmt-lbl">Last sign-in </span>';
  if(r.off&&mem) return `<span class="rmt-seen is-quiet">${lbl}${last?rmCap(last):"Never"}</span>`;   /* E112: the Members tab shows Disabled by the name, so this says only when they last signed in */
  if(r.off) return `<span class="rmt-seen is-quiet">Disabled<span class="sub">${r.client?"Can't sign in":last?"Last signed in "+last:"Never signed in"}</span></span>`;
- if(c.disabled&&r.client) return `<span class="rmt-seen is-quiet">Signed out while disabled<span class="sub">${last?"Last signed in "+last:r.isInv?"Invite not accepted yet":"Never signed in"}</span></span>`;
+ if(c.disabled&&r.client) return `<span class="rmt-seen is-quiet">${lbl}${last?rmCap(last):"Never"}</span>`;   /* vE E145: only when they last signed in, nothing else */
  if(r.isInv){const s=r.sent; if(s&&invExpired(s,!!r.k)) return `<span class="rmt-seen is-quiet">Invite expired<span class="sub">Sent ${AGE(s)}</span></span>`;
   return `<span class="rmt-seen is-quiet">${s?"Invited "+(/ago|now|today|yesterday/i.test(s)?AGE(s):s):"Invited, not accepted yet"}</span>`}
  return last?`<span class="rmt-seen">${lbl}${rmCap(last)}</span>`:`<span class="rmt-seen is-quiet">${lbl}Never</span>`;
@@ -6121,7 +6121,7 @@ function rMembers(c){
  const cl=c.own?[]:rmClients(c), tm=rmTeam(c);   /* change 333: no "N people have access" heading */
  const admins=ppTeam().filter(r=>r.role!=="Member"&&!r.disabled).map(r=>r.name);
  const lead="";   /* change 320: the read-only line went; nothing to change shows no control to change it */
- const side=ro?""   /* change 333: client rows say "Signed out while disabled" (vE E141: your team's rows read as usual); the header has Enable */
+ const side=ro?""   /* change 333: client rows show only their last sign-in (vE E145); your team's rows read as usual; the header has Enable */
   :ed&&!RM.inv?`<button type="button" class="shd-button shd-button--primary rmt-invbtn" data-rminvite aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>${c.own?"Add teammates":"Invite users"}</button>`:"";   /* change 348: a link in the table header, no filled button, no row of its own */
  /* change 304: one list as People's, client users first; the Type column says which kind (not on the own workspace, which has one kind) */
  const ty=!c.own, nc=ty?5:4, none=t=>`<tr class="rmt-none"><td colspan="${nc}">${t}</td></tr>`;
@@ -6132,7 +6132,7 @@ function rMembers(c){
   ${lead}${rmInviteHTML(c)}
   <div class="panel rmt-sheet"><table class="rmt-t${anySel?"":" rmt-t--plain"}${ty?"":" rmt-t--own"}"><colgroup><col class="rmt-c1">${ty?'<col class="rmt-c2">':""}<col class="rmt-c3"><col class="rmt-c4"><col class="rmt-c5"></colgroup>
    <thead><tr><th scope="col">User</th>${ty?'<th scope="col">Type</th>':""}<th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col" class="rmt-hact"><span class="rmt-sr">Actions</span></th></tr></thead>
-   <tbody>${c.own?"":cl.map(r=>rmClientRow(c,r,ed,can,ty)).join("")}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}${noMember?none(`Nobody from your team is assigned to ${rmEsc(c.name)} yet; only Account Owners reach it.${RM.inv?"":` <button type="button" class="linkbtn" data-rminviteteam>Add teammates</button>`}`):""}</tbody>
+   <tbody>${c.own?"":cl.map(r=>rmClientRow(c,r,ed,can,ty)).join("")}${tm.map(r=>rmTeamRow(c,r,ed,can,ty)).join("")}</tbody>
   </table></div></div>`;
 }
 /* change 293: one listener per event, as the Limits tab does, so every repaint keeps working */
@@ -6646,7 +6646,7 @@ const SL_SHOW=4;
 /* vE E120 (Chintan: "this is good, we can show this when the user clicks the limit tab"; Hitesh: "let's go with this version instead of setup strip"):
    one empty block for a workspace with no limit set, on the Overview card and the Limits tab. Production's .empty pattern; one Set limits button. */
 function limEmptyHTML(c,ro){const can=canI("limits")&&!ro;   /* vE E125: the limits card, + badge only with Set limits */
- return `<div class="empty">${ILL.limits(can?"plus":"")}<p class="empty-t">No limits yet</p><p class="empty-s">Nothing sends from ${c.name} until it has limits.</p>${can?`<button type="button" class="shd-button shd-button--secondary" data-rledit="${c.id}">Set limits</button>`:""}</div>`}   /* vE E122: secondary */
+ return `<div class="empty">${ILL.limits(can?"edit":"")}<p class="empty-t">No limits yet</p><p class="empty-s">Nothing sends from ${c.name} until it has limits.</p>${can?`<button type="button" class="shd-button shd-button--secondary" data-rledit="${c.id}">Set limits</button>`:""}</div>`}   /* vE E122: secondary */
 function slCardHTML(c){const can=canI("limits");
  return `<div class="msg dn-req sl-card" role="status">${infoI}<span class="dn-req-t">${can?SL_LINE:"Nothing sends from this workspace until an Account Owner or Account Admin sets its limits."}</span>${can?`<button type="button" class="shd-button shd-button--primary shd-button--sm sl-go" data-rledit="${c.id}">Set limits</button>`:""}</div>`}
 /* the line on every place that would send */
@@ -7655,7 +7655,7 @@ function invFixOf(e){e=String(e||"").toLowerCase(); const K=invKnownDoms(), at=e
  h=[...new Set(h)].filter(x=>INV_OK.test(x)); return h.length===1?h[0]:""}
 function invJudge(list){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), W=invWsName, adds=a=>"Adds "+a.map(invWsName).join(", ");   /* vE E142 (a): full names, as the Users page chips (F7); invFitAdds folds a list that does not fit */
  return list.map(e=>{const c=invCls(e), r={e,c,state:"ok",msg:""}, E=invEsc(e);
-  if(c.bad){const fx=invFixOf(e); r.state="bad"; r.fix=fx; r.msg=c.sh?`<b>${E}</b> already has its own Saleshandy account.`:`<b>${E}</b> is not a full email address. `+(fx?`<button type="button" class="linkbtn" data-invfix="${E}">Use ${invEsc(fx)}</button>`:"Click it to fix.")}
+  if(c.bad){const fx="";   /* vE E145: no suggested address */ r.state="bad"; r.fix=fx; r.msg=c.sh?`<b>${E}</b> already has its own Saleshandy account.`:`<b>${E}</b> is not a full email address. `+(fx?`<button type="button" class="linkbtn" data-invfix="${E}">Use ${invEsc(fx)}</button>`:"Click it to fix.")}
   else if(c.person){const p=c.person, t=ppTeam().find(x=>x.k===p.k)||{}; r.list=1; r.pend=t.seen==="never";
    if(I.lock||cl){r.state="none"; r.out="Your team"}
    else if(t.disabled){r.state="none"; r.out="Disabled"}
@@ -8949,7 +8949,7 @@ function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), 
  if(isUnl(k)) return s("&ndash;","q");   /* vE E142 F18: Unlimited reads the dash, as the record's Limits tab */
  if(c.disabled){const h=isUnl(k)?0:Math.max(0,v-r.used);
   if(h&&!ulRo()&&v===r.cap) return `<button type="button" class="linkbtn ulr-take u-tip" title="" data-uwtip="${hdrEsc(c.name+" is disabled and still holds "+f(h)+" it can\u2019t use. Take back adds it to Left to allocate.")}" data-ulrtake="${k}|${c.id}" aria-label="Take back ${f(h)} from ${c.name}">Take back</button>`}   /* vE E128: the Disabled chip sits by the name; here Take back alone, its reason on hover; a disabled row holding nothing shows its percentage like any row */
- const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)+(dn?'<span class="e101-chip">Almost used up</span>':"")}
+ const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)}   /* vE E145: the red bar says it; no chip */
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
@@ -18649,7 +18649,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5f592f9";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="1490978";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
