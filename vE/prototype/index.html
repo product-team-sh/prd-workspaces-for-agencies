@@ -7625,66 +7625,79 @@ function invSync(){const I=INV, f=I.f; if(I.lock) return; const was=f.role;
  if(I.fix&&byId[I.fix].own&&f.role&&invIsC(f.role)) f.role=null;   /* vE E083: your own workspace has no client users */
  if(!f.clTouched){const c=I.emails.map(invCls).find(c=>c.client&&c.guess&&(c.existing||[]).indexOf(c.guess)<0); f.cl=c?[c.guess]:[]}
  if(was&&f.role&&invIsC(was)!==invIsC(f.role)){f.rr={}; f.kept=0}}
-function invCommit(){const I=INV, raw=I.draft.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean), n0=I.emails.length; I.draft="";
- raw.forEach(v=>{if(I.emails.indexOf(v)<0) I.emails.push(v)}); if(I.emails.length===n0+1&&n0<=INV_CHIPS) I.chipsOpen=true; invSync()}   /* vE E139: typed one by one, every chip stays in view; a paste folds past 6 */
+function invCommit(){const I=INV, raw=I.draft.split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean), n0=I.emails.length; I.draft="";
+ I.bad=I.bad||[]; raw.forEach(x=>{const v=x.toLowerCase(), ok=INV_OK.test(v); if(ok&&I.emails.indexOf(v)<0) I.emails.push(v); else if(!I.bad.some(b=>b.v.toLowerCase()===v)) I.bad.push({v:x,dup:ok})});   /* vE E149: a broken or repeated address is a marked chip, so you see which one */
+ if(I.emails.length===n0+1&&n0<=INV_CHIPS) I.chipsOpen=true; invSync()}   /* vE E139: typed one by one, every chip stays in view; a paste folds past 6 */
 const invEff=id=>INV.f.rr[id]||invRole();
-/* coordinator, 23 Oct 2026 (E035 fix): existing teammates keep their account role. When every
-   address is one, Role is read-only with their current role; an existing client user keeps their
-   role in a workspace they already open, and the row role applies to the new workspaces only. */
+/* vE E149: Role is always a choice. The picked role raises people already in the account, never lowers them */
 const invLiveCls=()=>INV.emails.map(invCls).filter(c=>!c.bad);
-const invMatesOnly=()=>{const L=invLiveCls(); return !INV.lock&&L.length>0&&L.every(c=>c.person)};
-const invRole=()=>invMatesOnly()?(INV.f.role&&!invIsC(INV.f.role)?INV.f.role:"Member"):INV.f.role;
+const invRole=()=>INV.f.role;
 const invRows=()=>{const r=invRole(); return !!r&&invIsC(r)&&!INV.lock};
 /* a ticked workspace every client address already opens: their current role there, read-only */
 function invHeld(id){const L=invLiveCls().filter(c=>c.client||c.unknown); if(!L.length||!L.every(c=>(c.existing||[]).indexOf(id)>-1)) return null;
  const R=[...new Set(INV.emails.filter(e=>{const c=invCls(e); return !c.bad&&(c.existing||[]).indexOf(id)>-1}).map(e=>((byId[id].users||[]).find(u=>u[0].toLowerCase()===e.toLowerCase())||[])[1]).filter(Boolean))];
  return R.length===1?R[0]:"mixed"}
-/* vE E139 (5 Nov 2026, Hitesh on board 172 F: "lets finalise this for now"): F, the already-here list.
-   Each address has one outcome. A new address stays in the field (ok); a broken one is red (bad); a new
-   address on the wrong side keeps its Remove line (wrong). Anyone already in the account leaves the field
-   for the list under it, one row each with what Send does: add (gains the ticked workspaces they lack; a
-   pending invite is updated, not sent again), again (an expired invite is sent again), none (nothing to do).
-   Invite never changes a role, and a teammate never becomes a client user (or back) from here. */
-const INV_CAP=50, INV_CHIPS=6, INV_AL_MAX=5;   /* vE E139: production's 50 cap (email-input.tsx:83); chips past 6 fold into "+N more"; list rows past 5 into "Show N more" */
+/* vE E149 (6 Nov 2026, Hitesh: "for invite user - i think we are over complicating", then "now invite looks perfect!";
+   177-invite-journey/simplify.md, built as j1-lite). Invite gives everyone named the access picked. Every address stays a chip; a person
+   already in the account shows by name and gets one row under the field: what Send changes, why they are left alone, or what they already
+   have. New addresses are one count line at the end. The picked role raises people, never lowers them; Invite never removes access,
+   re-enables anyone or moves a person between your team and client users. */
+const INV_CAP=50, INV_CHIPS=6;   /* vE E139: production's 50 cap (email-input.tsx:83); chips past 6 fold into "+N more" */
 const invShortWs=id=>invWsName(id).split(" ")[0];   /* vE E139: the Users page access chip's short name. vE E142 (a): no reader left, the chips and the row now use full names */
-/* vE E139: a one-click fix only for a domain the account knows (its own, its client workspaces'); never a guess at a personal domain */
-function invKnownDoms(){const s=agencyDomains(); fundedWorkspaces().forEach(c=>{if(c&&!c.own) wsDoms(c).forEach(d=>{if(d) s.add(d)})}); PERSONAL_DOM.forEach(d=>s.delete(d)); return [...s]}
-function invFixOf(e){e=String(e||"").toLowerCase(); const K=invKnownDoms(), at=e.indexOf("@"); let h=[];
- if(at>0){if(e.indexOf("@",at+1)>-1) return ""; const l=e.slice(0,at), d=e.slice(at+1).replace(/\.+$/,""); if(!d) return ""; h=K.filter(k=>k!==d&&k.indexOf(d+".")===0).map(k=>l+"@"+k)}
- else if(at<0) h=K.filter(k=>e.length>k.length+1&&e.slice(-(k.length+1))==="."+k).map(k=>e.slice(0,-(k.length+1))+"@"+k);
- h=[...new Set(h)].filter(x=>INV_OK.test(x)); return h.length===1?h[0]:""}
-function invJudge(list){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), W=invWsName, adds=a=>"Adds "+a.map(invWsName).join(", ");   /* vE E142 (a): full names, as the Users page chips (F7); invFitAdds folds a list that does not fit */
+/* vE E149: 177 rules.mjs cut to simplify.md's outcomes: Invite (a new address, or an expired invite sent again), Raise role, Add workspaces,
+   Already set, Not changed (one reason). Roles are vE's full names; a client user has a role per workspace */
+const INV_RANK={Member:1,Admin:2,Owner:3,"Client Viewer":1,"Client Collaborator":2,"Client Admin":3};
+function invRule(p,me,f){const T=f.ws.filter(id=>f.off.indexOf(id)<0), miss=h=>T.filter(id=>(h||[]).indexOf(id)<0),
+  O=(row,outcome,x)=>Object.assign({row,outcome,adds:[],raises:[],reason:""},x), NO=(row,reason)=>O(row,"Not changed",{reason});
+ if(p.kind==="new") return O("R01","Invite");
+ if(p.self) return O("R18","Already set");
+ const team=p.kind==="team";
+ if(team&&me.role==="Admin"&&(p.role==="Owner"||p.role==="Admin")) return NO("R20","Only an Account Owner can change this person");
+ if(p.status==="disabled") return NO("R17","Disabled");
+ if(team&&f.client) return NO("R08","On your team. Change on their page");
+ if(!team&&!f.client) return NO("R09","Client user. Change on their page");
+ if(team){
+  if(p.role==="Owner") return O("R19","Already set");
+  if(f.role==="Owner") return NO("R07","Account Owner is set on their page");
+  const up=INV_RANK[f.role]>INV_RANK[p.role], adds=p.ws===null?[]:miss(p.ws), raises=up?[{from:p.role,to:f.role}]:[];
+  if(up&&me.ws!==null&&(p.ws||[]).some(id=>me.ws.indexOf(id)<0)) return NO("R22","Also works in workspaces you can't open");
+  if(p.stale) return O("R15","Invite",{adds,raises});   /* an expired invite goes out again with the full set */
+  return raises.length?O("R05","Raise role",{adds,raises}):adds.length?O("R04","Add workspaces",{adds}):O("R03","Already set",{pend:p.status==="pending"})}
+ const cws=p.cws, adds=miss(Object.keys(cws)), raises=T.filter(id=>cws[id]&&INV_RANK[f.rr[id]||f.role]>INV_RANK[cws[id]]).map(id=>({ws:id,from:cws[id],to:f.rr[id]||f.role}));
+ if(p.stale) return O("R15c","Invite",{adds});
+ return raises.length?O("R12","Raise role",{adds,raises}):adds.length?O("R10","Add workspaces",{adds}):O("R13","Already set",{pend:p.status==="pending"})}
+/* what the account knows about an address already in it */
+function invPerson(e,c){
+ if(c.person){const t=ppTeam().find(x=>x.k===c.person.k)||{}, pend=t.seen==="never"&&!!t.invited;
+  return {email:e,kind:"team",status:t.disabled?"disabled":pend?"pending":"active",stale:pend&&invExpired(t.invited,1),self:c.person.k===me_,role:c.person.role,ws:t.ws===undefined?c.person.ws:t.ws}}
+ const cws={}, K=id=>"w:"+id+"|"+e; c.existing.forEach(id=>{const u=(byId[id].users||[]).find(u=>u[0].toLowerCase()===e); cws[id]=u?u[1]:""});
+ const off=c.existing.every(id=>DISABLED[K(id)]), pend=!off&&c.existing.every(id=>INVITED[K(id)]);
+ return {email:e,kind:"client",status:off?"disabled":pend?"pending":"active",stale:pend&&c.existing.every(id=>invExpired(INVITED[K(id)],1)),cws}}
+function invForm(){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role);
+ return {client:cl,role,rr:f.rr,ws:cl?(I.lock?[I.lock]:f.cl.slice()):role==="Owner"?[]:f.ws.slice(),off:CLIENTS.filter(c=>c.disabled&&!c.own).map(c=>c.id)}}   /* off: a disabled workspace gains nobody */
+/* each address: ok (a new invite), again (an expired invite sent again), add (a raise or workspaces added), none (left alone), wrong (a new
+   address on the other side: Send waits until it is removed) */
+function invJudge(list){const I=INV, role=invRole(), cl=!!role&&invIsC(role), W=invWsName, F=invForm(), me={role:ME().role,ws:ME().ws===null?null:(ME().ws||[]).slice()};
  return list.map(e=>{const c=invCls(e), r={e,c,state:"ok",msg:""}, E=invEsc(e);
-  if(c.bad){const fx="";   /* vE E145: no suggested address */ r.state="bad"; r.fix=fx; r.msg=c.sh?`<b>${E}</b> already has its own Saleshandy account.`:`<b>${E}</b> is not a full email address. `+(fx?`<button type="button" class="linkbtn" data-invfix="${E}">Use ${invEsc(fx)}</button>`:"Click it to fix.")}
-  else if(c.person){const p=c.person, t=ppTeam().find(x=>x.k===p.k)||{}; r.list=1; r.pend=t.seen==="never";
-   if(I.lock||cl){r.state="none"; r.out="Your team"}
-   else if(t.disabled){r.state="none"; r.out="Disabled"}
-   else {const T=role==="Owner"?[]:f.ws, add=p.ws===null?[]:T.filter(id=>(p.ws||[]).indexOf(id)<0); r.add=add;
-    if(r.pend&&t.invited&&invExpired(t.invited,1)){r.state="again"; r.out="Sends a new invite"}
-    else if(add.length){r.state="add"; r.out=adds(add)}
-    else {r.state="none"; r.out=role==="Owner"?"No change":!T.length&&p.ws!==null?"":r.pend?"Already invited":"Has access"}}}
-  else if(c.existing&&!cl){r.list=1; r.state="none"; r.out="Client user"; r.pend=c.existing.every(id=>INVITED["w:"+id+"|"+e])}
-  else if(cl&&c.existing){const T=I.lock?[I.lock]:f.cl, add=T.filter(id=>c.existing.indexOf(id)<0); r.list=1; r.add=add; r.pend=c.existing.every(id=>INVITED["w:"+id+"|"+e]);
-   if(add.length){r.state="add"; r.out=adds(add)}
-   else {r.state="none"; r.out=!T.length?"":T.some(id=>INVITED["w:"+id+"|"+e])?"Already invited":"Has access"}}
+  if(c.person||c.existing){const p=invPerson(e,c), o=invRule(p,me,F); Object.assign(r,{list:1,p,o,pend:p.status==="pending",
+   state:o.outcome==="Invite"?"again":o.outcome==="Raise role"||o.outcome==="Add workspaces"?"add":"none"})}
   else if(role&&!cl&&c.client){r.state="wrong"; r.msg=(c.guess?`<b>${E}</b> looks like ${invAn(invEsc(W(c.guess)))} address.`:`<b>${E}</b> is a client user of ${listAnd((c.existing||[]).map(W))}.`)+` Client users go in their own invite. <button type="button" class="linkbtn" data-invdrop="${E}">Remove it</button>`}
   else if(cl&&c.team){r.state="wrong"; r.msg=`<b>${E}</b> is ${invAn(invEsc(AGENCY.name))} address. Your team goes in its own invite. <button type="button" class="linkbtn" data-invdrop="${E}">Remove it</button>`}
   return r})}
-/* vE E139: invites (new addresses and expired invites sent again) and adds; the button names both */
 const invCount=J=>({ni:J.filter(r=>r.state==="ok"||r.state==="again").length,na:J.filter(r=>r.state==="add").length});
-const invBtnTxt=v=>{const n=v.ni||0, m=v.na||0; return n&&m?`Invite ${n}, add ${m}`:m?"Add to workspaces":n>1?`Invite ${n}`:"Send invite"};
-/* Send waits on every blocking error: a bad address, a mixed batch, someone already there, no workspace */
+const invBtnTxt=v=>{const n=v.ni||0, m=v.na||0; return n&&m?`Invite ${n}, update ${m}`:m?`Update ${m}`:n>1?`Invite ${n}`:n||!v.any?"Send invite":"Nothing to send"};   /* vE E149: the label names the outcome */
+/* vE E149: Send waits on an empty field, a field error (the line under the field says it, no footer text), a new address on the wrong side,
+   no role, no workspace for a new invite, or nothing to change (the button says "Nothing to send") */
 function invVerdict(){const I=INV; if(invRows()) invPrune(); const f=Object.assign({},INV.f,{role:invRole()}), d=(I.draft||"").trim().toLowerCase(), all=I.emails.concat(INV_OK.test(d)&&I.emails.indexOf(d)<0?[d]:[]);
- if(!all.length) return {msg:"Add at least one email address."};
- const J=invJudge(all), bad=J.filter(r=>r.state==="bad"), C=invCount(J), V=o=>Object.assign(o,C);   /* vE E139: the button names the outcome even while Send waits */
- if(all.length>INV_CAP) return V({msg:"",warn:1});   /* vE E139: the red line under the field says it */
- if(bad.length) return V({msg:`Fix ${bad.length} address${bad.length>1?"es":""} to send.`,warn:1});   /* vE E139: F's footer; the red line names the address */
+ if(!all.length) return {msg:(I.bad||[]).length?"":"Add at least one email address."};
+ const J=invJudge(all), C=invCount(J), V=o=>Object.assign(o,C,{any:1});
+ if(all.length>INV_CAP||(I.bad||[]).length) return V({msg:""});
  const stop=J.filter(r=>r.state==="wrong"); if(stop.length) return V({msg:`Remove ${stop[0].e} to send.`,warn:1});
  if(!f.role){const u=J.find(r=>r.c.unknown)||J.find(r=>r.c.client); return V({msg:`Pick a role for ${u?u.e:"them"}.`,warn:1})}
- const fresh=J.filter(r=>r.state==="ok"), mates=J.some(r=>r.list&&r.c.person);   /* vE E139: only new addresses need a workspace; a teammate typed with none ticked waits too */
- if((fresh.length||mates)&&!invIsC(f.role)&&f.role!=="Owner"&&!f.ws.length) return V({msg:"Pick at least one workspace.",warn:1});
+ const fresh=J.filter(r=>r.state==="ok");   /* only a new invite needs a workspace; a raise needs none */
+ if(fresh.length&&!invIsC(f.role)&&f.role!=="Owner"&&!f.ws.length) return V({msg:"Pick at least one workspace.",warn:1});
  if(invIsC(f.role)&&!I.lock&&!f.cl.length) return V({msg:"Pick at least one workspace.",warn:1});
- if(!C.ni&&!C.na) return V({msg:"Nothing to send.",warn:1});   /* vE E139: everyone typed is already in, with nothing to add */
+ if(!C.ni&&!C.na) return V({msg:""});
  return V({ok:1,n:J.length,live:J})}
 /* one line above Send, only when client roles differ; past 3 workspaces, counts with the names on hover */
 function invSum(){const I=INV, f=I.f; if(!invRows()) return ""; const t=f.cl.filter(id=>!invHeld(id)); if(t.length<2) return "";
@@ -7720,33 +7733,60 @@ function invWsH(){const I=INV, f=I.f, role=invRole(), cl=!!role&&invIsC(role), r
  const L=wsPickOrder(fundedWorkspaces().filter(c=>!cl||!c.own)), srch=L.length>WS_PICK_MAX, T=cl?f.cl:f.ws, q=f.q.trim().toLowerCase();
  if(cl) invPrune();
  const items=L.map(c=>{const on=T.indexOf(c.id)>-1, k=wsHay(c), off=cl&&wsOffNew(c,invHeld(c.id));
-  return `<div class="inv-a2-ws${rows&&on?" is-on":""}${off?" is-dis":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn${off?" u-tip":""}"${off?` tabindex="0" title="" data-uwtip="${WS_OFF_WHY}"`:""}>${invEsc(c.name)}${c.disabled?'<span class="chip hdr-chip hdr-chip--mute inv-a2-dchip">Disabled</span>':""}</span></label>${rows&&on?`<span class="inv-a2-rdd">${(h=>h?ddHTML("invrr_"+c.id,h==="mixed"?"":h,[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}],{disabled:true,placeholder:"Keeps their role"}):ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]))(invHeld(c.id))}</span>`:""}</div>`}).join("");
+  return `<div class="inv-a2-ws${rows&&on?" is-on":""}${off?" is-dis":""}" data-ddk="${invEsc(k)}"${srch&&q&&k.indexOf(q)<0?" hidden":""}><label class="inv-a2-wl${off?" is-off":""}"><input type="checkbox" data-invws="${c.id}" ${on?"checked":""}${off?" disabled":""}>${av(c,20)}<span class="inv-a2-wn${off?" u-tip":""}"${off?` tabindex="0" title="" data-uwtip="${WS_OFF_WHY}"`:""}>${invEsc(c.name)}${c.disabled?'<span class="chip hdr-chip hdr-chip--mute inv-a2-dchip">Disabled</span>':""}</span></label>${rows&&on?`<span class="inv-a2-rdd">${ddHTML("invrr_"+c.id,invEff(c.id),[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}])}</span>`:""}</div>`}).join("");
  const none=srch&&q&&!L.some(c=>wsHay(c).indexOf(q)>-1);
  return `<div class="inv-a2-f"><span class="flabel" id="invWsL">Workspaces</span><div class="inv-a2-wsl${rows?" is-roles":""}" role="group" aria-labelledby="invWsL">${wsBarH(cl?L.filter(c=>!wsOffNew(c,invHeld(c.id))):L,id=>T.indexOf(id)>-1,srch?`${srchI}<input type="text" data-invwsq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(f.q)}">`:"","data-invwsall",cl)}<div class="inv-a2-wsg">${items}<p class="inv-a2-none"${none?"":" hidden"}>${nrHTML(f.q)}</p></div></div>${cl?domWarn(I.emails.filter(e=>{const c=invCls(e); return !c.bad&&!c.person&&!c.team}),f.cl.filter(id=>!invHeld(id))):""}</div>`}
+/* vE E149: one row per person already in the account, from invJudge: changes, then not changed (one reason), then already set; input order
+   inside each. Rows are E139's list rows */
+function invWho(e){e=String(e||"").trim().toLowerCase(); const c=invCls(e), ini0=initials(e.split("@")[0].replace(/[._-]+/g," "));
+ if(c.person) return {nm:c.person.name,ini:c.person.initials||initials(c.person.name)};
+ if(c.existing){const r=ppClientsMerged().find(r=>r.email.toLowerCase()===e); return {nm:r&&r.named?r.name:e,ini:r?r.initials:ini0}}
+ return {nm:e,ini:ini0}}
+const invNm=e=>invWho(e).nm;
+const INV_GI='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+/* "Already in {ticked workspaces they have}"; none ticked: "Already {role}" */
+function invHave(r){const f=INV.f, P=r.p, cl=P.kind==="client", T=(cl?f.cl:f.ws)||[], n=(cl?T.filter(id=>P.cws[id]):P.ws===null?T.slice():T.filter(id=>(P.ws||[]).indexOf(id)>-1)).map(invWsName);
+ if(!n.length) return {t:"Already "+roleName(cl?Object.values(P.cws)[0]||"":P.role)};
+ return {t:"Already in "+(n.length===1?n[0]:n.length===2?n[0]+" and "+n[1]:n[0]+" and "+(n.length-2)+" more"),full:n.length>2?"Already in "+n.join(", "):""}}
+function invLine(r){const o=r.o, cl=r.p.kind==="client", adds=o.adds.map(invWsName).join(", ");
+ if(o.outcome==="Not changed") return {t:o.reason};
+ if(o.outcome==="Already set") return o.pend?{t:"Already invited"}:invHave(r);
+ if(o.outcome==="Invite") return {t:o.raises.length?"Gets a new invite as "+roleName(o.raises[0].to):"Gets a new invite"};
+ const R=o.raises.map(x=>roleName(x.from)+" → "+roleName(x.to)+(cl?" in "+invWsName(x.ws):"")).join(", ");
+ return {t:R?R+(adds?", adds "+adds:""):"Adds "+adds,h:R&&adds?`<span>${invEsc(R)},</span> <span>adds ${invEsc(adds)}</span>`:"",chg:1}}   /* two clauses break between them, never inside "from → to" */
+function invListH(J){const K=J.map((r,i)=>({r,i})).filter(x=>x.r.list); if(!K.length) return "";
+ const rk=r=>r.state==="add"||r.state==="again"?0:r.o.outcome==="Already set"?2:1;
+ const rows=K.sort((a,b)=>rk(a.r)-rk(b.r)||a.i-b.i).map(({r,i})=>{const w=invWho(r.e), L=invLine(r);
+  return `<div class="inv-al-r" data-invalr="${invEsc(r.e)}">${ppAv(invEsc(w.ini),"#F3F4F6",24,r.pend)}<span class="inv-al-n" data-uwcut>${invEsc(w.nm)}</span><span class="inv-al-o${L.chg||r.state==="again"?" is-add":""}"${L.full?` title="${invEsc(L.full)}"`:""}>${L.h||invEsc(L.t)}</span><button type="button" class="inv-al-x" data-invrm="${i}" aria-label="Remove ${invEsc(w.nm)}">${RM_X}</button></div>`});
+ const n=J.filter(r=>!r.list&&r.state==="ok").length;
+ if(n) rows.push(`<div class="inv-al-r" data-invnew>${ppAv(INV_GI,"#F3F4F6",24,false)}<span class="inv-al-n">${n===1?"1 new person gets an invite":n+" new people get an invite"}</span></div>`);
+ return `<div class="inv-al" role="group" aria-label="What Send does" data-inval><div class="inv-al-g">${rows.join("")}</div></div>`}
 function invA2HTML(){const I=INV, f=I.f, lock=I.lock&&byId[I.lock], v=invVerdict(), J=invJudge(I.emails);
- /* vE E139: the field holds who gets an invite; past 6, broken ones first, then "+N more" */
- const X=I.emails.map((e,i)=>({e,i,r:J[i]})), FI=X.filter(x=>!x.r.list), LI=X.filter(x=>x.r.list), fold=FI.length>INV_CHIPS&&!I.chipsOpen;
- const FS=fold?FI.filter(x=>x.r.state==="bad").concat(FI.filter(x=>x.r.state!=="bad")).slice(0,INV_CHIPS):FI;
- const chips=FS.map(({e,i,r})=>`<span class="rmt-chip${r.state==="bad"?" is-bad":""}"><span class="cv u-tip" data-invchip="${i}" data-uwtip="Edit email">${invEsc(e)}</span><button type="button" data-invrm="${i}" aria-label="Remove ${invEsc(e)}">${RM_X}</button></span>`).join("")+(fold?`<button type="button" class="inv-more" data-invmore>+${FI.length-INV_CHIPS} more</button>`:"");
- const BAD=J.filter(r=>r.state==="bad"), hints=(BAD.length>2?[{state:"bad",msg:`<b>${BAD.length} addresses</b> are not full email addresses. Click one to fix.`}]:BAD).concat(J.filter(r=>r.state==="wrong")).concat(I.emails.length>INV_CAP?[{state:"bad",msg:`You can invite up to ${INV_CAP} addresses at once. Remove ${I.emails.length-INV_CAP}.`}]:[]);   /* vE E139: only a broken address is red; three or more share one line */
- const LS=LI.length>INV_AL_MAX&&!I.alOpen?LI.slice(0,INV_AL_MAX):LI;
- const alH=LI.length?`<div class="inv-al" role="group" aria-label="Already in your account" data-inval><div class="inv-al-h"><span>Already in your account</span><span>${LI.length}</span></div><div class="inv-al-g">${LS.map(({e,i,r})=>{const p=r.c.person, nm=p?p.name:e, ini=p?(p.initials||initials(p.name)):initials(e.split("@")[0].replace(/[._-]+/g," "));
-  return `<div class="inv-al-r" data-invalr="${invEsc(e)}">${ppAv(invEsc(ini),"#F3F4F6",24,!!r.pend)}<span class="inv-al-n" data-uwcut>${invEsc(nm)}</span><span class="inv-al-o${r.state==="none"?"":" is-add"}"${r.state==="add"&&r.add&&r.add.length?` data-invadds="${invEsc(r.add.map(invWsName).join("\n"))}"`:""}>${invEsc(r.out||"")}</span><button type="button" class="inv-al-x" data-invrm="${i}" aria-label="Remove ${invEsc(nm)}">${RM_X}</button></div>`}).join("")}${LS.length<LI.length?`<button type="button" class="linkbtn inv-al-more" data-invalmore>Show ${LI.length-LS.length} more</button>`:""}</div></div>`:"";
+ /* every address is a chip; a known one shows the person's name (the address on hover); marked chips first; past 6, "+N more" (vE E139) */
+ const X=I.emails.map((e,i)=>({e,i,r:J[i]})), B=I.bad||[], fold=X.length+B.length>INV_CHIPS&&!I.chipsOpen, FS=fold?X.slice(0,Math.max(0,INV_CHIPS-B.length)):X;
+ const badChips=B.map((b,k)=>`<span class="rmt-chip is-bad"><span class="cv" data-invbad="${k}">${invEsc(b.v)}</span><button type="button" data-invbadrm="${k}" aria-label="Remove ${invEsc(b.v)}">${RM_X}</button></span>`).join("");
+ const chips=badChips+FS.map(({e,i,r})=>{const nm=r.list?invNm(e):e, known=nm!==e;
+  return `<span class="rmt-chip"><span class="cv u-tip" data-invchip="${i}" data-uwtip="${known?invEsc(e):"Edit email"}">${invEsc(nm)}</span><button type="button" data-invrm="${i}" aria-label="Remove ${invEsc(nm)}">${RM_X}</button></span>`}).join("")+(fold?`<button type="button" class="inv-more" data-invmore>+${X.length-FS.length} more</button>`:"");
+ /* production's helper row: one error line on the left, n/50 on the right (email-input.tsx L80-L87). One broken or repeated address is named;
+    two or more are counted (the chips show which); over 50 is production's line */
+ const over=I.emails.length>INV_CAP, err=over||!!B.length;
+ const em=over?"You can invite maximum 50 email addresses at once":B.length>1?`${B.length} email addresses aren't valid${B.some(x=>x.dup)?" or are repeated":""}. Fix or remove them.`:B.length?(B[0].dup?`${invEsc(B[0].v)} is already in the list.`:`${invEsc(B[0].v)} is not a valid email address.`):"";
+ const helper=`<div class="inv-fl"><span class="fld-e" id="invErr" data-inverr>${em}</span><span class="inv-cnt" data-invcnt>${I.emails.length}/${INV_CAP}</span></div>`;
+ const hints=J.filter(r=>r.state==="wrong");
  const ph=I.emails.length?"Add another":lock?"name@"+(rmDom(lock.email)||"company.com"):"name@company.com";
  const fx=I.fix&&byId[I.fix], groups=lock?[{items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]:[{label:"Your team",items:INV_TEAM_ROLES().filter(x=>!(fx&&x==="Owner")).map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}].concat(fx&&fx.own?[]:[{label:"Client users",items:INV_CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:ROLE_SUM[x]}))}]);   /* vE E083: fixed workspace */   /* vE E077 */
  const kept=f.kept&&invRows()?f.cl.filter(id=>f.rr[id]&&!invHeld(id)).length:0;
- const mates=invMatesOnly(), mR=mates?[...new Set(invLiveCls().map(c=>c.person.role))]:[], addN=J.filter(r=>r.state==="add"&&r.c.person).length, newN=J.filter(r=>r.state!=="add"&&!r.c.bad&&!r.c.person).length;
  /* vE E086: Type first (Your team or Client user), then Role lists only that side */
- const side=f.role&&invIsC(f.role)?"client":"team", sideOn=!lock&&!mates&&groups.length>1;
+ const side=f.role&&invIsC(f.role)?"client":"team", sideOn=!lock&&groups.length>1;
  const roleG=sideOn?[{items:groups[side==="client"?1:0].items}]:groups;
  const sideRow=sideOn?`<div class="inv-a2-f"><span class="flabel" id="invSideL">Type</span><div class="inv-a2-side" role="radiogroup" aria-labelledby="invSideL">${[["team","Your team"],["client","Client user"]].map(([v,l])=>`<label><input type="radio" name="invside" value="${v}"${side===v?" checked":""}>${l}</label>`).join("")}</div></div>`:"";
- const roleDD=mates?ddHTML("invrole",mR.length===1?mR[0]:"",groups,{disabled:true,placeholder:"Keeps their current role"}):ddHTML("invrole",f.role||"",roleG,{placeholder:"Pick a role"});
+ const roleDD=ddHTML("invrole",f.role||"",roleG,{placeholder:"Pick a role"});
  const body=`<div class="inv-a2">
-  <div class="inv-a2-f"><label class="flabel" for="invEmail">Email addresses</label><div class="pp-emails" data-invfocus>${chips}<input type="text" id="invEmail" autocomplete="off" value="${invEsc(I.draft)}" placeholder="${invEsc(ph)}"></div>${hints.length?`<ul class="rmt-hints" data-invhints>${hints.map(r=>`<li class="${r.state==="bad"?"is-bad":""}">${r.msg}</li>`).join("")}</ul>`:""}${alH}</div>
-  ${sideRow}<div class="inv-a2-f"><div class="inv-a2-row"><span class="flabel">Role</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${roleDD}${addN&&newN?`<p class="inv-help" data-invmates>Existing teammates keep their role.</p>`:""}${kept?`<p class="inv-help" data-invkept>${kept} workspace${kept>1?"s keep their":" keeps its"} own role.</p>`:""}</div>
+  <div class="inv-a2-f"><label class="flabel" for="invEmail">Email addresses</label><div class="pp-emails${err?" is-err":""}" data-invfocus>${chips}<input type="text" id="invEmail" autocomplete="off" value="${invEsc(I.draft)}" placeholder="${invEsc(ph)}"${err?' aria-invalid="true" aria-describedby="invErr"':""}></div>${helper}${hints.length?`<ul class="rmt-hints" data-invhints>${hints.map(r=>`<li>${r.msg}</li>`).join("")}</ul>`:""}${invListH(J)}</div>
+  ${sideRow}<div class="inv-a2-f"><div class="inv-a2-row"><span class="flabel">Role</span><button type="button" class="linkbtn" data-pproles>What each role can do</button></div>${roleDD}${kept?`<p class="inv-help" data-invkept>${kept} workspace${kept>1?"s keep their":" keeps its"} own role.</p>`:""}</div>
   ${lock||fx?"":invWsH()}</div>`;
  const touched=I.emails.length||I.draft.trim();
- const foot=`<span class="inv-a2-foot${!v.ok&&touched&&v.warn?" is-warn":""}" data-invfoot>${v.ok?"":v.msg}</span><button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-invsend ${v.ok?"":"disabled"}>${invBtnTxt(v)}</button>`;   /* vE E139: "Invite 3, add 1" */
+ const foot=`<span class="inv-a2-foot${!v.ok&&touched&&v.warn?" is-warn":""}" data-invfoot>${v.ok?"":v.msg}</span><button type="button" class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button type="button" class="shd-button shd-button--primary" data-invsend ${v.ok?"":"disabled"}>${invBtnTxt(v)}</button>`;
  const fxw=lock||fx; return card(fxw?`Invite to ${fxw.name}`:"Invite users",body,foot,"ac inv-b inv-a2m"+(fxw?" inv-a2s":""))}
 function invSetRole(val){const f=INV.f, old=f.role; f.role=val; f.touched=true;
  if(!old||invIsC(old)!==invIsC(val)||val==="Owner"){f.rr={}; f.kept=0; return}
@@ -7762,12 +7802,7 @@ function invPaint(){const L=el("modalLayer"); if(!L||!INV||!modal||modal.kind!==
 function invLive(L){const v=invVerdict(), f=L.querySelector("[data-invfoot]"), s=L.querySelector("[data-invsend]"), t=INV.emails.length||INV.draft.trim();
  if(f){f.textContent=v.ok?"":v.msg; f.classList.toggle("is-warn",!v.ok&&!!v.warn&&!!t)}
  if(s){s.disabled=!v.ok; s.textContent=invBtnTxt(v)}}   /* vE E139 */
-/* vE E142 (a): "Adds Northwind Logistics, Atlas Manufacturing" when it fits the row; when it would cut the person or itself,
-   "Adds N workspaces" with the names on hover (the +N chip's tooltip) */
-function invFitAdds(L){(L||document).querySelectorAll(".inv-al-o[data-invadds]").forEach(o=>{const n=o.parentElement.querySelector(".inv-al-n"), cut=x=>!!x&&x.scrollWidth>x.clientWidth+1;
- if(!cut(o)&&!cut(n)) return; const N=o.getAttribute("data-invadds").split("\n"), t=N.length===1?"Adds 1 workspace":"Adds "+N.length+" workspaces";
- o.textContent=t; o.classList.add("u-tip","inv-al-fold"); o.tabIndex=0; o.title=""; o.setAttribute("data-uwlg",""); o.setAttribute("data-uwmouse",""); o.setAttribute("data-uwtip",N.join("\n")); o.setAttribute("aria-label",t+": "+N.join(", "))})}
-function invA2Wire(L){invFitAdds(L);const I=INV, f=I.f, inp=L.querySelector("#invEmail");
+function invA2Wire(L){const I=INV, f=I.f, inp=L.querySelector("#invEmail");
  /* renderModal's own [data-mclose] closes it; focus then goes back to what opened it */
  L.querySelectorAll("[data-mclose]").forEach(b=>b.addEventListener("click",()=>{const bk=I.back; setTimeout(()=>{if(bk&&bk.isConnected&&bk.focus&&!INV) bk.focus()},0)}));
  if(inp){
@@ -7775,7 +7810,8 @@ function invA2Wire(L){invFitAdds(L);const I=INV, f=I.f, inp=L.querySelector("#in
   inp.onkeydown=e=>{
    if((e.key==="Enter"||e.key==="Tab")&&inp.value.trim()){e.preventDefault(); I.draft=inp.value; invCommit(); invPaint(); return}
    if(e.key==="Enter"){e.preventDefault(); const s=L.querySelector("[data-invsend]"); if(s&&!s.disabled) s.click(); return}
-   if(e.key==="Backspace"&&!inp.value&&I.emails.length){const J=invJudge(I.emails); let i=J.length-1; while(i>-1&&J[i].list) i--; if(i>-1){I.emails.splice(i,1); invSync(); invPaint()}}};   /* vE E139: the last chip in the field, never a list row */
+   if(e.key==="Backspace"&&!inp.value&&I.emails.length){I.emails.pop(); invSync(); invPaint()}};   /* vE E149: the last chip */
+  inp.onpaste=()=>setTimeout(()=>{if(!INV||INV!==I) return; I.draft=inp.value; if(!I.draft.trim()) return; invCommit(); invPaint(); const n=el("invEmail"); if(n) n.focus()},0);   /* vE E149: production commits on paste */
   inp.onblur=e=>{if(!inp.value.trim()) return; const to=e.relatedTarget; if(to&&to.closest&&to.closest("[data-mclose]")) return;
    setTimeout(()=>{if(!INV||INV!==I||!modal||modal.kind!=="invite") return; const n=document.getElementById("invEmail"); if(n&&document.activeElement===n) return;
     I.draft=n?n.value:I.draft; if(!I.draft.trim()) return; invCommit(); if(!document.querySelector(".inv-a2 .dd.is-open")) invPaint()},120)}}
@@ -7784,10 +7820,8 @@ function invA2Wire(L){invFitAdds(L);const I=INV, f=I.f, inp=L.querySelector("#in
  L.querySelectorAll("[data-invchip]").forEach(c=>c.onclick=()=>{const keep=inp?inp.value:""; const v=I.emails.splice(+c.dataset.invchip,1)[0]; I.draft=keep; if(keep.trim()) invCommit(); I.draft=v; invSync(); invPaint();
   const n=el("invEmail"); if(n){n.focus(); n.setSelectionRange(v.length,v.length)}});
  L.querySelectorAll("[data-invdrop]").forEach(b=>b.onclick=()=>{I.emails=I.emails.filter(x=>x!==b.dataset.invdrop); invSync(); invPaint()});
- /* vE E139: "+N more" opens every chip; "Show N more" every list row; "Use ..." swaps in the fixed address */
+ /* vE E139: "+N more" opens every chip */
  L.querySelectorAll("[data-invmore]").forEach(b=>b.onclick=()=>{I.chipsOpen=true; invPaint(); const n=el("invEmail"); if(n) n.focus()});
- L.querySelectorAll("[data-invalmore]").forEach(b=>b.onclick=()=>{I.alOpen=true; invPaint()});
- L.querySelectorAll("[data-invfix]").forEach(b=>b.onclick=()=>{const k=I.emails.indexOf(b.dataset.invfix), fx=invFixOf(b.dataset.invfix); if(k<0||!fx) return; if(I.emails.indexOf(fx)>-1) I.emails.splice(k,1); else I.emails[k]=fx; invSync(); invPaint(); const n=el("invEmail"); if(n) n.focus()});
  L.querySelectorAll("[data-invperson]").forEach(b=>b.onclick=()=>{const key="t:"+b.dataset.invperson; modal=null; INV=null; renderModal(); shOpenPerson(key); render(); personEdit(key)});
  L.querySelectorAll("[data-pproles]").forEach(b=>b.onclick=()=>{modal={kind:"pproles",back:modal}; renderModal()});
  L.querySelectorAll("[name=invside]").forEach(r=>r.onchange=()=>{if(inp&&inp.value.trim()){I.draft=inp.value; invCommit()} invSetRole(r.value==="client"?"Client Viewer":"Member"); invPaint()});   /* vE E086 */
@@ -7806,6 +7840,10 @@ function invA2Wire(L){invFitAdds(L);const I=INV, f=I.f, inp=L.querySelector("#in
  L.querySelectorAll("[data-invwsq]").forEach(q=>q.oninput=()=>{f.q=q.value; const t=q.value.trim().toLowerCase(); let n=0;
   L.querySelectorAll(".inv-a2-ws[data-ddk]").forEach(r=>{const on=!t||r.dataset.ddk.indexOf(t)>-1; r.hidden=!on; if(on) n++});
   const z=L.querySelector(".inv-a2-none"); if(z){z.hidden=n>0||!t; if(!z.hidden) z.innerHTML=nrHTML(q.value)}});
+ /* vE E149: a marked chip goes back into the input to edit; x removes it */
+ L.querySelectorAll("[data-invbad]").forEach(c=>c.onclick=()=>{const keep=inp?inp.value:""; const b=I.bad.splice(+c.dataset.invbad,1)[0]; I.draft=keep; if(keep.trim()) invCommit(); I.draft=b.v; invPaint();
+  const n=el("invEmail"); if(n){n.focus(); n.setSelectionRange(b.v.length,b.v.length)}});
+ L.querySelectorAll("[data-invbadrm]").forEach(b=>b.onclick=()=>{I.bad.splice(+b.dataset.invbadrm,1); invPaint(); const n=el("invEmail"); if(n) n.focus()});
  const send=L.querySelector("[data-invsend]"); if(send) send.onclick=()=>{if(inp) I.draft=inp.value; invA2Send()};
 }
 /* a row's menu floats above the dialog, so the scrolling list never clips it */
@@ -7817,28 +7855,29 @@ function invPlaceMenu(dd,m,again){INV_MENU_AT=Date.now(); if(!again) requestAnim
  if(h>below&&above>below){m.style.top="auto"; m.style.bottom=(o.bottom-t.top+4)+"px"; m.style.maxHeight=Math.min(400,above)+"px"}
  else {m.style.bottom="auto"; m.style.top=(t.bottom+4-o.top)+"px"; m.style.maxHeight=Math.min(400,below)+"px"}}
 document.addEventListener("scroll",e=>{const o=document.querySelector(".inv-a2 .dd.is-open,.px-fld .dd.is-open"); if(!o||Date.now()-INV_MENU_AT<300||(e.target.closest&&e.target.closest(".dd-menu"))) return; const t=o.querySelector("[data-ddtrig]"); if(t) t.click()},true);
-/* sending creates exactly what the form shows */
+/* vE E149: Send applies exactly what the list says: new invites, a new invite for an expired one, raises and workspaces added. People left
+   alone stay as they are. No Undo (production has none; each change reverses on the person's page). Production's toast plus the update count */
 function invA2Send(){const I=INV, f=I.f; invCommit(); if(invRows()) invPrune(); const v=invVerdict(); if(!v.ok){invPaint(); return}
- const made=[], fresh=v.live.filter(r=>r.state==="ok"), adds=v.live.filter(r=>r.state==="add"), again=v.live.filter(r=>r.state==="again"); let txt="";   /* vE E139: "none" rows are left as they are */
- if(invIsC(invRole())){const T=I.lock?[I.lock]:f.cl.slice();
-  fresh.concat(adds).forEach(r=>{const e=r.e, had=e in LASTSEEN;
-   T.forEach(id=>{const c=byId[id]; if(!c||(r.c.existing||[]).indexOf(id)>-1) return; const row=[e,I.lock?f.role:invEff(id)], k="w:"+id+"|"+e;
-    c.users=c.users||[]; c.users.push(row); INVITED[k]="just now"; logAct(id,`Invited ${e} as ${row[1]}`);
-    made.push(()=>{const i=c.users.indexOf(row); if(i>-1) c.users.splice(i,1); delete INVITED[k]})});
-   if(!had){LASTSEEN[e]="never"; made.push(()=>{delete LASTSEEN[e]})}});
-  }
- else {
-  fresh.forEach(r=>{const addr=r.e; let key=(addr.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
-   const nm=addr.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), owner=f.role==="Owner"&&ME().role==="Owner";
-   PEOPLE[key]={name:nm,initials:initials(nm),role:owner?"Owner":f.role==="Admin"?"Admin":"Member",email:addr,ws:owner?null:f.ws.slice()}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now";
-   made.push(()=>{delete PEOPLE[key]; delete LASTSEEN[nm]; delete INVITED["t:"+key]})});
-  adds.concat(again).forEach(r=>{const P=PEOPLE[r.c.person.k]; if(!P||!(r.add||[]).length) return; const was=(P.ws||[]).slice(); P.ws=was.concat(r.add); r.add.forEach(id=>logAct(id,`${P.name} added`)); made.push(()=>{P.ws=was})});
-  again.forEach(r=>{const k="t:"+r.c.person.k, was=INVITED[k]; INVITED[k]="just now"; made.push(()=>{INVITED[k]=was})})}   /* vE E139: an expired invite goes out again; a pending one keeps its date */
- /* vE E139: one toast for the action, production's invite copy (E131), then who was added */
- const ni=fresh.length+again.length, an=adds.map(r=>r.c.person?r.c.person.name:r.e);
- txt=[ni?invToastTxt(ni)+(an.length?".":""):"",an.length?(an.length>2?`${an.length} people added.`:`${an.join(" and ")} added.`):""].filter(Boolean).join(" ");
+ const cl=invIsC(invRole()), T=cl?(I.lock?[I.lock]:f.cl.slice()):f.ws.slice(), uniq=a=>a.filter((x,i)=>a.indexOf(x)===i);
+ const addCl=(e,id,inv)=>{const c=byId[id]; if(!c) return; const r=I.lock?f.role:invEff(id); c.users=c.users||[]; c.users.push([e,r]); if(inv) INVITED["w:"+id+"|"+e]=inv; logAct(id,`Invited ${e} as ${r}`)};
+ let nI=0, nU=0;
+ v.live.forEach(r=>{const e=r.e, o=r.o, P=r.c.person?PEOPLE[r.c.person.k]:null;
+  if(r.state==="ok"){nI++;
+   if(cl){T.forEach(id=>addCl(e,id,"just now")); if(!(e in LASTSEEN)) LASTSEEN[e]="never"}
+   else {let key=(e.split("@")[0].replace(/[^a-z0-9]/gi,"").toLowerCase())||("p"+Date.now().toString(36).slice(-5)); while(PEOPLE[key]) key+="x";
+    const nm=e.split("@")[0].replace(/[._-]+/g," ").replace(/\b\w/g,x=>x.toUpperCase()), owner=f.role==="Owner"&&ME().role==="Owner";
+    PEOPLE[key]={name:nm,initials:initials(nm),role:owner?"Owner":f.role==="Admin"?"Admin":"Member",email:e,ws:owner?null:f.ws.slice()}; LASTSEEN[nm]="never"; INVITED["t:"+key]="just now"}}
+  else if(r.state==="again"||r.state==="add"){const again=r.state==="again"; again?nI++:nU++;
+   if(P){o.raises.forEach(x=>{P.role=x.to}); if(P.ws!==null) P.ws=uniq((P.ws||[]).concat(o.adds)); if(again) INVITED["t:"+r.c.person.k]="just now"; else o.adds.forEach(id=>logAct(id,`${P.name} added`))}
+   else {const K=id=>"w:"+id+"|"+e, age=again?"just now":r.pend?INVITED[K(Object.keys(r.p.cws)[0])]:null;
+    if(again) Object.keys(r.p.cws).forEach(id=>{INVITED[K(id)]="just now"});
+    o.raises.forEach(x=>{const u=((byId[x.ws]||{}).users||[]).find(u=>u[0].toLowerCase()===e); if(u) u[1]=x.to});
+    o.adds.forEach(id=>addCl(e,id,age))}}});
+ /* production's get-invite-user-message copy, then the update count */
+ const inv=nI===1?"Invitation sent to 1 user":nI>10?`${nI} users will be invited`:`Invitation sent to ${nI} users`, upd=nU===1?"1 person updated":`${nU} people updated`;
+ const txt=nI&&nU?`${inv}. ${upd}.`:nI?inv:upd;
  const scope=(view.name==="people"||view.name==="record"||inAgency())?"people":"client:"+ctx;
- receipt(scope,txt,()=>made.forEach(u=>u()),`sent ${ni} invite${ni===1?"":"s"}${adds.length?`, added ${adds.length}`:""}`); RECEIPT.variant=ni?"success":"neutral";   /* vE E131: green as E123; the Preview link is off the toast */
+ receipt(scope,txt,null,`sent ${nI} invite${nI===1?"":"s"}, updated ${nU}`); RECEIPT.variant="success";
  PEOPLE_FLASH=null; INV=null; modal=null; renderModal(); render()}
 function invPropose(addr){
  const d=(addr.split("@")[1]||"").toLowerCase();
@@ -8608,7 +8647,7 @@ function ulUse(k,u,c,o){o=o||{}; const p=ulPct(u,c), ab=!!o.ab&&k==="sends";
 /* ── limits ── */
 /* vE E070: every limit, your workspace's included, is its draft value or its saved one; ulDfree is Available after the draft
    (the plan less every limit in it), below 0 when the draft asks for more than is there */
-const ulDv=(k,id)=>{const x=UL.draft[k+"|"+id]; return x==null?RES[k].rows[id].cap:x};
+const ulDv=(k,id)=>{const d=e150Val(k,id); if(d!=null) return d; const x=UL.draft[k+"|"+id]; return x==null?RES[k].rows[id].cap:x};   /* vE E150: an open split previews its limits */
 const ulDfree=k=>RES[k].pool-Object.keys(RES[k].rows).reduce((t,id)=>t+Math.max(ulDv(k,id),RES[k].rows[id].used),0);
 function ulChanges(){const W=ulRows(), out=[]; W.forEach(c=>UL_K().forEach(k=>{const r=RES[k].rows[c.id]; if(!r) return; const v=ulDv(k,c.id); if(v!==r.cap) out.push({k,id:c.id,was:r.cap,v})})); return out}
 const ulDelta=d=>d?`<span class="ul-chip ${d>0?"is-ok":"is-no"}">${d>0?"+":"&minus;"}${f(Math.abs(d))}</span>`:"";
@@ -8883,7 +8922,7 @@ function ulrLimHTML(k,c,ro){if(isUnl(k)) return `<span class="ulr-lb ulr-ro"><sp
  const r=RES[k].rows[c.id], key=k+"|"+c.id, v=ulDv(k,c.id), ch=v!==r.cap, bad=ulrBad(k,c.id), was=ch?`<span class="ulr-was">was ${f(r.cap)}</span>`:"";
 
 
- if(e101SpOn(k)) return `<span class="ulr-lb ulr-ro"><span class="ulr-vv">${was}<span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`;   /* vE E101 R1: a preview while a split is open, with was */
+ if(e150In(k)) return e150LimHTML(k,c);   /* vE E150: the new limit, read only while a split is open */
  if(ro||!ul3CanEd(c,false)) return `<span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`;
  if(UL.ce===key||bad||UL.all) return `<input type="text" inputmode="numeric" autocomplete="off" class="ul-in ulr-in" data-ulri="${key}" value="${UL.nb&&UL.nb[key]?ncEscH(UL.nb[key].raw):f(v)}" aria-label="${c.name} ${RES[k].label} limit" aria-invalid="${!!bad}"${bad?' aria-describedby="ulrWhy"':""}>`;
  return `<button type="button" class="ulr-lb${ch?" is-ch":""}" data-ulce="${key}" aria-label="${c.name}, ${RES[k].label} limit ${f(v)}${ch?", was "+f(r.cap):""}. Change"><span class="ulr-vv">${was}<span class="ulr-lv">${f(v)}</span></span>${ULR_PEN}</button>`}
@@ -8899,9 +8938,7 @@ function ulrNoticeHTML(ch){ch=ch.filter(x=>x.v<x.was&&!byId[x.id].own); const id
  const txt=id=>ch.filter(x=>x.id===id).map(ulrNoteTxt).join(" "), tip=ids.length===1?txt(ids[0]):ids.map(id=>`${byId[id].name}: ${txt(id)}`).join(" ");
  return `<p class="ulr-sbn"><span class="u-tip" tabindex="0" data-uwtip="${tip.replace(/"/g,"&quot;")}" aria-label="${ids.length===1?byId[ids[0]].name+"’s":ul3N(ids.length,"workspace")+"’"} Client Admins and assigned Account Admins are told: ${tip.replace(/"/g,"&quot;")}">${ids.length===1?byId[ids[0]].name+"’s":ul3N(ids.length,"workspace")+"’"} Client Admins and assigned Account Admins are told</span></p>`}
 function ulrApply(){const k=ul3E2K(), n=ulChanges().length; if(!n) return;
- const sp=UL.sp&&UL.sp.info&&UL.sp.info.n?UL.sp:null, given=ulChanges().filter(x=>x.k===k).reduce((t,x)=>t+x.v-x.was,0);
  if(!ul3Commit(UL.draft,"Saved")){render(); return}   /* vE E142 F4: "Saved", green, Undo kept (ul3Commit) */
- if(sp){const w=e101Ws(sp.info.n), a=sp.all; RECEIPT.text=RECEIPT.short=sp.mode==="left"?(a?`Split what’s left among ${w}, on ${e101N6()} resources.`:`Split ${f(given)} among ${w}.`):(a?`Gave ${w} the same limit on ${e101N6()} resources.`:`Gave ${w} the same limit.`); RECEIPT.variant="success"}   /* vE E136: the toast names the result */
  ul3E2Close(); UL.focusK=k; UL.ul3f="#ul3tab-"+k; render()}
 function ulrStopHTML(){const L=ulrStops(), n=L.length, W=[...new Set(L.map(x=>x.id))];   /* vE E144 F6: the title names the workspace */
  return card(W.length===1?`Lower ${byId[W[0]].name}&rsquo;s ${n===1?"limit":"limits"}?`:`Lower limits for ${W.length} workspaces?`,n===1?`<p class="ulr-cf1">${ulrStopTxt(L[0])}.</p>`:`<ul class="ulr-cf">${L.map(x=>`<li>${ulrStopTxt(x)}.</li>`).join("")}</ul>`,   /* vE E108 */
@@ -8948,7 +8985,7 @@ function ulrLast(k,r,v){if(v==null) v=r.cap; if(isUnl(k)) return {t:"",x:"q"};  
 function ulrPaceHTML(k,c){const r=RES[k].rows[c.id], v=isUnl(k)?0:ulDv(k,c.id), s=(t,x,a)=>`<span class="ulr-pace${x?" is-"+x:""}"${a?` aria-label="${a}"`:""}>${t}</span>`;
  if(isUnl(k)) return s("&ndash;","q");   /* vE E142 F18: Unlimited reads the dash, as the record's Limits tab */
  /* vE E148: no Take back; a disabled row reads its percentage like any row */
- const L=ulrLast(k,r,isUnl(k)?null:v), dn=e101SpOn(k)&&!isUnl(k)&&v<r.cap&&(r.used>=v||ulPct(r.used,v)>=USE_BAND.red); return s(ulrPctT(L),L.x,L.a)}   /* vE E145: the red bar says it; no chip */
+ const L=ulrLast(k,r,isUnl(k)?null:v); return s(ulrPctT(L),L.x,L.a)}   /* vE E145: the red bar says it; no chip */
 /* the sort reads saved figures (as ulfVal): days left (renewing) or the share left, used up first, nothing used after, disabled last */
 const ulrPaceV=(k,c)=>{const T=ulrTerm(k), r=RES[k].rows[c.id]; if(!r||c.disabled||isUnl(k)) return null; if(r.used>=r.cap) return 0; if(!r.used) return 1e9; return 1-r.used/r.cap};   /* vE E045: the share left */
 /* vE E041 fix 6, E074 fix 1 (PRD 3.7): the limit becomes 0; only the unused part returns to Available (E070), what it used stays counted until the resource renews; Undo */
@@ -8962,7 +8999,7 @@ function ulrGaugeHTML(k,c){const r=RES[k].rows[c.id], v=ulDv(k,c.id), lv=ulrLv(c
 function ulrHeadP(k){const S=HSORT.ul, T=ulrTerm(k), th=(c,l,x)=>{const on=!!S&&S.col===c, up=on&&S.dir>0;
   return '<th class="th-s'+(x?" "+x:"")+(on?' is-sorted '+(up?'is-asc':'is-desc'):'')+'"'+(on?' aria-sort="'+(up?'ascending':'descending')+'"':'')+' data-hsort="ul|'+c+'"><button type="button" class="hs-b">'+l+HS_I+'</button></th>'};
  const u="Used", l="Usage (%)";   /* vE E045; E085: Used on every resource, the last column Usage (%) */   /* vE E041 fixes 3 and 9 */
- return '<thead><tr class="th-one">'+th("name","Workspace")+'<th class="ulr-gh" aria-label="Bar"></th>'+th("used",u,"ulr-r")+th("limit","Limit","ulr-r ulr-lh")+th("pace",l,"ulr-p")+'</tr></thead>'}   /* vE E085: the bar before Used */
+ return '<thead><tr class="th-one">'+e150HeadTh(k,th("name","Workspace"))+'<th class="ulr-gh" aria-label="Bar"></th>'+th("used",u,"ulr-r")+th("limit","Limit","ulr-r ulr-lh")+(e150In(k)?'<th class="e150-chh" scope="col">Change</th>':"")+th("pace",l,"ulr-p")+'</tr></thead>'}   /* vE E085: the bar before Used */
 /* H's row, pinned in the header (a second thead row of td cells, after the sort row): never sorted, filtered or paged. None for a level */
 function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
  if(T) return `<tr class="ulr-onr" data-ulron="${k}"><td><span class="ulr-onl">${P.on}</span></td><td class="ulr-gc"></td><td class="ulr-ur"><span class="ulr-ww">Back to 0</span><span class="ulr-nw">Used goes back to 0</span></td><td class="ulr-cl"><span class="ulr-ww">Stays the same</span><span class="ulr-nw">Limit stays the same</span></td><td class="ulr-pc">${P.lost}</td></tr>`;
@@ -8975,11 +9012,11 @@ function ulrOnHTML(k){if(isUnl(k)) return ""; const P=ulrRule(k), T=P.term;
    whenever search or a filter hides a row, or on a page past the first. None on an unlimited resource */
 function ulrTotHTML(k,W0,pg){if(isUnl(k)||!RES[k].rows[OWN_ID]) return ""; const seen=ul3E2Rows(k).map(c=>c.id), adm=!canI("billing"), ids=Object.keys(RES[k].rows).filter(id=>!adm||seen.indexOf(id)>-1), L=ids.reduce((t,id)=>t+Math.max(ulDv(k,id),RES[k].rows[id].used),0), U=ids.reduce((t,id)=>t+RES[k].rows[id].used,0);   /* vE E108: the larger of limit and used, the rule Allocated uses */
  const w=L>0?Math.min(100,U/L*100):U>0?100:0, P=ulrLast(k,{used:U,cap:L},L), all=W0.length<ul3E2Rows(k).length||pg.from>0;
- return `<tfoot><tr class="ulr-tot" data-ulrtot="${k}"><td><div class="ulr-ws"><span class="ulr-tsp" aria-hidden="true"></span><span class="ulr-nm">${adm?"Total, your workspaces":all?"Total, all workspaces":"Total"}</span></div></td><td class="ulr-gc"><span class="ulr-bar" role="img" aria-label="${P.t}"><span style="width:${+w.toFixed(1)}%;background:${useCol(U,L)}"></span></span></td><td class="ulr-ur"><span class="ulr-num">${f(U)}</span></td><td class="ulr-cl"><span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(L)}</span></span>${ULR_PEN0}</span></td><td class="ulr-pc"><span class="ulr-pace${P.x?" is-"+P.x:""}">${ulrPctT(P)}</span></td></tr></tfoot>`}
+ return `<tfoot><tr class="ulr-tot" data-ulrtot="${k}"><td><div class="ulr-ws">${e150In(k)?'<span class="e150-cb" aria-hidden="true"></span>':""}<span class="ulr-tsp" aria-hidden="true"></span><span class="ulr-nm">${adm?"Total, your workspaces":all?"Total, all workspaces":"Total"}</span></div></td><td class="ulr-gc"><span class="ulr-bar" role="img" aria-label="${P.t}"><span style="width:${+w.toFixed(1)}%;background:${useCol(U,L)}"></span></span></td><td class="ulr-ur"><span class="ulr-num">${f(U)}</span></td><td class="ulr-cl"><span class="ulr-lb ulr-ro"><span class="ulr-vv"><span class="ulr-lv">${f(L)}</span></span>${ULR_PEN0}</span></td>${e150TotTd(k)}<td class="ulr-pc"><span class="ulr-pace${P.x?" is-"+P.x:""}">${ulrPctT(P)}</span></td></tr></tfoot>`}
 function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("ul",W0.length,UL_SIZE), W=W0.slice(pg.from,pg.to);   /* vE E022: search, filters, sort, a page */
  /* vE E045 (D): the rail names the resources; what you can give sits with the table it applies to */
  const rail=`<nav class="ulr-rail" aria-label="Resource"><div class="ulr-rh"><span>Resource</span></div>${RK_SHOW(UL_K()).map(x=>
-  `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}" data-uwkid${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${ulrMark(x)}</button>`).join("")}</nav>`;
+  `<button type="button" class="ulr-ri${x===k?" is-on":""}" id="ul3tab-${x}" data-ul3tab="${x}" data-uwkid${x===k?' aria-current="true"':""}><span class="ulr-rn">${RES[x].label}</span>${ulrMark(x)}${e150Dot(x)}</button>`).join("")}</nav>`;
  const RU=ulrRule(k), sub=RU.head;   /* vE E033: 126's header line */
  const act=ulRo()||unl?"":canI("billing")?`<button type="button" class="linkbtn ul3-lk" data-ulbuy="${k}">${RU.act}</button>`:`<button type="button" class="linkbtn ul3-lk" data-ulaskowner="${k}|0">Ask the Account Owner</button>`;
  /* vE E041 fix 1: "Change limits" makes every editable limit a field at once; E016's save bar takes it from there */
@@ -8987,13 +9024,13 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const all=unl?"":ulrTerm(k)?`<span class="ulr-give"><b data-ulrav="${k}">${ulrAvHTML(k)}</b> available until ${ulrTerm(k).to}</span>`   /* vE E072 (row 23): what resets at renewal says until when */
   :`<span class="ulr-give">Available <b data-ulrav="${k}">${ulrAvHTML(k)}</b></span>`;
  /* the table's own toolbar: search and filters past 8 (fix 8), Available at its right end */
- const tb=(e101Gc(k),ulfShow(k)?ulfToolbar()+ulfChips():"");   /* vE E101: Available moved into the summary; Gc opens day one and ends a finished split */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
+ const tb=ulfShow(k)?ulfToolbar()+ulfChips():"";   /* vE E101: Available moved into the summary */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
- const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span>${c.disabled?'<span class="chip hdr-chip hdr-chip--mute ulr-dchip">Disabled</span>':""}</div></td>`
-  +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td><td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
+ const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}${e150RowCls(k,c)}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${e150Ck(k,c)}${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span>${c.disabled?'<span class="chip hdr-chip hdr-chip--mute ulr-dchip">Disabled</span>':""}</div></td>`
+  +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td>${e150In(k)?`<td class="e150-cc">${e150ChgHTML(k,c)}</td>`:""}<td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${e101SumHTML(k,ro)/* vE E101 */}${tb}
-  <table class="ulr-t ulr-tp${UL.all?" is-all":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv"><col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t ulr-tp${UL.all?" is-all":""}${e150In(k)?" e150-on":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv">${e150In(k)?'<col class="e150-cc">':""}<col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(e150In(k)?6:5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -15434,21 +15471,12 @@ const E101={state:null};
 const E101_S=(HASHX.route.match(/^e101=([\w-]+)/)||[])[1]||null;
 /* the rows this person can act on (P10): red-band workspaces (86%+, used up included) and disabled ones holding room */
 const e101Dirty=()=>ulChanges().length>0||Object.keys(UL.nb||{}).length>0;
-/* vE E136: no status line (the table below sorts highest use first). Split equally and Take back sit on the figures row, right-aligned.
-   Split equally is one button; its menu shows each job's result before you pick (D2, 171). */
+/* vE E136: no status line (the table below sorts highest use first). vE E150: Split equally sits right after the four figures
+   (P5); a typed draft puts Discard and Apply in its place. */
 const E101_CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const E101_WARN='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l6.5 12h-13L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
-const E101_BUSY="Apply or discard your changes first";
-let E101M=false;   /* the Split equally menu is open */
 const e101Ws=n=>n===1?"1 workspace":n+" workspaces";
-function e101MenuHTML(k){const ids=e101SpRows(k).map(c=>c.id), L=Math.max(0,ulDfree(k)), a=e101SpCalc(k,ids,"left").share, s=e101SpCalc(k,ids,"same").share, ok=L>0&&a>0;
- return `<div class="e101-pop e101-menu" role="menu"><button type="button" class="e101-mi" role="menuitem" data-e101open="left"${ok?"":" disabled"}><span>${L>0?`Split the ${f(L)} left`:"Split what’s left"}</span><span class="e101-mv">${ok?`<b>${f(a)}</b> more each`:"Nothing left"}</span></button><button type="button" class="e101-mi" role="menuitem" data-e101open="same"><span>Same limit for all ${ids.length}</span><span class="e101-mv"><b>${f(s)}</b> each</span></button></div>`}
-function e101ActsHTML(k,dirty){if(ulRo()) return "";
- let eq="";
- if(e101SpRows(k).length>=2) eq=dirty?`<span class="u-tip" tabindex="0" title="" data-uwtip="${E101_BUSY}"><button type="button" class="shd-button shd-button--secondary" disabled>Split equally${E101_CHEV}</button></span>`
-  :`<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E101M}">Split equally${E101_CHEV}</button>${E101M?e101MenuHTML(k):""}</span>`;
- if(dirty){const d=e101DraftState(); return `<div class="e101-fa e101-fd"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button></div>`}   /* vE E140: in a draft Discard and Apply take the place of Split equally and Take back (both need saved limits); the figures no longer widen with "was", so the buttons start where they always do */
- return eq?`<div class="e101-fa">${eq}</div>`:""}   /* vE E148: Split equally alone; no Take back */
+function e101ActsHTML(k){if(ulRo()) return ""; const d=e101DraftState();
+ return `<div class="e101-fa e101-fd"><button type="button" class="shd-button shd-button--secondary" data-ul3discard>Discard</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button></div>`}   /* vE E140: in a typed draft Discard and Apply take Split equally's place */
 /* save pattern 1: the draft in the summary, beside the figures it moves. vE E136: the row says only what blocks Apply; the table already shows the rest */
 /* vE E142 F2: the Split preview dismisses with Discard, the typed draft's word; day one keeps "Not now" */
 function e101DraftState(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over();
@@ -15458,108 +15486,199 @@ function e101DraftHTML(){const why=e101DraftState().why;
  return why?`<div class="e101-dr" role="region" aria-label="Unsaved changes"><p class="e101-dt"><span class="ulr-why" id="ulrWhy">${why}</span></p></div>`:""}
 /* the summary: four figures in Hitesh's order (29 Oct: Used added), one bar, then the status line or the draft. Used is
    this cycle's use across every workspace; a draft moves limits, not use, so Used never shows "was" */
-function e101SumHTML(k,ro){if(isUnl(k)) return ""; const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
+function e101SumHTML(k,ro){if(isUnl(k)) return (!ro&&E150.open)?e150UnlHTML():""; if(!ro&&E150.open) return e150SumHTML(k);   /* vE E150 */ const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
  const us=compute(k).used, w=n=>(Math.max(0,Math.min(pool,n))/pool*100).toFixed(2)+"%";
   const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&!fa&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
- if(!dirty) UL.kept=null;
- const sp=!ro&&e101SpOn(k), low=ro?"":sp?e101SpHTML(k):dirty?e101DraftHTML():"", fa=ro||sp?"":e101ActsHTML(k,dirty);
+ const low=ro?"":dirty?e101DraftHTML():"", fa=ro?"":dirty?e101ActsHTML(k):e150ActsHTML(k);
  if(dirty&&!ro){setTimeout(e101Stick,0); setTimeout(e101Stick,300)}
- return `<div class="e101-sum${dirty&&!ro&&!sp?" is-draft":""}${sp?" is-sp":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
+ return `<div class="e101-sum${dirty&&!ro?" is-draft":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
   <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}${fa}</div>${low}</div>`}
 function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outerHTML=e101SumHTML(k,ulRo()); e101Stick()}
 /* on a phone only the draft row stays in view: the summary sticks with its figures scrolled past (a negative top) */
 function e101Stick(){const m=document.querySelector(".e101-sum.is-draft"); if(!m) return; const d=m.querySelector(".e101-dr"); m.style.top=ulrPhone()&&d?-(d.offsetTop-12)+"px":"0px"}
 window.addEventListener("resize",e101Stick);
-/* ── Split equally (29 Oct 2026, Hitesh: "can we have shortcut for allocate all resource equally to everyone or workspace i
-   select"). You pick the rule and the workspaces; the product only divides. What's left: added on top, never lowers anyone.
-   Same limit: one limit for each; a workspace that has already used more than that share is left as it is (never lowered
-   below its use, never stopped) and the rest is shared by the others. Shares round down and
-   the remainder stays left to allocate (P1). The result is a draft in the summary: nothing changes until Apply (P8). ── */
+/* the workspaces a split can tick: active ones (disabled workspaces keep their limits) */
 const e101SpRows=k=>ul3E2Rows(k).filter(c=>!c.disabled);
-const e101SpK=(k,all)=>all?UL_K().filter(x=>!isUnl(x)):[k];
-const e101Rnd=(k,x)=>RES[k].pool>=10000?Math.floor(x/100)*100:x;   /* E101 fix 7: 100s when the plan is 10,000 or more; the remainder stays left to allocate */
-function e101SpCalc(k,ids,mode){const R=RES[k], S=ids.filter(id=>R.rows[id]&&!byId[id].disabled), out={}, left=Math.max(0,ulDfree(k)), base=id=>Math.max(ulDv(k,id),R.rows[id].used);
- if(!S.length) return {out,share:0,left,rest:left,fixed:[],kept:[]};
- if(mode==="left"){const share=e101Rnd(k,Math.floor(left/S.length)); if(share>0) S.forEach(id=>{out[id]=base(id)+share}); return {out,share,left,rest:share>0?left-share*S.length:left,fixed:[],kept:[]}}
- let T=S.reduce((t,id)=>t+base(id),0)+left, L=S.slice(), fixed=[], share=0;
- for(;;){share=e101Rnd(k,Math.floor(T/L.length)); const over=L.filter(id=>R.rows[id].used>share); if(!over.length||over.length===L.length) break;
-  over.forEach(id=>{fixed.push(id); T-=base(id)}); L=L.filter(id=>over.indexOf(id)<0)}
- L.forEach(id=>{out[id]=share}); return {out,share,left,rest:T-share*L.length,fixed,kept:fixed.map(id=>[id,base(id)])}}
-/* ── E101 R1 (29 Oct 2026; Hitesh picked R1 on the 166 board: "I think R1 looks good - let's try this in vE"). The summary turns
-   into one editable sentence: [Split the 28,000 left / Give the same limit] to [9 workspaces] on [Emails sent / all 6 resources].
-   The figures and every row preview the draft at once (was shown); one amber line only when limits go down; Cancel, or Apply
-   to N workspaces. UL.splitW records exactly what the split wrote, so Cancel and every re-draft remove only those rows. While a
-   split is open the table is a preview: limits are not typed. Day one (every workspace at 0) opens preset: same limit, every
-   workspace, every resource. ── */
-const e101SpOn=k=>!!UL.sp&&!isUnl(k)&&!ulRo();
-const e101N6=()=>UL_K().filter(x=>!isUnl(x)).length;
-function e101Unsplit(){const W=UL.splitW||{}; Object.keys(W).forEach(key=>{if(UL.draft[key]===W[key]) delete UL.draft[key]}); UL.splitW={}; UL.kept=null}
-function e101Redraft(k){e101Unsplit(); const sp=UL.sp, act=e101SpRows(k).map(c=>c.id); sp.ids=sp.ids.filter(id=>byId[id]&&!byId[id].disabled); sp.k=k;
- const S=sp.ids.filter(id=>act.indexOf(id)>-1), all=!!sp.all, ids0=sp.ids.length?sp.ids:act, left0=Math.max(0,ulDfree(k));
- const C=(m,ids)=>e101SpK(k,all).map(x=>({k:x,r:e101SpCalc(x,ids,m)})), leftOK=C("left",ids0).some(x=>x.r.share>0);
- if(sp.mode==="left"&&!leftOK) sp.mode="same";   /* nothing to add: Same limit */
- const L=C(sp.mode,sp.ids), W=UL.splitW={}, kept=[];
- L.forEach(x=>{Object.keys(x.r.out).forEach(id=>{ulrSet(x.k,id,x.r.out[id]); const key=x.k+"|"+id; if(key in UL.draft) W[key]=UL.draft[key]}); if(sp.mode==="same") x.r.kept.forEach(([id,v])=>kept.push({k:x.k,id,v}))});
- UL.kept=kept.length?kept:null;
- const r=L[0].r;
- sp.info={n:S.length,leftOK,left:left0,share:r.share,rest:r.rest,L:L.map(x=>({k:x.k,share:x.r.share,rest:x.r.rest}))}}
-/* a split that was applied, discarded or undone is over; another resource drafts the same choice there; day one opens preset */
-function e101Day(){const K=UL_K().filter(x=>!isUnl(x)&&RES[x].pool>0); return K.length>0&&K.every(x=>{const A=e101SpRows(x); return A.length>0&&A.every(c=>RES[x].rows[c.id].cap===0&&RES[x].rows[c.id].used===0)})}
-function e101Gc(k){if(UL.sp&&Object.keys(UL.splitW||{}).length&&!ulChanges().length){UL.sp=null; UL.splitW={}; UL.kept=null}
- else if(UL.sp&&UL.sp.k&&UL.sp.k!==k&&!isUnl(k)) e101Redraft(k);
- if(!UL.sp&&!UL.spDone&&!ulRo()&&!isUnl(k)&&e101Day()){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:true,mode:"left",menu:null,day:true,k}; e101Redraft(k)}}
-function e101SpOpen(k,mode){UL.sp={ids:e101SpRows(k).map(c=>c.id),all:false,mode:mode||"left",menu:null,day:false,k}; e101Redraft(k)}
-/* repaint the page, keep the scroll, the menu's scroll and the focus */
-function e101SpPaint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0, pl=document.querySelector(".e101-pl"), ps=pl?pl.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc; const p2=document.querySelector(".e101-pl"); if(p2) p2.scrollTop=ps; const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
-const e101Tok=(id,lab,sp)=>`<span class="e101-tw"><button type="button" class="e101-tok${sp.menu===id?" is-open":""}" data-e101tok="${id}" aria-haspopup="true" aria-expanded="${sp.menu===id}">${lab}<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
-/* E136 exploration helper: per resource, who goes up, down, stays; who would be almost used up; Left to allocate now and was */
-function e136R(xk){const sp=UL.sp, R=RES[xk], ids=sp.ids.filter(id=>R.rows[id]&&!byId[id].disabled), inSplit=Object.keys(UL.splitW||{}).some(q=>q.indexOf(xk+"|")===0);
- const c=inSplit?null:e101SpCalc(xk,ids,sp.mode), val=id=>{const key=xk+"|"+id; return inSplit?(key in UL.draft?UL.draft[key]:R.rows[id].cap):(id in c.out?c.out[id]:R.rows[id].cap)};
- const up=[],dn=[],eq=[],hot=[]; let moved=0;
- ids.forEach(id=>{const r=R.rows[id], v=val(id); moved+=v-r.cap; if(v>r.cap) up.push(id); else if(v<r.cap){dn.push(id); if(r.used>=v||ulPct(r.used,v)>=USE_BAND.red) hot.push({id,v,used:r.used})} else eq.push(id)});
- const rest=inSplit?Math.max(0,ulDfree(xk)):c.rest, was=inSplit?rest+moved:c.left, L=(sp.info.L.find(y=>y.k===xk)||{}), share=inSplit?L.share:c.share;
- return {k:xk,label:R.label,share,up,dn,eq,hot,rest,was,inSplit}}
-const e136Names=ids=>hdrEsc(listAnd(ids.map(id=>byId[id].name)));
-const e136Hot=h=>hdrEsc(h.map(o=>o.used>=o.v?`${byId[o.id].name} would stop now.`:`${byId[o.id].name} would stop after ${f(o.v-o.used)} more.`).join("\n"));
-const e136Cnt=(ids,cls)=>ids.length?`<span class="u-tip e101-kt${cls||""}" tabindex="0" title="" data-uwtip="${e136Names(ids)}">${ids.length}<span class="e101-kw"> workspace${ids.length===1?"":"s"}</span></span>`:`<span class="e136-z">0</span>`;
-const e136Chip=h=>h.length?`<span class="e101-chip e136-chip u-tip" tabindex="0" title="" data-uwlg data-uwtip="${e136Hot(h)}">${h.length}<span class="e101-kw">&nbsp;workspace${h.length===1?"":"s"}</span></span>`:`<span class="e136-z">0</span>`;
-const e136Left=x=>`<span class="e136-lv"><span>${f(x.rest)}</span>${x.was!==x.rest?`<span class="e101-was">was ${f(x.was)}</span>`:""}</span>`;
-const e136Each=(x,same)=>same?`<b>${f(x.share)}</b>`:x.share?`<b>${f(x.share)} more</b>`:`<span class="e136-z">Nothing to add</span>`;
-function e101SpHTML(k){const sp=UL.sp, I=sp.info, n=I.n, all=sp.all, day=sp.day, N6=e101N6(), rows=e101SpRows(k);
- const whoL=n===0?"no workspaces":day?`all ${n} workspaces`:e101Ws(n), resL=all?`all ${N6} resources`:RES[k].label;
- const opt=(a,lab,on)=>`<button type="button" class="e101-po${on?" is-on":""}" role="menuitemradio" aria-checked="${on}" data-e101opt="${a}"><span class="e101-tk">${on?'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>':""}</span><span>${lab}</span></button>`;
- /* the workspaces picker: no quick picks (Hitesh, 4 Nov); Invite users' bar instead: search past WS_PICK_MAX, "N of M selected", Select all or Clear */
- const wq=sp.q||"", q=wq.trim().toLowerCase(), srch=rows.length>WS_PICK_MAX, miss=srch&&!!q&&!rows.some(c=>wsHay(c).indexOf(q)>-1);
- const popW=sp.menu==="who"?`<div class="e101-pop e101-wp" role="menu">${wsBarH(rows,id=>sp.ids.indexOf(id)>-1,srch?`${srchI}<input type="text" data-e101wq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="${invEsc(wq)}">`:"","data-e101all")}<div class="e101-pl">${rows.map(c=>{const r=RES[k].rows[c.id], hk=wsHay(c); return `<label class="e101-pr" data-ddk="${invEsc(hk)}"${srch&&q&&hk.indexOf(q)<0?" hidden":""}><input type="checkbox" class="e101-ck" data-e101w="${c.id}"${sp.ids.indexOf(c.id)>-1?" checked":""}><span class="e101-wn">${invEsc(c.name)}</span><span class="e101-x">${ulPct(r.used,r.cap>0?r.cap:0)}%</span></label>`}).join("")}<p class="inv-a2-none"${miss?"":" hidden"}>${nrHTML(wq)}</p></div></div>`:"";
- const popR=sp.menu==="res"?`<div class="e101-pop" role="menu">${opt("res:one",RES[k].label,!all)}${opt("res:all",`All ${N6} resources`,all)}</div>`:"";
- const who=`${e101Tok("who",whoL,sp)}${popW}</span>`, res=`${e101Tok("res",resL,sp)}${popR}</span>`, S=t=>`<span>${t}</span>`;
- const sent=sp.mode==="left"?(all||!n?`${S("Split what’s left among")} ${who} ${S("on")} ${res}`:`${S(`Add <b class="e101-n">${f(I.share)}</b> to each of`)} ${who} ${S("on")} ${res}`)
-  :(all||!n?`${S("Give")} ${who} ${S("the same limit on")} ${res}`:`${S("Set")} ${who} ${S(`to <b class="e101-n">${f(I.share)}</b> each on`)} ${res}`);
- /* E136 A: what moves, per resource. Same limit, Goes down, Almost used up (amber, on its row), Left to allocate with was */
- const same=sp.mode==="same", X=all&&n?I.L.map(x=>e136R(x.k)):[];
- const grid=all&&n?(same?`<div class="e101-g6 e136a"><div class="e101-g6r"><span>Resource</span><span>Same limit</span><span>Goes down</span><span>Almost used up</span><span>Left to allocate</span></div>${X.map(x=>`<div class="e101-g6r"><span>${x.label}</span>${e136Each(x,1)}<span>${e136Cnt(x.dn)}</span><span>${e136Chip(x.hot)}</span>${e136Left(x)}</div>`).join("")}</div>`
-  :`<div class="e101-g6 e136a e136a-l"><div class="e101-g6r"><span>Resource</span><span>Each gets</span><span>Left to allocate</span></div>${X.map(x=>`<div class="e101-g6r"><span>${x.label}</span>${e136Each(x,0)}${e136Left(x)}</div>`).join("")}</div>`):"";
- const ap=n===0||!ulChanges().length, chg=new Set(Object.keys(UL.splitW||{}).map(q=>q.split("|")[1])).size;   /* vE E136c: Apply counts the workspaces that change; the picker keeps the count chosen */
- return `<div class="e101-sp" role="group" aria-label="${sp.mode==="left"?"Split what’s left":"Same limit for all"}"><div class="e101-sprow"><div class="e101-sent">${sent}</div><div class="e101-act"><button type="button" class="shd-button shd-button--secondary" data-e101spcancel>${day?"Not now":"Discard"}</button><button type="button" class="shd-button shd-button--primary" data-ulrapply${ap?" disabled":""}>${n&&!chg?"Apply":"Apply to "+e101Ws(n?chg:n)}</button></div></div>${grid}</div>`}
-/* the limits this split lowers: workspace, resource, new limit, used */
-function e101Downs(){const o=[]; Object.keys(UL.splitW||{}).forEach(key=>{const [x,id]=key.split("|"), r=RES[x].rows[id]; if(r&&UL.draft[key]<r.cap) o.push({k:x,id,v:UL.draft[key],used:r.used})}); return o}
-document.addEventListener("click",e=>{const t=e.target; if(!t.closest) return;
- const mn=t.closest("[data-e101menu]"); if(mn){e.stopPropagation(); E101M=!E101M; e101SpPaint("[data-e101menu]"); return}
- const q=t.closest("[data-e101open]"); if(q){e.stopPropagation(); if(q.disabled) return; UL.spDone=false; E101M=false; e101SpOpen(ul3E2K(),q.dataset.e101open); e101SpPaint("[data-e101spcancel]"); const h=document.querySelector(".e101-sp"); if(h) h.scrollIntoView({block:"nearest"}); return}
- if(E101M&&!t.closest(".e101-ew")){E101M=false; e101SpPaint()}
- if(!UL.sp) return;
- const tk=t.closest("[data-e101tok]"); if(tk){e.stopPropagation(); const m=tk.dataset.e101tok; UL.sp.menu=UL.sp.menu===m?null:m; e101SpPaint(`[data-e101tok="${m}"]`); return}
- const o=t.closest("[data-e101opt]"); if(o){e.stopPropagation(); if(o.disabled) return; const [a,v]=o.dataset.e101opt.split(":"); UL.sp.all=v==="all"; UL.sp.menu=null; e101Redraft(ul3E2K()); e101SpPaint(`[data-e101tok="${a}"]`); return}
- const sa=t.closest("[data-e101all]"); if(sa){e.stopPropagation(); const k=ul3E2K(), vis=[...document.querySelectorAll(".e101-pr:not([hidden]) [data-e101w]")].map(x=>x.dataset.e101w), all=vis.every(id=>UL.sp.ids.indexOf(id)>-1);
-  UL.sp.ids=e101SpRows(k).map(c=>c.id).filter(id=>vis.indexOf(id)>-1?!all:UL.sp.ids.indexOf(id)>-1); e101Redraft(k); e101SpPaint("[data-e101all]"); return}
- if(t.closest("[data-e101spcancel]")){e.stopPropagation(); e101Unsplit(); UL.sp=null; UL.spDone=true; e101SpPaint("[data-e101menu]"); return}
- if(UL.sp.menu&&!t.closest(".e101-tw")){UL.sp.menu=null; e101SpPaint()}},true);
-document.addEventListener("change",e=>{const t=e.target; if(!UL.sp||!t.matches||!t.matches("[data-e101w]")) return; const k=ul3E2K(), id=t.dataset.e101w, S=UL.sp.ids.slice(), i=S.indexOf(id); if(t.checked&&i<0) S.push(id); if(!t.checked&&i>-1) S.splice(i,1); UL.sp.ids=S; e101Redraft(k); e101SpPaint(`[data-e101w="${id}"]`)});
-document.addEventListener("input",e=>{const t=e.target; if(!UL.sp||!t.matches||!t.matches("[data-e101wq]")) return; UL.sp.q=t.value; const q=t.value.trim().toLowerCase(); let n=0;
- document.querySelectorAll(".e101-pr[data-ddk]").forEach(r=>{const on=!q||r.dataset.ddk.indexOf(q)>-1; r.hidden=!on; if(on) n++});
- const z=document.querySelector(".e101-wp .inv-a2-none"); if(z){z.hidden=n>0||!q; if(!z.hidden) z.innerHTML=nrHTML(t.value)}});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&E101M){e.stopPropagation(); E101M=false; e101SpPaint("[data-e101menu]"); return}
- if(e.key==="Escape"&&UL.sp&&UL.sp.menu){e.stopPropagation(); const m=UL.sp.menu; UL.sp.menu=null; e101SpPaint(`[data-e101tok="${m}"]`)}},true);
+/* ═══ vE E150 (6 Nov 2026): Split equally, rebuilt as 175 D8 with placement P5. Hitesh on the 175 board: "it should split
+   what's left - 28000 and split allocated 472000 like that then ask split between which workspaces and that's it - for now
+   let's only have this for one resource and once it's done then we can ask for if they want to repeate this for other
+   resources and maybe pop-up or something for next steps"; "we need to keep one corner case in mind in case some workspace
+   have used more than limits that are being applied after splitting"; "D8 looks good"; "let's go with P5".
+   Flow: Split equally (right after the four figures, a fixed spot) › menu with two amounts › ticks in the table (all active
+   ticked) › figures with "was", Change column, one line › Discard or Apply › toast › next-step panel for the other metered
+   resources. Only the open resource is split.
+   Rules (175 split-rules.mjs): Split what's left adds an equal share on top of each ticked limit (or use, when that is more).
+   Split allocated gives one equal limit from what the ticked workspaces hold (Left to allocate is not added, disabled
+   workspaces keep theirs); no ticked workspace goes under 75% used of its new limit (band 76); if the pot can't pay those
+   floors nobody is lifted and rows above the share keep their limit. No limit ever ends below its use. Shares round down to
+   100s on plans of 10,000 or more; the rest stays in Left to allocate.
+   Open calls built on defaults (175 plan.md, 6 Nov): the menu's Split allocated amount is what can be split (active limits,
+   462,000 on busy), the line names disabled workspaces that keep theirs; every row held above the share reads "kept at 75%
+   used"; the rounding remainder stays in Left to allocate. Review states: #demo=busy&guide=off&e150=<state>. ═══ */
+var E150={open:false}, E150M=false, E150N=null;
+var E150_BAND=76, E150_RED=86;
+window.E150_SUMFAIL=window.E150_SUMFAIL||[];
+function e150Rnd(pool,x){return pool>=10000?Math.floor(x/100)*100:Math.floor(x)}
+function e150RndUp(pool,x){return pool>=10000?Math.ceil(x/100)*100:Math.ceil(x)}
+function e150Floor(pool,used){if(used<=0) return 0; let L=Math.floor(used/((E150_BAND-.5)/100))+1;
+ while(ulPct(used,L)>=E150_BAND) L++; while(L>1&&ulPct(used,L-1)<E150_BAND) L--; const R=e150RndUp(pool,L); return ulPct(used,R)<E150_BAND?R:L}
+/* one pass of the rules. lift: every ticked row's lowest allowed limit is its 75% floor (it may go up to it, paid from the pot);
+   without lift a row never goes up to its floor, it keeps its limit (split-rules.mjs, liftRed fallback) */
+function e150Inner(o){const pool=o.pool, rows=o.rows, P=new Set(o.picked), base=r=>Math.max(r.limit,r.used);
+ const allocBefore=rows.reduce((t,r)=>t+base(r),0), leftBefore=Math.max(0,pool-allocBefore);
+ const S=rows.filter(r=>!r.disabled&&P.has(r.id)), after={}, g={}; let share=0, pot=0;
+ if(S.length){
+  if(o.job==="left"){pot=leftBefore; share=e150Rnd(pool,Math.floor(leftBefore/S.length)); if(share>0) S.forEach(r=>{after[r.id]=base(r)+share})}
+  else{pot=S.reduce((t,r)=>t+base(r),0); S.forEach(r=>{const fl=e150Floor(pool,r.used); g[r.id]=o.lift?fl:Math.min(base(r),fl)});
+   let T=pot, L=S.slice();
+   for(;;){if(!L.length){share=0; break} share=e150Rnd(pool,Math.floor(T/L.length)); const over=L.filter(r=>g[r.id]>share); if(!over.length) break;
+    over.forEach(r=>{T-=g[r.id]; after[r.id]=g[r.id]}); L=L.filter(r=>over.indexOf(r)<0)}
+   L.forEach(r=>{after[r.id]=share})}}
+ const out=rows.map(r=>{const before=r.limit; let a, move;
+  if(r.disabled){a=before; move="disabled"} else if(r.id in after){a=after[r.id]; move=a>before?"up":a<before?"down":"keeps"} else {a=before; move=P.has(r.id)?"keeps":"out"}
+  return {id:r.id,used:r.used,before,after:a,move,picked:!r.disabled&&P.has(r.id),floor:!r.disabled&&P.has(r.id)&&o.job==="alloc"?e150Floor(pool,r.used):null}});
+ const allocAfter=out.reduce((t,r)=>t+Math.max(r.after,r.used),0), by={}; out.forEach(r=>{by[r.id]=r});
+ return {rows:out,by,job:o.job,pool,pot,share,picked:S.length,allocBefore,allocAfter,leftBefore,leftAfter:pool-allocAfter}}
+function e150Rules(o){if(o.job!=="alloc") return e150Inner(o); const l=e150Inner(Object.assign({},o,{lift:true}));
+ /* Split allocated only moves what the ticked workspaces hold: if their floors cost more than that, nobody is lifted */
+ const fits=l.rows.filter(r=>r.picked).reduce((t,r)=>t+r.after,0)<=l.pot&&l.rows.every(r=>r.after>=0);
+ return fits?l:e150Inner(Object.assign({},o,{lift:false}))}
+function e150RowsOf(k){return Object.keys(RES[k].rows).map(id=>{const r=RES[k].rows[id], c=byId[id]; return {id,used:r.used,limit:r.cap,disabled:!c||!!c.disabled}})}
+function e150Act(k){return e101SpRows(k).map(c=>c.id)}
+function e150Calc(k){E150.cache=E150.cache||{}; if(!E150.cache[k]) E150.cache[k]=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:E150.ids,job:E150.job}); return E150.cache[k]}
+function e150Re(){E150.cache={}}
+function e150Metered(){return UL_K().filter(x=>!isUnl(x))}
+function e150In(k){return !!(E150&&E150.open)&&k===E150.k0}
+function e150Val(k,id){if(typeof E150==="undefined"||!E150||!e150In(k)||e150Sum(k).why) return null; const r=e150Calc(k).by[id]; return r?r.after:null}   /* a split that can't run changes nothing on screen */
+var E150_LAB={left:"Split what’s left",alloc:"Split allocated"};
+/* a row in the split that isn't plain "the share" says why, in a few words. Split allocated: one reason for every row held
+   above the share, "kept at 75% used". Split what's left: a row already past its limit gets the share on top of its use */
+const e150At75=(c,r)=>r.picked&&r.after!==c.share&&r.floor!=null&&r.after===r.floor;
+function e150Note(c,r){if(!r||!r.picked) return ""; if(c.job==="left") return r.used>r.before?`already used ${f(r.used)}`:"";
+ return e150At75(c,r)?"kept at 75% used":""}
+/* disabled workspaces keep their limits in Split allocated; the line names them */
+function e150DisTxt(c){const D=c.rows.filter(r=>r.move==="disabled"&&Math.max(r.before,r.used)>0); if(!D.length) return "";
+ const amt=f(D.reduce((t,r)=>t+Math.max(r.before,r.used),0));
+ return D.length===1?` ${byId[D[0].id].name} is disabled and keeps ${amt}.`:D.length===2?` ${byId[D[0].id].name} and ${byId[D[1].id].name} are disabled and keep ${amt}.`:` ${D.length} disabled workspaces keep ${amt}.`}
+/* the result of a split: the reason it can't run, or the line, Apply's count and the toast, all from one rules result.
+   Sum check (asserted on every call): what comes off the pot = what lands on the ticked rows (+ the rest, which stays left) */
+function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.filter(r=>r.after!==r.before);
+ let why="", line="", given=0, kept=0, at=0;
+ if(!n) why="Tick the workspaces to split between.";
+ else if(c.job==="left"){given=c.leftBefore-c.leftAfter;
+  if(c.leftBefore===0) why="Nothing left to split."; else if(c.share===0) why=`Too little left to split between ${e101Ws(n)}.`;
+  else line=given===c.leftBefore?`${f(given)} split between ${e101Ws(n)}, ${f(c.share)} more each.`:`${f(given)} of ${f(c.leftBefore)} split between ${e101Ws(n)}, ${f(c.share)} more each.`}
+ else{given=P.reduce((t,r)=>t+r.after,0); kept=P.filter(r=>r.after!==c.share).length; at=n-kept;
+  if(n<2) why="Tick 2 or more workspaces to split between.";
+  else if(!moved.length||!at) why="Too much already used to split between these workspaces.";
+  else{const pot=c.pot, head=given===pot?`${f(given)} split between ${e101Ws(n)}`:`${f(given)} of ${f(pot)} split between ${e101Ws(n)}`;
+   const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, tail=[k75?`${k75} kept at 75% used`:"",kk?`${kk} keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(", ");
+   line=(kept?`${head}: ${at} get ${f(c.share)}, ${tail}.`:`${head}, ${f(c.share)} each.`)+e150DisTxt(c)}}
+ /* sum check */
+ if(!why){const net=c.rows.reduce((t,r)=>t+Math.max(r.after,r.used)-Math.max(r.before,r.used),0), pool=RES[k].pool;
+  const ok1=c.allocAfter+c.leftAfter===pool&&c.leftAfter>=0, ok2=net===c.leftBefore-c.leftAfter;
+  const ok3=c.job==="left"?P.every(r=>r.after===Math.max(r.before,r.used)+c.share)&&given===n*c.share
+   :given+(c.leftAfter-c.leftBefore)===c.pot&&P.every(r=>r.after>=r.used)&&at*c.share+P.filter(r=>r.after!==c.share).reduce((t,r)=>t+r.after,0)===given;
+  if(!(ok1&&ok2&&ok3)){const m={k,job:c.job,ok1,ok2,ok3,state:window.E150_STATE}; window.E150_SUMFAIL.push(m); console.error("E150 sum check failed",m)}}
+ return {why,line,given,kept,at,n,moved:moved.length}}
+function e150Sum(k){return e150SumOf(k,e150Calc(k))}
+/* the menu's amount for each option, and its reason when it can't change anything (all active ticked) */
+function e150Opt(k,job){const c=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:e150Act(k),job}), s=e150SumOf(k,c);
+ if(job==="left") return s.why?{off:true,v:c.leftBefore===0?"Nothing left":"Too little left"}:{v:f(c.leftBefore)};
+ return s.why?{off:true,v:"Too much already used"}:{v:f(c.pot)}}   /* what can be split: the active limits (disabled keep theirs) */
+var E150_DN='<svg class="e150-dn" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var E150_INFO='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.3v3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="5.1" r=".85" fill="currentColor"/></svg>';
+var E150_TICK='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function e150Sig(d){return d>0?"+"+f(d):d<0?"&minus;"+f(-d):"0"}
+/* the Change column (D7's, trimmed): signed change, Amber 700 arrow on a fall, the note when the row isn't at the share */
+function e150ChgHTML(k,cw){const c=e150Calc(k), r=c.by[cw.id]; if(e150Sum(k).why) return "";
+ if(r&&r.move==="disabled") return `<span class="e150-ch"><span class="e150-cv is-k">Keeps ${f(r.before)}</span><span class="u-tip e150-i" tabindex="0" title="" data-uwtip="Disabled workspaces keep their limit" aria-label="Disabled workspaces keep their limit">${E150_INFO}</span></span>`;
+ if(!r||!r.picked) return "";
+ const d=r.after-r.before, note=e150Note(c,r), nt=note?`<span class="e150-nt">${note}</span>`:"";
+ if(!d) return `<span class="e150-ch"><span class="e150-cv is-k">Keeps its limit</span>${nt}</span>`;
+ return `<span class="e150-ch">${d<0?E150_DN:""}<span class="e150-cv${d<0?" is-dn":""}" aria-label="${d<0?"Goes down "+f(-d):"Goes up "+f(d)}">${e150Sig(d)}</span>${nt}</span>`}
+function e150TotTd(k){if(!e150In(k)) return ""; const t=e150Sum(k).why?0:e150Calc(k).rows.reduce((s,r)=>s+r.after-r.before,0); return `<td class="e150-cc"><span class="e150-cv${t<0?" is-dn":""}">${t?e150Sig(t):""}</span></td>`}
+function e150RowCls(k,c){if(!e150In(k)) return ""; const r=e150Calc(k).by[c.id]; return r&&r.move==="out"?" e150-out":""}
+/* ticks: at the start of the Workspace cell while a split is open; disabled rows keep the space so names line up */
+function e150Ck(k,c){if(!e150In(k)) return ""; if(c.disabled) return `<span class="e150-cb" aria-hidden="true"></span>`;
+ const on=E150.ids.indexOf(c.id)>-1; return `<span class="e150-cb"><input type="checkbox" data-e150w="${c.id}"${on?" checked":""} aria-label="Split between: ${c.name}"></span>`}
+function e150Shown(k){return ulfRows(k).filter(c=>!c.disabled).map(c=>c.id)}
+function e150HeadTh(k,th){if(!e150In(k)) return th; const S=e150Shown(k), n=S.filter(id=>E150.ids.indexOf(id)>-1).length, all=S.length&&n===S.length, some=n&&!all;
+ const ck=`<span class="e150-cb"><input type="checkbox" data-e150all${all?" checked":""}${some?' class="e150-mixed" aria-checked="mixed"':""} aria-label="${all?"Untick":"Tick"} all ${S.length} shown"></span>`;
+ return th.replace("<button",ck+"<button").replace('class="th-s','class="th-s e150-th')}
+/* Limit cell while open: the new limit, read only (vE keeps the table read only while a split is open) */
+function e150LimHTML(k,c){const v=ulDv(k,c.id), ch=v!==RES[k].rows[c.id].cap; return `<span class="ulr-lb ulr-ro${ch?" is-ch":""}"><span class="ulr-vv"><span class="ulr-lv">${f(v)}</span></span>${ULR_PEN0}</span>`}
+function e150Dot(x){if(!E150.open||x!==E150.k0||E150.k0===ul3E2K()) return "";
+ return `<span class="e150-dot u-tip" data-uwtip="Split not applied"><i aria-hidden="true"></i><span class="ulr-sr">, Split not applied</span></span>`}
+/* the button and its menu. Same button, same spot, at rest and while a split is open; while open, the menu marks the option */
+function e150MenuHTML(k){const it=job=>{const o=e150Opt(k,job), cur=E150.open&&E150.job===job;
+  return `<button type="button" class="e150-mi${cur?" is-cur":""}" role="menuitemradio" aria-checked="${cur}" data-e101open="${job}"${o.off?" disabled":""}><span class="e150-mj">${E150_LAB[job]}</span><span class="e150-mr">${o.v}</span></button>`};
+ return `<div class="e150-pop e150-menu" role="menu" aria-label="Split equally">${it("left")}${it("alloc")}</div>`}
+function e150BtnHTML(k){return `<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E150M}">Split equally${E101_CHEV}</button>${E150M?e150MenuHTML(k):E150N&&E150N.k===k?e150NextHTML(k):""}</span>`}
+function e150ActsHTML(k){if(ulRo()||e101SpRows(k).length<2) return ""; return `<div class="e101-fa e150-fa">${e150BtnHTML(k)}</div>`}
+/* next step, after Apply: the same option on the other metered resources, from the same spot. Unlimited resources aren't offered */
+function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E150N.done.indexOf(x)<0&&e101SpRows(x).length>=2);
+ if(!L.some(x=>!e150Opt(x,job).off)) return "";   /* nothing left to offer: the toast is the end */
+ const row=x=>{const o=e150Opt(x,job), v=o.v;   /* the heading names the option, so the amount stands alone, as in the menu */
+  return `<button type="button" class="e150-mi" data-e150next="${x}"${o.off?" disabled":""}><span class="e150-mj">${RES[x].label}</span><span class="e150-mr">${v}</span></button>`};
+ return `<div class="e150-pop e150-nx" role="dialog" aria-labelledby="e150NxH"><p class="e150-nh" id="e150NxH">${E150_LAB[job]} on another resource?</p>${L.map(row).join("")}<div class="e150-nf"><button type="button" class="shd-button shd-button--secondary" data-e150done>Done</button></div></div>`}
+/* the bar under the figures: one line, then Discard and Apply */
+function e150BarHTML(k){const s=e150Sum(k), lab=`Split between ${e101Ws(s.n)}`;
+ const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p><p class="e150-h">Untick any to leave it out.</p>`;
+ return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
+function e150WaitHTML(){const L=RES[E150.k0].label; return `<div class="e150-wait"><span>Split not applied on ${L}.</span><button type="button" class="linkbtn" data-ul3tab="${E150.k0}">Go to ${L}</button></div>`}
+function e150UnlHTML(){return `<div class="e101-sum is-e150 e150-unl" role="group" aria-label="Split not applied">${e150WaitHTML()}</div>`}
+/* figures stay; with the split open, Allocated and Left to allocate read "was" under the value (D7) */
+function e150SumHTML(k){const R=RES[k], pool=R.pool, inD=e150In(k), sv=compute(k).free, df=ulDfree(k), av=df<0?sv:df, al=pool-av, alS=pool-sv, us=compute(k).used;
+ const fig=(lab,v,vs,attr)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${inD&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}</span></div>`;
+ if(inD) setTimeout(e101Stick,0);
+ return `<div class="e101-sum${inD?" is-draft is-e150":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate"><div class="e101-fs">${fig("In your plan",pool,null)}${fig("Allocated",al,alS,` data-e101al="${k}"`)}${fig("Used",us,null)}${fig("Left to allocate",av,sv,` data-ulrav="${k}"`)}${inD?e150ActsHTML(k):""}</div>${inD?e150BarHTML(k):e150WaitHTML()}</div>`}
+function e150Open(k,job){E150={open:true,job,ids:e150Act(k),k0:k,cache:{}}; if(E150N) E150N=Object.assign({},E150N,{k:null})}
+function e150Close(){E150={open:false}}
+function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
+ const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
+function e150Apply(){const k=E150.k0, c=e150Calc(k), s=e150Sum(k); if(s.why) return; const D={}; c.rows.forEach(r=>{if(r.after!==r.before) D[k+"|"+r.id]=r.after});
+ const job=E150.job, t=`Split ${f(s.given)} between ${e101Ws(s.n)}.`; e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
+ RECEIPT.text=RECEIPT.short=t; RECEIPT.variant="success"; ul3E2Close(); UL.focusK=k;
+ E150N={job,k,done:((E150N&&E150N.done)||[]).concat(k)}; render(); setTimeout(()=>{const x=document.querySelector(".e150-nx .e150-mi:not(:disabled),[data-e150done]"); if(x) x.focus({preventScroll:true})},0)}
+function e150Tick(ids,on){const S=new Set(E150.ids); ids.forEach(id=>on?S.add(id):S.delete(id)); E150.ids=e150Act(E150.k0).filter(id=>S.has(id)); e150Re()}
+document.addEventListener("click",e=>{const t=e.target; if(!t.closest||view.name!=="limits") return; let x;
+ if((x=t.closest("[data-e101menu]"))){e.stopPropagation(); E150M=!E150M; if(E150N) E150N=Object.assign({},E150N,{k:null}); e150Paint("[data-e101menu]"); if(E150M){const m=document.querySelector(".e150-menu .e150-mi:not(:disabled)"); if(m) m.focus({preventScroll:true})} return}
+ if((x=t.closest("[data-e101open]"))){e.stopPropagation(); if(x.disabled) return; E150M=false; const j=x.dataset.e101open, k=ul3E2K(); if(E150.open&&E150.k0===k){E150.job=j; e150Re()} else e150Open(k,j); e150Paint("[data-e101menu]"); return}
+ if((x=t.closest("[data-e150next]"))){e.stopPropagation(); if(x.disabled) return; const k=x.dataset.e150next; E150N={job:E150N.job,k:null,done:E150N.done}; UL.focusK=k; E150M=true; render();
+  const m=document.querySelector(`.e150-menu [data-e101open="${E150N.job}"]:not(:disabled)`)||document.querySelector(".e150-menu .e150-mi:not(:disabled)"); if(m) m.focus({preventScroll:true}); return}
+ if((x=t.closest("[data-e150done]"))){e.stopPropagation(); E150N=null; e150Paint("[data-e101menu]"); return}
+ if(E150M&&!t.closest(".e150-fa")){E150M=false; e150Paint()}
+ else if(E150N&&E150N.k===ul3E2K()&&!t.closest(".e150-nx")&&!t.closest(".toast")&&document.querySelector(".e150-nx")){E150N=Object.assign({},E150N,{k:null}); e150Paint()}
+ if(!E150.open) return;
+ /* the header tick sits inside the sortable Workspace head: handled here so the click never reaches the sort */
+ if((x=t.closest("[data-e150all]"))){e.stopPropagation(); const S=e150Shown(E150.k0), all=S.every(id=>E150.ids.indexOf(id)>-1); e150Tick(S,!all); e150Paint("[data-e150all]"); return}
+ if((x=t.closest("[data-e150discard]"))){e.stopPropagation(); e150Close(); e150Paint("[data-e101menu]"); return}
+ if((x=t.closest("[data-e150apply]"))){e.stopPropagation(); e150Apply(); return}},true);
+document.addEventListener("change",e=>{const t=e.target; if(!E150.open||!t.matches) return;
+ if(t.matches("[data-e150w]")){e150Tick([t.dataset.e150w],t.checked); e150Paint(`[data-e150w="${t.dataset.e150w}"]`); return}
+ });
+document.addEventListener("keydown",e=>{if(e.key!=="Escape") return; if(E150M){E150M=false; e150Paint("[data-e101menu]")} else if(E150N&&document.querySelector(".e150-nx")){E150N=Object.assign({},E150N,{k:null}); e150Paint("[data-e101menu]")}},true);
+/* demo seeds: all-used (every active workspace at 80% of its Emails sent limit), over (Summit used 32,000 of 30,000) */
+function e150Seed(s){const R=RES.sends.rows;
+ if(s==="all-used"&&!window.E150_AU){e101SpRows("sends").forEach(c=>{R[c.id].used=Math.round(R[c.id].cap*.8)}); window.E150_AU=1}
+ if(/^over/.test(s)&&!window.E150_OV){R.sf.used=32000; window.E150_OV=1}}
+window.E150demo=function(s){window.E150_STATE=s; ctx="agency"; asClient=false; view={name:"limits"}; if(matchMedia("(max-width:760px)").matches) UL.drill=true;
+ UL.focusK="sends"; E150M=false; E150N=null; e150Close(); e150Seed(s);
+ const hot=k=>e150Act(k).filter(id=>ulPct(RES[k].rows[id].used,RES[k].rows[id].cap)>=E150_RED);
+ if(s==="menu"||s==="all-used") E150M=true;
+ if(s==="rest-ai") UL.focusK="ai";
+ if(s==="typed"){UL.draft["sends|sf"]=50000; UL.draft["sends|at"]=190000}   /* a typed draft: Discard and Apply take Split equally's place */
+ if(s==="nothing-left"){UL.focusK="dialer"; E150M=true}
+ if(s==="left"||s==="left3"||s==="over-left") e150Open("sends","left");
+ if(s==="alloc"||s==="alloc3"||s==="over-alloc"||s==="forty"||s==="applied") e150Open("sends","alloc");
+ if(s==="left3"||s==="alloc3") E150.ids=hot("sends");
+ if(s==="switch"){e150Open("sends","alloc"); E150M=true}   /* the same button while open: its menu marks the open option */
+ if(s==="none"){e150Open("sends","left"); E150.ids=[]}
+ if(s==="applied"||s==="next-lf"){if(!E150.open) e150Open("sends","alloc"); e150Re(); e150Apply(); if(s==="next-lf"){E150N={job:"alloc",k:null,done:E150N.done}; UL.focusK="lead_finder"; E150M=true; render()} return}
+ if(E150.open) e150Re(); render()};
+window.addEventListener("load",()=>{const m=decodeURIComponent(location.hash).match(/(?:^|[#&])e150=([\w-]+)/); if(m) setTimeout(()=>E150demo(m[1]),120)});
+
 /* ── reviewer states (#e101=<state>) ── */
 function e101Go(s){const h="e101="+s+"&guide=off&p101"; if(location.hash==="#"+h) location.reload(); else location.hash=h}
 function e101Phone(){const d=document.createElement("div"); d.className="e101-ph";
@@ -15569,8 +15688,7 @@ function e101Boot(s){E101.state=s; me_=s==="admin"?"priya":"owner"; solo=false; 
  if(s==="nothing"){const k="verification", R=RES[k], o=R.rows.ok, own=R.rows[OWN_ID]; o.cap=o.used; syncRes(k,o); own.cap+=rawFree(k); syncRes(k,own); UL.focusK=k}
  if(s==="edit"){UL.draft["sends|sf"]=50000; UL.draft["sends|at"]=190000}   /* a typed draft: Summit raised, Atlas lowered to fund part of it */
  if(s==="phone") setTimeout(e101Phone,400)
- if(s==="split"){e101SpOpen("sends"); UL.sp.menu="who"}
- if(s==="dayone"){UL.spDone=false; UL_K().forEach(x=>{if(isUnl(x)) return; Object.keys(RES[x].rows).forEach(id=>{const r=RES[x].rows[id]; r.cap=0; r.used=0; syncRes(x,r)})}); if(byId.ok) byId.ok.disabled=false}}
+ if(s==="split") E150M=true}   /* vE E150: Split equally's menu open; more states at #demo=busy&guide=off&e150=<state> */
 
 /* ═══ vE E102, 28 Oct 2026. Hitesh: "No bro, we should remove detail page entirely and only side panel with different design".
    R1 (161-person-panel/thinking.md): the person opens in a side panel over the screen they were clicked on. The draft is E048's
@@ -18452,7 +18570,7 @@ TOPICS.push({k:"e101", t:"Plan, allocated, used and left to allocate on each res
  ask:"When a client runs out mid-month, where do you look first, and what do you do next?",
  watch:"If they still do the arithmetic on paper, the summary is not where they look, or its words are not theirs.",
  src:"159, 164, E101",
- e101st:[["sends","Emails sent with available"],["edit","A typed draft"],["nothing","Nothing left to allocate"],["admin","Account Admin"],["phone","Phone"],["split","Split, choosing who"],["dayone","Day one"]],
+ e101st:[["sends","Emails sent with available"],["edit","A typed draft"],["nothing","Nothing left to allocate"],["admin","Account Admin"],["phone","Phone"],["split","Split equally"]],
  go:()=>{e101Go("sends")}});
 /* vE E102, 28 Oct 2026: the person panel, for Hitesh's review */
 TOPICS.push({k:"e102", t:"A person opens in a side panel",
@@ -18629,7 +18747,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="77510e2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="b52551f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -19875,7 +19993,6 @@ button.hdr-chip{cursor:pointer}
 .inv-a2 .rmt-chip.is-mute{color:#6B7280}
 .inv-a2 .rmt-hints{margin-top:4px;gap:2px;font-size:12px;line-height:18px}
 .inv-a2 .rmt-hints .linkbtn{font-size:12px;line-height:18px;font-weight:500}
-.inv-a2 .rmt-hints li.is-bad,.inv-a2 .rmt-hints li.is-bad b{color:#B91C1C}
 .inv-a2 .dd-trig .dd-val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inv-a2 .inv-help{margin:4px 0 0}
 .inv-a2-line{margin:0;font-size:14px;line-height:20px;color:#111827}
@@ -19975,9 +20092,8 @@ button.hdr-chip{cursor:pointer}
 .inv-a2-wn .hdr-chip{height:22px;padding:0 8px;border:1px solid #e5e7eb;border-radius:4px;background:#f3f4f6;color:#374151;font-family:Inter,sans-serif;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;margin:-2px 0 -2px 8px;vertical-align:middle}   /* vE E131: the E118 chip, after the name */
 .inv-a2-wl.is-off .inv-a2-wn .hdr-chip{color:#374151}
 .dq-fore.uw-tip{z-index:1300}   /* vE E131: above a modal's scrim, so a tooltip inside a dialog shows */
-/* vE E139: F, "Already in your account" under the email field. Box, bar and rows copy the Workspaces picker */
+/* vE E139: the list under the email field (vE E149: one row per person already in the account). Box and rows copy the Workspaces picker */
 .inv-al{margin-top:8px;border:1px solid #E5E7EB;border-radius:4px;background:#fff}
-.inv-al-h{display:flex;align-items:center;justify-content:space-between;gap:8px;height:36px;padding:0 12px;border-bottom:1px solid #E5E7EB;font-size:13px;line-height:18px;color:#6B7280}
 .inv-al-g{padding:4px 0}
 .inv-al-r{display:flex;align-items:center;gap:8px;height:36px;padding:0 4px 0 12px;min-width:0}
 .inv-al-r .pp-av{flex:none;line-height:1}
@@ -19988,10 +20104,33 @@ button.hdr-chip{cursor:pointer}
 .inv-al-x{display:grid;place-items:center;flex:none;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:none;color:#6B7280;cursor:pointer}
 .inv-al-x:hover{background:#F3F4F6;color:#1F2937}
 .inv-al-x svg{width:10px;height:10px}
-.inv-al-more{display:block;padding:4px 12px;font-size:13px;line-height:18px}
 .inv-more{display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid #E5E7EB;border-radius:999px;background:#fff;color:#1D4ED8;font:500 13px/18px Inter,sans-serif;cursor:pointer}   /* vE E139: "+N more", a chip's height */
+/* vE E149: production's helper row under the field (email-input--helper-wrapper, --count: mt 4, 14/20 #9CA3AF). The error line is vE's .fld-e
+   at production's 12/18 400 #B91C1C. Field border #FCA5A5 on error (.email-input--container.error) */
+.inv-fl{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:4px}   /* baseline, so n/50 stays on the first line when the error wraps at 390 */
+.inv-fl .fld-e{margin:0;min-width:0;font-weight:400;line-height:18px}
+.inv-cnt{flex:none;margin-left:auto;font-size:14px;line-height:20px;color:#9CA3AF;font-variant-numeric:tabular-nums}
+.inv-a2 .pp-emails.is-err,.inv-a2 .pp-emails.is-err:focus-within{border-color:#FCA5A5}
+/* a broken or repeated address: solid 1px #FCA5A5 (the field's own error border) and #B91C1C text (the error line's colour, 6.5:1 on white);
+   white fill so it parts from the grey chips without a tint. Solid, not dashed: dashed reads as a placeholder */
+.inv-a2 .rmt-chip.is-bad{background:#fff;border:1px solid #FCA5A5;color:#B91C1C}
+.inv-a2 .rmt-chip.is-bad .cv{cursor:text}
+.inv-a2 .rmt-chip.is-bad button{color:#B91C1C}
+/* the list: no header; many rows scroll inside the box at the workspace picker's 242px; a long line wraps under itself, right aligned */
+.inv-al .inv-al-g{max-height:242px;overflow:auto;overscroll-behavior:contain}
+.inv-al .inv-al-r{height:auto;min-height:36px;padding-top:4px;padding-bottom:4px;box-sizing:border-box}
+.inv-al .inv-al-n{flex:0 1 auto;max-width:48%}
+.inv-al .inv-al-n:last-child{max-width:none}
+.inv-al .inv-al-o{flex:1 1 0;min-width:0;white-space:normal;text-align:right}
+.inv-al .inv-al-o>span{display:inline-block}
+@media (max-width:640px){
+ .inv-al .inv-al-r:not([data-invnew]){display:grid;grid-template-columns:24px minmax(0,1fr) 28px;column-gap:8px;row-gap:0;align-items:start;padding-top:8px;padding-bottom:8px}
+ .inv-al .inv-al-r>.pp-av{grid-row:1/3;grid-column:1;margin-top:-2px}   /* centred on the name line */
+ .inv-al .inv-al-r>.inv-al-x{grid-row:1/3;grid-column:3;margin-top:-4px}
+ .inv-al .inv-al-r>.inv-al-n,.inv-al .inv-al-r>.inv-al-o{grid-column:2;max-width:none;text-align:left;overflow:visible}
+ .inv-al .inv-al-r>.inv-al-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 .inv-a2 .rmt-hints li .linkbtn{margin-left:0}
-@media (max-width:640px){.inv-al-o{max-width:150px;overflow:hidden;text-overflow:ellipsis}}
 .inv-a2-wl.is-off{cursor:not-allowed}.inv-a2-wl.is-off .inv-a2-wn{color:#9CA3AF}.inv-a2-wl.is-off svg,.inv-a2-wl.is-off .avatar{opacity:.5}
 @media (max-width:640px){
  .px-wlr:has(.px-wrole){grid-template-columns:minmax(0,1fr) auto}
@@ -20111,92 +20250,15 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .e101-fa{display:flex;align-items:center;gap:12px;align-self:flex-end}
 .e101-ew{position:relative;display:inline-flex}
 .e101-ew>.shd-button svg{flex:none;margin-right:-4px}   /* flex:none keeps the chevron at 16px in the phone's full-width button */
-.e101-ew .e101-pop{left:auto;right:0;top:36px}
-.e101-pop.e101-menu{min-width:320px}
-.e101-mi{display:flex;align-items:center;gap:24px;width:100%;height:40px;padding:0 16px;border:0;background:none;font:inherit;font-size:14px;line-height:20px;color:#1F2937;text-align:left;cursor:pointer;box-sizing:border-box}
-.e101-mi:hover:not(:disabled){background:#F9FAFB}
-.e101-mi:disabled{color:#9CA3AF;cursor:default}
-.e101-mv{margin-left:auto;font-size:14px;color:#4B5563;font-variant-numeric:tabular-nums;white-space:nowrap}
-.e101-mv b{font-weight:600;color:#111827}
-.e101-mi:disabled .e101-mv{color:#9CA3AF}
-.e101-sent b.e101-n{font-weight:600;font-variant-numeric:tabular-nums}
-.e101-sent{flex:1 1 auto;min-width:0}
-.e101-kt{border-bottom:1px dashed #9CA3AF;cursor:default}
 /* the table selection: the design system's 16px checkbox before the avatar (a 16px spacer where there is none, so names
    line up); a selected row takes the hover grey; the bar is the search row's own box, so the table doesn't jump */
-/* R1, from the 166 board: tokens 32px high, the sentence 16/24, the result 14/20, the amber line only when a limit goes down */
-.e101-ck{flex:none}
-.e101-sp{margin-top:0}
-.e101-sent{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:16px;line-height:24px;color:#111827}
-.e101-tw{display:inline-flex;position:relative}
-.e101-tok{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;font:500 16px/24px Inter,sans-serif;color:#1F2937;vertical-align:middle;white-space:nowrap;cursor:pointer;box-sizing:border-box}
-.e101-tok svg{flex:none;color:#6B7280}
-.e101-tok:hover{background:#F9FAFB}
-.e101-tok.is-open,.e101-tok:focus-visible{border-color:#1D4ED8;box-shadow:0 0 0 3px #DBEAFE;outline:none}
-.e101-pop{position:absolute;z-index:8;top:36px;left:0;min-width:260px;width:max-content;max-width:320px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 24px rgba(17,24,39,.12);padding:8px 0;font-size:14px;line-height:20px;font-weight:400;box-sizing:border-box}
-/* vE E136: Invite users' bar heads the picker, flush with the popover's top edge; its 16px inset lines the search icon up with the checkboxes */
-.e101-pop.e101-wp{width:360px;max-width:360px}   /* room for the full "Search workspaces" placeholder beside the count and the link */
-.e101-wp .inv-a2-wss{margin-top:-8px;padding:0 16px}
-.e101-wp .inv-a2-none{padding:8px 16px}
-@media (max-width:640px){.e101-wp .inv-a2-wss:not(.is-bare){padding:0 16px 8px}}
-@media (max-width:760px){.e101-pop.e101-wp{width:auto;max-width:none}}
-.e101-pr[hidden]{display:none}
-.e101-pl{max-height:252px;overflow:auto}
-.e101-pr{display:flex;align-items:center;gap:10px;height:36px;padding:0 16px;cursor:pointer;color:#1F2937;font-size:14px}
-.e101-pr:hover,.e101-po:hover:not(:disabled){background:#F9FAFB}
-.e101-wn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.e101-x{margin-left:auto;padding-left:12px;font-size:12px;line-height:16px;color:#6B7280;white-space:nowrap}
-.e101-po{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 16px;border:0;background:none;font:inherit;font-size:14px;color:#1F2937;text-align:left;cursor:pointer;box-sizing:border-box}
-.e101-po:disabled{color:#9CA3AF;cursor:default}
-.e101-po.is-on{font-weight:500}
-.e101-tk{flex:none;width:16px;height:16px}
-.e101-sprow{display:flex;justify-content:space-between;align-items:center;gap:24px}
-.e101-act{display:flex;gap:12px;align-items:center;flex:none}
-.e101-act .shd-button--secondary{border-color:#D1D5DB;color:#374151}
-.e101-note{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:8px 12px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:14px;line-height:20px}
-.e101-note svg{flex:none;margin-top:2px}
-.e101-g6{margin-top:16px;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden}
-.e101-g6r{display:grid;grid-template-columns:272px 160px minmax(0,1fr);column-gap:16px;align-items:center;height:40px;padding:0 16px;border-top:1px solid #E5E7EB;font-size:14px;color:#1F2937}
-.e101-g6r:first-child{border-top:0;background:#F9FAFB;font-size:12px;font-weight:500;color:#6B7280}
-.e101-g6r b{font-weight:600}
-.e136a .e101-g6r{grid-template-columns:240px 120px 128px 140px minmax(0,1fr)}
-.e136a.e136a-l .e101-g6r{grid-template-columns:240px 120px minmax(0,1fr)}
-.e136a .e101-g6r>*{font-variant-numeric:tabular-nums}
-.e136-z{color:#9CA3AF}
-.e136-lv{display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap}
-.e101-chip.e136-chip{margin-left:0;cursor:default}
 @media (max-width:760px){
- .e136a .e101-g6r{grid-template-columns:minmax(0,1fr) 64px 72px}
- .e136a .e101-g6r>:nth-child(3){display:none}
- .e136a .e101-g6r>:nth-child(4){display:block}
- .e136a .e101-g6r>:last-child{display:none}
- .e136a.e136a-l .e101-g6r{grid-template-columns:minmax(0,1fr) 112px}
- .e136a.e136a-l .e101-g6r>:nth-child(3){display:none}
- .e101-g6.e136a .e101-g6r:first-child>span{white-space:normal}
-}
-.e101-chip{display:inline-flex;align-items:center;height:20px;margin-left:8px;padding:0 6px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap}
-@media (max-width:760px){
- .e101-tw{position:static}
- .e101-pop{left:0;right:0;top:100%;width:auto;max-width:none;margin-top:4px}
- .e101-sprow{flex-direction:column;align-items:stretch;gap:12px}
- .e101-act{display:grid;grid-template-columns:1fr 2fr;gap:12px}
- .e101-g6r{grid-template-columns:minmax(0,1fr) 112px;padding:0 12px;column-gap:12px}
- .e101-g6r>:last-child{display:none}
- .e101-g6r{height:auto;min-height:40px;padding-top:8px;padding-bottom:8px}
- .e101-g6r>span{min-width:0}
- .e101-g6r:first-child>span:not(:first-child){white-space:nowrap}
- .e101-kw{display:none}
  .e101-fa{position:relative;width:100%;margin-left:0;align-self:stretch}
  .e101-fa>.u-tip,.e101-ew{flex:1 1 0;min-width:0;position:static}
  .e101-fa .shd-button,.e101-ew>.shd-button{width:100%}
  .e101-fa>.u-tip{display:flex}
- .e101-fd{flex-wrap:wrap}   /* three buttons need 374px; the phone panel gives 269, so the greyed Split equally takes the line under Discard and Apply */
  .e101-fd>[data-ul3discard]{width:auto;flex:0 0 auto}
  .e101-fd>[data-ulrapply]{flex:1 1 0;min-width:0;white-space:nowrap}
- .e101-fd>.u-tip{flex:1 1 100%}
- .e101-ew .e101-pop.e101-menu{left:0;right:0;top:calc(100% + 4px);width:auto;min-width:0;margin-top:0}
- .e101-mi{height:auto;min-height:40px;padding:10px 16px;gap:12px}
- .e101-mi>span:first-child{min-width:0}
 }
 .e101-ph{position:fixed;inset:0;z-index:8500;background:rgba(17,24,39,.64);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box}
 .e101-phh{display:flex;align-items:center;justify-content:space-between;gap:16px;width:390px;max-width:100%;color:#fff;font-size:14px;line-height:20px;font-weight:500}
@@ -20433,7 +20495,6 @@ h1.crumb-tail{margin:0}
 .inv-a2-wss.is-bare .inv-a2-wsc{justify-items:start}
 @media (max-width:640px){.inv-a2-wss:not(.is-bare) .inv-a2-wsc{justify-items:start}}
 .inv-a2-wsall.wsall-r{display:inline-grid;justify-items:end}.inv-a2-wsall.wsall-r>span,.inv-a2-wsall.wsall-r::after{grid-area:1/1}.inv-a2-wsall.wsall-r::after{content:"Select all";visibility:hidden}   /* E142 (c) */
-.inv-al-o.inv-al-fold{cursor:default}.inv-al-o.inv-al-fold:focus-visible{outline:2px solid #1D4ED8;outline-offset:2px;border-radius:4px}   /* E142 (a) */
 .pn-pr.is-dis>svg{color:#D1D5DB}   /* F25: Gray 300, the disabled row's + no longer reads as clickable */
 .ivx input.ivx-in{display:block;width:100%;box-sizing:border-box;font-family:inherit;outline:none}   /* F24: real inputs in production's field */
 .ivx input.ivx-in::placeholder{color:#9CA3AF}
@@ -20453,6 +20514,92 @@ h1.crumb-tail{margin:0}
 .wrap>.msg.ws-stop+.msg.ws-stop{margin-top:12px}
 .msg.ws-stop.rc-deleted{margin:20px 24px 0}
 @media(max-width:640px){.msg.ws-stop{flex-wrap:wrap}.msg.ws-stop>span{flex:1 1 calc(100% - 26px)}.msg.ws-stop .linkbtn{margin-left:26px}.msg.ws-stop.rc-deleted{margin:16px 16px 0}}
+/* ═══ vE E150: Split equally (175 D8, placement P5). Values from the page's own components: the table filter dropdown (4px
+   radius, #E5E7EB border, 0 4px 24px rgba(0,0,0,.08) menu, 40px items), shd-button (32px), the table's 12/600 heads, the
+   global checkbox. P5: the button follows Left to allocate at the figures' 48px gap, and every figure is at least 104px wide
+   (500,000 and "Left to allocate" fit), so the button starts at the same x on every resource. ═══ */
+@media (min-width:761px){
+ .e101-fs>.e101-f{min-width:104px}
+}
+.e150-fa .e101-ew{position:relative}
+.e150-pop{position:absolute;z-index:20;top:calc(100% + 4px);right:0;background:#fff;border:1px solid #E5E7EB;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:4px 0;font-size:14px;line-height:20px;font-weight:400;color:#1F2937;text-align:left;box-sizing:border-box}
+.e150-menu{width:max-content;min-width:100%}
+.e150-mi{display:flex;align-items:center;gap:32px;width:100%;height:40px;padding:0 16px;border:0;background:none;font:inherit;font-size:14px;line-height:20px;color:#1F2937;text-align:left;white-space:nowrap;cursor:pointer;box-sizing:border-box}
+.e150-mi:hover:not(:disabled){background:#F9FAFB}
+.e150-mi:focus-visible{outline:2px solid #1D4ED8;outline-offset:-2px}
+.e150-mi:disabled{cursor:default}
+.e150-mj{font-weight:500;color:#111827}
+.e150-mr{margin-left:auto;color:#4B5563;font-variant-numeric:tabular-nums}
+.e150-mi.is-cur .e150-mj{color:#1D4ED8}
+.e150-mi:disabled .e150-mj,.e150-mi:disabled .e150-mr{color:#9CA3AF}
+/* next step: same spot, same menu rows, a heading and Done */
+.e150-nx{width:360px;padding:0}
+.e150-nh{margin:0;padding:12px 16px 8px;font-size:14px;line-height:20px;font-weight:600;color:#111827}
+.e150-nf{display:flex;justify-content:flex-end;padding:12px 16px;border-top:1px solid #E5E7EB;margin-top:4px}
+.e150-nf .shd-button{margin:0;height:32px;min-width:0;padding:0 16px;border-color:#D1D5DB;color:#374151}
+.e150-nf .shd-button:hover{background:#F9FAFB}
+/* the bar: one line, Discard and Apply, directly under the figures */
+.e101-dr.e150-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"ln ln" "h act";column-gap:24px;row-gap:4px;align-items:center;min-height:0;margin:0 -24px;padding:16px 24px 0;border-top:1px solid #E5E7EB}
+.e101-dr.e150-bar.is-why{grid-template-areas:"h act"}
+.e150-ln{grid-area:ln;margin:0;font-size:14px;line-height:20px;font-weight:500;color:#111827;font-variant-numeric:tabular-nums}
+.e150-h{grid-area:h;margin:0;font-size:14px;line-height:20px;color:#6B7280}
+.e150-h.is-why{font-weight:500;color:#111827}
+.e150-act{grid-area:act;display:flex;align-items:center;gap:12px}
+.e150-act .shd-button{margin:0;height:32px;min-width:0;padding:0 16px;white-space:nowrap}
+.e150-act .shd-button--secondary{border-color:#D1D5DB;color:#374151}
+.e150-act .shd-button--secondary:hover{background:#F9FAFB}
+/* figures: "was" hangs under the value, so no figure box moves while previewing (D7) */
+@media (min-width:761px){
+ .e101-sum.is-e150 .e101-fs{margin-bottom:16px}
+ .e101-sum.is-e150 .e101-v{position:relative}
+ .e101-sum.is-e150 .e101-was{position:absolute;left:0;top:100%;white-space:nowrap}
+}
+/* ticks: at the start of the Workspace cell; a disabled row keeps the space */
+.e150-cb{display:inline-flex;align-items:center;flex:none;width:16px;height:16px;margin-right:12px}
+.ulr-t th.e150-th .e150-cb{vertical-align:middle}
+.ulr-ws>.e150-cb{margin-right:2px}   /* + the row's 10px gap: avatars start where "Workspace" does */
+.ulr-t th.e150-th{white-space:nowrap}
+input[type=checkbox].e150-mixed{background:#1d4ed8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'><path d='M6 12h12'/></svg>") center/60% no-repeat;border:2px solid #1d4ed8}
+/* the Change column, right of Limit, only while a split is open */
+.ulr-t.ulr-tp.e150-on col.ulr-cv{width:160px}.ulr-t.ulr-tp.e150-on col.e150-cc{width:160px}.ulr-t.ulr-tp.e150-on col.ulr-cp{width:104px}
+.ulr-t.e150-on th.e150-chh{text-align:left;font-size:12px;line-height:16px;font-weight:600;color:#4B5563;white-space:nowrap}
+.ulr-t.e150-on td.e150-cc{white-space:nowrap}
+.e150-ch{display:inline-flex;flex-direction:column;align-items:flex-start;vertical-align:middle;position:relative}
+.e150-ch>.e150-dn{position:absolute;left:-20px;top:2px;color:#B45309}
+.e150-cv{font-size:14px;line-height:20px;font-weight:500;color:#374151;font-variant-numeric:tabular-nums}
+.e150-cv.is-dn{font-weight:600;color:#111827}
+.e150-cv.is-k{font-weight:400;color:#6B7280}
+.e150-nt{font-size:12px;line-height:16px;color:#6B7280;font-variant-numeric:tabular-nums}
+.e150-ch:has(.e150-i){flex-direction:row;align-items:center}
+.e150-i{display:inline-flex;margin-left:6px;color:#9CA3AF;border-radius:50%}
+.e150-i:hover,.e150-i:focus-visible{color:#4B5563}
+.ulr-t tr.e150-out .ulr-nm,.ulr-t tr.e150-out .ulr-num,.ulr-t tr.e150-out .ulr-lv{color:#6B7280;font-weight:400}
+.ulr-t tr.e150-out .ulr-pace{color:#9CA3AF}
+.ulr-t.e150-on tr.is-off .ulr-lv{color:#9CA3AF;font-weight:400}
+/* the resource with an open split, seen from another resource */
+.e150-dot{display:inline-flex;align-items:center;justify-content:center;width:12px;height:20px;margin-left:auto;flex:none}
+.e150-dot i{display:block;width:6px;height:6px;border-radius:50%;background:#1D4ED8}
+.e150-wait{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;margin:0 -24px;padding:16px 24px 0;border-top:1px solid #E5E7EB;font-size:14px;line-height:20px;color:#1F2937}
+.e101-sum.e150-unl{padding:0;gap:0}
+.e101-sum.e150-unl .e150-wait{margin:0;padding:16px 24px;border-top:0}
+@media (max-width:760px){
+ .e101-sum.e150-unl .e150-wait{padding:16px}
+ .e101-dr.e150-bar,.e101-dr.e150-bar.is-why{grid-template-columns:minmax(0,1fr);grid-template-areas:"ln" "h" "act";row-gap:4px;margin:0 -16px;padding:16px 16px 0}
+ .e150-act{margin-top:8px}
+ .e150-act{display:flex;flex-direction:column-reverse;align-items:stretch;gap:12px}
+ .e150-act .shd-button{width:100%;padding:0 12px}
+ .e150-fa .e101-ew{position:static}
+ .e150-pop.e150-menu,.e150-pop.e150-nx{left:0;right:0;width:auto;min-width:0}
+ .e150-mi{flex-wrap:wrap;column-gap:16px;row-gap:2px;height:auto;min-height:40px;padding:10px 16px;white-space:normal}   /* one line when it fits; a long reason wraps under, right-aligned */
+ .e150-nf .shd-button{width:100%}
+ .e150-wait{margin:0 -16px;padding:16px 16px 0}
+ .ulr-t.ulr-tp.e150-on thead th.e150-chh{display:none}
+ .ulr-t.ulr-tp.e150-on td:nth-child(5){grid-column:3;grid-row:3;align-self:center;text-align:right}
+ .ulr-t.ulr-tp.e150-on td:nth-child(6){grid-column:1/3;grid-row:3;align-self:center}
+ .e150-ch>.e150-dn{position:static;margin:0 4px 0 0}
+ .e150-ch:has(.e150-dn){flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:0}
+ .e150-ch:has(.e150-dn) .e150-nt{flex-basis:100%;padding-left:20px}
+}
 </style>
 <script id="e112js">
 /* vE E112: Skip to content, and every tooltip trigger reachable by keyboard whatever the role. */
