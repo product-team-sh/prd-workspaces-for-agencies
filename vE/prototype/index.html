@@ -3534,7 +3534,7 @@ function agencyUsage(c){
     and its action goes to Billing's allocation. E003: no request line; the status
     line and its link are for whoever can change limits. */
  const own=!!c.own, first=c.name.split(" ")[0], daysLeft=CYCLE.days-CYCLE.day;
- const goBtn=(t,cls)=>own?`<button class="${cls}" data-goalloc="sends">${t}</button>`:`<button class="${cls}" data-golimits="${c.id}">${t}</button>`;
+ const goBtn=(t,cls,k)=>own?`<button class="${cls}" data-goalloc="sends">${t}</button>`:`<button class="${cls}" data-culim="${c.id}|${k||""}">${t}</button>`;   /* vE E151: straight to the field */
  let worst=null;
  const info=RK.map(k=>{const R=RES[k],m=compute(k),r=R.rows[c.id]; if(!r) return null;
   const st=rowState(k,c.id,m),pc=paceOf(k,c.id);
@@ -3545,7 +3545,7 @@ function agencyUsage(c){
  if(worst&&canI("limits")){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
    ?""   /* vE E144 F13: the used-up banner is limBanner, at the top of every module page */
-   :stopBar("warn",`${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.`,"",goBtn("Raise it","linkbtn"),"ws-nearbar")}   /* vE E144 F13: the same alert, amber */
+   :stopBar("warn",`${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.`,"",goBtn("Raise it","linkbtn",worst.k),"ws-nearbar")}   /* vE E144 F13: the same alert, amber */
  const tabs=`<div class="tabbar ub-tabs">${[["allow","Limits"],["buy","Email Account Infrastructure"]].map(([k,l])=>`<button data-ubtab="${k}" aria-selected="${UB_TAB===k}">${l}</button>`).join("")}</div>`;
  if(UB_TAB==="buy") return `${top}${tabs}${mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`}`;
  /* change 303, 16 Oct 2026 (Hitesh: "make tables same in both view ... match it with what we have in client view").
@@ -6641,6 +6641,20 @@ function limBanner(c){if(!c||asClient||c.disabled||c.deletedOn||!canI("limits"))
  const ks=RK.filter(k=>RES[k].rows[c.id]&&rowState(k,c.id,compute(k)).room===0); if(!ks.length) return "";
  const nm=listAnd(ks.map(k=>k==="sends"?"Emails":RES[k].label.replace(/ \/ month$/,""))), pl=ks.length>1||/s$/.test(nm);   /* the Limits table's names; Emails sent reads "Emails" as before */
  return stopBar("bad",`${nm} ${pl?"are":"is"} used up.`,"",c.own?`<button type="button" class="linkbtn" data-goalloc="sends">Raise it</button>`:`<button type="button" class="linkbtn" data-golimits="${c.id}">Raise it</button>`,"ws-limbar")}
+/* vE E151: Usage & billing's one stopped banner inside a workspace (E144 F6), the most severe cause. Payment failed wins (it stops
+   sending everywhere, so a raise alone cannot restart it; the table's Used up chip still names the limit). Otherwise the used-up
+   line says what it stops and until when; Raise it opens the field; a role that cannot change limits reads who can, as disBanner does */
+function e151Who(c){return Object.keys(PEOPLE).some(k=>{const P=PEOPLE[k]; return P.role==="Admin"&&!P.disabled&&!P.invited&&(P.ws||[]).indexOf(c.id)>-1})?"Admin":"Owner"}
+function e151Top(c){if(!c||c.deletedOn||c.disabled) return "";   /* a disabled workspace keeps disBanner alone */
+ const ks=RK.filter(k=>RES[k].rows[c.id]&&rowState(k,c.id,compute(k)).room===0);
+ if(grace()) return graceBanner().replace(' style="margin-bottom:20px"',"");   /* one stopped banner (E144 F6): payment failed is the most severe cause; the wrap's 20px gap spaces it from the tabs */
+ if(!ks.length) return "";
+ const nm=listAnd(ks.map(k=>k==="sends"?"Emails":RES[k].label.replace(/ \/ month$/,""))), pl=ks.length>1||/s$/.test(nm);
+ const st=ks.map(k=>SL_STOP[k]).filter(Boolean), on=ks.length===1?ulrRule(ks[0]).cli:null;
+ const what=!st.length?"":`${listAnd(st).replace(/^./,x=>x.toUpperCase())} ${st.length>1?"are":"is"} paused${on?" until "+on:""}.`;
+ const can=canI("limits"), ask=can?"":`Ask ${roleA(e151Who(c))} to raise it.`;
+ const act=!can?"":c.own?`<button type="button" class="linkbtn" data-goalloc="sends">Raise it</button>`:`<button type="button" class="linkbtn" data-culim="${c.id}|${ks[0]}">Raise it</button>`;
+ return stopBar("bad",`${nm} ${pl?"are":"is"} used up.`,[what,ask].filter(Boolean).join(" "),act,"ws-limbar")}
 const SL_STOP={sends:"sending",lead_finder:"revealing leads",verification:"verifying emails",ai:"using AI",dialer:"calling",radar:"running inbox placement tests"};
 const SL_SHOW=4;
 /* vE E120 (Chintan: "this is good, we can show this when the user clicks the limit tab"; Hitesh: "let's go with this version instead of setup strip"):
@@ -10645,7 +10659,7 @@ function vInClient(){
    <div class="tools">${own?"":queueBack()}
     </div></div>`}
 
-  <div class="wrap${!(qFrom&&!own)?" hdr-top":""}">${disBanner(c)}${limBanner(c)}${(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!c.disabled&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
+  <div class="wrap${!(qFrom&&!own)?" hdr-top":""}">${disBanner(c)}${inMod==="usage"&&!asClient?e151Top(c):limBanner(c)}${(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!c.disabled&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
 }
 
 const CLIENT_STEPS=[["Connect an email account","accounts",
@@ -18747,7 +18761,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="b52551f";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="7cfc8cc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20514,6 +20528,16 @@ h1.crumb-tail{margin:0}
 .wrap>.msg.ws-stop+.msg.ws-stop{margin-top:12px}
 .msg.ws-stop.rc-deleted{margin:20px 24px 0}
 @media(max-width:640px){.msg.ws-stop{flex-wrap:wrap}.msg.ws-stop>span{flex:1 1 calc(100% - 26px)}.msg.ws-stop .linkbtn{margin-left:26px}.msg.ws-stop.rc-deleted{margin:16px 16px 0}}
+/* vE E151: the Usage table's bars are one length in the column (160px where the column has room, else what is left after the
+   widest figure), so they start and end on the same x; on a phone the bar keeps that length and the figure sits flush right */
+.cx-urw .cx-bar{container-type:inline-size}
+.cx-urw .cx-bw{flex:0 0 auto;width:clamp(40px,calc(100cqw - 128px),160px);max-width:none}
+.cx-urw .cx-bar>span:last-child{white-space:nowrap}
+@media (max-width:760px){
+ .cx-urw td{height:auto}
+ .cx-urw .cx-bar{justify-content:space-between}
+ .cx-urw .cx-bw{width:clamp(40px,calc(100cqw - 140px),220px)}
+}
 /* ═══ vE E150: Split equally (175 D8, placement P5). Values from the page's own components: the table filter dropdown (4px
    radius, #E5E7EB border, 0 4px 24px rgba(0,0,0,.08) menu, 40px items), shd-button (32px), the table's 12/600 heads, the
    global checkbox. P5: the button follows Left to allocate at the figures' 48px gap, and every figure is at least 104px wide
