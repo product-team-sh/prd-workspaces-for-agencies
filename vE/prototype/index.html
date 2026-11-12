@@ -2036,15 +2036,26 @@ const BRAND={companyName:"Meridian Growth",logo:"",icon:"",favicon:"",domain:"",
 let E105X=null;   /* the other account this session is in, {a, email}; null while in Meridian Growth */
 const E105_ACCTS={
  tw:{name:"Tidewater Partners",ws:[{id:"x-tw-q4",name:"Q4 outbound",from:"sf",colour:"#0E7490",dom:"tidewater-reach.com",owners:["Nora Lind","Owen Pratt"],
-  seqs:["Agency founders, US","Agency founders, UK","Heads of growth, SaaS","Q4 webinar follow-up","Lost deals, re-engage","Partner intros","Referral asks"]}]},
+  seqs:["Agency founders, US","Agency founders, UK","Heads of growth, SaaS","Q4 webinar follow-up","Lost deals, re-engage","Partner intros","Referral asks"]},
+  /* vE E152: Summit Fintech also buys a programme from Tidewater, so its client user is in two agencies */
+  {id:"x-tw-sf",name:"Summit Fintech",from:"at",colour:"#0F766E",dom:"summit-outreach.com",owners:["Nora Lind"],
+  seqs:["Fintech CFOs, EU","Payments ops leads","Series B founders"]}]},
  hs:{name:"Harbour Stays",normal:true,ws:[{id:"x-hs",name:"Harbour Stays",from:"pc",colour:"#6D28D9",dom:"harbourstays.com",owners:["Maya Ortiz"],
   seqs:["Corporate travel buyers","Event planners, coastal","Repeat guests win-back"]}]},
  ao:{name:"Acme Outreach",normal:true,ws:[{id:"x-ao",name:"Acme Outreach",from:"bl",colour:"#B45309",dom:"acme-reach.com",owners:["Jordan Pike"],
-  seqs:["Founder outbound","Agency owners, UK","Acme ICP test"]}]}};
+  seqs:["Founder outbound","Agency owners, UK","Acme ICP test"]}]},
+ /* vE E152: Felix (an Account Member here) runs outreach for his own business on a normal account */
+ kc:{name:"Kiln Coffee",normal:true,ws:[{id:"x-kc",name:"Kiln Coffee",from:"cp",colour:"#9A3412",dom:"kilncoffee.co",owners:["Felix Adeyemi"],
+  seqs:["Cafe owners, London","Office managers","Wholesale re-order"]}]}};
 /* each login's other accounts and its role there. Tariq (an Account Member here, a freelance SDR) is a client user at
    Tidewater, which runs an outbound programme Meridian bought; hello@pinecrest.hotels (Client Viewer on Pinecrest) owns a normal
    account of their own; the Acme Outreach founder owns one too and is the address the invite states use */
-const E105_LOGINS={"tariq@meridiangrowth.com":[{a:"tw",role:"Client Collaborator"}],
+const E105_LOGINS={"tariq@meridiangrowth.com":[{a:"tw",role:"Client Collaborator",ws:["x-tw-q4"]}],
+ /* vE E152: the remaining combinations for the Demo panel. Jonah (an Account Owner here) watches the programme Meridian
+    bought from Tidewater; Felix owns Kiln Coffee; Summit Fintech's client user is Client Admin at Tidewater */
+ "jonah@meridiangrowth.com":[{a:"tw",role:"Client Viewer",ws:["x-tw-q4"]}],
+ "felix@meridiangrowth.com":[{a:"kc",role:"Owner"}],
+ "growth@summitfintech.com":[{a:"tw",role:"Client Admin",ws:["x-tw-sf"]}],
  "hello@pinecrest.hotels":[{a:"hs",role:"Owner"}],
  "founder@acmeoutreach.com":[{a:"ao",role:"Owner"}]};
 const brandOn=()=>!E105X&&AGENCY.whitelabel&&!!BRAND.icon;   /* vE E105: another account is never drawn in Meridian's brand */
@@ -15224,13 +15235,24 @@ function demoCurrent(){const c=asClient&&byId[ctx]&&ctx!=="agency"&&ctx!=="own"?
  return {mode:"agency",key:me_,name:ME().name,role:ME().role,val:"t:"+me_}}
 /* vE E029: one person per role, six in all: the three account roles, then the three client roles. The person
    signed in now stands for their role; otherwise the first active person, or client user, who holds it. */
+/* vE E152 (12 Nov 2026, Hitesh: "add all variation of user with multiple accounts/workspaces with different kind of roles"):
+   every combination the seed holds, by where the person is. The one-role groups above leave these people out. */
+const DEMO_MULTI=[["Several workspaces",[["w:nw|finance@northwind.co","finance@northwind.co: Client Collaborator on Northwind, Client Viewer on Atlas"]]],
+ ["Several accounts",[["t:jonah","Jonah Reyes: Account Owner here, Client Viewer at Tidewater"],
+  ["t:tariq","Tariq Hassan: Account Member here, Client Collaborator at Tidewater"],
+  ["t:felix","Felix Adeyemi: Account Member here, owns Kiln Coffee"],
+  ["w:sf|growth@summitfintech.com","growth@summitfintech.com: Client Collaborator here, Client Admin at Tidewater"],
+  ["w:pc|hello@pinecrest.hotels","hello@pinecrest.hotels: Client Viewer here, owns Harbour Stays"]]]];
+const demoMultiVal=v=>DEMO_MULTI.some(g=>g[1].some(o=>o[0]===v));
 function demoWhoGroups(){
- const ppl=demoAgencyPeople(), team=["Owner","Admin","Member"].map(r=>{const k=PEOPLE[me_]&&PEOPLE[me_].role===r&&ppl.indexOf(me_)>-1?me_:ppl.find(k=>PEOPLE[k].role===r);
+ const ppl=demoAgencyPeople().filter(k=>!demoMultiVal("t:"+k)), team=["Owner","Admin","Member"].map(r=>{const k=PEOPLE[me_]&&PEOPLE[me_].role===r&&ppl.indexOf(me_)>-1?me_:ppl.find(k=>PEOPLE[k].role===r);
   return k?{val:"t:"+k,label:roleName(r)+": "+PEOPLE[k].name}:null}).filter(Boolean);
- const cur=demoCurrent(), users=[]; demoClientWs().forEach(c=>(c.users||[]).forEach(u=>users.push({c,u})));
+ const cur=demoCurrent(), users=[], multiE=DEMO_MULTI.map(g=>g[1].map(o=>o[0].split("|")[1])).flat().filter(Boolean);
+ demoClientWs().forEach(c=>(c.users||[]).forEach(u=>{if(multiE.indexOf(u[0])<0) users.push({c,u})}));
  const cl=CLIENT_ROLES.map(r=>{const x=users.find(x=>x.u[1]===r&&cur.val==="w:"+x.c.id+"|"+x.u[0])||users.find(x=>x.u[1]===r);
   return x?{val:"w:"+x.c.id+"|"+x.u[0],label:r+": "+x.u[0]}:null}).filter(Boolean);
- return [["Your team",team],["Client users",cl]].filter(x=>x[1].length)}
+ const multi=DEMO_MULTI.map(([g,os])=>[g,os.filter(o=>o[0].indexOf("t:")===0?!!PEOPLE[o[0].slice(2)]&&ppl.indexOf(o[0].slice(2))<0&&demoAgencyPeople().indexOf(o[0].slice(2))>-1:!!byId[o[0].slice(2).split("|")[0]]).map(o=>({val:o[0],label:o[1]}))]);
+ return [["Your team",team],["Client users",cl]].concat(multi).filter(x=>x[1].length)}
 function demoHash(parts){if(PLAN_TIER==="pro"&&!parts.some(p=>/^plan=/.test(p||""))) parts=parts.concat(["plan=pro"]); return parts.filter(Boolean).join("&")}   /* vE E004 */
 function demoApplyPlan(v){demoGo(demoHash([demoRoute(),demoAsParam(),demoModelParam(),demoGuideParam(),"plan="+v]))}
 /* change 195, 11 Oct 2026 (Hitesh): "When we change anything in demo panel - screens
@@ -15304,6 +15326,7 @@ function demoSync(){
   <div class="dp-g"><div class="dp-t">Plan</div>${[["scale","Scale: Active prospects Unlimited"],["pro","Pro annual, yearly Lead Finder add-on: 30,000 Active prospects"]].map(([k,l])=>`<label class="dp-r"><input type="radio" name="dpplan" value="${k}"${PLAN_TIER===k?" checked":""}><span>${l}</span></label>`).join("")}</div>
   <div class="dp-g"><div class="dp-t">View as</div>
    <select class="dp-sel" data-dpwho aria-label="Person" style="width:100%">${groups.map(([g,os])=>`<optgroup label="${esc(g)}">${os.map(o=>`<option value="${esc(o.val)}"${o.val===va.val?" selected":""}${o.disabled?" disabled":""}>${esc(o.label)}</option>`).join("")}</optgroup>`).join("")}</select>
+   ${(()=>{const m=DEMO_MULTI.map(g=>g[1]).flat().find(o=>o[0]===va.val); return m?`<p class="dp-now dp-who">${esc(m[1].slice(m[1].indexOf(": ")+2))}</p>`:""})()}
    <div class="dp-f"><button type="button" class="shd-button shd-button--primary shd-button--sm" data-dpapply>Apply</button></div></div>
   <div class="dp-g"><div class="dp-t">Now</div><div class="dp-now" id="demoNow">${esc(demoNowLine())}</div></div>`;
  if(P.innerHTML!==html) P.innerHTML=html;
@@ -15379,7 +15402,7 @@ function e105Multi(){return e105Accts().length>1}
 /* another account's workspaces this login reaches: a copy of a demo workspace's data under its own id, in byId only */
 function e105XWs(a){const A=E105_ACCTS[a], e=e105Email(); if(!A||!e) return [];
  const me=(E105_LOGINS[e]||[]).find(x=>x.a===a); if(!me) return [];
- return A.ws.map(w=>{let c=byId[w.id]; if(!c){const s=byId[w.from];
+ return A.ws.filter(w=>!me.ws||me.ws.indexOf(w.id)>-1).map(w=>{let c=byId[w.id];   /* vE E152 */ if(!c){const s=byId[w.from];
    c=Object.assign({},s,{id:w.id,name:w.name,company:w.name,email:e,colour:w.colour,logo:null,xacct:a,disabled:false,deletedOn:null,
     sequences:(s.sequences||[]).map((x,i)=>Object.assign({},x,{name:w.seqs[i%w.seqs.length],owner:w.owners[i%w.owners.length]})),mailboxes:(s.mailboxes||[]).map(x=>[x[0].split("@")[0]+"@"+w.dom].concat(x.slice(1))),overrides:Object.assign({},s.overrides||{})});
    byId[w.id]=c}
@@ -18033,6 +18056,7 @@ table.organism.an-table th,table.organism.an-table td{padding-left:8px;padding-r
 .dp-now{font-size:12px;line-height:18px;color:var(--gray-12);word-break:break-word}
 .dp-now b{font-weight:600;color:var(--gray-17)}
 .dp-f{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.dp-who{margin:6px 0 0}   /* vE E152 */
 #tourLayer{position:fixed;inset:0;z-index:1150;pointer-events:none}
 #tourLayer[hidden]{display:none}
 .tour-blk{position:absolute;pointer-events:auto;background:transparent}
@@ -18761,7 +18785,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="7cfc8cc";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="1dc7160";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
