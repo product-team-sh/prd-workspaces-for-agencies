@@ -9049,7 +9049,7 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const all=unl?"":ulrTerm(k)?`<span class="ulr-give"><b data-ulrav="${k}">${ulrAvHTML(k)}</b> available until ${ulrTerm(k).to}</span>`   /* vE E072 (row 23): what resets at renewal says until when */
   :`<span class="ulr-give">Available <b data-ulrav="${k}">${ulrAvHTML(k)}</b></span>`;
  /* the table's own toolbar: search and filters past 8 (fix 8), Available at its right end */
- const tb=ulfShow(k)?ulfToolbar()+ulfChips():"";   /* vE E101: Available moved into the summary */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
+ const tb=(ulfShow(k)?ulfToolbar()+ulfChips():"")+e150SelHTML(k);   /* vE E153: the selection strip */   /* vE E101: Available moved into the summary */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}${e150RowCls(k,c)}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${e150Ck(k,c)}${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span>${c.disabled?'<span class="chip hdr-chip hdr-chip--mute ulr-dchip">Disabled</span>':""}</div></td>`
@@ -15603,14 +15603,14 @@ function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.
  let why="", line="", given=0, kept=0, at=0;
  if(!n) why="Tick the workspaces to split between.";
  else if(c.job==="left"){given=c.leftBefore-c.leftAfter;
-  if(c.leftBefore===0) why="Nothing left to split."; else if(c.share===0) why=`Too little left to split between ${e101Ws(n)}.`;
-  else line=given===c.leftBefore?`${f(given)} split between ${e101Ws(n)}, ${f(c.share)} more each.`:`${f(given)} of ${f(c.leftBefore)} split between ${e101Ws(n)}, ${f(c.share)} more each.`}
+  if(c.leftBefore===0) why="Nothing left to split."; else if(c.share===0) why=`Only ${f(c.leftBefore)} left, too little to split between ${e101Ws(n)}.`;
+  else line=`Each ticked workspace gets ${f(c.share)} more.`}   /* vE E153: one figure; the rows and Left to allocate show the rest */
  else{given=P.reduce((t,r)=>t+r.after,0); kept=P.filter(r=>r.after!==c.share).length; at=n-kept;
-  if(n<2) why="Tick 2 or more workspaces to split between.";
-  else if(!moved.length||!at) why="Too much already used to split between these workspaces.";
-  else{const pot=c.pot, head=given===pot?`${f(given)} split between ${e101Ws(n)}`:`${f(given)} of ${f(pot)} split between ${e101Ws(n)}`;
-   const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, tail=[k75?`${k75} kept at 75% used`:"",kk?`${kk} keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(", ");
-   line=(kept?`${head}: ${at} get ${f(c.share)}, ${tail}.`:`${head}, ${f(c.share)} each.`)+e150DisTxt(c)}}
+  if(n<2) why="Tick one more workspace to split between.";
+  else if(!moved.length||!at){const out=c.rows.some(r=>r.move==="out"), hi=r=>ulPct(r.used,r.before)>=E150_BAND;   /* vE E153: the reason names a fix that works */
+   why=out?"Not enough room to split. Tick workspaces that have room to spare.":P.every(hi)?"Nothing to split: every workspace is above 75% used.":"Not enough room to split. Untick workspaces above 75% used."}
+  else{const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, ex=[k75?`${k75} kept at 75% used`:"",kk?`${kk} that keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(" and ");
+   line=`Each ticked workspace gets a limit of ${f(c.share)}${ex?", except "+ex:""}.`}}   /* vE E153: rounding, disabled workspaces and totals stay in the figures and rows */
  /* sum check */
  if(!why){const net=c.rows.reduce((t,r)=>t+Math.max(r.after,r.used)-Math.max(r.before,r.used),0), pool=RES[k].pool;
   const ok1=c.allocAfter+c.leftAfter===pool&&c.leftAfter>=0, ok2=net===c.leftBefore-c.leftAfter;
@@ -15661,8 +15661,11 @@ function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E
  return `<div class="e150-pop e150-nx" role="dialog" aria-labelledby="e150NxH"><p class="e150-nh" id="e150NxH">${E150_LAB[job]} on another resource?</p>${L.map(row).join("")}<div class="e150-nf"><button type="button" class="shd-button shd-button--secondary" data-e150done>Done</button></div></div>`}
 /* the bar under the figures: one line, then Discard and Apply */
 function e150BarHTML(k){const s=e150Sum(k), lab=`Split between ${e101Ws(s.n)}`;
- const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p><p class="e150-h">Untick any to leave it out.</p>`;
+ const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p>`;   /* vE E153 */
  return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
+/* vE E153: the selection, on the table: ticked across every active workspace, filtered out or not */
+function e150SelHTML(k){if(!e150In(k)) return ""; const A=e150Act(k), n=E150.ids.length;
+ return `<p class="e150-sel" role="status"><b>${n} of ${A.length}</b> workspaces ticked.${n?` Untick any to leave it out.`:""}</p>`}
 function e150WaitHTML(){const L=RES[E150.k0].label; return `<div class="e150-wait"><span>Split not applied on ${L}.</span><button type="button" class="linkbtn" data-ul3tab="${E150.k0}">Go to ${L}</button></div>`}
 function e150UnlHTML(){return `<div class="e101-sum is-e150 e150-unl" role="group" aria-label="Split not applied">${e150WaitHTML()}</div>`}
 /* figures stay; with the split open, Allocated and Left to allocate read "was" under the value (D7) */
@@ -15765,13 +15768,13 @@ function pnItemHTML(p,r,can,nOn){const w=pxW(r.id), d=PA_ED.d, cl=d.side==="clie
   return `<div class="pn-item"${k}><div class="pn-row${rt?"":" is-t"} is-gone"><span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span></span>${rt?`<span class="pn-rt">${rt}</span>`:""}<button type="button" class="linkbtn pn-undo" data-pnundo="${r.id}" aria-label="Undo removing from ${nm}">Undo</button></div></div>`}
  const role=d.cr[r.id]||d.role;   /* Phase 1: no "what they own" line; nothing in Phase 1 acts on it */
  const name=`<span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span>${w.disabled?'<span class="pop-tag">Disabled</span>':""}</span>`;
- const sel=!cl?"":can&&(PN.ed||!r.was)?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}]):`<span class="pn-rt pn-rt--ro">${role}</span>`;
+ const sel=!cl?"":can?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}],{disabled:!PN.ed}):`<span class="pn-rt pn-rt--ro">${role}</span>`;   /* vE E154 */
  const only=cl&&p.kind==="client"&&r.was&&(w.users||[]).length===1;
  const x=!can||(r.on&&nOn<=1)?"<span></span>":only?`<button type="button" class="pn-ib" disabled title="Only user here. Disable the workspace instead." aria-label="Only user here. Disable the workspace instead.">${PN_X}</button>`
-  :`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}">${PN_X}</button>`;
+  :`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}"${PN.ed?"":" disabled"}>${PN_X}</button>`;   /* vE E154: off until Edit */
  return `<div class="pn-item"${k}><div class="pn-row${cl?"":" is-t"}${PN.from===r.id?" is-hl":""}">${name}${sel}${x}</div></div>`}
 function pnAddHTML(p,rows){const cl=PA_ED.d.side==="client", have=rows.map(r=>r.id);
- const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}">${PN_PLUS}Add to a workspace</button></div>`;
+ const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}"${PN.ed?"":" disabled"}>${PN_PLUS}Add to a workspace</button></div>`;
  if(!PN.pick) return btn;
  const L=wsPickOrder(fundedWorkspaces().filter(c=>pnVis(c.id)&&!(cl&&c.own)&&have.indexOf(c.id)<0));
  return btn+`<div class="pn-pick">${L.length>WS_PICK_MAX?`<div class="inv-a2-wss">${srchI}<input type="text" data-pnaq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}<div class="pn-pl">${L.length?L.map(c=>{const off=cl&&wsOffNew(c,0); return `<button type="button" class="pn-pr${off?" is-dis":""}" data-pnpick="${c.id}" data-k="${invEsc(wsHay(c))}"${off?" disabled":""}>${av(c,24)}<span class="pn-pn">${invEsc(c.name)}${off?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${PN_PLUS}</button>`}).join("")+(L.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""):`<p class="pn-empty">In every workspace already.</p>`}</div></div>`}
@@ -15798,15 +15801,17 @@ function pnHdHTML(p){const exp=p.invited&&invExpired(p.invited);   /* vE E129: t
  const more=I.length?`<span class="pn-morew"><button type="button" class="pn-ib pn-more" data-pnmore aria-haspopup="menu" aria-expanded="${!!PN.menu}" aria-label="More actions for ${invEsc(p.name)}">${PN_DOTS}</button>${menu}</span>`:"";
  return `<div class="pn-hd"><div class="pn-top${p.kind==="team"||p.named||resend?"":" pn-top--one"}"><div class="pn-id">${ppAv(p.initials,PP_AV,40,!!p.invited)}<div class="pn-who"><div class="pn-nl"><h2 class="pn-nm" id="pnTitle">${invEsc(p.name)}${p.me?' <span class="pn-you">(you)</span>':""}</h2>${tag}</div>${p.kind==="team"||p.named?`<div class="pn-em">${invEsc(p.email)}</div>`:""}
   ${resend?`<div class="pn-meta">${resend}</div>`:""}</div></div>
-  <div class="pn-tr">${more}<button type="button" class="pn-x" data-pnclose aria-label="Close">${PN_X}</button></div></div></div>`}
+  <div class="pn-tr">${!PN.ed&&!pnEdWhy(p)?`<button type="button" class="shd-button shd-button--secondary pn-edit" data-pnedit aria-label="Edit">${PN_PEN}<span class="pn-edl">Edit</span></button>`:""}${more}<button type="button" class="pn-x" data-pnclose aria-label="Close">${PN_X}</button></div></div></div>`}
 /* vE E129: Role, read-only until Edit role. Edit role is off, with the reason on hover and focus, wherever the role cannot change today */
 const PN_SELF_WHY="Transfer ownership to change your role.";
 const pnEdWhy=p=>personCanEdit(p)?"":p.me?PN_SELF_WHY:PX_LOCK_WHY();
 const pnEdBtn=why=>`<button type="button" class="linkbtn pn-lb pn-edr${why?" u-tip":""}"${why?` aria-disabled="true" title="" data-uwtip="${why}"`:" data-pnedit"}>Edit role</button>`;
-function pnRoleHTML(p){const d=PA_ED.d; if(d.side!=="team") return ""; const why=pnEdWhy(p), ed=!why&&PN.ed;
+function pnRoleHTML(p){const d=PA_ED.d; if(d.side!=="team") return ""; const why=pnEdWhy(p);   /* vE E154: a field, off until Edit */
  const roles=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]);
- const val=ed?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:ROLE_SUM[r]}))}])}</div>`:`<span class="pn-rv">${roleName(d.role)}</span>`;
- return `<div class="pn-sec pn-sec--role">Role${ed?"":pnEdBtn(why)}</div><div class="pn-rrow">${val}</div>`}
+ const val=!why?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:ROLE_SUM[r]}))}],{disabled:!PN.ed})}</div>`:`<span class="pn-rv">${roleName(d.role)}</span>`;
+ return `<div class="pn-sec pn-sec--role">Role${why?pnWhyHTML(why):""}</div><div class="pn-rrow">${val}</div>`}
+const pnWhyHTML=why=>`<span class="pn-lb pn-edr u-tip" tabindex="0" aria-disabled="true" title="" data-uwtip="${why}">Why can’t I change this?</span>`;   /* vE E154 */
+const PN_PEN='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>';
 function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  if(TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)){const F=PEOPLE[TRANSFER.from], T=PEOPLE[TRANSFER.to], s=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
   h+=`<div class="msg m-warn pn-msg" role="status">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name}; ${s(TRANSFER.from)}, ${s(TRANSFER.to)}. Nothing changes until both confirm. <button type="button" class="linkbtn" data-pntrcancel>Cancel transfer</button></span></div>`}
@@ -15815,12 +15820,12 @@ function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  return h}
 function pnFtHTML(p){
  if(PN.guard) return `<div class="pn-ft"><span class="pn-why pn-ask">Discard your changes?</span><button type="button" class="shd-button shd-button--tertiary" data-pnkeep>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pndiscard>Discard</button></div>`;
- if(!pxDirty(p)&&!PN.ed) return "";   /* vE E129 */
+ if(!pxDirty(p)&&!PN.ed) return pnEdWhy(p)?"":`<div class="pn-edf"><button type="button" class="shd-button shd-button--secondary" data-pnedit>Edit</button></div>`;   /* vE E154: the phone's Edit */
  const why=pxInvalid(PA_ED.d)?"Keep at least one workspace":"";
  return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':pxDirty(p)?"":" disabled"}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
 function pnHTML(p,anim){const rows=pnRows(p), can=personCanEdit(p), nOn=rows?rows.filter(r=>r.on).length:0;
  const list=rows===null?`<div class="pn-sec">Workspaces</div><p class="pn-line">Reaches every workspace.</p>`
-  :`<div class="pn-sec">Workspaces${PA_ED.d.side==="client"&&can&&!PN.ed&&rows.some(r=>r.was)?pnEdBtn(""):""}</div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
+  :`<div class="pn-sec">Workspaces</div>${rows.length>WS_PICK_MAX?`<div class="pn-srch inv-a2-wss">${srchI}<input type="text" data-pnq placeholder="Search ${rows.length} workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}`
    +`<div class="pn-list">${rows.map(r=>pnItemHTML(p,r,can,nOn)).join("")}${rows.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""}</div>${PA_ED.d.side==="client"&&p.email?domWarn([p.email],pxTicked(PA_ED.d).filter(id=>!pxCast(p).cws[id])):""}${rows.length?"":`<p class="pn-line">Not in any workspace.</p>`}${can?pnAddHTML(p,rows):""}`;
  return `<div class="pn-scrim" data-pnscrim></div><aside class="pn-pan${anim?" is-in":""}" role="dialog" aria-modal="true" aria-labelledby="pnTitle">${pnHdHTML(p)}<div class="pn-bd">${pnNotes(p)}${pnRoleHTML(p)}${list}</div>${pnFtHTML(p)}</aside>`}
 /* a selector that finds the same control after a repaint */
@@ -18785,7 +18790,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="1dc7160";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="da52e82";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20441,6 +20446,13 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
 .pp-status .pp-st{flex:none}   /* E109: the status text kept shrinking into the Resend link, so 'ago' touched 'Resend' */
 /* vE E129: Role in the panel body. The value sits on a 32px line so Edit role swaps text for the 32px field without a jump */
 .pn-sec .pn-edr{margin-left:auto}
+.pn-tr .pn-edit{display:inline-flex;align-items:center;gap:6px;height:32px;min-width:0;margin:0 4px 0 0;padding:0 16px;border-color:#D1D5DB;color:#374151;white-space:nowrap}   /* vE E154 */
+.pn-tr .pn-edit:hover{background:#F9FAFB}
+.pn-tr .pn-edit svg{width:16px;height:16px;flex:none}
+.pn-edf{display:none}
+@media (max-width:640px){.pn-tr .pn-edit{display:none}.pn-edf{display:flex;padding:12px 16px;border-top:1px solid #E5E7EB;background:#fff;flex:none}.pn-edf .shd-button{flex:1 1 0;margin:0;border-color:#D1D5DB;color:#374151}}   /* phone: Edit at the foot, the header keeps one line */
+.pn-add .linkbtn:disabled{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
+.pn-sec .pn-edr[aria-disabled="true"]{font-weight:400}
 .pn-edr[aria-disabled="true"]{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
 .pn-rrow{display:flex;align-items:center;min-height:32px;margin:4px 0 0}
 .pn-rv{color:#1F2937}
@@ -20587,8 +20599,11 @@ h1.crumb-tail{margin:0}
 .e150-nf .shd-button{margin:0;height:32px;min-width:0;padding:0 16px;border-color:#D1D5DB;color:#374151}
 .e150-nf .shd-button:hover{background:#F9FAFB}
 /* the bar: one line, Discard and Apply, directly under the figures */
-.e101-dr.e150-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"ln ln" "h act";column-gap:24px;row-gap:4px;align-items:center;min-height:0;margin:0 -24px;padding:16px 24px 0;border-top:1px solid #E5E7EB}
+.e101-dr.e150-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"ln act";column-gap:24px;row-gap:4px;align-items:center;min-height:0;margin:0 -24px;padding:16px 24px 0;border-top:1px solid #E5E7EB}
 .e101-dr.e150-bar.is-why{grid-template-areas:"h act"}
+.e150-sel{margin:0;padding:10px 24px;background:#EFF6FF;border-bottom:1px solid #DBEAFE;font-size:14px;line-height:20px;color:#1E40AF;font-variant-numeric:tabular-nums}   /* vE E153 */
+.e150-sel b{font-weight:600}
+@media (max-width:760px){.e150-sel{padding:10px 16px}}
 .e150-ln{grid-area:ln;margin:0;font-size:14px;line-height:20px;font-weight:500;color:#111827;font-variant-numeric:tabular-nums}
 .e150-h{grid-area:h;margin:0;font-size:14px;line-height:20px;color:#6B7280}
 .e150-h.is-why{font-weight:500;color:#111827}
@@ -20632,7 +20647,8 @@ input[type=checkbox].e150-mixed{background:#1d4ed8 url("data:image/svg+xml;utf8,
 .e101-sum.e150-unl .e150-wait{margin:0;padding:16px 24px;border-top:0}
 @media (max-width:760px){
  .e101-sum.e150-unl .e150-wait{padding:16px}
- .e101-dr.e150-bar,.e101-dr.e150-bar.is-why{grid-template-columns:minmax(0,1fr);grid-template-areas:"ln" "h" "act";row-gap:4px;margin:0 -16px;padding:16px 16px 0}
+ .e101-dr.e150-bar{grid-template-columns:minmax(0,1fr);grid-template-areas:"ln" "act"} .e101-dr.e150-bar.is-why{grid-template-areas:"h" "act"}
+ .e101-dr.e150-bar,.e101-dr.e150-bar.is-why{grid-template-columns:minmax(0,1fr);row-gap:4px;margin:0 -16px;padding:16px 16px 0}
  .e150-act{margin-top:8px}
  .e150-act{display:flex;flex-direction:column-reverse;align-items:stretch;gap:12px}
  .e150-act .shd-button{width:100%;padding:0 12px}
