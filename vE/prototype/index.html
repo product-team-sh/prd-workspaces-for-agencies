@@ -7421,7 +7421,7 @@ function personInvRow(p){
 /* vE E029: an Account Owner is never changed, disabled or removed by anyone else, another Account Owner
    included; the controls stay on the page, disabled, with OWNER_WHY as the reason. */
 const OWNER_WHY="An Account Owner can&rsquo;t change, disable or remove another Account Owner.";
-const personCanEdit=p=>canI("members")&&!p.owner;
+const personCanEdit=p=>canI("members")&&!p.owner&&!p.me;   /* vE E155: nobody edits their own row */
 /* change 224 (item 19, doc 96 G9): PRD 3.6, "an Admin edits but cannot remove an Admin".
    Removing an Account Admin is the Account Owner's; editing stays with both. */
 const personCanRemove=p=>personCanEdit(p)&&(p.kind!=="team"||p.role!=="Admin"||ME().role==="Owner");
@@ -7943,8 +7943,8 @@ function ddHTML(id,value,groups,o){
  const all=groups.flatMap(g=>g.items), cur=all.find(x=>x.value===value);
  const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
  const chk='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
- return `<div class="dd${o.disabled?" is-disabled":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
-  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}>${o.icon||""}<span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${cur&&cur.count!=null?`<span class="pp-cnt pp-cnt--blue">${cur.count}</span>`:""}${chev}</button>
+ return `<div class="dd${o.disabled?" is-disabled":""}${o.ro?" is-ro":""}${o.open?" is-open":""}" id="${id}" data-value="${value||""}">
+  <button type="button" class="dd-trig" data-ddtrig aria-haspopup="listbox" aria-expanded="${o.open?"true":"false"}" ${o.disabled?"disabled":""}${o.ro?` aria-disabled="true" data-pnro="dd:${id}"`:""}>${o.icon||""}<span class="dd-val${cur?"":" is-ph"}">${cur?cur.label:(o.placeholder||"Pick one")}</span>${cur&&cur.count!=null?`<span class="pp-cnt pp-cnt--blue">${cur.count}</span>`:""}${chev}</button>
   <div class="dd-menu" role="listbox" ${o.open?"":"hidden"}>${srch?`<div class="dd-s"><input type="text" class="dd-q" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}${groups.map(g=>(g.label?`<div class="dd-group">${g.label}</div>`:"")+g.items.map(x=>`<div class="dd-opt${x.value===value?" is-sel":""}${x.off?" is-off":""}" role="option" aria-selected="${x.value===value}"${x.off?` aria-disabled="true" data-off="1"`:""} data-ddopt="${x.value}"${srch&&wsI(x)?` data-ddk="${wsHay(wsI(x)).replace(/"/g,"&quot;")}"`:""}>${x.avatar||""}<span class="dd-lbl">${x.off||x.desc?`<span class="dd-l">${x.label}</span><span class="dd-desc">${x.off||x.desc}</span>`:x.label}</span>${x.count!=null?`<span class="pp-cnt pp-cnt--${x.value===value?"blue":"gray"}">${x.count}</span>`:x.value===value?chk:""}</div>`).join("")).join("")}${srch?`<p class="dd-none" hidden></p>`:""}</div></div>`;
 }
 /* vE E021: the dropdown's search box filters its options in place, by the shared rule */
@@ -7967,7 +7967,7 @@ function wireDD(L,id,onPick){
   menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{if(el.dataset.off) return; document.removeEventListener("mousedown",aw,true);window.__ddAway=null;dd.classList.remove("is-open");menu.hidden=true;dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)})}
  const close=()=>{dd.classList.remove("is-open");menu.hidden=true;trig.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",away,true);document.removeEventListener("keydown",esc,true)};
  const away=e=>{if(!dd.contains(e.target))close()}, esc=e=>{if(e.key==="Escape"){e.stopPropagation();close();trig.focus()}};
- trig.onclick=()=>{if(trig.disabled)return; if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;ddFlip(dd,menu);trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"});
+ trig.onclick=()=>{if(trig.disabled||trig.getAttribute("aria-disabled")==="true")return;   /* vE E155 */ if(!menu.hidden){close();return} dd.classList.add("is-open");menu.hidden=false;ddFlip(dd,menu);trig.setAttribute("aria-expanded","true");document.addEventListener("mousedown",away,true);document.addEventListener("keydown",esc,true);const sel=menu.querySelector(".is-sel");if(sel)sel.scrollIntoView({block:"nearest"});
   const sq=menu.querySelector(".dd-q"); if(sq){sq.value="";sq.oninput();sq.focus()}};   /* vE E021 */
  menu.querySelectorAll("[data-ddopt]").forEach(el=>el.onclick=()=>{if(el.dataset.off) return; close();dd.dataset.value=el.dataset.ddopt;onPick(el.dataset.ddopt)});
 }
@@ -15550,7 +15550,7 @@ const e101SpRows=k=>ul3E2Rows(k).filter(c=>!c.disabled);
    floors nobody is lifted and rows above the share keep their limit. No limit ever ends below its use. Shares round down to
    100s on plans of 10,000 or more; the rest stays in Left to allocate.
    Open calls built on defaults (175 plan.md, 6 Nov): the menu's Split allocated amount is what can be split (active limits,
-   462,000 on busy), the line names disabled workspaces that keep theirs; every row held above the share reads "kept at 75%
+   462,000 on busy), the line names disabled workspaces that keep theirs; every row held above the share reads "set to 75%
    used"; the rounding remainder stays in Left to allocate. Review states: #demo=busy&guide=off&e150=<state>. ═══ */
 var E150={open:false}, E150M=false, E150N=null;
 var E150_BAND=76, E150_RED=86;
@@ -15587,12 +15587,12 @@ function e150Re(){E150.cache={}}
 function e150Metered(){return UL_K().filter(x=>!isUnl(x))}
 function e150In(k){return !!(E150&&E150.open)&&k===E150.k0}
 function e150Val(k,id){if(typeof E150==="undefined"||!E150||!e150In(k)||e150Sum(k).why) return null; const r=e150Calc(k).by[id]; return r?r.after:null}   /* a split that can't run changes nothing on screen */
-var E150_LAB={left:"Split what’s left",alloc:"Split allocated"};
+var E150_LAB={left:"Allocate what’s left",alloc:"Reallocate limits"};   /* vE E157: named by outcome */
 /* a row in the split that isn't plain "the share" says why, in a few words. Split allocated: one reason for every row held
-   above the share, "kept at 75% used". Split what's left: a row already past its limit gets the share on top of its use */
+   above the share, "set to 75% used". Split what's left: a row already past its limit gets the share on top of its use */
 const e150At75=(c,r)=>r.picked&&r.after!==c.share&&r.floor!=null&&r.after===r.floor;
 function e150Note(c,r){if(!r||!r.picked) return ""; if(c.job==="left") return r.used>r.before?`already used ${f(r.used)}`:"";
- return e150At75(c,r)?"kept at 75% used":""}
+ return e150At75(c,r)?"set to 75% used":""}   /* vE E156 */
 /* disabled workspaces keep their limits in Split allocated; the line names them */
 function e150DisTxt(c){const D=c.rows.filter(r=>r.move==="disabled"&&Math.max(r.before,r.used)>0); if(!D.length) return "";
  const amt=f(D.reduce((t,r)=>t+Math.max(r.before,r.used),0));
@@ -15601,15 +15601,15 @@ function e150DisTxt(c){const D=c.rows.filter(r=>r.move==="disabled"&&Math.max(r.
    Sum check (asserted on every call): what comes off the pot = what lands on the ticked rows (+ the rest, which stays left) */
 function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.filter(r=>r.after!==r.before);
  let why="", line="", given=0, kept=0, at=0;
- if(!n) why="Tick the workspaces to split between.";
+ if(!n) why=c.job==="left"?"Tick the workspaces to allocate to.":"Tick the workspaces to reallocate.";   /* vE E157 */
  else if(c.job==="left"){given=c.leftBefore-c.leftAfter;
-  if(c.leftBefore===0) why="Nothing left to split."; else if(c.share===0) why=`Only ${f(c.leftBefore)} left, too little to split between ${e101Ws(n)}.`;
+  if(c.leftBefore===0) why="Nothing left to allocate.";   /* vE E157 */ else if(c.share===0) why=`Only ${f(c.leftBefore)} left, too little to allocate to ${e101Ws(n)}.`;   /* vE E157 */
   else line=`Each ticked workspace gets ${f(c.share)} more.`}   /* vE E153: one figure; the rows and Left to allocate show the rest */
  else{given=P.reduce((t,r)=>t+r.after,0); kept=P.filter(r=>r.after!==c.share).length; at=n-kept;
-  if(n<2) why="Tick one more workspace to split between.";
+  if(n<2) why="Tick one more workspace to reallocate.";   /* vE E157 */
   else if(!moved.length||!at){const out=c.rows.some(r=>r.move==="out"), hi=r=>ulPct(r.used,r.before)>=E150_BAND;   /* vE E153: the reason names a fix that works */
-   why=out?"Not enough room to split. Tick workspaces that have room to spare.":P.every(hi)?"Nothing to split: every workspace is above 75% used.":"Not enough room to split. Untick workspaces above 75% used."}
-  else{const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, ex=[k75?`${k75} kept at 75% used`:"",kk?`${kk} that keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(" and ");
+   why=out?"Not enough room to reallocate. Tick workspaces that have room to spare.":P.every(hi)?"Nothing to reallocate: every workspace is above 75% used.":"Not enough room to reallocate. Untick workspaces above 75% used."}   /* vE E157 */
+  else{const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, ex=[k75?`${k75} set to 75% used`:"",kk?`${kk} that keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(" and ");
    line=`Each ticked workspace gets a limit of ${f(c.share)}${ex?", except "+ex:""}.`}}   /* vE E153: rounding, disabled workspaces and totals stay in the figures and rows */
  /* sum check */
  if(!why){const net=c.rows.reduce((t,r)=>t+Math.max(r.after,r.used)-Math.max(r.before,r.used),0), pool=RES[k].pool;
@@ -15651,7 +15651,8 @@ function e150Dot(x){if(!E150.open||x!==E150.k0||E150.k0===ul3E2K()) return "";
 function e150MenuHTML(k){const it=job=>{const o=e150Opt(k,job), cur=E150.open&&E150.job===job;
   return `<button type="button" class="e150-mi${cur?" is-cur":""}" role="menuitemradio" aria-checked="${cur}" data-e101open="${job}"${o.off?" disabled":""}><span class="e150-mj">${E150_LAB[job]}</span><span class="e150-mr">${o.v}</span></button>`};
  return `<div class="e150-pop e150-menu" role="menu" aria-label="Split equally">${it("left")}${it("alloc")}</div>`}
-function e150BtnHTML(k){return `<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E150M}">Split equally${E101_CHEV}</button>${E150M?e150MenuHTML(k):E150N&&E150N.k===k?e150NextHTML(k):""}</span>`}
+function e150BtnHTML(k){const pick=E150.open&&e150In(k), lab=pick?E150_LAB[E150.job]:"Split equally";   /* vE E157: the trigger shows the open option */
+ return `<span class="e101-ew"><button type="button" class="shd-button shd-button--secondary" data-e101menu aria-haspopup="menu" aria-expanded="${E150M}"${pick?` aria-label="Split equally: ${lab}"`:""}>${lab}${E101_CHEV}</button>${E150M?e150MenuHTML(k):E150N&&E150N.k===k?e150NextHTML(k):""}</span>`}
 function e150ActsHTML(k){if(ulRo()||e101SpRows(k).length<2) return ""; return `<div class="e101-fa e150-fa">${e150BtnHTML(k)}</div>`}
 /* next step, after Apply: the same option on the other metered resources, from the same spot. Unlimited resources aren't offered */
 function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E150N.done.indexOf(x)<0&&e101SpRows(x).length>=2);
@@ -15660,12 +15661,12 @@ function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E
   return `<button type="button" class="e150-mi" data-e150next="${x}"${o.off?" disabled":""}><span class="e150-mj">${RES[x].label}</span><span class="e150-mr">${v}</span></button>`};
  return `<div class="e150-pop e150-nx" role="dialog" aria-labelledby="e150NxH"><p class="e150-nh" id="e150NxH">${E150_LAB[job]} on another resource?</p>${L.map(row).join("")}<div class="e150-nf"><button type="button" class="shd-button shd-button--secondary" data-e150done>Done</button></div></div>`}
 /* the bar under the figures: one line, then Discard and Apply */
-function e150BarHTML(k){const s=e150Sum(k), lab=`Split between ${e101Ws(s.n)}`;
+function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to ${e101Ws(s.n)}`:`Reallocate ${s.n} limits`;   /* vE E157 */
  const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p>`;   /* vE E153 */
  return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
 /* vE E153: the selection, on the table: ticked across every active workspace, filtered out or not */
-function e150SelHTML(k){if(!e150In(k)) return ""; const A=e150Act(k), n=E150.ids.length;
- return `<p class="e150-sel" role="status"><b>${n} of ${A.length}</b> workspaces ticked.${n?` Untick any to leave it out.`:""}</p>`}
+function e150SelHTML(k){if(!e150In(k)) return ""; const A=e150Act(k), n=E150.ids.length, blocked=!!e150Sum(k).why;   /* vE E156: blocked = the bar's own result, so no "Untick" hint under a reason */
+ return `<p class="e150-sel" role="status"><b>${n} of ${A.length}</b> workspaces ticked.${n&&!blocked?` Untick any to leave it out.`:""}</p>`}
 function e150WaitHTML(){const L=RES[E150.k0].label; return `<div class="e150-wait"><span>Split not applied on ${L}.</span><button type="button" class="linkbtn" data-ul3tab="${E150.k0}">Go to ${L}</button></div>`}
 function e150UnlHTML(){return `<div class="e101-sum is-e150 e150-unl" role="group" aria-label="Split not applied">${e150WaitHTML()}</div>`}
 /* figures stay; with the split open, Allocated and Left to allocate read "was" under the value (D7) */
@@ -15678,7 +15679,7 @@ function e150Close(){E150={open:false}}
 function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
  const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
 function e150Apply(){const k=E150.k0, c=e150Calc(k), s=e150Sum(k); if(s.why) return; const D={}; c.rows.forEach(r=>{if(r.after!==r.before) D[k+"|"+r.id]=r.after});
- const job=E150.job, t=`Split ${f(s.given)} between ${e101Ws(s.n)}.`; e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
+ const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.n)}.`:`Reallocated limits across ${e101Ws(s.n)}.`;   /* vE E157 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
  RECEIPT.text=RECEIPT.short=t; RECEIPT.variant="success"; ul3E2Close(); UL.focusK=k;
  E150N={job,k,done:((E150N&&E150N.done)||[]).concat(k)}; render(); setTimeout(()=>{const x=document.querySelector(".e150-nx .e150-mi:not(:disabled),[data-e150done]"); if(x) x.focus({preventScroll:true})},0)}
 function e150Tick(ids,on){const S=new Set(E150.ids); ids.forEach(id=>on?S.add(id):S.delete(id)); E150.ids=e150Act(E150.k0).filter(id=>S.has(id)); e150Re()}
@@ -15768,13 +15769,13 @@ function pnItemHTML(p,r,can,nOn){const w=pxW(r.id), d=PA_ED.d, cl=d.side==="clie
   return `<div class="pn-item"${k}><div class="pn-row${rt?"":" is-t"} is-gone"><span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span></span>${rt?`<span class="pn-rt">${rt}</span>`:""}<button type="button" class="linkbtn pn-undo" data-pnundo="${r.id}" aria-label="Undo removing from ${nm}">Undo</button></div></div>`}
  const role=d.cr[r.id]||d.role;   /* Phase 1: no "what they own" line; nothing in Phase 1 acts on it */
  const name=`<span class="pn-wn">${av(w,24)}<span class="pn-wt"><b>${nm}</b></span>${w.disabled?'<span class="pop-tag">Disabled</span>':""}</span>`;
- const sel=!cl?"":can?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}],{disabled:!PN.ed}):`<span class="pn-rt pn-rt--ro">${role}</span>`;   /* vE E154 */
+ const sel=!cl?"":can?ddHTML("pnr_"+r.id,role,[{items:PX_CLIENT_R.map(x=>({value:x,label:x,desc:roleLine(x)}))}],{ro:!PN.ed}):`<span class="pn-rt pn-rt--ro">${role}</span>`;   /* vE E154 */
  const only=cl&&p.kind==="client"&&r.was&&(w.users||[]).length===1;
  const x=!can||(r.on&&nOn<=1)?"<span></span>":only?`<button type="button" class="pn-ib" disabled title="Only user here. Disable the workspace instead." aria-label="Only user here. Disable the workspace instead.">${PN_X}</button>`
-  :`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}"${PN.ed?"":" disabled"}>${PN_X}</button>`;   /* vE E154: off until Edit */
+  :PN.ed?`<button type="button" class="pn-ib" data-pnx="${r.id}" aria-label="Remove from ${nm}">${PN_X}</button>`:`<button type="button" class="pn-ib pn-ib--ro" data-pnro="x:${r.id}" aria-disabled="true" aria-label="Remove from ${nm}">${PN_X}</button>`;   /* vE E155: greyed, click turns on Edit */   /* vE E154: off until Edit */
  return `<div class="pn-item"${k}><div class="pn-row${cl?"":" is-t"}${PN.from===r.id?" is-hl":""}">${name}${sel}${x}</div></div>`}
 function pnAddHTML(p,rows){const cl=PA_ED.d.side==="client", have=rows.map(r=>r.id);
- const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}"${PN.ed?"":" disabled"}>${PN_PLUS}Add to a workspace</button></div>`;
+ const btn=`<div class="pn-add"><button type="button" class="linkbtn pn-lb" data-pnadd aria-expanded="${PN.pick}"${PN.ed?"":' aria-disabled="true" data-pnro="add"'}>${PN_PLUS}Add to a workspace</button></div>`;
  if(!PN.pick) return btn;
  const L=wsPickOrder(fundedWorkspaces().filter(c=>pnVis(c.id)&&!(cl&&c.own)&&have.indexOf(c.id)<0));
  return btn+`<div class="pn-pick">${L.length>WS_PICK_MAX?`<div class="inv-a2-wss">${srchI}<input type="text" data-pnaq placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off"></div>`:""}<div class="pn-pl">${L.length?L.map(c=>{const off=cl&&wsOffNew(c,0); return `<button type="button" class="pn-pr${off?" is-dis":""}" data-pnpick="${c.id}" data-k="${invEsc(wsHay(c))}"${off?" disabled":""}>${av(c,24)}<span class="pn-pn">${invEsc(c.name)}${off?`<span class="inv-a2-why">${WS_OFF_WHY}</span>`:""}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${PN_PLUS}</button>`}).join("")+(L.length>WS_PICK_MAX?'<p class="pn-none" hidden></p>':""):`<p class="pn-empty">In every workspace already.</p>`}</div></div>`}
@@ -15808,9 +15809,9 @@ const pnEdWhy=p=>personCanEdit(p)?"":p.me?PN_SELF_WHY:PX_LOCK_WHY();
 const pnEdBtn=why=>`<button type="button" class="linkbtn pn-lb pn-edr${why?" u-tip":""}"${why?` aria-disabled="true" title="" data-uwtip="${why}"`:" data-pnedit"}>Edit role</button>`;
 function pnRoleHTML(p){const d=PA_ED.d; if(d.side!=="team") return ""; const why=pnEdWhy(p);   /* vE E154: a field, off until Edit */
  const roles=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]);
- const val=!why?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:ROLE_SUM[r]}))}],{disabled:!PN.ed})}</div>`:`<span class="pn-rv">${roleName(d.role)}</span>`;
+ const val=!why?`<div class="pn-role">${ddHTML("pnrole",d.role,[{items:roles.map(r=>({value:r,label:roleName(r),desc:ROLE_SUM[r]}))}],{ro:!PN.ed})}</div>`:`<span class="pn-rv">${roleName(d.role)}</span>`;
  return `<div class="pn-sec pn-sec--role">Role${why?pnWhyHTML(why):""}</div><div class="pn-rrow">${val}</div>`}
-const pnWhyHTML=why=>`<span class="pn-lb pn-edr u-tip" tabindex="0" aria-disabled="true" title="" data-uwtip="${why}">Why can’t I change this?</span>`;   /* vE E154 */
+const pnWhyHTML=why=>`<span class="pn-lb pn-edr u-tip" tabindex="0" aria-disabled="true" aria-describedby="pnWhyTxt" title="" data-uwtip="${why}">Why can’t I change this?</span><span class="pn-sr" id="pnWhyTxt">${why}</span>`;   /* vE E155: the reason is read, not only shown */   /* vE E154 */
 const PN_PEN='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>';
 function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  if(TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)){const F=PEOPLE[TRANSFER.from], T=PEOPLE[TRANSFER.to], s=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
@@ -15819,7 +15820,7 @@ function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  else if(d.side==="team"&&d.role==="Owner"&&p.role!=="Owner") h+=`<p class="pn-note">Once saved, you can&rsquo;t change or remove ${f}.</p>`;
  return h}
 function pnFtHTML(p){
- if(PN.guard) return `<div class="pn-ft"><span class="pn-why pn-ask">Discard your changes?</span><button type="button" class="shd-button shd-button--tertiary" data-pnkeep>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pndiscard>Discard</button></div>`;
+ if(PN.guard) return `<div class="pn-ft"><span class="pn-why pn-ask">Discard your changes?</span><button type="button" class="shd-button shd-button--secondary" data-pndiscard>Discard changes</button><button type="button" class="shd-button shd-button--primary" data-pnkeep>Keep editing</button></div>`;   /* vE E155: each button says what it does */
  if(!pxDirty(p)&&!PN.ed) return pnEdWhy(p)?"":`<div class="pn-edf"><button type="button" class="shd-button shd-button--secondary" data-pnedit>Edit</button></div>`;   /* vE E154: the phone's Edit */
  const why=pxInvalid(PA_ED.d)?"Keep at least one workspace":"";
  return `<div class="pn-ft">${why?`<span class="pn-why" id="pnWhy">${why}</span>`:""}<button type="button" class="shd-button shd-button--tertiary" data-pncancel>Cancel</button><button type="button" class="shd-button shd-button--primary" data-pnsave${why?' disabled aria-describedby="pnWhy"':pxDirty(p)?"":" disabled"}>${PA_ED.d.side==="team"&&PA_ED.d.role==="Owner"&&p.role!=="Owner"?"Make Account Owner":"Save changes"}</button></div>`}   /* E048: promoting says so on the button */
@@ -15842,9 +15843,10 @@ function pnPaint(){let L=document.getElementById("pnLayer");
  const bd2=L.querySelector(".pn-bd"); if(bd2) bd2.scrollTop=sc;
  const qi=L.querySelector("[data-pnq]"); if(qi&&qv){qi.value=qv; pnFilter(qi,".pn-list .pn-item")}
  pnWire(L,p);
+ if(PN.openDD){const t=L.querySelector("#"+PN.openDD+" [data-ddtrig]"); PN.openDD=null; if(t) t.click()}   /* vE E155 */
  document.querySelectorAll(".pn-sel").forEach(x=>x.classList.remove("pn-sel"));
  document.querySelectorAll("[data-ppopen],[data-rmrow]").forEach(r=>{const q=personOf(r.dataset.ppopen||r.dataset.rmrow); if(q&&q.email===p.email) r.classList.add("pn-sel")});
- const f=(Array.isArray(fk)?fk:[fk]).map(k=>k&&L.querySelector(k)).find(Boolean); if(f) f.focus({preventScroll:true}); else if(first){const x=L.querySelector(".pn-x"); if(x) x.focus({preventScroll:true})}
+ const f=(Array.isArray(fk)?fk:[fk]).map(k=>k&&[...L.querySelectorAll(k)].find(x=>x.getClientRects().length)).find(Boolean);   /* vE E155: the visible one (a phone hides the header Edit) */ if(f) f.focus({preventScroll:true}); else if(first){const x=L.querySelector(".pn-x"); if(x) x.focus({preventScroll:true})}
  if(f&&!f.matches("[data-pnkeep]")){const r=f.getBoundingClientRect(), b=L.querySelector(".pn-bd"); if(b&&b.contains(f)){const B=b.getBoundingClientRect(); if(r.bottom>B.bottom) b.scrollTop+=r.bottom-B.bottom+12}}}
 /* the search boxes filter in place, so typing keeps its focus */
 function pnFilter(i,sel){const t=i.value.trim().toLowerCase(), box=i.closest(".pn-bd"); let n=0;
@@ -15856,6 +15858,11 @@ function pnWire(L,p){const d=PA_ED.d;
  L.querySelectorAll("[data-pnq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-list .pn-item"));
  L.querySelectorAll("[data-pnaq]").forEach(i=>i.oninput=()=>pnFilter(i,".pn-pl .pn-pr"));
  L.onclick=e=>{const t=e.target.closest("button,[data-pnscrim]"); if(PN.menu&&!e.target.closest(".pn-morew")){PN.menu=false; if(!t||t.matches("[data-pnscrim]")){pnPaint(); return}}
+  if(t&&!PN.ed&&t.dataset.pnro){const k=t.dataset.pnro; PN.ed=true;   /* vE E155: a click on a greyed control turns on Edit, then does what the control is for (the x only takes focus) */
+   if(k==="add"){PN.pick=true; PN.focus=["[data-pnaq]","[data-pnpick]"]}
+   else if(k.slice(0,2)==="x:") PN.focus=`[data-pnx="${k.slice(2)}"]`;
+   else {PN.openDD=k.slice(3); PN.focus=`#${k.slice(3)} [data-ddtrig]`}
+   pnPaint(); return}
   if(!t||t.disabled||t.getAttribute("aria-disabled")==="true") return; const D=t.dataset;
   if(D.pnedit!=null){PN.ed=true; PN.focus=["#pnrole [data-ddtrig]",".pn-row .dd [data-ddtrig]"]; pnPaint(); return}   /* vE E129 */
   if(D.pnscrim!=null||D.pnclose!=null){pnClose(); return}
@@ -15917,6 +15924,12 @@ function pnPlaceMenu(dd,m,again){if(!again) requestAnimationFrame(()=>{if(!m.hid
  if(h>below&&above>below){m.style.top="auto"; m.style.bottom=(innerHeight-t.top+4)+"px"; m.style.maxHeight=Math.min(400,above)+"px"}
  else {m.style.bottom="auto"; m.style.top=(t.bottom+4)+"px"; m.style.maxHeight=Math.min(400,below)+"px"}}
 document.addEventListener("scroll",e=>{const o=document.querySelector(".pn-pan .dd.is-open"); if(!o||(e.target.closest&&e.target.closest(".dd-menu"))) return; const t=o.querySelector("[data-ddtrig]"); if(t) t.click()},true);
+/* vE E155: the panel is a modal dialog, so Tab and Shift+Tab cycle inside it */
+document.addEventListener("keydown",e=>{if(e.key!=="Tab"||!PN||modal) return; const pan=document.querySelector(".pn-pan"); if(!pan) return;
+ const L=[...pan.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.getClientRects().length&&getComputedStyle(x).visibility!=="hidden"); if(!L.length) return;
+ const a=document.activeElement, i=L.indexOf(a);
+ if(i<0){e.preventDefault(); (e.shiftKey?L[L.length-1]:L[0]).focus(); return}
+ if(!e.shiftKey&&i===L.length-1){e.preventDefault(); L[0].focus()} else if(e.shiftKey&&i===0){e.preventDefault(); L[L.length-1].focus()}},true);
 /* Esc: an open menu first, then the question, then the panel (which asks first when something is unsaved) */
 document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!PN||modal||document.querySelector(".pn-pan .dd.is-open")) return; e.preventDefault(); e.stopPropagation();
  if(PN.menu||PN.pick){PN.focus=PN.menu?"[data-pnmore]":"[data-pnadd]"; PN.menu=false; PN.pick=false; pnPaint(); return}
@@ -18790,7 +18803,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="da52e82";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="3d73ab5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20451,9 +20464,12 @@ body.pn-on:has(.pn-ft) #toastLayer{bottom:100px}
 .pn-tr .pn-edit svg{width:16px;height:16px;flex:none}
 .pn-edf{display:none}
 @media (max-width:640px){.pn-tr .pn-edit{display:none}.pn-edf{display:flex;padding:12px 16px;border-top:1px solid #E5E7EB;background:#fff;flex:none}.pn-edf .shd-button{flex:1 1 0;margin:0;border-color:#D1D5DB;color:#374151}}   /* phone: Edit at the foot, the header keeps one line */
-.pn-add .linkbtn:disabled{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
 .pn-sec .pn-edr[aria-disabled="true"]{font-weight:400}
-.pn-edr[aria-disabled="true"]{color:#9CA3AF;cursor:not-allowed;text-decoration:none}
+.pn-edr[aria-disabled="true"]{color:#6B7280;cursor:default;text-decoration:none}   /* vE E155: 4.8:1 (was #9CA3AF, 2.5:1); not a button, so no not-allowed cursor */
+.pn-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.pn-pan .dd.is-ro .dd-trig{background:#f9fafb;color:#6b7280;border-color:#d1d5db;cursor:pointer}   /* vE E155: greyed like disabled, but live */
+.pn-ib.pn-ib--ro,.pn-ib.pn-ib--ro:hover:not(:disabled){color:#D1D5DB;background:none;cursor:pointer}
+.pn-add .linkbtn[aria-disabled="true"]{color:#9CA3AF;cursor:pointer;text-decoration:none}
 .pn-rrow{display:flex;align-items:center;min-height:32px;margin:4px 0 0}
 .pn-rv{color:#1F2937}
 .pn-bd .pn-role{margin:0;width:200px}
