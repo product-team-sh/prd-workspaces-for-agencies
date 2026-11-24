@@ -15519,14 +15519,16 @@ function e101ActsHTML(k){if(ulRo()) return ""; const d=e101DraftState();
 function e101DraftState(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over();
  const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
  return {n,why}}
-function e101DraftHTML(){const why=e101DraftState().why;
+function e101DraftHTML(k){const why=e101DraftState().why;   /* vE E158: the same bar as a split: the reason left, Discard and Apply right */
+ return `<div class="e101-dr e150-bar" role="region" aria-label="Unsaved changes"><p class="e150-ln">${why?`<span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${e101ActsHTML(k).replace('class="e101-fa e101-fd"','class="e150-act"')}</div>`}
+function e101DraftOld(){const why=e101DraftState().why;
  return why?`<div class="e101-dr" role="region" aria-label="Unsaved changes"><p class="e101-dt"><span class="ulr-why" id="ulrWhy">${why}</span></p></div>`:""}
 /* the summary: four figures in Hitesh's order (29 Oct: Used added), one bar, then the status line or the draft. Used is
    this cycle's use across every workspace; a draft moves limits, not use, so Used never shows "was" */
 function e101SumHTML(k,ro){if(isUnl(k)) return (!ro&&E150.open)?e150UnlHTML():""; if(!ro&&E150.open) return e150SumHTML(k);   /* vE E150 */ const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
  const us=compute(k).used, w=n=>(Math.max(0,Math.min(pool,n))/pool*100).toFixed(2)+"%";
-  const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&!fa&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
- const low=ro?"":dirty?e101DraftHTML():"", fa=ro?"":dirty?e101ActsHTML(k):e150ActsHTML(k);
+  const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&!fa&&!dirty&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
+ const low=ro?"":dirty?e101DraftHTML(k):"", fa=ro?"":dirty?"":e150ActsHTML(k);   /* vE E158: a typed draft puts Discard and Apply in the bar */
  if(dirty&&!ro){setTimeout(e101Stick,0); setTimeout(e101Stick,300)}
  return `<div class="e101-sum${dirty&&!ro?" is-draft":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
   <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}${fa}</div>${low}</div>`}
@@ -18803,7 +18805,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="3d73ab5";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="8cb745d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
