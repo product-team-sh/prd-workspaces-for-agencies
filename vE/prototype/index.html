@@ -1437,6 +1437,12 @@ input[disabled].invite-email{background:var(--gray-19);color:var(--gray-12);curs
 .ivx .ivx-btn.is-sec{gap:8px;background:#FFFFFF;border:1px solid #D1D5DB;color:#1F2937}
 .ivx-btn.is-sec svg{width:16px;height:16px;flex:none}
 .ivx .ivx-link{color:#1D4ED8;font-weight:500}
+/* vE E159c: the three facts on the join page */
+.e159c-dl{margin:0;border:1px solid #E5E7EB;border-radius:8px;text-align:left;font-size:14px;line-height:20px}
+.e159c-dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 16px}
+.e159c-dl>div+div{border-top:1px solid #E5E7EB}
+.e159c-dl dt{color:#6B7280;font-weight:500;flex:none}
+.e159c-dl dd{margin:0;color:#111827;font-weight:500;text-align:right;overflow-wrap:anywhere}
 .ivx button.ivx-link{display:inline;background:none;border:0;padding:0;font-size:inherit;line-height:inherit}
 .ivx-foot{font-size:12px;line-height:18px;color:#6B7280;text-align:center}
 .ivx-ic{width:48px;height:48px;border-radius:50%;background:#F3F4F6;color:#6B7280;display:flex;align-items:center;justify-content:center;margin:0 auto}
@@ -1996,7 +2002,6 @@ function endHandover(){
  ctx=id; asClient=false; inMod="sequences"; openProspect=null;openSeq=null;openReply=null; view={name:"clients"};
  justCreatedWs=id;
  render();
- const b=document.querySelector("[data-cstep]"); if(b) b.focus();
 }
 /* one format for relative time everywhere it is printed: lowercase, "ago" on
    any count. One column carried five formats and two capitalisations. */
@@ -2152,6 +2157,19 @@ const ME=()=>PEOPLE[me_];
    array-membership test isMember() already uses correctly, a few lines down. */
 const myClients=()=>{const w=ME().ws;return CLIENTS.filter(x=>!x.deletedOn&&(!w||w.indexOf(x.id)>-1))};
 const canI=k=>CAN[ME().role][k];
+/* vE E159e (Hitesh, OQ9: "we should not show admin panel to account member as they can only see their records inside workspace as well"):
+   an Account Member never sees the Admin Panel. They land in their first workspace (the sign-up rule, PRD 3.8: yours first, then
+   A to Z, disabled last), the switcher lists only their workspaces, and every route to an Admin Panel page sends them back there.
+   With no workspace at all they get the one empty page below (view "nows"). Another account's Member session is asClient, so this
+   applies per account. */
+const noAdmin=()=>!asClient&&!solo&&!E105X&&ME().role==="Member"&&hasAgency();
+const memberLand=()=>wsPickOrder((ME().ws||[]).map(id=>byId[id]).filter(c=>c&&!c.deletedOn))[0]||null;
+const memberReach=id=>(ME().ws||[]).indexOf(id)>-1&&!!byId[id]&&!byId[id].deletedOn;
+const NOAD_ADMIN_VIEWS=["dash","record","credits","limits","queue","people","person","addmember","whitelabel","analytics","m1","m2"];
+function vNoWs(){return `<div class="toolbar"><div class="cell-main"><span class="semibold-3">Workspaces</span></div></div>
+ <div class="wrap"><div class="panel"><div class="empty">${ILL.workspace()}
+   <p class="empty-t">You haven't been added to a workspace yet</p>
+   <p class="empty-s">Ask an Account Owner or Account Admin to add you.</p></div></div></div>`}   /* vE E159e */
 /* vE E029: the acting person. kind, role (an account role, or a client role for a
    client login) and how far they see inside a workspace they reach: "account" (an
    Account Owner or Account Admin: every record), "own" (an Account Member: the
@@ -3401,7 +3419,8 @@ function renderRail(){
      /* change 224 (item 19, doc 96 G5): the phase-2 placeholders are for Account Owners and
         Account Admins; an Account Member's Admin Panel is Workspaces and Analytics */
      &&(!(inAgency()&&!isNormal()&&COMING_SOON[k])||ME().role!=="Member"||k==="analytics")
-     &&(k!=="people"||canI("members"))};
+     &&(k!=="people"||canI("members"))
+     &&!(inAgency()&&noAdmin())};   /* vE E159e: the no-workspace page has no Admin Panel rail */
  /* inside a client the rail drives inMod, so that is what marks it current.
     Without this branch no rail item was ever current in a client workspace. */
  const cur=k=>pfOn()?false:ctx==="agency"   /* vE E099: My Profile is no rail item */
@@ -4004,7 +4023,7 @@ function renderShell(){
    el("wsNm").textContent=inC?c.name:AGENCY.name;
    /* vE E038: on the Account level the trigger shows Account's tile, as the switcher's top row does (the account's
       initials are also Your workspace's) */
-   const acct=!inC&&!asClient&&!isNormal(), wa=el("wsAv"); wa.classList.toggle("ws-acct",acct);
+   const acct=!inC&&!asClient&&!isNormal()&&!noAdmin(), wa=el("wsAv");   /* vE E159e */ wa.classList.toggle("ws-acct",acct);
    if(acct){wa.classList.remove("av-logo"); wa.innerHTML=POP_GRID; el("wsNm").textContent="Admin Panel"}   /* vE E084: the level is named Admin Panel (vE E091a) */
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
@@ -4036,7 +4055,7 @@ function renderShell(){
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
  /* 28 Sep 2026, Hitesh: the second line says which level you are on, in one
     word, instead of describing the model. */
- if(!asClient&&!solo&&el("wsCtx")) el("wsCtx").textContent=inAgency()&&!norm?"Admin Panel":"Workspace";   /* vE E091a: renamed */
+ if(!asClient&&!solo&&el("wsCtx")) el("wsCtx").textContent=noAdmin()&&inAgency()?"":inAgency()&&!norm?"Admin Panel":"Workspace";   /* vE E159e */   /* vE E091a: renamed */
  /* 28 Sep 2026: no coloured bar on the switcher inside a workspace; the
     trigger's own avatar and second line say where you are. */
  el("sbWs").style.boxShadow="none";
@@ -4054,7 +4073,7 @@ function renderShell(){
         :(c.own?"":c.name+" / ")+inModLabel())
    :AGY_MOD[view.name]?AGY_MOD[view.name][0]
    :view.name==="whitelabel"?"Whitelabel":view.name==="login"?"Log in"
-   :view.name==="dash"?"Workspaces":view.name==="credits"?"Billing & Subscription":view.name==="limits"?"Usage & limits"
+   :view.name==="nows"?"Workspaces":view.name==="dash"?"Workspaces":view.name==="credits"?"Billing & Subscription":view.name==="limits"?"Usage & limits"
    :view.name==="addmember"?"Users / Add a user"
    :view.name==="people"?"Users"
    :view.name==="person"?((view.from&&byId[view.from]?byId[view.from].name:"Users")+" / "+((personOf(view.id)||{}).name||""))
@@ -4104,8 +4123,8 @@ function renderPop(q=""){
     hdrWsRows' order (E021: your own first, then A to Z) and only those this person can open (E029). A search (past 8,
     E021) lists the matches flat, without the Account row. Change 132 holds: no attention tags here. */
  const acur=ctx==="agency"&&!xform;
- el("popL").innerHTML=(t?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
-  +`<div class="pop-kids${t?" pop-kids--q":""}" role="group" aria-label="Workspaces">${hdrWsRows(t,ctx==="agency"?null:ctx)}</div>`;
+ el("popL").innerHTML=(t||noAdmin()?"":`<button class="pop-r pop-r--acct" data-go="agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span><span class="pop-cur${acur?"":" hdr-wsnc"}"${acur?"":' aria-hidden="true"'}>${POP_CHECK}</span></button>`)
+  +`<div class="pop-kids${t||noAdmin()?" pop-kids--q":""}" role="group" aria-label="Workspaces">${hdrWsRows(t,ctx==="agency"?null:ctx)}</div>`;   /* vE E159e: no Admin Panel row, so no tree */
  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
    ctx=b.dataset.go;asClient=false;openProspect=null;openSeq=null;openReply=null;
    view=homeView();
@@ -4306,7 +4325,7 @@ function pfModalHTML(){const M=modal, P=pfMe(), cur=pfEsc(P.email);
   body=T(`<div class="pfm-dt"><span class="pfm-di">${PF_I.trash}</span><h1>Delete Account</h1></div>`)
    +D(`Delete account <b>${cur}</b>? This deletes all ${W.length} workspaces and their data:`,"pb-3")
    +`<div class="pfm-ws"><ul class="pfm-wsl" aria-label="Workspaces deleted">${W.map(c=>`<li>${av(c,24)}<span class="pfm-wsn">${pfEsc(c.name)}</span>${c.disabled?'<span class="pfm-tag">Disabled</span>':""}</li>`).join("")}</ul></div>`
-   +`<div class="pfm-al"><div class="pfm-alb"><span class="pfm-ali">${PF_I.info}</span><p>This action cannot be undone. All your Saleshandy data will be permanently erased.</p></div></div>`
+   +`<div class="pfm-al"><div class="pfm-alb"><span class="pfm-ali">${PF_I.info}</span><p>${e105Multi()?"This action cannot be undone. You leave "+AGENCY.name+" and lose access to its workspaces. Your access to your other accounts stays.":"This action cannot be undone. All your Saleshandy data will be permanently erased."}</p></div></div>`   /* vE E159d: PRD 3.11 */
    +A(pw("pfmDel","Current Password"))+DV+F(cancel+`<button type="button" class="shd-button shd-button--danger" data-pfmdel ${M.v?"":"disabled"}>Delete Account</button>`)}
  return `<div class="mscrim" id="mscrim"><div class="pfm" role="dialog" aria-modal="true" aria-label="${lab}">${body}</div></div>`;
 }
@@ -6281,7 +6300,7 @@ function utRoleHTML(){const m=modal, c=byId[m.ws], p=personOf(m.key); if(!c||!p)
  const cur=utCur(p,c), to=m.to||cur, L=to===cur?{lost:[],owed:[]}:utLost(p,c,to), cross=(p.kind==="team")===invIsC(to);
  const groups=[{label:"Your team",items:["Admin","Member"].map(x=>({value:x,label:roleName(x)}))}].concat(c.own?[]:[{label:"Client users",items:CLIENT_ROLES.map(x=>({value:x,label:roleName(x),desc:roleLine(x)}))}]);
  const W=id=>invEsc(pxW(id).name), f=invEsc(p.first), lost=L.lost.length?" They stop opening "+listAnd(L.lost.map(W)):"";
- const ff=!cross?"":invIsC(to)?`${f} will sign in as a client: ${invEsc(c.name)} only.${lost?lost+".":""}`:`${f} will join your team: account pages and ${invEsc(c.name)}.${lost?lost+" as a client.":""}`;
+ const ff=!cross?"":invIsC(to)?`${f} will sign in as a client: ${invEsc(c.name)} only.${lost?lost+".":""}`:`${f} will join your team: ${to==="Member"?"":"account pages and "}${invEsc(c.name)}.${lost?lost+" as a client.":""}`;
  const ok=to!==cur&&L.owed.every(id=>m.ho[id]), tk=hoTasks(p,L.owed);
  const who=p.kind==="client"&&!p.named?`<b>${invEsc(p.email)}</b>`:`<b>${invEsc(p.name)}</b> <span class="sub">${invEsc(p.email)}</span>`;
  return card("Change role",`<p class="ac-lead" style="margin-bottom:12px">${who}</p>
@@ -6317,7 +6336,7 @@ function utAct(c,act,key){const r=utRows(c).find(x=>x.key===key); if(!r) return;
  if(act==="role"){render(); modal={kind:"utrole",key,ws:c.id,to:null,ho:{}}; renderModal(); return}
  if(act==="resend"){INVITED[key]="just now"; rmToast(c,`Invite sent again to ${invEsc(r.client?r.email:r.name)}.`,null,"resent an invite"); render(); return}
  if(act==="revoke"){utRevoke(c,r); render(); return}
- if(act==="remove"){if(hoHas(hoOwn(r.email,c.id))){render(); modal={kind:"utrm",key,ws:c.id,to:{}}; renderModal(); return} utRemove(c,key,null); render()}}
+ if(act==="remove"){utRemove(c,key,null); render()}}   /* vE E159d: D39, no hand-over in phase 1; the same Remove as the Members tab */
 function utWire(L){const k=modal&&modal.kind; if(k!=="utrole"&&k!=="utrm") return;
  L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{if(!v) return; (k==="utrm"?modal.to:modal.ho)[d.id.slice(6)]=v; renderModal(); const tr=document.querySelector("#"+d.id+" [data-ddtrig]"); if(tr) tr.focus()}));
  if(k==="utrole"){wireDD(L,"utRole",v=>{if(!v) return; modal.to=v; modal.ho={}; renderModal(); const tr=document.querySelector("#utRole [data-ddtrig]"); if(tr) tr.focus()}); const ok=L.querySelector("[data-utroleok]"); if(ok) ok.onclick=utRoleGo}
@@ -6672,8 +6691,7 @@ const SL_SHOW=4;
    one empty block for a workspace with no limit set, on the Overview card and the Limits tab. Production's .empty pattern; one Set limits button. */
 function limEmptyHTML(c,ro){const can=canI("limits")&&!ro;   /* vE E125: the limits card, + badge only with Set limits */
  return `<div class="empty">${ILL.limits(can?"edit":"")}<p class="empty-t">No limits yet</p><p class="empty-s">Nothing sends from ${c.name} until it has limits.</p>${can?`<button type="button" class="shd-button shd-button--secondary" data-rledit="${c.id}">Set limits</button>`:""}</div>`}   /* vE E122: secondary */
-function slCardHTML(c){const can=canI("limits");
- return `<div class="msg dn-req sl-card" role="status">${infoI}<span class="dn-req-t">${can?SL_LINE:"Nothing sends from this workspace until an Account Owner or Account Admin sets its limits."}</span>${can?`<button type="button" class="shd-button shd-button--primary shd-button--sm sl-go" data-rledit="${c.id}">Set limits</button>`:""}</div>`}
+/* vE E159a: removed */
 /* the line on every place that would send */
 function slSendLine(c){const can=canI("limits")&&!asClient;
  return `<div class="msg m-info sl-sendln" role="status">${infoI}<span>${can?SL_LINE:"Nothing sends from this workspace until its limits are set."} Sequences can be drafted until then.</span>${can?`<button type="button" class="linkbtn sl-sendgo" data-slgo="${c.id}">Set limits</button>`:""}</div>`}
@@ -7270,7 +7288,7 @@ function pxRoleGroups(p){const last=pxLastOwner(p), peer=ME().role!=="Owner"&&p.
  const team=(ME().role==="Owner"?["Owner"]:[]).concat(["Admin","Member"]).map(r=>({value:r,label:roleName(r)}));
  return [{label:"Your team",items:team}].concat(peer?[]:[{label:"Client users",items:PX_CLIENT_R.map(r=>({value:r,label:roleName(r),off:last?PX_LAST_WHY:""}))}])}
 function pxFF(p){const d=PA_ED.d; if(d.side===p.kind||(d.role==="Owner"&&d.side==="team")) return "";
- const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: Admin Panel and the ticked workspaces.`}   /* vE E091a */
+ const f=invEsc(p.first); return d.side==="client"?`${f} will sign in as a client: only the ticked workspaces, nothing outside them.`:`${f} will join your team: ${d.role==="Member"?"only":"Admin Panel and"} the ticked workspaces.`}   /* vE E091a; vE E159: a Member never sees the Admin Panel */
 function pxRoleEdit(p){const d=PA_ED.d, r=pxDRole(d), mixed=r==="mixed", ff=pxFF(p);
  return `<div class="px-role"${mixed?" data-mixed":""}>${ddHTML("pxrole",mixed?"":r,pxRoleGroups(p),{placeholder:"Client, by workspace"})}</div>`
   +(d.role==="Owner"&&d.side==="team"&&p.role!=="Owner"?`<p class="inv-help px-help">Once saved, you can&rsquo;t change or remove ${invEsc(p.first)}.</p>`:ff?`<p class="inv-help px-help" data-pxff>${ff}</p>`:"")}
@@ -7403,12 +7421,15 @@ window.addEventListener("popstate",e=>{const st=e.state; SH_SKIP=true; setTimeou
  if(view.name==="person"&&view.from&&byId[view.from]){const w=view.from; PA_ED=null; view={name:"record",id:w}; tab="members"; e.stopImmediatePropagation(); render(); return}   /* vE E051: a Home list entry underneath must not take it to Home */
  SH_SKIP=false});
 document.addEventListener("keydown",e=>{if(e.key!=="Escape"||!PA_ED||view.name!=="person"||modal||document.querySelector(".dd.is-open")) return; e.preventDefault(); paCancel()});
+/* vE E159d: a client user's Disable covers every workspace of this account they reach; the keys are the Members tab's own */
+const pnCKeys=email=>CLIENTS.filter(c=>!c.deletedOn&&isMember(ME(),c.id)&&(c.users||[]).some(u=>u[0]===email)).map(c=>"w:"+c.id+"|"+email);
+const pnCDis=email=>{const K=pnCKeys(email); return !!K.length&&K.every(k=>!!DISABLED[k])};
 function personOf(key){
  if(!key) return null;
  if(key.indexOf("t:")===0){const r=ppTeam().find(x=>x.k===key.slice(2)); if(!r) return null;
   return {kind:"team",key,k:r.k,P:r.P,name:r.name,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,disabled:r.disabled,me:r.me,owner:r.role==="Owner",colour:r.role==="Owner"?"#1D4ED8":"#DBEAFE"}}
  if(key.indexOf("w:")===0){const r=ppClients().find(x=>x.key===key); if(!r) return null;
-  return {kind:"client",key,c:r.c,name:r.name,named:r.named,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour}}
+  return {kind:"client",key,c:r.c,name:r.name,named:r.named,first:r.name.split(" ")[0],initials:r.initials,email:r.email,role:r.role,seen:r.seen,invited:r.invited,me:false,owner:false,colour:r.c.colour,disabled:pnCDis(r.email)}}   /* vE E159d: a client user can be Disabled in the panel too */
  return null;
 }
 /* the invite row this person would have had: one shape before and after Send */
@@ -7779,7 +7800,29 @@ function invLine(r){const o=r.o, cl=r.p.kind==="client", adds=o.adds.map(invWsNa
  if(o.outcome==="Invite") return {t:o.raises.length?"Gets a new invite as "+roleName(o.raises[0].to):"Gets a new invite"};
  const R=o.raises.map(x=>roleName(x.from)+" → "+roleName(x.to)+(cl?" in "+invWsName(x.ws):"")).join(", ");
  return {t:R?R+(adds?", adds "+adds:""):"Adds "+adds,h:R&&adds?`<span>${invEsc(R)},</span> <span>adds ${invEsc(adds)}</span>`:"",chg:1}}   /* two clauses break between them, never inside "from → to" */
-function invListH(J){const K=J.map((r,i)=>({r,i})).filter(x=>x.r.list); if(!K.length) return "";
+
+/* vE E160: the change list keeps its rows (avatar, who, what changes, x) in aligned columns: each change starts at the same x, one
+   clause per line, a workspace name never breaks inside itself (Hitesh: "like original only but better aligned") */
+function e160DLines(r){const o=r.o, cl=r.p.kind==="client";
+ if(o.outcome!=="Changed"&&!(o.raises&&o.raises.length)&&!(o.adds&&o.adds.length)) return [invLine(r).t];
+ if(o.outcome==="Not changed"||o.outcome==="Already set"||o.outcome==="Invite"||r.state==="again") return [invLine(r).t];
+ const nb=t=>String(t).replace(/ /g,"\u00a0");   /* a workspace name never breaks inside itself */
+ const L=o.raises.map(x=>roleName(x.from)+" → "+roleName(x.to)+(cl?" in\u00a0"+nb(invWsName(x.ws)):""));
+ if(o.adds.length) L.push("Adds "+o.adds.map(x=>nb(invWsName(x))).join(", "));
+ return L}
+
+function e160D(J){const K=e160Rows(J), N=e160NewN(J); if(!K.length) return "";
+ const rows=K.map(({r,i})=>{const w=invWho(r.e), L=e160DLines(r), chg=invLine(r).chg||r.state==="again";
+  return `<div class="e160d-r" data-invalr="${invEsc(r.e)}">${ppAv(invEsc(w.ini),"#F3F4F6",24,r.pend)}<span class="e160d-n" data-uwcut>${invEsc(w.nm)}</span><span class="e160d-o${chg?" is-add":""}">${L.map(t=>`<span>${invEsc(t)}</span>`).join("")}</span><button type="button" class="inv-al-x" data-invrm="${i}" aria-label="Remove ${invEsc(w.nm)}">${RM_X}</button></div>`});
+ if(N.length) rows.push(`<div class="e160d-r" data-invnew>${ppAv(INV_GI,"#F3F4F6",24,false)}<span class="e160d-n e160d-wide">${N.length===1?"1 new person gets an invite":N.length+" new people get an invite"}</span></div>`);
+ return `<div class="inv-al" role="group" aria-label="What Send does" data-inval><div class="inv-al-g">${rows.join("")}</div></div>`}
+
+function e160Rows(J){const K=J.map((r,i)=>({r,i})).filter(x=>x.r.list); const rk=r=>r.state==="add"||r.state==="again"?0:r.o.outcome==="Already set"?2:1;
+ return K.sort((a,b)=>rk(a.r)-rk(b.r)||a.i-b.i)}
+
+function e160NewN(J){return J.filter(r=>!r.list&&r.state==="ok")}
+function invListH(J){return e160D(J);   /* vE E160 */
+const K=J.map((r,i)=>({r,i})).filter(x=>x.r.list); if(!K.length) return "";
  const rk=r=>r.state==="add"||r.state==="again"?0:r.o.outcome==="Already set"?2:1;
  const rows=K.sort((a,b)=>rk(a.r)-rk(b.r)||a.i-b.i).map(({r,i})=>{const w=invWho(r.e), L=invLine(r);
   return `<div class="inv-al-r" data-invalr="${invEsc(r.e)}">${ppAv(invEsc(w.ini),"#F3F4F6",24,r.pend)}<span class="inv-al-n" data-uwcut>${invEsc(w.nm)}</span><span class="inv-al-o${L.chg||r.state==="again"?" is-add":""}"${L.full?` title="${invEsc(L.full)}"`:""}>${L.h||invEsc(L.t)}</span><button type="button" class="inv-al-x" data-invrm="${i}" aria-label="Remove ${invEsc(w.nm)}">${RM_X}</button></div>`});
@@ -8095,7 +8138,7 @@ function pconfirmHTML(){
  /* vE E144 F6: the title names the person, the button says the verb and "user" */
  const title=a==="delete"?(r.kind==="team"?`Remove ${r.name}?`:`Remove ${r.email||r.name}?`):a==="disable"?`Disable ${r.name}?`:`Enable ${r.name}?`, go=a==="delete"?"Remove user":a==="disable"?"Disable user":"Enable user";
  const body=a==="delete"?(r.kind==="team"?`${r.name} loses every sign-in to ${sentEnd(AGENCY.name)} Sequences they created stay and are reassigned to you.`:`${r.email} loses their sign-in to ${sentEnd(r.c.name)} Their replies stay.`)
-   :a==="disable"?`${r.name} keeps their record and loses their sign-in until enabled again.`:`${r.name} can sign in again.`;
+   :a==="disable"?(modal.all?`${r.name} keeps their record and loses their sign-in to ${modal.all.length===1?byId[modal.all[0].slice(2,modal.all[0].indexOf("|"))].name:(modal.all.length===2?"both":"all "+modal.all.length)+" of their workspaces"} until enabled again.`:`${r.name} keeps their record and loses their sign-in until enabled again.`):`${r.name} can sign in again.`;   /* vE E159d */
  return card(title,`<p class="ac-lead" style="margin:0">${body}</p>`,
   `<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button ${a==="delete"?"shd-button--danger":"shd-button--primary"}" data-pconfirmok>${go}</button>`,"modal--450");
 }
@@ -8117,8 +8160,8 @@ function peopleModalOk(kind){
   else {const to=byId[pick[0]]; if(!to||to===r.c)return; const u=r.c.users.find(x=>x[0]===r.email), from=r.c; from.users.splice(from.users.indexOf(u),1); to.users=to.users||[]; to.users.push(u);
    receipt("people",`${r.email} moved from ${from.name} to ${to.name}.`,()=>{to.users.splice(to.users.indexOf(u),1);from.users.push(u)},`moved ${r.email}`)}}
  if(kind==="pconfirm"){const a=modal.act;
-  if(a==="disable"){const px=modal.px; DISABLED[r.key]=1; receipt("people",`${r.name} disabled.`,px?null:()=>{delete DISABLED[r.key]},`disabled ${r.name}`); if(px&&RECEIPT) RECEIPT.variant="neutral"}   /* vE E048: from the person page, confirmed, no Undo */
-  if(a==="enable"){const sd=r.kind==="team"&&PEOPLE[r.key.slice(2)].disabled; delete DISABLED[r.key]; if(sd)PEOPLE[r.key.slice(2)].disabled=false; receipt("people",`${r.name} enabled.`,()=>{DISABLED[r.key]=1;if(sd)PEOPLE[r.key.slice(2)].disabled=true},`enabled ${r.name}`)}
+  if(a==="disable"){const px=modal.px, KS=modal.all||[r.key], was=KS.filter(k=>DISABLED[k]); KS.forEach(k=>{DISABLED[k]=1}); receipt("people",`${r.name} disabled.`,px?null:()=>{KS.forEach(k=>{if(was.indexOf(k)<0) delete DISABLED[k]})},`disabled ${r.name}`);   /* vE E159d: every workspace key */ if(px&&RECEIPT) RECEIPT.variant="neutral"}   /* vE E048: from the person page, confirmed, no Undo */
+  if(a==="enable"){const sd=r.kind==="team"&&PEOPLE[r.key.slice(2)].disabled, KS=modal.all||[r.key], was=KS.filter(k=>DISABLED[k]); KS.forEach(k=>{delete DISABLED[k]}); if(sd)PEOPLE[r.key.slice(2)].disabled=false; receipt("people",`${r.name} enabled.`,()=>{was.forEach(k=>{DISABLED[k]=1});if(sd)PEOPLE[r.key.slice(2)].disabled=true},`enabled ${r.name}`)}   /* vE E159d */
   if(a==="delete"){ if(r.kind==="team"){const k=r.key.slice(2), P=PEOPLE[k]; delete PEOPLE[k]; receipt("people",`${r.name} deleted.`,()=>{PEOPLE[k]=P},`deleted ${r.name}`)}
    else {const u=r.c.users.find(x=>x[0]===r.email), i=r.c.users.indexOf(u); r.c.users.splice(i,1); receipt("people",`${r.email} removed from ${r.c.name}.`,()=>{r.c.users.splice(i,0,u)},`removed ${r.email}`)}}}
  modal=null; renderModal(); render();
@@ -9419,7 +9462,7 @@ let setupDone=true, addCardOff=false;
    place instead, the same show-all/show-fewer pattern the Email accounts
    panel already uses for its own long list. */
 let dashAll=false;
-const clientSetupOff={};
+
 function normStats(){
  const O=AGENCY_OWN, sent=O.contacted, rep=Math.round(sent*O.reply/100), pos=Math.round(sent*O.pos/100);
  return {sent,rep,pos,prospects:O.prospects,mbx:O.mailboxes.length,
@@ -10670,33 +10713,10 @@ function vInClient(){
    <div class="tools">${own?"":queueBack()}
     </div></div>`}
 
-  <div class="wrap${!(qFrom&&!own)?" hdr-top":""}">${disBanner(c)}${inMod==="usage"&&!asClient?e151Top(c):limBanner(c)}${(!own&&!asClient&&inMod==="sequences"&&!c.seq&&!c.disabled&&!clientSetupOff[c.id]?clientSetupBlock(c):"")}${body}</div>`;
+  <div class="wrap${!(qFrom&&!own)?" hdr-top":""}">${disBanner(c)}${inMod==="usage"&&!asClient?e151Top(c):limBanner(c)}${body}</div>`;
 }
 
-const CLIENT_STEPS=[["Connect an email account","accounts",
-   "Their sending comes from their own domain, not yours."],
-  ["Add their prospects","prospects","Imported here, they belong to this workspace only."],
-  ["Create their first sequence","sequences","Written for them, kept apart from your own campaigns."],
-  ["Launch it","sequences","Nothing sends until you do."],
-  /* 3 Oct 2026, Hitesh: no user at creation; the invite is the last step of the handover */
-  ["Invite their users","invite","When it is ready for them. They sign in to this workspace only, in the role you give them."]];
-function clientSetupBlock(c){
- const done=0, gate=limGate(c)&&canI("limits");   /* change E002: Set limits leads while there are none */
- return '<div class="card" style="margin-bottom:16px;border-color:var(--blue-11)"><div class="c-b">'
-  +'<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
-   +'<span class="semibold-3">'+c.name+'\u2019s workspace is ready. Here is how to fill it.</span>'
-   +'<button class="linkbtn" data-skipclientsetup>Skip for now</button></div>'
-  +'<div style="display:flex;flex-direction:column;gap:8px;max-width:640px;margin-top:12px">'
-  +(gate?[["Set limits","slgo",""]]:[]).concat(CLIENT_STEPS).map(function(x,i){
-    var label=x[0], go=x[1], why=x[2], next=i===done;
-    return '<div class="list-row" style="border:1px solid var(--gray-13);border-radius:6px;padding:10px 12px;align-items:center'
-      +(next?';border-color:var(--blue-11)':'')+'">'
-      +'<span style="display:flex;align-items:flex-start;gap:9px;min-width:0">'
-       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gray-11)" stroke-width="2" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"/></svg>'
-       +'<span style="min-width:0"><span style="font-size:14px;line-height:20px;font-weight:500;color:var(--gray-17);display:block">'+label+'</span></span></span>'
-      +(go==="slgo"?'<button class="linkbtn" data-slgo="'+c.id+'">Set limits</button></div>':'<button class="linkbtn" data-cstep="'+go+'">'+["Connect","Import","Create","Launch","Invite"][i-(gate?1:0)]+'</button></div>')}).join("")   /* change 298 (audit P2-4) */
-  +'</div></div></div>';
-}
+/* vE E159a: removed */
 /* ═══ Home, the agency's landing screen ═══════════════════════════════════════
    Rail item 1, and where an agency account lands at login instead of Sequences.
    Zone order is deliberate: what needs a decision, then whether the agency is
@@ -12895,7 +12915,7 @@ function seqTable(c,owner){
    const sc=S.score<30?"lo":S.score<70?"mid":"hi";
    return `<tr>
      <td class="c1"><input type="checkbox" aria-label="Select ${q.name}" ${may?"":"disabled"}></td>
-     <td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}" ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"":`data-seqask="${key}"`}></button></td>
+     <td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}"${!draft&&mayPause&&st==="Paused"&&sendGate(c)?` data-uwtip="${SL_LINE}"`:""} ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"":`data-seqask="${key}"`}></button></td>
      <td><button class="cn sq-name" data-seqopen="${key}">${q.name}</button><span class="sq-st${st==="Active"?" on":st==="Paused"?" pa":draft&&q.ask?" wt":""}"><i></i>${seqStLabel(q,st)}</span>${seqActs(c,q,may,mayDraft)}</td>
      <td><span class="sq-ring">${ring(S.pct)}<b>${f(S.contacted)}<span>/${f(q.prospects)}</span></b></span></td>
      <td><span class="sq-score ${sc}">${S.score}</span></td>
@@ -12911,7 +12931,7 @@ function seqTable(c,owner){
        <span>${st==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
        <span class="tools"><button class="shd-button shd-button--sm shd-button--${st==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${st==="Paused"?"Resume":"Pause"} sequence</button>
        <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></td></tr>`:""}`}).join("");
- return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${sendGate(c)?slSendLine(c)/* change E002 */:""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
+ return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
    <thead><tr><th class="c1"><input type="checkbox" aria-label="Select all" ${may?"":"disabled"}></th><th class="c2"></th><th>Sequence Name</th><th>Sequence Progress ${I.info}</th><th>Score</th><th>${I.ppl}Prospect</th><th>${I.mail}Contacted</th><th>${I.open}Opened</th><th>${I.reply}Replied</th><th>${I.thumb}Positive</th><th>Email Accounts</th><th>Inbox Score</th><th></th></tr></thead>
    <tbody>${c.seq&&rows?rows:'<tr><td colspan="13" style="height:56px"><span class="sub">No sequences yet.</span></td></tr>'}</tbody></table></div></div>`;
 }
@@ -13420,9 +13440,9 @@ function renderModal(){
          every list and the switcher but keeps its record, with a bar that
          restores it, for 30 days. */
       const dd=delOnlyTeam(c).map(t=>t.k);   /* vE E074 fix 7: before the delete is recorded */
-      c.deletedOn=TODAY_D; c.deletedBy=ME().name.split(" ")[0]; c.disabled=false; RC_REFUSED=null; tab="overview"; holdLim(c);   /* vE E070: its limits go to Available */
+      const wasOff=!!c.disabled; c.deletedOn=TODAY_D; c.deletedBy=ME().name.split(" ")[0]; c.disabled=false; if(wasOff) c.delWasOff=true; else delete c.delWasOff; RC_REFUSED=null;   /* vE E159a: a Disabled workspace remembers it */ tab="overview"; holdLim(c);   /* vE E070: its limits go to Available */
       c.delDis=dd; dd.forEach(k=>{DISABLED["t:"+k]=1});
-      receipt("client:"+id,`${c.name} deleted. You can restore it for 30 days.`,()=>{delete c.deletedOn;delete c.deletedBy;restoreHeld(c);dd.forEach(k=>{delete DISABLED["t:"+k]});delete c.delDis;render()},`deleted ${c.name}`);
+      receipt("client:"+id,`${c.name} deleted. You can restore it for 30 days.`,()=>{delete c.deletedOn;delete c.deletedBy;if(c.delWasOff){c.disabled=true;delete c.delWasOff}restoreHeld(c);   /* vE E159a */dd.forEach(k=>{delete DISABLED["t:"+k]});delete c.delDis;render()},`deleted ${c.name}`);
       logAct(id,"Workspace deleted");}}
    else {byId[id].disabled=true; byId[id].disabledBy=ME().name.split(" ")[0]; byId[id].disabledOn=TODAY_D;
      /* fix 25 Sep review #7: confirming Disable wrote the state but left the
@@ -13794,7 +13814,7 @@ function ivxPreview(v){const I=v.indexOf("t:")===0?ivxTeam(v.slice(2)):ivxClient
  ivxOpen(I.kind==="team"?"e-team":I.wl?"e-clw":"e-cl",I); render()}
 function render(){
  if(asClient&&CLIENT_SESSION&&ACTING_EMAIL&&byId[ctx]&&byId[ctx].disabled){const alt=clientWsOf().filter(x=>!x.disabled).sort((a,b)=>a.name.localeCompare(b.name))[0]; if(alt){ctx=alt.id; view={name:"clients"}} else view={name:"refused"}}
- if(asClient&&view.name!=="clients"&&view.name!=="refused") view={name:"clients"};   /* change 351: one guard, a client session has no agency view */
+ if(asClient&&view.name!=="clients"&&view.name!=="refused"&&!view.e159c) view={name:"clients"};   /* vE E159c: the signed-in invite pages are the one view a client session can show */   /* change 351: one guard, a client session has no agency view */
  pnRoute();   /* vE E102: the person page is gone; its route opens the panel */
  if(PA_ED&&!(PN&&PN.key===PA_ED.key)&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
  if(view.name!=="person"){SH_PUSHED=false; PX_MENU=false}   /* vE E048: leaving the person page closes its more menu */
@@ -13813,6 +13833,13 @@ function render(){
  /* change E005 (Hitesh, 23 Oct 2026: "Remove workspaces tab and option from sidebar"): the Workspaces page is gone; its list is
     Home's card, so every route to the admin panel's list lands on Home */
  if(ctx==="agency"&&!asClient&&view.name==="clients"&&hasAgency()) view={name:"dash"};
+ /* vE E159e: an Account Member has no Admin Panel. Any route into it (a hash, a back link, a bell item, a kept screen) lands them
+    in their first workspace, or on the no-workspace page when they have none. A workspace they are not on lands the same way. */
+ if(noAdmin()){const land=memberLand(), free=["profile","login","ivx","invite","refused"].indexOf(view.name)>-1;
+  if(ctx==="agency"?(!free&&!(view.name==="nows"&&!land)):(!memberReach(ctx)&&!free)){
+   PREVIEW=false;openProspect=null;openSeq=null;openReply=null;
+   if(land){ctx=land.id;inMod="sequences";view={name:"clients"}} else {ctx="agency";inMod=null;view={name:"nows"}}}
+  else if(ctx!=="agency"&&NOAD_ADMIN_VIEWS.indexOf(view.name)>-1) view={name:"clients"};}
  document.querySelector(".app").classList.toggle("invite-mode",view.name==="invite"||view.name==="login"||view.name==="refused"||view.name==="ivx");   /* vE E096 */
  /* M1 and M2 are blocking, so the shell goes with them (16 §2.2), and neither
     is reachable by anyone but the owner. */
@@ -13836,6 +13863,7 @@ function render(){
  }
  lastNavKey=navKey;
  pageEl.innerHTML=solo?vSolo()
+  :view.name==="nows"?vNoWs()   /* vE E159e */
   :view.name==="invite"?(view.e105?e105AccHTML():vInvite())   /* vE E105 */
   :view.name==="refused"?vRefused()
   :view.name==="ivx"?vIvx()   /* vE E096 */
@@ -14434,9 +14462,9 @@ function wire(){
   /* 2 Oct 2026 (S2): the record's own states and cards */
  q("[data-enable]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.enable]; if(!c||!canI("disable")) return; c.disabled=false;
    receipt("client:"+c.id,`${c.name} enabled. Sequences resume where they paused.`,()=>{c.disabled=true;render()},`enabled ${c.name}`); logAct(c.id,"Workspace enabled"); render()});
- q("[data-restore]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.restore]; if(!c||!canI("destructive")) return; const on=c.deletedOn,by=c.deletedBy,dd=c.delDis||[]; delete c.deletedOn; delete c.deletedBy; restoreZero(c);   /* vE E072 */
+ q("[data-restore]").forEach(b=>b.onclick=()=>{const c=byId[b.dataset.restore]; if(!c||!canI("destructive")) return; const on=c.deletedOn,by=c.deletedBy,dd=c.delDis||[]; delete c.deletedOn; delete c.deletedBy; restoreZero(c); const wasOff=!!c.delWasOff; if(wasOff){c.disabled=true} delete c.delWasOff;   /* vE E072; vE E159a: comes back in the state it was deleted in */
    dd.forEach(k=>{delete DISABLED["t:"+k]}); delete c.delDis;   /* vE E074 fix 7: the teammates it left without a workspace are back */
-   receipt("client:"+c.id,`${c.name} restored. Its limits are 0.`,()=>{c.deletedOn=on;c.deletedBy=by;delete c.limZero;holdLim(c);c.delDis=dd;dd.forEach(k=>{DISABLED["t:"+k]=1});render()},`restored ${c.name}`); logAct(c.id,"Workspace restored"); render()});
+   receipt("client:"+c.id,`${c.name} restored${wasOff?" as Disabled":""}. Its limits are 0.`,()=>{c.deletedOn=on;c.deletedBy=by;delete c.limZero;if(wasOff){c.disabled=false;c.delWasOff=true}holdLim(c);   /* vE E159a */c.delDis=dd;dd.forEach(k=>{DISABLED["t:"+k]=1});render()},`restored ${c.name}`); logAct(c.id,"Workspace restored"); render()});
  q("[data-addteam]").forEach(b=>b.onclick=()=>openInvite({role:"Member",ws:[b.dataset.addteam]}));
  q("[data-rdedit]").forEach(b=>b.onclick=()=>{REC_EDIT=b.dataset.rdedit;REC_COL=null;REC_LOGO=null;render();const i=el("rdName");if(i)i.focus()});
  q("[data-rdcancel]").forEach(b=>b.onclick=()=>{REC_EDIT=null;REC_COL=null;REC_LOGO=null;render()});
@@ -14627,8 +14655,7 @@ function wire(){
  q("[data-nav2n]").forEach(b=>b.onclick=()=>{const k=b.dataset.nav2n;
    ctx="own";asClient=false;openProspect=null;openSeq=null;openReply=null;inMod=RAIL2MOD[k]||k;view={name:"clients"};render()});
  q("[data-addcardoff]").forEach(b=>b.onclick=()=>{addCardOff=true;render()});
- q("[data-skipclientsetup]").forEach(b=>b.onclick=()=>{clientSetupOff[ctx]=true;render()});
- q("[data-cstep]").forEach(b=>b.onclick=()=>{if(b.dataset.cstep==="invite"){openInvite({lock:ctx,role:"Client Collaborator"});return} inMod=b.dataset.cstep;openProspect=null;openSeq=null;openReply=null;render()});
+/* vE E159a: removed */
  q("[data-set]").forEach(b=>b.onclick=()=>{setSel=b.dataset.set;render()});
  q("[data-goprofile]").forEach(b=>b.onclick=()=>pfOpen());   /* vE E099: the same My Profile page */
  /* item N2, 28 Sep 2026: opens the real API & Integrations screen without
@@ -15416,9 +15443,9 @@ function e105Pop(t,q){const P=el("popL"), A=e105Accts(), e=e105Email();
  const head=(a,id,cl)=>{const wl=cl&&a.a==="home"&&e105HomeWl(); return `<div class="pop-h e105-h" id="${id}">${wl?`<img class="e105-bi" src="${BRAND.icon}" alt="">`:""}<span>${hdrEsc(wl?BRAND.companyName:a.name)}</span></div>`};
  const G=A.map((a,i)=>{const hid="e105h"+i;
   if(a.a==="home"&&a.team){const was=asClient; asClient=false; const W=hdrWsList().filter(c=>wsMatch(c,t)), kids=W.length?hdrWsRows(t,E105X?"":ctx==="agency"?null:ctx):""; asClient=was;
-   const acur=!E105X&&ctx==="agency", adm=t?"":`<button type="button" class="pop-r pop-r--acct" data-e105go="home|agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span>${ck(acur)}</button>`;
+   const acur=!E105X&&ctx==="agency", adm=t||noAdmin()?"":`<button type="button" class="pop-r pop-r--acct" data-e105go="home|agency" aria-current="${acur}"><span class="pop-ico">${POP_GRID}</span><span class="t">Admin Panel</span>${ck(acur)}</button>`;
    if(!adm&&!kids) return "";
-   return `<div class="e105-g" role="group" aria-labelledby="${hid}">${head(a,hid)}${adm}${kids?`<div class="pop-kids${t?" pop-kids--q":""}" role="group" aria-label="Workspaces">${kids}</div>`:""}</div>`}
+   return `<div class="e105-g" role="group" aria-labelledby="${hid}">${head(a,hid)}${adm}${kids?`<div class="pop-kids${t||noAdmin()?" pop-kids--q":""}" role="group" aria-label="Workspaces">${kids}</div>`:""}</div>`}
   const W=wsPickOrder((a.a==="home"?e105HomeWs(e):e105XWs(a.a)).filter(c=>wsMatch(c,t))); if(!W.length) return "";   /* vE E144 F23 */
   const cur=c=>a.a==="home"?!E105X&&ctx===c.id:!!E105X&&E105X.a===a.a&&ctx===c.id;
   if(a.normal) return `<div class="e105-g" role="group" aria-label="${hdrEsc(a.name)}">${row(a.a+"|"+W[0].id,W[0],cur(W[0]))}</div>`;
@@ -15448,6 +15475,7 @@ function e105Pick(a,id){closePop();
 function e105Toast(t){clearTimeout(receiptTimer); RECEIPT={scope:"e105",text:t,short:t,variant:"info"};   /* no side: it follows the switch into the client session */ receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast()},6000); renderToast()}
 
 /* ── the invite to an address that already has a login: the email, then "Sign in to join" ── */
+let E159C_ME='founder@acmeoutreach.com';   /* vE E159c: the login in use on the join pages */
 const E105_INV={email:"founder@acmeoutreach.com",ws:"pc",role:"Client Collaborator"};
 function e105Pending(){const I=E105_INV, c=byId[I.ws]; if(!c||(c.users||[]).some(u=>u[0]===I.email)) return;
  c.users=c.users||[]; c.users.push([I.email,I.role]); LASTSEEN[I.email]="never"; INVITED["w:"+c.id+"|"+I.email]="just now"}
@@ -15462,6 +15490,18 @@ function e105AccHTML(){const I=E105_INV, c=byId[I.ws], wl=brandOn(), ag=wl?BRAND
     <p>Your workspace:</p><ul><li>${c.name} – ${I.role}</li></ul>
     <p class="e105-cta"><button type="button" class="shd-button shd-button--primary" data-e105acc="open">Accept Invitation</button></p>
     <p>Thank you,<br>Team ${ag}</p></div></article></div>`;
+ /* vE E159c: already signed in on their own account: one decision, Join. The login in use is stated, never asked for */
+ if(view.e105==="join") return back+`<div class="ivx ivx-pg" data-ivx="join-signed-in"><div class="ivx-main"><div class="ivx-card">
+   <div class="ivx-brand">${wl?ivxAgLogo(ag):`<span class="ivx-sh">${logoSVG("logoGradE105")}</span><span class="ivx-nm">Saleshandy</span>`}</div>
+   <div class="ivx-hd"><h1 class="ivx-h">Join ${ag}?</h1></div>
+   <dl class="e159c-dl"><div><dt>Workspace</dt><dd>${c.name}</dd></div><div><dt>Role</dt><dd>${I.role}</dd></div><div><dt>Signed in as</dt><dd>${I.email}</dd></div></dl>
+   <button type="button" class="ivx-btn" data-e159cjoin>Join</button>
+   <div class="ivx-bottom"><button type="button" class="ivx-link" style="font-size:14px;line-height:20px" data-e159cno>Not now</button></div></div></div></div>`;
+ if(view.e105==="join-other") return back+`<div class="ivx ivx-pg" data-ivx="join-other-address"><div class="ivx-main"><div class="ivx-card">
+   <div class="ivx-brand">${wl?ivxAgLogo(ag):`<span class="ivx-sh">${logoSVG("logoGradE105")}</span><span class="ivx-nm">Saleshandy</span>`}</div>
+   <div class="ivx-hd"><h1 class="ivx-h">This invite is for ${I.email}</h1><p class="ivx-s">You're signed in as ${E159C_ME}.</p></div>
+   <button type="button" class="ivx-btn" data-e159cout>Sign out and continue</button>
+   <div class="ivx-bottom"><button type="button" class="ivx-link" style="font-size:14px;line-height:20px" data-e159cno>Back to my account</button></div></div></div></div>`;
  return back+`<div class="ivx ivx-pg" data-ivx="accept-existing"><div class="ivx-main"><div class="ivx-card">   <!-- vE E142 F24: production's sign-in page (ivxPageHTML p-login-off) -->
    <div class="ivx-brand">${wl?ivxAgLogo(ag):`<span class="ivx-sh">${logoSVG("logoGradE105")}</span><span class="ivx-nm">Saleshandy</span>`}</div>
    <div class="ivx-hd"><p class="ivx-h">Sign in to join ${ag}</p><p class="ivx-s">This email already has a login. Sign in with its password to open ${c.name}.</p></div>
@@ -15475,7 +15515,12 @@ function e105AccHTML(){const I=E105_INV, c=byId[I.ws], wl=brandOn(), ag=wl?BRAND
 function e105Accept(){const I=E105_INV, c=byId[I.ws]; if(!c) return; delete INVITED["w:"+c.id+"|"+I.email]; LASTSEEN[I.email]="just now";
  E105X=null; solo=false; PREVIEW=false; CLIENT_SESSION=true; ACTING_EMAIL=I.email; asClient=true; ctx=c.id; view={name:"clients"}; e105FirstMod(c); render()}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-e105acc]"); if(!b) return; e.preventDefault();
- if(b.dataset.e105acc==="open"){view=Object.assign({},view,{e105:"accept"}); render()}});
+ if(b.dataset.e105acc==="open"){view=Object.assign({},view,{e105:view.e159c?"join":"accept"}); render()}});   /* vE E159c */
+/* vE E159c: Join accepts the invite and lands in the workspace; Not now returns to the account they came from */
+document.addEventListener("click",e=>{const j=e.target.closest&&e.target.closest("[data-e159cjoin],[data-e159cno],[data-e159cout]"); if(!j) return; e.preventDefault();
+ if(j.hasAttribute("data-e159cout")){E105X=null; asClient=false; CLIENT_SESSION=false; ACTING_EMAIL=null; me_="owner"; ctx="agency"; view={name:"invite",e105:"accept",back:{name:"people"}}; render(); return}
+ if(j.hasAttribute("data-e159cjoin")){e105Accept(); const ag=brandOn()?BRAND.companyName:AGENCY.name; e105Toast("You joined "+ag+"."); return}
+ E105X={a:"ao",email:E159C_ME}; const c=e105XWs("ao")[0]; asClient=true; CLIENT_SESSION=true; ACTING_EMAIL=E159C_ME; ctx=c.id; view={name:"clients"}; e105FirstMod(c); render()});
 document.addEventListener("submit",e=>{if(!e.target.matches||!e.target.matches("[data-e105form]")) return; e.preventDefault(); e105Accept()});
 
 /* ── reviewer states (#e105=<state>) ── */
@@ -15497,6 +15542,10 @@ function e105Boot(s){E105.state=s; solo=false; PREVIEW=false; E105X=null; inMod=
   setTimeout(()=>{openInvite({ctxWs:E105_INV.ws}); INV.emails=[E105_INV.email]; INV.f.role=E105_INV.role; INV.f.touched=true; INV.f.cl=[E105_INV.ws]; INV.f.clTouched=true; renderModal();
    setTimeout(()=>{const x=document.querySelector('.modal input[type=checkbox]:checked'); if(x) x.scrollIntoView({block:"center"})},50)},600)}
  if(s==="email-existing"||s==="accept-existing"){team("owner"); e105Pending(); view={name:"invite",e105:s==="email-existing"?"email":"accept",back:{name:"people"}}}
+ /* vE E159c: #e105=join-signed-in (the page) and #e105=email-signed-in (the email, whose Accept Invitation leads to it). The invitee is signed in to Acme Outreach */
+ if(s==="join-other-address"){E105_INV.email="nina@meridiangrowth.com"}   /* vE E159c: invited address differs from the login in use */
+ if(s==="join-signed-in"||s==="email-signed-in"||s==="join-other-address"){e105Pending(); const I=E105_INV; if(s!=="join-other-address") E159C_ME=I.email; E105X={a:"ao",email:E159C_ME}; const c=e105XWs("ao")[0]; asClient=true; CLIENT_SESSION=true; ACTING_EMAIL=E159C_ME; ctx=c.id;
+  view={name:"invite",e105:s==="join-signed-in"?"join":s==="join-other-address"?"join-other":"email",e159c:1,back:{name:"clients"}}}
  if(s==="joined"){e105Pending(); const I=E105_INV; delete INVITED["w:"+I.ws+"|"+I.email]; LASTSEEN[I.email]="just now"; client(I.email,I.ws); open()}}
 
 /* ═══ vE E101, 28 Oct 2026. Hitesh: "On this screen for each resource - we can start with total in the plan and then how
@@ -15619,7 +15668,7 @@ function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.
   const ok3=c.job==="left"?P.every(r=>r.after===Math.max(r.before,r.used)+c.share)&&given===n*c.share
    :given+(c.leftAfter-c.leftBefore)===c.pot&&P.every(r=>r.after>=r.used)&&at*c.share+P.filter(r=>r.after!==c.share).reduce((t,r)=>t+r.after,0)===given;
   if(!(ok1&&ok2&&ok3)){const m={k,job:c.job,ok1,ok2,ok3,state:window.E150_STATE}; window.E150_SUMFAIL.push(m); console.error("E150 sum check failed",m)}}
- return {why,line,given,kept,at,n,moved:moved.length}}
+ return {why,line,given,kept,at,n,moved:moved.length,nc:moved.length}}   /* vE E159b: nc = ticked workspaces whose limit changes; Apply and the toast count these */
 function e150Sum(k){return e150SumOf(k,e150Calc(k))}
 /* the menu's amount for each option, and its reason when it can't change anything (all active ticked) */
 function e150Opt(k,job){const c=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:e150Act(k),job}), s=e150SumOf(k,c);
@@ -15663,7 +15712,7 @@ function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E
   return `<button type="button" class="e150-mi" data-e150next="${x}"${o.off?" disabled":""}><span class="e150-mj">${RES[x].label}</span><span class="e150-mr">${v}</span></button>`};
  return `<div class="e150-pop e150-nx" role="dialog" aria-labelledby="e150NxH"><p class="e150-nh" id="e150NxH">${E150_LAB[job]} on another resource?</p>${L.map(row).join("")}<div class="e150-nf"><button type="button" class="shd-button shd-button--secondary" data-e150done>Done</button></div></div>`}
 /* the bar under the figures: one line, then Discard and Apply */
-function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to ${e101Ws(s.n)}`:`Reallocate ${s.n} limits`;   /* vE E157 */
+function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to ${e101Ws(s.nc)}`:`Reallocate ${s.nc} limits`;   /* vE E159b */   /* vE E157 */
  const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p>`;   /* vE E153 */
  return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
 /* vE E153: the selection, on the table: ticked across every active workspace, filtered out or not */
@@ -15681,7 +15730,7 @@ function e150Close(){E150={open:false}}
 function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
  const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
 function e150Apply(){const k=E150.k0, c=e150Calc(k), s=e150Sum(k); if(s.why) return; const D={}; c.rows.forEach(r=>{if(r.after!==r.before) D[k+"|"+r.id]=r.after});
- const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.n)}.`:`Reallocated limits across ${e101Ws(s.n)}.`;   /* vE E157 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
+ const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.nc)}.`:`Reallocated limits across ${e101Ws(s.nc)}.`;   /* vE E159b */   /* vE E157 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
  RECEIPT.text=RECEIPT.short=t; RECEIPT.variant="success"; ul3E2Close(); UL.focusK=k;
  E150N={job,k,done:((E150N&&E150N.done)||[]).concat(k)}; render(); setTimeout(()=>{const x=document.querySelector(".e150-nx .e150-mi:not(:disabled),[data-e150done]"); if(x) x.focus({preventScroll:true})},0)}
 function e150Tick(ids,on){const S=new Set(E150.ids); ids.forEach(id=>on?S.add(id):S.delete(id)); E150.ids=e150Act(E150.k0).filter(id=>S.has(id)); e150Re()}
@@ -15789,6 +15838,7 @@ function pnMenuItems(p){const d=PA_ED.d, gate=!p.me&&canI("members"), I=[];
  if(p.kind==="team"&&!p.invited&&gate) I.push(["dis",p.disabled?"Enable":"Disable",p.owner?PX_LOCK_WHY():personCanRemove(p)?"":"Only an Account Owner can disable an Account Admin."]);
  if(p.me&&p.owner&&ME().role==="Owner") I.push(["transfer","Transfer ownership",transferCands().length&&!TRANSFER?"":"Needs an Account Admin or another Account Owner to hand to"]);
  if(gate){const why=p.owner?PX_LOCK_WHY():personCanRemove(p)?"":"Only an Account Owner can remove an Account Admin.";
+  if(p.kind==="client"&&!p.invited) I.push(["dis",p.disabled?"Enable":"Disable",personCanRemove(p)?"":why||""]);   /* vE E159d: same place as a teammate's, before Remove */
   if(p.kind==="team") I.push(["rm","Remove from account",why]);
   else {const ws=pnClientWs(p); if(ws.length) I.push(["rm",ws.length===1?"Remove from "+pxW(ws[0]).name:"Remove from all workspaces",why])}}
  return I}
@@ -15818,7 +15868,7 @@ const PN_PEN='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-
 function pnNotes(p){const d=PA_ED.d, f=invEsc(p.first); let h="";
  if(TRANSFER&&p.kind==="team"&&(TRANSFER.from===p.k||TRANSFER.to===p.k)){const F=PEOPLE[TRANSFER.from], T=PEOPLE[TRANSFER.to], s=k=>TRANSFER.ok[k]?`${PEOPLE[k].name.split(" ")[0]} confirmed`:`waiting for ${PEOPLE[k].name.split(" ")[0]}`;
   h+=`<div class="msg m-warn pn-msg" role="status">${warnI}<span><b>Ownership transfer pending:</b> ${F.name} to ${T.name}; ${s(TRANSFER.from)}, ${s(TRANSFER.to)}. Nothing changes until both confirm. <button type="button" class="linkbtn" data-pntrcancel>Cancel transfer</button></span></div>`}
- if(d.side!==p.kind) h+=`<p class="pn-note" data-pnff>${d.side==="client"?`${f} will sign in as a client: only the workspaces below, nothing outside them.`:`${f} will join your team: Admin Panel and the workspaces below.`} <button type="button" class="linkbtn pn-lb" data-pnside0>Undo</button></p>`;
+ if(d.side!==p.kind) h+=`<p class="pn-note" data-pnff>${d.side==="client"?`${f} will sign in as a client: only the workspaces below, nothing outside them.`:`${f} will join your team: ${d.role==="Member"?"only":"Admin Panel and"} the workspaces below.`}   /* vE E159 */ <button type="button" class="linkbtn pn-lb" data-pnside0>Undo</button></p>`;
  else if(d.side==="team"&&d.role==="Owner"&&p.role!=="Owner") h+=`<p class="pn-note">Once saved, you can&rsquo;t change or remove ${f}.</p>`;
  return h}
 function pnFtHTML(p){
@@ -15886,7 +15936,7 @@ function pnWire(L,p){const d=PA_ED.d;
 function pnMenuDo(p,k){const d=PA_ED.d;
  if(k==="side"){if(d.side!==p.kind) PA_ED=pxStart(p); else pxPick(p,d.side==="client"?"Member":INV_LEVEL_DEFAULT); PN.ed=PA_ED.d.side!==p.kind; PN.focus="[data-pnside0]"; pnPaint(); return}
  if(k==="reset"){ppToast(`Reset link sent to ${p.email}. It works for 24 hours.`,null,"reset link sent"); render(); return}
- if(k==="dis"){if(p.disabled){modal={kind:"pconfirm",key:p.key,act:"enable"}; peopleModalOk("pconfirm")} else {modal={kind:"pconfirm",key:p.key,act:"disable",px:1}; pnPaint(); renderModal()} return}   /* Disable confirms first; Enable stays direct (E048) */
+ if(k==="dis"){if(p.disabled){modal={kind:"pconfirm",key:p.key,act:"enable",all:p.kind==="client"?pnCKeys(p.email):null}; peopleModalOk("pconfirm")} else {modal={kind:"pconfirm",key:p.key,act:"disable",px:1,all:p.kind==="client"?pnCKeys(p.email):null}; pnPaint(); renderModal()} return}   /* vE E159d: all = a client user's workspace keys */   /* Disable confirms first; Enable stays direct (E048) */
  if(k==="transfer"){modal={kind:"transfer"}; pnPaint(); renderModal(); return}
  if(k==="rm"){modal=p.kind==="team"?{kind:"prm",key:p.key,to:{}}:{kind:"prmw",key:p.key,ws:pnClientWs(p),to:{}}; pnPaint(); renderModal()}}
 /* Save: E048's write, whichever sides it crosses; the toast's Undo puts everything back. The panel stays on the person. */
@@ -18805,7 +18855,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="8cb745d";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="e20a963";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20151,6 +20201,17 @@ button.hdr-chip{cursor:pointer}
 .inv-a2-wl.is-off .inv-a2-wn .hdr-chip{color:#374151}
 .dq-fore.uw-tip{z-index:1300}   /* vE E131: above a modal's scrim, so a tooltip inside a dialog shows */
 /* vE E139: the list under the email field (vE E149: one row per person already in the account). Box and rows copy the Workspaces picker */
+
+/* vE E160 */
+.e160d-r{display:grid;grid-template-columns:24px minmax(0,0.8fr) minmax(0,1.45fr) 28px;column-gap:10px;align-items:start;padding:8px 4px 8px 12px;border-top:1px solid #F3F4F6}
+.e160d-r:first-child{border-top:0}
+.e160d-r>.pp-av,.e160d-r>span:first-child{margin-top:-2px}
+.e160d-n{font-size:14px;line-height:20px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.e160d-wide{grid-column:2/5}
+.e160d-o{display:flex;flex-direction:column;font-size:13px;line-height:20px;color:#6B7280}
+.e160d-o>span{overflow-wrap:break-word}
+.e160d-r .inv-al-x{margin-top:-4px}
+@media (max-width:560px){.e160d-r{grid-template-columns:24px minmax(0,1fr) 28px}.e160d-o{grid-column:2/3;grid-row:2}.e160d-r .inv-al-x{grid-column:3;grid-row:1}.e160d-wide{grid-column:2/4}}
 .inv-al{margin-top:8px;border:1px solid #E5E7EB;border-radius:4px;background:#fff}
 .inv-al-g{padding:4px 0}
 .inv-al-r{display:flex;align-items:center;gap:8px;height:36px;padding:0 4px 0 12px;min-width:0}
