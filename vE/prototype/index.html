@@ -9085,13 +9085,13 @@ function ulrHTML(k,ro){const R=RES[k], unl=isUnl(k), W0=ulfRows(k), pg=pageOf("u
  const all=unl?"":ulrTerm(k)?`<span class="ulr-give"><b data-ulrav="${k}">${ulrAvHTML(k)}</b> available until ${ulrTerm(k).to}</span>`   /* vE E072 (row 23): what resets at renewal says until when */
   :`<span class="ulr-give">Available <b data-ulrav="${k}">${ulrAvHTML(k)}</b></span>`;
  /* the table's own toolbar: search and filters past 8 (fix 8), Available at its right end */
- const tb=(ulfShow(k)?ulfToolbar()+ulfChips():"")+e150SelHTML(k);   /* vE E153: the selection strip */   /* vE E101: Available moved into the summary */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
+ const cta=e164CtaHTML(k,ro), tb=(ulfShow(k)?ulfToolbar(cta)+ulfChips():ro||isUnl(k)?"":`<div class="ulr-tb e164-tb">${cta}</div>`)+e150SelHTML(k);   /* vE E164 */   /* vE E153: the selection strip */   /* vE E101: Available moved into the summary */   /* vE E075 fix 34: with nothing to search, Available sits in the title row */
  const head=`<div class="ulr-ch"><button type="button" class="ulr-back" data-ulrback>${ULR_BACK}All resources</button><h3 class="ulr-ct" id="ulrT">${R.label}</h3><span class="ulr-chr"><span class="ulr-g" data-ul3renew="${k}">${sub}</span>${act}</span></div>`;
  /* vE E041: the same five cells for every resource (fix 3); no Yours or Disabled tag (fixes 9 and 6) */
  const rows=W.map(c=>`<tr class="ulr-tr${c.disabled?" is-off":""}${e150RowCls(k,c)}" data-ulws="${c.id}"${unl?` data-unl="${k}"`:""}><td><div class="ulr-ws">${e150Ck(k,c)}${ulAv(c)}<span class="ulr-nm ul-nm"${c.id===OWN_ID?"":" data-uwcut"}>${c.name}</span>${c.disabled?'<span class="chip hdr-chip hdr-chip--mute ulr-dchip">Disabled</span>':""}</div></td>`
   +`<td class="ulr-gc" data-ulru="${c.id}">${unl?'<span class="ulr-bar is-none"></span>':ulrGaugeHTML(k,c)}</td><td class="ulr-ur"><span class="ulr-num">${f(unl?unlUsed(k,c.id):R.rows[c.id].used)}</span></td><td class="ulr-cl" data-ulrl="${c.id}">${ulrLimHTML(k,c,ro)}</td>${e150In(k)?`<td class="e150-cc">${e150ChgHTML(k,c)}</td>`:""}<td class="ulr-pc" data-ulrp="${c.id}">${ulrPaceHTML(k,c)}</td></tr>`).join("");
  return `<section class="ulr-s" id="ul3E2S" aria-labelledby="ul3E2H"><h2 class="ulr-sr" id="ul3E2H">Limits</h2><div class="panel ul-panel ulr${UL.drill?" is-drill":""}" id="ulLimits"><div class="ulr-split">${rail}<div class="ulr-main">${head}${e101SumHTML(k,ro)/* vE E101 */}${tb}
-  <table class="ulr-t ulr-tp${UL.all?" is-all":""}${e150In(k)?" e150-on":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv">${e150In(k)?'<col class="e150-cc">':""}<col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(e150In(k)?6:5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}</div></div>
+  <table class="ulr-t ulr-tp${UL.all?" is-all":""}${e150In(k)?" e150-on":""}" id="ul3E2T" style="--ulr-uw:${unl?6:Math.max(3,f(compute(k).used).length,...Object.keys(R.rows).map(id=>f(R.rows[id].used).length))}ch;--ulr-lvw:${unl?0:Math.max(1,...ul3E2Rows(k).map(c=>ulDv(k,c.id)).concat(RES[k].rows[OWN_ID]?[Object.keys(RES[k].rows).reduce((t,id)=>t+ulDv(k,id),0)]:[]).map(v=>{const t=f(v); return t.length-(t.split(",").length-1)/2}))}ch" tabindex="-1" aria-labelledby="ulrT"><colgroup><col class="ulr-c1"><col class="ulr-cg"><col class="ulr-cu"><col class="ulr-cv">${e150In(k)?'<col class="e150-cc">':""}<col class="ulr-cp"></colgroup>${ulrHeadP(k)}<tbody>${rows||ulfNone(e150In(k)?6:5)}</tbody>${ulrTotHTML(k,W0,pg)}</table>${ulfPager(W0.length)}<div class="e164-dock" data-e164dock>${e164DockHTML(k,ro)}</div></div></div>
   <div class="ulr-sbw" data-ul3e2dock aria-live="polite">${ro?"":ulrBarHTML()}</div></div></section>`}
 /* typing repaints what depends on the draft, not the page, so the caret stays; rows keep their order */
 function ulrPaint(id){const k=ul3E2K(), P=document.querySelector(".ulr"); if(!P) return; const ro=ulRo();
@@ -15073,8 +15073,8 @@ function ulfDD(k,l){const S=ULF[k], O=wsfOpts(k), open=ULF_OPEN===k;
   +'<span class="dd-val">'+wsfEsc(val)+'</span>'+WSF_CHEV+'</button>'
   +(open?'<div class="dd-menu wsf-m" role="group" aria-label="'+l+'">'
    +O.map(([v,t])=>'<label class="dd-opt wsf-o"><input type="checkbox" data-ulfo="'+k+'|'+wsfEsc(v)+'"'+(S.indexOf(v)>-1?' checked':'')+'><span class="dd-lbl">'+wsfEsc(t)+'</span></label>').join("")+'</div>':'')+'</div>'}
-const ulfToolbar=()=>'<div class="ulr-tb"><div class="search">'+srchI+'<input type="text" id="ulSearch" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="'+wsfEsc(ulQ)+'"></div>'
- +'<div class="wsf-bar" role="group" aria-label="Filters">'+ULF_DEF.map(([k,l])=>ulfDD(k,l)).join("")+'</div></div>';
+const ulfToolbar=cta=>'<div class="ulr-tb"><div class="search">'+srchI+'<input type="text" id="ulSearch" placeholder="Search workspaces" aria-label="Search workspaces" autocomplete="off" value="'+wsfEsc(ulQ)+'"></div>'
+ +'<div class="wsf-bar" role="group" aria-label="Filters">'+ULF_DEF.map(([k,l])=>ulfDD(k,l)).join("")+'</div>'+(cta||'')+'</div>';   /* vE E164 */
 function ulfChips(){if(!ulfOn()) return "";
  return '<div class="wsf-chips">'+ULF_DEF.filter(([k])=>ULF[k].length).map(([k,l])=>{const v=ULF[k].map(x=>wsfName(k,x)).join(", ");
    return '<span class="wsf-chip"><span class="wsf-cn">'+l+':</span><span class="wsf-cv" title="'+wsfEsc(v)+'">'+wsfEsc(v)+'</span>'
@@ -15569,11 +15569,17 @@ function e101DraftOld(){const why=e101DraftState().why;
 function e101SumHTML(k,ro){if(isUnl(k)) return (!ro&&E150.open)?e150UnlHTML():""; if(!ro&&E150.open) return e150SumHTML(k);   /* vE E150 */ const R=RES[k], pool=R.pool, df=ulDfree(k), sv=compute(k).free, av=df<0?sv:df, al=pool-av, alS=pool-sv, dirty=e101Dirty(), was=dirty;
  const us=compute(k).used, w=n=>(Math.max(0,Math.min(pool,n))/pool*100).toFixed(2)+"%";
   const fig=(lab,v,vs,sw,attr,xtra)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${was&&!fa&&!dirty&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}${xtra||""}</span></div>`;
- const low=ro?"":dirty?e101DraftHTML(k):"", fa=ro?"":dirty?"":e150ActsHTML(k);   /* vE E158: a typed draft puts Discard and Apply in the bar */
+ const low="", fa="";   /* vE E164: Split equally sits in the table toolbar, the draft bar at the bottom (e164DockHTML) */
  if(dirty&&!ro){setTimeout(e101Stick,0); setTimeout(e101Stick,300)}
  return `<div class="e101-sum${dirty&&!ro?" is-draft":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate">
   <div class="e101-fs">${fig("In your plan",pool,null,"")}${fig("Allocated",al,alS,"is-al",` data-e101al="${k}"`)}${fig("Used",us,null,"is-us",` data-e101us="${k}"`)}${fig("Left to allocate",av,sv,"is-av",` data-ulrav="${k}"`)}${fa}</div>${low}</div>`}
-function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outerHTML=e101SumHTML(k,ulRo()); e101Stick()}
+function e101Paint(P,k){const m=P.querySelector("[data-e101sum]"); if(m) m.outerHTML=e101SumHTML(k,ulRo()); e101Stick();
+ const d=P.querySelector("[data-e164dock]"); if(d) d.innerHTML=e164DockHTML(k,ulRo()); const c=P.querySelector("[data-e164cta]"), h=e164CtaHTML(k,ulRo());   /* vE E164: typing repaints the bar and shows or hides the button */
+ if(c&&!h) c.remove(); else if(!c&&h){const t=P.querySelector(".ulr-main .ulr-tb"); if(t) t.insertAdjacentHTML("beforeend",h)}}
+/* vE E164: one reading order, top to bottom: the figures, Split equally beside the table's search and filters, the rows, then the
+   bar (the line or the reason, Discard, Apply) pinned to the bottom of the screen. A typed draft uses the same bar */
+function e164CtaHTML(k,ro){if(ro||isUnl(k)) return ""; if(E150.open?!e150In(k):e101Dirty()) return ""; const h=e150ActsHTML(k); return h?h.replace('class="e101-fa e150-fa"','class="e101-fa e150-fa" data-e164cta'):""}
+function e164DockHTML(k,ro){if(ro||isUnl(k)) return ""; if(E150.open) return e150In(k)?e150BarHTML(k):""; return e101Dirty()?e101DraftHTML(k):""}
 /* on a phone only the draft row stays in view: the summary sticks with its figures scrolled past (a negative top) */
 function e101Stick(){const m=document.querySelector(".e101-sum.is-draft"); if(!m) return; const d=m.querySelector(".e101-dr"); m.style.top=ulrPhone()&&d?-(d.offsetTop-12)+"px":"0px"}
 window.addEventListener("resize",e101Stick);
@@ -15717,7 +15723,7 @@ function e150UnlHTML(){return `<div class="e101-sum is-e150 e150-unl" role="grou
 function e150SumHTML(k){const R=RES[k], pool=R.pool, inD=e150In(k), sv=compute(k).free, df=ulDfree(k), av=df<0?sv:df, al=pool-av, alS=pool-sv, us=compute(k).used;
  const fig=(lab,v,vs,attr)=>`<div class="e101-f"><span class="e101-l">${lab}</span><span class="e101-v"><b${attr||""}>${f(v)}</b>${inD&&vs!=null&&vs!==v?`<span class="e101-was">was ${f(vs)}</span>`:""}</span></div>`;
  if(inD) setTimeout(e101Stick,0);
- return `<div class="e101-sum${inD?" is-draft is-e150":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate"><div class="e101-fs">${fig("In your plan",pool,null)}${fig("Allocated",al,alS,` data-e101al="${k}"`)}${fig("Used",us,null)}${fig("Left to allocate",av,sv,` data-ulrav="${k}"`)}${inD?e150ActsHTML(k):""}</div>${inD?e150BarHTML(k):e150WaitHTML()}</div>`}
+ return `<div class="e101-sum${inD?" is-draft is-e150":""}" data-e101sum="${k}" role="group" aria-label="${R.label}: in your plan, allocated, used and left to allocate"><div class="e101-fs">${fig("In your plan",pool,null)}${fig("Allocated",al,alS,` data-e101al="${k}"`)}${fig("Used",us,null)}${fig("Left to allocate",av,sv,` data-ulrav="${k}"`)}</div>${inD?"":e150WaitHTML()}</div>`}   /* vE E164: button in the toolbar, bar at the bottom */
 function e150Open(k,job){E150={open:true,job,ids:e150Act(k),k0:k,cache:{}}; if(E150N) E150N=Object.assign({},E150N,{k:null})}
 function e150Close(){E150={open:false}}
 function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
@@ -18848,7 +18854,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="92005b3";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="84db3a2";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20346,7 +20352,14 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
    24px gutters and 1px Gray 200 rules. While a draft is open (save pattern 1) the summary holds Discard and Apply and
    sticks to the top of the page. ═══ */
 .e101-sum{display:flex;flex-direction:column;gap:16px;padding:20px 24px;border-bottom:1px solid #E5E7EB;background:#fff;box-sizing:border-box}
-.e101-sum.is-draft{position:sticky;top:0;z-index:5;box-shadow:0 8px 24px -12px rgba(17,24,39,.18)}
+.e101-sum.is-draft{position:static;box-shadow:none}   /* vE E164: was sticky with the bar inside; the bar now sits at the bottom */
+.e164-dock{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid #E5E7EB;box-shadow:0 -8px 24px -12px rgba(17,24,39,.18);padding:16px 24px;border-radius:0 0 8px 0}
+.e164-dock:not(:has(*)){display:none}
+.e164-dock>.e101-dr.e150-bar{margin:0;padding:0;border-top:0}
+.ulr-tb>.e101-fa{margin-left:auto}
+.e164-tb{justify-content:flex-end}
+.e164-tb:not(:has(*)){display:none}
+@media (max-width:760px){.e164-dock{padding:12px 16px;border-radius:0}.ulr-tb>.e101-fa{order:4;flex:1 1 100%;margin-left:0}}
 .e101-fs{display:flex;flex-wrap:wrap;gap:16px 48px}
 .e101-f{display:flex;flex-direction:column;gap:4px;min-width:0}
 .e101-l{display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:20px;font-weight:500;color:#4B5563;white-space:nowrap}
