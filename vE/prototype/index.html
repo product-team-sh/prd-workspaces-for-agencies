@@ -3883,7 +3883,7 @@ function hdrWsRows(q,here){const t=(q||"").trim().toLowerCase(), cur=here!==unde
  const L=hdrWsList().filter(c=>wsMatch(c,t));   /* vE E021: the shared rule */
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
  return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
-  :`<p class="sub hdr-wsnone">${t?nrHTML(q):"No workspaces found"}</p>`}
+  :`<p class="sub hdr-wsnone">${t?nrHTML(q):"You haven’t been added to a workspace yet."}</p>`}
 function hdrWsOpen(trig){
  if(HDR_WS&&HDR_WS.trig===trig){hdrWsClose(true); return}
  hdrWsClose(false);
@@ -4106,7 +4106,7 @@ function renderPop(q=""){
  if(e105Multi()&&!xform){e105Pop(t,q); return}   /* vE E105: grouped by account */
  if(asClient){const mine=wsPickOrder(clientWsOf().filter(c=>wsMatch(c,t)));   /* vE E144 F23 */
   if(clientWsOf().length<2){el("popL").innerHTML="";return}
-  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour,c),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">${t?nrHTML(q):"No workspaces found"}</p>`);
+  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour,c),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">${t?nrHTML(q):"You haven’t been added to a workspace yet."}</p>`);
   el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{const id=b.dataset.go,cc=byId[id]; if(!cc) return; ctx=id;openProspect=null;openSeq=null;openReply=null;
    const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1); cView=first?first[0]:"settings"; closePop();render()});
   return}
@@ -6310,19 +6310,13 @@ function utRoleHTML(){const m=modal, c=byId[m.ws], p=personOf(m.key); if(!c||!p)
 function utRoleGo(){const m=modal, c=m&&byId[m.ws], p=m&&personOf(m.key); if(!c||!p||!m.to||m.to===utCur(p,c)) return;
  const E=utDraft(p,c,m.to), v0=view; E.ho=Object.assign({},m.ho); modal=null; renderModal();
  PA_ED=E; pxSave(); PA_ED=null; PX_MENU=false; view=v0; UT.pop=null; render()}
-/* Remove from this workspace asks only when they own something here (E073's rule: whoever loses a workspace hands it over) */
-function utRmHTML(){const m=modal, c=byId[m.ws], p=personOf(m.key); if(!c||!p) return "";
- const ok=!!m.to[c.id], tk=hoTasks(p,[c.id]), who=p.kind==="client"&&!p.named?invEsc(p.email):invEsc(p.first);
- return card(`Remove ${who} from ${invEsc(c.name)}?`,`<p class="ac-lead">They stop opening ${invEsc(c.name)} now. What they own here moves to the user you pick.</p>
-   <div class="prm-list">${hoItem(p,c.id,"prmto_"+c.id,m.to[c.id])}</div>
-   <p class="sub" style="margin:12px 0 0">Sequences keep running under their new owner. ${tk?"Open tasks go to the sequence owner, or stay unassigned. ":""}You can undo this.</p>`,
-  `${ok?"":'<span class="sub prm-why" id="utrmwhy">Pick who takes their records</span>'}<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--danger" data-utrmgo ${ok?"":'disabled aria-describedby="utrmwhy"'}>Remove user</button>`,"ac hx")}   /* vE E144 F6: Cancel, "Remove user"; 686 kept for the hand-over picker */
-function utRemove(c,key,pick){const p=personOf(key); if(!p) return;
+/* vE E161: utRmHTML (the Remove hand-over sheet, kind "utrm") removed; unreachable since E159d (D39) */
+function utRemove(c,key){const p=personOf(key); if(!p) return;
  if(p.kind==="client"){const L=c.users||[], i=L.findIndex(u=>u[0]===p.email); if(i<0||L.length===1) return; const u=L[i];
-  const HO=pick?hoApply(p,[c.id],pick):{sentence:"",undo:()=>{}}; L.splice(i,1);
-  rmToast(c,`Removed ${invEsc(p.email)} from ${invEsc(c.name)}. They are signed out.${HO.sentence?" "+HO.sentence:""}`,()=>{L.splice(i,0,u); HO.undo()},`removed ${p.email}`); logAct(c.id,`${p.email} removed`); return}
- const P=p.P; if(!P||P.ws===null) return; const ws=P.ws.slice(); const HO=pick?hoApply(p,[c.id],pick):{sentence:"",undo:()=>{}}; P.ws=ws.filter(x=>x!==c.id);
- rmToast(c,`Removed ${invEsc(P.name)} from ${invEsc(c.name)}. ${P.ws.length?"Their other workspaces stay.":"They have no workspaces now."}${HO.sentence?" "+HO.sentence:""}`,()=>{P.ws=ws; HO.undo()},`removed ${P.name}`); logAct(c.id,`${P.name} removed from this workspace`)}
+  L.splice(i,1);
+  rmToast(c,`Removed ${invEsc(p.email)} from ${invEsc(c.name)}. They are signed out.`,()=>{L.splice(i,0,u)},`removed ${p.email}`); logAct(c.id,`${p.email} removed`); return}
+ const P=p.P; if(!P||P.ws===null) return; const ws=P.ws.slice(); P.ws=ws.filter(x=>x!==c.id);
+ rmToast(c,`Removed ${invEsc(P.name)} from ${invEsc(c.name)}. ${P.ws.length?"Their other workspaces stay.":"They have no workspaces now."}`,()=>{P.ws=ws},`removed ${P.name}`); logAct(c.id,`${P.name} removed from this workspace`)}
 /* Revoke withdraws the invite to this workspace; a teammate invited only here leaves the account with it */
 function utRevoke(c,r){const key=r.key;
  if(r.client){const L=c.users||[], i=L.findIndex(u=>u[0]===r.email); if(i<0) return; const u=L[i], inv=INVITED[key]; L.splice(i,1); delete INVITED[key];
@@ -6336,11 +6330,10 @@ function utAct(c,act,key){const r=utRows(c).find(x=>x.key===key); if(!r) return;
  if(act==="role"){render(); modal={kind:"utrole",key,ws:c.id,to:null,ho:{}}; renderModal(); return}
  if(act==="resend"){INVITED[key]="just now"; rmToast(c,`Invite sent again to ${invEsc(r.client?r.email:r.name)}.`,null,"resent an invite"); render(); return}
  if(act==="revoke"){utRevoke(c,r); render(); return}
- if(act==="remove"){utRemove(c,key,null); render()}}   /* vE E159d: D39, no hand-over in phase 1; the same Remove as the Members tab */
-function utWire(L){const k=modal&&modal.kind; if(k!=="utrole"&&k!=="utrm") return;
- L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{if(!v) return; (k==="utrm"?modal.to:modal.ho)[d.id.slice(6)]=v; renderModal(); const tr=document.querySelector("#"+d.id+" [data-ddtrig]"); if(tr) tr.focus()}));
- if(k==="utrole"){wireDD(L,"utRole",v=>{if(!v) return; modal.to=v; modal.ho={}; renderModal(); const tr=document.querySelector("#utRole [data-ddtrig]"); if(tr) tr.focus()}); const ok=L.querySelector("[data-utroleok]"); if(ok) ok.onclick=utRoleGo}
- if(k==="utrm"){const go=L.querySelector("[data-utrmgo]"); if(go) go.onclick=()=>{const c=byId[modal.ws], key=modal.key, to=Object.assign({},modal.to); if(!c||!to[c.id]) return; modal=null; renderModal(); utRemove(c,key,to); render()}}}
+ if(act==="remove"){utRemove(c,key); render()}}   /* vE E159d: D39, no hand-over in phase 1; the same Remove as the Members tab */
+function utWire(L){const k=modal&&modal.kind; if(k!=="utrole") return;
+ L.querySelectorAll(".dd[id^=prmto_]").forEach(d=>wireDD(L,d.id,v=>{if(!v) return; modal.ho[d.id.slice(6)]=v; renderModal(); const tr=document.querySelector("#"+d.id+" [data-ddtrig]"); if(tr) tr.focus()}));
+ if(k==="utrole"){wireDD(L,"utRole",v=>{if(!v) return; modal.to=v; modal.ho={}; renderModal(); const tr=document.querySelector("#utRole [data-ddtrig]"); if(tr) tr.focus()}); const ok=L.querySelector("[data-utroleok]"); if(ok) ok.onclick=utRoleGo}}
 document.addEventListener("click",e=>{if(!utOn()) return; const c=byId[ctx];
  const t=e.target.closest("[data-utmenu],[data-utdo],[data-utinvite],[data-utpeople],[data-utclear]");
  if(UT.pop&&!e.target.closest(".ut .rmt-menu,[data-utmenu]")){UT.pop=null; if(!t){render(); return}}
@@ -13221,7 +13214,6 @@ function modalHTML(){
  if(modal.kind==="prm"||modal.kind==="prmc"||modal.kind==="prmw") return pnDelHTML();   /* vE E102, Phase 1: production's Delete user confirm; prmHTML's hand-over table is Phase 2 */
  if(modal.kind==="prm"||modal.kind==="prmc") return prmHTML();
  if(modal.kind==="utrole") return utRoleHTML();   /* vE E083 */
- if(modal.kind==="utrm") return utRmHTML();
  if(modal.kind==="chrole") return chroleHTML();
  if(modal.kind==="assignws") return assignwsHTML();
  if(modal.kind==="pconfirm") return pconfirmHTML();
@@ -15450,7 +15442,7 @@ function e105Pop(t,q){const P=el("popL"), A=e105Accts(), e=e105Email();
   const cur=c=>a.a==="home"?!E105X&&ctx===c.id:!!E105X&&E105X.a===a.a&&ctx===c.id;
   if(a.normal) return `<div class="e105-g" role="group" aria-label="${hdrEsc(a.name)}">${row(a.a+"|"+W[0].id,W[0],cur(W[0]))}</div>`;
   return `<div class="e105-g" role="group" aria-labelledby="${hid}">${head(a,hid,1)}${W.map(c=>row(a.a+"|"+c.id,c,cur(c))).join("")}</div>`}).filter(Boolean);
- P.innerHTML=G.length?G.join('<div class="e105-sep" role="separator"></div>'):`<p class="sub" style="padding:8px">${t?nrHTML(q):"No workspaces found"}</p>`;
+ P.innerHTML=G.length?G.join('<div class="e105-sep" role="separator"></div>'):`<p class="sub" style="padding:8px">${t?nrHTML(q):"You haven’t been added to a workspace yet."}</p>`;
  P.querySelectorAll("[data-e105go]").forEach(b=>b.onclick=()=>{const v=b.dataset.e105go, i=v.indexOf("|"); e105Pick(v.slice(0,i),v.slice(i+1))});
  /* a workspace in this account's tree: today's pick (from a workspace it keeps the module); from another account, its Sequences */
  P.querySelectorAll("[data-hdrws]").forEach(b=>b.onclick=()=>{const id=b.dataset.hdrws, from=!!E105X; closePop();
@@ -15712,7 +15704,7 @@ function e150NextHTML(k){const job=E150N.job, L=e150Metered().filter(x=>x!==k&&E
   return `<button type="button" class="e150-mi" data-e150next="${x}"${o.off?" disabled":""}><span class="e150-mj">${RES[x].label}</span><span class="e150-mr">${v}</span></button>`};
  return `<div class="e150-pop e150-nx" role="dialog" aria-labelledby="e150NxH"><p class="e150-nh" id="e150NxH">${E150_LAB[job]} on another resource?</p>${L.map(row).join("")}<div class="e150-nf"><button type="button" class="shd-button shd-button--secondary" data-e150done>Done</button></div></div>`}
 /* the bar under the figures: one line, then Discard and Apply */
-function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to ${e101Ws(s.nc)}`:`Reallocate ${s.nc} limits`;   /* vE E159b */   /* vE E157 */
+function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to ${e101Ws(s.n)}`:`Reallocate across ${e101Ws(s.n)}`;   /* vE E162: counts what the strip counts, worded as scope */
  const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p>`;   /* vE E153 */
  return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
 /* vE E153: the selection, on the table: ticked across every active workspace, filtered out or not */
@@ -15730,7 +15722,7 @@ function e150Close(){E150={open:false}}
 function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
  const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
 function e150Apply(){const k=E150.k0, c=e150Calc(k), s=e150Sum(k); if(s.why) return; const D={}; c.rows.forEach(r=>{if(r.after!==r.before) D[k+"|"+r.id]=r.after});
- const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.nc)}.`:`Reallocated limits across ${e101Ws(s.nc)}.`;   /* vE E159b */   /* vE E157 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
+ const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.n)}.`:`Reallocated limits across ${e101Ws(s.n)}.`;   /* vE E162 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
  RECEIPT.text=RECEIPT.short=t; RECEIPT.variant="success"; ul3E2Close(); UL.focusK=k;
  E150N={job,k,done:((E150N&&E150N.done)||[]).concat(k)}; render(); setTimeout(()=>{const x=document.querySelector(".e150-nx .e150-mi:not(:disabled),[data-e150done]"); if(x) x.focus({preventScroll:true})},0)}
 function e150Tick(ids,on){const S=new Set(E150.ids); ids.forEach(id=>on?S.add(id):S.delete(id)); E150.ids=e150Act(E150.k0).filter(id=>S.has(id)); e150Re()}
@@ -18855,7 +18847,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="5ac82ce";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="773acba";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
