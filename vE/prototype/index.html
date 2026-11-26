@@ -401,6 +401,9 @@ body[data-swpos=F] .ws-btn svg{transform:rotate(180deg)}
 /* round 9: one rhythm from header to content. After a tab bar the wrap supplies the 20px; after a
    toolbar the toolbar's own 22px bottom padding does. Templates no longer set padding-top inline. */
 .tabbar+.wrap{padding-top:20px}
+/* vE E172: tab names stay on one line on a narrow screen */
+.tabbar button[data-apitab]{white-space:nowrap}
+.tabbar:has([data-apitab]){overflow-x:auto}
 .c-h+.tscroll{margin-top:12px}
 .ws-ch{flex-wrap:wrap;row-gap:12px}.ws-ch .search{flex:1 1 160px;min-width:160px;max-width:320px}.ws-ch .c-a{flex:none}
 .filters{padding:16px 24px 12px}
@@ -1792,7 +1795,7 @@ const I={
  warmup:['0 0 24 24','<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'],
  refer:['0 0 24 24','<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'],
  whitelabel:['0 0 24 24','<path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/>'],
- apiint:['0 0 24 24','<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>'],
+ apiint:['0 0 24 24','<path d="M7 12L12 17L10.5 18.5C9.11929 19.8807 6.88071 19.8807 5.5 18.5C4.11929 17.1193 4.11929 14.8807 5.5 13.5L7 12Z"/><path d="M17 12L12 7L13.5 5.5C14.8807 4.11929 17.1193 4.11929 18.5 5.5C19.8807 6.88071 19.8807 9.11929 18.5 10.5L17 12Z"/><path d="M3 21L5.5 18.5"/><path d="M18.5 5.5L21 3"/><path d="M10 11L8 13"/><path d="M13 14L11 16"/>'],   /* vE E172: production's ApiIntegrationsIcon */
 };
 /* 4th field scopes an item to the agency workspace. A client workspace is the
    product they already know, minus the agency's administration. 09 §1c. */
@@ -1921,7 +1924,7 @@ function endXform(){
 /* vE E075 fix 20 (PRD 3.3): Free and past due cannot add a workspace; this prototype has the past-due state */
 const addBlock=()=>grace()?"Update payment to add a workspace.":"";
 function openAddClient(){
- if(addBlock()) return;
+ if(!canAddWs()||addBlock()) return;   /* vE E174 */
  if(isNormal()){modal={kind:"agencyconfirm"};renderModal();return}
  drawer={step:1};renderDrawer();
 }
@@ -2158,6 +2161,7 @@ const ME=()=>PEOPLE[me_];
    array-membership test isMember() already uses correctly, a few lines down. */
 const myClients=()=>{const w=ME().ws;return CLIENTS.filter(x=>!x.deletedOn&&(!w||w.indexOf(x.id)>-1))};
 const canI=k=>CAN[ME().role][k];
+const canAddWs=()=>!asClient&&ME().role==="Owner";   /* vE E174: only Account Owners add workspaces (PRD D59) */
 /* vE E159e (Hitesh, OQ9: "we should not show admin panel to account member as they can only see their records inside workspace as well"):
    an Account Member never sees the Admin Panel. They land in their first workspace (the sign-up rule, PRD 3.8: yours first, then
    A to Z, disabled last), the switcher lists only their workspaces, and every route to an Admin Panel page sends them back there.
@@ -3382,7 +3386,7 @@ function renderRail(){
        well. Inside each workspace the existing section stays as it is today. */
     ["Coming soon",["queue","inbox","task","mail","tmpl","apiint"]]]
   :[["Overview",["dash","queue"]],
-    ["Outreach",OUTREACH],["Account",["people","billing"]],[asClient?"Your workspace":"This workspace",["usage","warmup","refer"]]];
+    ["Outreach",OUTREACH.concat(["apiint"])],["Account",["people","billing"]]   /* vE E172: production puts API & Integrations after Analytics */,[asClient?"Your workspace":"This workspace",["usage","warmup","refer"]]];
  const byKey=Object.fromEntries(RAIL.map(r=>[r[0],r]));
  /* 16 Flow A said Home and the Work queue both wait for a first client.
     Version C splits them. The Work queue still waits, because a queue of work
@@ -3405,6 +3409,7 @@ function renderRail(){
       cap" - the same shape as a client's allowance, and RES already carries
       an "own" row for every resource. Own is a workspace like any other now. */
    if(k==="usage"&&!inAgency()&&!asClient&&!isNormal()&&byId[ctx]) return true;
+   if(k==="apiint"&&!isNormal()&&!inAgency()) return asClient?actingRole(byId[ctx])==="Client Admin":true;   /* vE E172: same people as the four Settings items had */
    if(sc==="client"){if(!(asClient&&!inAgency()))return false}
    /* a client sees a rail item only if the agency switched that screen on */
    if(asClient&&!inAgency()) return !!RAIL2CVIEW[k]&&seesC(byId[ctx],RAIL2CVIEW[k]);
@@ -3425,7 +3430,7 @@ function renderRail(){
      &&!(inAgency()&&noAdmin())};   /* vE E159e: the no-workspace page has no Admin Panel rail */
  /* inside a client the rail drives inMod, so that is what marks it current.
     Without this branch no rail item was ever current in a client workspace. */
- const cur=k=>pfOn()?false:ctx==="agency"   /* vE E099: My Profile is no rail item */
+ const cur=k=>pfOn()?false:(view.name==="apiint"&&ctx!=="agency"&&!isNormal())?k==="apiint":ctx==="agency"   /* vE E172 */   /* vE E099: My Profile is no rail item */
    ?((k==="dash"&&(view.name==="dash"||view.name==="clients"||view.name==="record"||(view.name==="person"&&view.from)))||(k==="queue"&&view.name==="queue")
      ||(k==="billing"&&view.name==="credits")||(k==="limits"&&view.name==="limits")
      ||(k==="people"&&(view.name==="people"||(view.name==="person"&&!view.from)||view.name==="addmember"))
@@ -3517,7 +3522,7 @@ function renderRail(){
      panel but keep it in the workspace". The 25 Sep rule stands: every setting
      lives in a workspace; the admin rail foot is Submit Feedback and Need
      support only. */
-  +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?cView==="settings":(view.name==="settings"||(!isNormal()&&view.name==="apiint")||(isNormal()&&(view.name==="people"||view.name==="person"||view.name==="addmember"))))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
+  +(ctx==="agency"&&!isNormal()?"":`<button class="nav-item" data-nav="settings" ${((asClient&&!inAgency())?(cView==="settings"&&view.name!=="apiint"):(view.name==="settings"||(isNormal()&&(view.name==="people"||view.name==="person"||view.name==="addmember"))))?'aria-current="page"':''}>${svg("settings")}<span class="lbl">Settings</span></button>`)
   +`<button class="nav-item" data-flash="Not in this prototype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="lbl">Submit Feedback</span></button>`
   /* change 150: the ? item opens Intercom's messenger in production, so it does not
      host the tour (change 148's Help popover is undone); Replay lives in the account menu. */
@@ -3527,7 +3532,8 @@ function renderRail(){
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav; if(view.name==="profile") view={name:"clients"};   /* vE E099: any rail item leaves My Profile */
    /* Settings is the one item that means something in both workspaces */
-   if(n==="settings"){if(asClient&&!inAgency()){cView="settings";setSel="sched";openProspect=null;openSeq=null;openReply=null;render();return}
+   if(n==="apiint"&&!isNormal()&&!inAgency()){apiTab="keys";apiKeyFormOpen=false;openProspect=null;openSeq=null;openReply=null;inMod=null;view={name:"apiint"};render();return}   /* vE E172: lands on the first tab, API Key */
+   if(n==="settings"){if(asClient&&!inAgency()){view={name:"clients"};cView="settings";setSel="sched";openProspect=null;openSeq=null;openReply=null;render();return}
      /* item 16: clear inMod, or the module just left (Templates, say) keeps
         matching the generic rail cur() check and stays highlighted blue. */
      if(isNormal()) ctx="own";
@@ -3540,13 +3546,13 @@ function renderRail(){
    /* inside a client, the rail navigates that client's modules. It must not
       jump to an agency screen, or the rail becomes a way out of the workspace
       you are working in without meaning to leave it.                      */
-   if(asClient&&!inAgency()&&RAIL2CVIEW[n]){cView=RAIL2CVIEW[n];openProspect=null;openSeq=null;openReply=null;render();return}
+   if(asClient&&!inAgency()&&RAIL2CVIEW[n]){view={name:"clients"};cView=RAIL2CVIEW[n];openProspect=null;openSeq=null;openReply=null;render();return}
    if(isNormal()&&AGY_MOD[n]){ctx="own";inMod=RAIL2MOD[n]||n;openProspect=null;openSeq=null;openReply=null;view={name:"clients"};render();return}
-   if(!inAgency()&&!asClient&&n==="usage"){inMod="usage";openProspect=null;openSeq=null;openReply=null;if(view.name==="settings")view={name:"clients"};render();return}
+   if(!inAgency()&&!asClient&&n==="usage"){inMod="usage";openProspect=null;openSeq=null;openReply=null;if(view.name==="settings"||view.name==="apiint")view={name:"clients"};render();return}
    if(!inAgency()&&AGY_MOD[n]){inMod=RAIL2MOD[n]||n;openProspect=null;openSeq=null;openReply=null;
      /* Settings outranks the client branch in the render chain, so a stale
         settings view would keep painting over the module just navigated to. */
-     if(view.name==="settings")view={name:"clients"};
+     if(view.name==="settings"||view.name==="apiint")view={name:"clients"};   /* vE E172 */
      render();return}
    ctx="agency";
    view=n==="clients"?{name:"clients"}:n==="dash"?{name:"dash"}:n==="queue"?{name:"queue"}
@@ -4075,7 +4081,7 @@ function renderShell(){
  }
  /* 29 Sep 2026, Hitesh: the Claude Design switcher: action rows under a rule instead of a boxed button */
  /* "remove manage workspace button from there" (Hitesh, 29 Sep 2026): one action row, Add a workspace */
- el("popAddWrap").hidden=asClient||!canI("limits");
+ el("popAddWrap").hidden=!canAddWs();   /* vE E174 */
  {const b=el("popAdd"), w=el("popAddWrap"), why=addBlock(); let r=el("popAddWhy"); if(b) b.disabled=!!why;   /* vE E075 fix 20 */
   if(w&&why&&!r){r=document.createElement("p"); r.id="popAddWhy"; r.className="sub pop-addwhy"; w.appendChild(r)} if(r){r.textContent=why; r.hidden=!why}}
  /* nothing to search through when there is one workspace and no clients */
@@ -5214,7 +5220,7 @@ function vClients(){
     a sliver at the top of a blank page. Now it is the confirmation card's own
     picture, the invitation, and the three things that appear, centred. */
  if(CLIENTS.length===0){
-  const O=AGENCY_OWN, can=canI("limits");
+  const O=AGENCY_OWN, can=canAddWs();   /* vE E174 */
   const fi=(d,w)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
   /* fix 25 Sep review #10: Work queue is Coming soon on the admin panel, so
      it came out of this first-run mock rail and its "what you get" cards
@@ -5245,7 +5251,7 @@ function vClients(){
      <h2 class="cempty-h">Bring your first workspace in</h2>
      <p class="cempty-p">${can
        ?"Their sequences, prospects, email accounts and replies live in a workspace of their own, never mixed with yours or anyone else's."
-       :"An Account Owner or Account Admin adds the first workspace. Once one exists, this is where every workspace you work on will be."}</p>
+       :"An Account Owner adds the first workspace. Once one exists, this is where every workspace you work on will be."}</p>
      ${can?`<div class="cempty-cta"><button class="shd-button shd-button--primary" id="addClient">${ADD_I}Add a workspace</button></div>`:""}
     </div>
     ${pic}
@@ -5266,7 +5272,7 @@ function vClients(){
    <div class="search">${srchI}<input type="text" id="cliSearch" placeholder="Search workspaces" value="${cliQ.replace(/"/g,"&quot;")}"></div>
 </div>
   <div class="tools">
-   ${canI("limits")?'<button class="shd-button shd-button--primary" id="addClient">'+ADD_I+'Add a workspace</button>':""}</div>
+   ${canAddWs()?'<button class="shd-button shd-button--primary" id="addClient">'+ADD_I+'Add a workspace</button>':""}</div>
  </div>
  <div class="wrap">
   ${graceBanner()}
@@ -5848,7 +5854,8 @@ const ROLE_LINE={Owner:"Everything, everywhere",Admin:"Runs the business day to 
 const ACCOUNT_POWERS=[
  ["billing",    "See and spend on billing"],
  ["destructive","Delete a workspace"],
- ["limits",     "Add workspaces and set their limits"],
+ ["addws",      "Add workspaces"],   /* vE E174 */
+ ["limits",     "Set workspace limits"],
  ["members",    "Add users and set their role"],
  ["disable",    "Pause a workspace's sending"],
  ["settings",   "Change workspace settings"],
@@ -5857,6 +5864,7 @@ const ACCOUNT_POWERS=[
 ];
 const tickI='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 const dashI='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg>';
+Object.keys(CAN).forEach(r=>{if(CAN[r]&&typeof CAN[r]==="object") CAN[r].addws=r==="Owner"});   /* vE E174: only Account Owners add workspaces */
 const powersOf=r=>ACCOUNT_POWERS.filter(x=>CAN[r][x[0]]);
 const lacksOf =r=>ACCOUNT_POWERS.filter(x=>!CAN[r][x[0]]);
 /* the role picker, shared by A8 and the person page so the two can never show
@@ -6030,7 +6038,7 @@ function levelInPlace(key,wsId,level){const p=personOf(key), c=byId[wsId]; if(!p
 /* what changes, in one line, spoken about the role being moved TO - shared by
    every role-change confirm on the person page. */
 const ROLE_UPGRADE_WHY={
- Admin:"An Account Admin reaches the workspaces they are assigned and can add workspaces and set caps.",
+ Admin:"An Account Admin reaches the workspaces they are assigned and can set their limits.",
  Owner:"An Account Owner reaches everything, including billing, and can delete a workspace.",
  Member:"An Account Member only reaches the workspaces you pick for them.",
 };
@@ -6585,7 +6593,7 @@ function rlRowHTML(k,c,gate){const R=RES[k], unl=!!R.unlimited, r=R.rows[c.id]; 
  else if(gate){used=f(r.used); gauge='<span class="ulr-bar is-none"></span>'; lim='<span class="ulr-lv rlt-ns">Not set</span>'; last='<span class="ulr-pace is-q">&ndash;</span>'}
  else{const v=rlDv(k,c.id), lv=ulrLv(c,r.used,v), p=ulPct(r.used,v), w=v>0?Math.min(100,r.used/v*100):lv===2?100:0, L=ulrLast(k,r,v);
   used=f(r.used); gauge=`<span class="ulr-bar" role="img" aria-label="${lv===2?"Used up":p+"% used"}" data-ulrlv="${lv}"><span style="width:${+w.toFixed(1)}%;background:${c.disabled?UL3_GREY:useCol(r.used,v)}"></span></span>`; lim=c.own||RLT_RO?`<span class="ulr-lv">${f(r.cap)}</span>`:rlLimHTML(k,c); last=`<span class="ulr-pace${L.x?" is-"+L.x:""}">${ulrPctT(L)}</span>`}
- return `<tr class="${cls}" id="rlim-${k}" data-rl="${k}"${unl?` data-unl="${k}"`:""}><td class="rlt-c1"><div class="ulr-ws"><span class="rlt-rn"><span class="ulr-nm">${R.label}</span><span class="sub${lvl?"":" rlt-rnsub"}">${sub}</span></span></div></td>`
+ return `<tr class="${cls}" id="rlim-${k}" data-rl="${k}"${unl?` data-unl="${k}"`:""}><td class="rlt-c1"><div class="ulr-ws"><span class="rlt-rn${lvl?" is-nosub":""}"><span class="ulr-nm">${R.label}</span>${lvl?"":`<span class="sub rlt-rnsub">${sub}</span>`}</span></div></td>`
   +`<td class="ulr-gc">${gauge}</td><td class="ulr-ur rlt-c2"><span class="ulr-num">${used}</span></td><td class="ulr-cl">${lim}</td><td class="ulr-pc">${last}</td><td class="rlt-rnc">${rn}</td></tr>`}
 function rlSheetHTML(c){const gate=limGate(c);   /* change E002: no limit yet reads "Not set", never "None left" */
  const rows=RKA.map(k=>rlRowHTML(k,c,gate)).join("");
@@ -9741,7 +9749,7 @@ function vDash(){
   +'<div class="c-h ws-ch">'   /* vE E100: no card title; the page itself is Workspaces */
   +'<div class="search">'+srchI+'<input type="text" id="cliSearch" placeholder="Search workspaces" aria-label="Search workspaces" value="'+cliQ.replace(/"/g,"&quot;")+'"></div>'
   +wsfBar()   /* vE E021 */
-  +'<span class="c-a">'+(canI("limits")?(addBlock()?'<span class="sub add-why" id="addwhy">'+addBlock()+'</span>':'')+'<button class="shd-button shd-button--primary" id="dashAdd"'+(addBlock()?' disabled aria-describedby="addwhy"':'')+'>'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
+  +'<span class="c-a">'+(canAddWs()?(addBlock()?'<span class="sub add-why" id="addwhy">'+addBlock()+'</span>':'')+'<button class="shd-button shd-button--primary" id="dashAdd"'+(addBlock()?' disabled aria-describedby="addwhy"':'')+'>'+ADD_I+'Add a workspace</button>':'')+'</span></div>'
   +wsfChips()
   +wsTableOpen()+wsHeadHTML()
   +'<tbody>'+(wsAll.slice(pg.from,pg.to).map(c=>homeRow(c)).join("")||'<tr class="ws-none"><td colspan="5">'+(cliQ.trim()?noneHTML(nrText(cliQ),'<button type="button" class="linkbtn" data-cliqclr>Clear search</button>'):noneHTML('No workspaces match','<button type="button" class="linkbtn" data-cliclear>Clear</button>'))+'</td></tr>')+'</tbody></table></div>'   /* vE E125 */
@@ -10615,7 +10623,7 @@ function vAgencyAnalytics(){
    can still open the screen and create a workspace-scoped one.             */
 let apiTab="keys", apiKeyFormOpen=false, apiKeyRevokeConfirm=null,
     apiWebhookFormOpen=false, apiWebhookEvSel=[], apiConnectOpen=null, apiDisconnectConfirm=null;
-const API_TABS=[["keys","API keys"],["mcp","MCP"],["integrations","Integrations"],["webhooks","Webhooks"]];
+const API_TABS=[["keys","API Key"],["mcp","MCP"],["integrations","Integrations"],["webhooks","Webhook"]];   /* vE E172: production labels and order */
 const CRMS=[["pipedrive","Pipedrive"],["zoho","Zoho"],["hubspot","HubSpot"],["salesforce","Salesforce"]];
 let INTEGRATIONS={pipedrive:null,zoho:null,hubspot:"own",salesforce:null};
 const WEBHOOK_EVENTS=["Email Sent","Email Opened","Email Link Clicked","Reply Received","Email Bounced",
@@ -10752,8 +10760,7 @@ function vApiInt(){
  if(wsScope&&!isNormal()&&asClient&&wsRoleHere(wsScope)!=="Client Admin"){view={name:"clients"};cView="settings";return vClientSide()}   /* vE E167 */
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">API & Integrations</span>
-     <span class="cs">${wsScope?"Keys, MCP, connections and webhooks scoped to "+anWsName(wsScope)+" only":"Keys, MCP, connections and webhooks owned by "+AGENCY.name}</span></span></div>
-   ${wsScope?`<div class="tools"><button class="shd-button shd-button--tertiary" data-apiback>Back to Settings</button></div>`:""}
+     </span></div>
   </div>
   <div class="tabbar">${API_TABS.map(([k,l])=>`<button data-apitab="${k}" aria-selected="${apiTab===k}">${l}</button>`).join("")}</div>
   <div class="wrap">${apiTab==="keys"?apiKeysTab():apiTab==="mcp"?apiMcpTab():apiTab==="integrations"?apiIntegrationsTab():apiWebhooksTab()}</div>`;
@@ -11496,7 +11503,7 @@ function setAccess(id,r){
 /* vE E166b: inside a workspace of an agency (an agency user, own workspace or a client's) Settings is ONE list, "Workspace Settings", in production's order.
    Email Accounts opens the module; Integrations, Webhook, API Key and MCP each open the existing API & Integrations screen on their tab.
    No My Profile, Out of Office or Safety Settings here (My Profile and Out of Office are on the avatar menu's My Profile). */
-const E166B_ORDER=["email","sched","users","fields","pout","cout","integ","webhook","apikey","mcp","ctd","admin","dnc","dncall"];
+const E166B_ORDER=["sched","users","fields","pout","cout","ctd","admin","dnc","dncall"];   /* vE E172: Email Accounts and the four API & Integrations items are on the rail */
 const E166B_LBL={email:"Email Accounts",integ:"Integrations",webhook:"Webhook",apikey:"API Key",mcp:"MCP"};
 const E166B_TAB={integ:"integrations",webhook:"webhooks",apikey:"keys",mcp:"mcp"};
 const E166B_IC={
@@ -12875,7 +12882,7 @@ function cSettings(c){
    a client user's Settings is the agency user's Settings inside a workspace (E166b): one group, "Workspace Settings", filtered by the role.
    One item more, first: Workspace (who manages it, your contact, since when, notifications). PRD B.2: ST2/ST3 Do Not Contact (Client Viewer read-only,
    Collaborator adds entries), ST4/ST5 schedules, fields, outcomes, tracking domain (all see, Client Admin edits), ST1 and M2 no client role, API items Client Admin. */
-const E167_ORDER=["email","sched","fields","pout","cout","integ","webhook","apikey","mcp","ctd","dnc","dncall"];   /* vE E169: the agency's order (E166B_ORDER) less Users & Teams and Admin Settings */
+const E167_ORDER=["sched","fields","pout","cout","ctd","dnc","dncall"];   /* vE E172: as the agency list */   /* vE E169: the agency's order (E166B_ORDER) less Users & Teams and Admin Settings */
 const E167_IC='<rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.6"/><path d="M2.2 6.2h11.6M6 6.2v7"/>';
 const e167Ids=c=>{const role=actingRole(c);
  return E167_ORDER.filter(k=>k==="ws"?true:k==="email"?seesC(c,"accounts"):E166B_TAB[k]?role==="Client Admin":true)};   /* vE E169 (c): Do Not Call List for every client role, as Do Not Contact */
@@ -14713,8 +14720,10 @@ function wire(){
     if(box.classList.contains("has-cue")&&!m){m=document.createElement("button"); m.type="button"; m.className="linkbtn rc-morecue"; m.setAttribute("data-tab","members"); box.appendChild(m)} if(m){m.hidden=!n; m.textContent="+"+n+" more"}};
    /* vE E142 F17: whole rows only: the scroll box ends at the last row that fits whole, "+N more" right under it */
    const fit=()=>{if(!box.classList.contains("has-cue")||getComputedStyle(sc).position!=="absolute") return; sc.style.bottom=""; const m=box.querySelector(".rc-morecue"), B=box.getBoundingClientRect(), S=sc.getBoundingClientRect();
-    let cut=0; [...sc.querySelectorAll(".rc-prow")].forEach(r=>{const b=r.getBoundingClientRect().bottom-S.top; if(b<=S.height+1) cut=b}); if(!cut) return;
-    sc.style.bottom=(B.height-cut)+"px"; if(m){m.style.top=cut+"px"; m.style.bottom="auto"}};
+    /* vE E171: a person fits while the "+N more" line (20px, 4px under that person's avatar) still ends inside the card's own bottom padding (8px of its 16) */
+    let cut=0, top=0; [...sc.querySelectorAll(".rc-prow")].forEach(r=>{const R=r.getBoundingClientRect(), a=(r.querySelector(".pp-av")||r).getBoundingClientRect().bottom-S.top, b=R.bottom-S.top; if(b<=S.height+1||a+24<=B.height+8){cut=b; top=a}}); if(!cut) return;
+    sc.querySelectorAll(".rc-prow").forEach(r=>{r.style.borderBottomColor=r.getBoundingClientRect().bottom-S.top===cut?"transparent":""});   /* no divider above "+N more", as change 245 */
+    sc.style.bottom=(B.height-cut)+"px"; if(m){m.style.top=top+"px"; m.style.bottom="auto"}};
    cue(true); fit(); cue(false); sc.addEventListener("scroll",()=>cue(false),{passive:true})}}
  q("[data-wsdeleted]").forEach(b=>b.onclick=()=>{WSF.status=["Deleted"]; PAGE.clients=1; render()});   /* vE E075 fix 3: "N deleted" opens the Deleted filter */
  /* 25 Sep 2026: "See all" on Needs a decision no longer leaves Home for the
@@ -14942,7 +14951,7 @@ el("meBtn").onclick=e=>{
   mePopOpen?closeMePop():openMePop()};
 el("wsBtn").onclick=e=>{e.stopPropagation();if(solo)return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
 el("popQ").oninput=e=>renderPop(e.target.value);
-el("popAdd").onclick=()=>{if(!canI("limits"))return;closePop();
+el("popAdd").onclick=()=>{if(!canAddWs())return;   /* vE E174 */closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
     their own workspace before they have agreed to any of this is the wrong
     order. Ask first, from where they are. */
@@ -15733,41 +15742,32 @@ const e101SpRows=k=>ul3E2Rows(k).filter(c=>!c.disabled);
    resources. Only the open resource is split.
    Rules (175 split-rules.mjs): Split what's left adds an equal share on top of each ticked limit (or use, when that is more).
    Split allocated gives one equal limit from what the ticked workspaces hold (Left to allocate is not added, disabled
-   workspaces keep theirs); no ticked workspace goes under 75% used of its new limit (band 76); if the pot can't pay those
-   floors nobody is lifted and rows above the share keep their limit. No limit ever ends below its use. Shares round down to
+   workspaces keep theirs); vE E170 (26 Nov 2026): a ticked workspace that has used at least the share is left out and keeps its
+   limit (its limit leaves the pot, the share is recomputed, repeat); the 75% floor is gone. No limit ever ends below its use. Shares round down to
    100s on plans of 10,000 or more; the rest stays in Left to allocate.
    Open calls built on defaults (175 plan.md, 6 Nov): the menu's Split allocated amount is what can be split (active limits,
-   462,000 on busy), the line names disabled workspaces that keep theirs; every row held above the share reads "set to 75%
-   used"; the rounding remainder stays in Left to allocate. Review states: #demo=busy&guide=off&e150=<state>. ═══ */
+   462,000 on busy), the line names disabled workspaces that keep theirs; rows left out read "Keeps its limit"; the rounding remainder stays in Left to allocate. Review states: #demo=busy&guide=off&e150=<state>. ═══ */
 var E150={open:false}, E150M=false, E150N=null;
-var E150_BAND=76, E150_RED=86;
+var E150_RED=86;
 window.E150_SUMFAIL=window.E150_SUMFAIL||[];
 function e150MaxN(pool,left){return Math.floor(left/(pool>=10000?100:1))}   /* vE E163 */
 function e150Rnd(pool,x){return pool>=10000?Math.floor(x/100)*100:Math.floor(x)}
-function e150RndUp(pool,x){return pool>=10000?Math.ceil(x/100)*100:Math.ceil(x)}
-function e150Floor(pool,used){if(used<=0) return 0; let L=Math.floor(used/((E150_BAND-.5)/100))+1;
- while(ulPct(used,L)>=E150_BAND) L++; while(L>1&&ulPct(used,L-1)<E150_BAND) L--; const R=e150RndUp(pool,L); return ulPct(used,R)<E150_BAND?R:L}
-/* one pass of the rules. lift: every ticked row's lowest allowed limit is its 75% floor (it may go up to it, paid from the pot);
-   without lift a row never goes up to its floor, it keeps its limit (split-rules.mjs, liftRed fallback) */
+/* one pass of the rules. vE E170: Reallocate leaves out any ticked row that has used at least the share, until stable */
 function e150Inner(o){const pool=o.pool, rows=o.rows, P=new Set(o.picked), base=r=>Math.max(r.limit,r.used);
  const allocBefore=rows.reduce((t,r)=>t+base(r),0), leftBefore=Math.max(0,pool-allocBefore);
- const S=rows.filter(r=>!r.disabled&&P.has(r.id)), after={}, g={}; let share=0, pot=0;
+ const S=rows.filter(r=>!r.disabled&&P.has(r.id)), after={}, LO=new Set(); let share=0, pot=0, eff=S.length;   /* vE E170 */
  if(S.length){
   if(o.job==="left"){pot=leftBefore; share=e150Rnd(pool,Math.floor(leftBefore/S.length)); if(share>0) S.forEach(r=>{after[r.id]=base(r)+share})}
-  else{pot=S.reduce((t,r)=>t+base(r),0); S.forEach(r=>{const fl=e150Floor(pool,r.used); g[r.id]=o.lift?fl:Math.min(base(r),fl)});
-   let T=pot, L=S.slice();
-   for(;;){if(!L.length){share=0; break} share=e150Rnd(pool,Math.floor(T/L.length)); const over=L.filter(r=>g[r.id]>share); if(!over.length) break;
-    over.forEach(r=>{T-=g[r.id]; after[r.id]=g[r.id]}); L=L.filter(r=>over.indexOf(r)<0)}
-   L.forEach(r=>{after[r.id]=share})}}
+  else{let T=S.reduce((t,r)=>t+base(r),0), L=S.slice();   /* vE E170 */
+   for(;;){if(!L.length){share=0; break} share=e150Rnd(pool,Math.floor(T/L.length)); const hi=L.filter(r=>r.used>=share); if(!hi.length) break;
+    hi.forEach(r=>{T-=base(r); LO.add(r.id)}); L=L.filter(r=>!LO.has(r.id))}
+   L.forEach(r=>{after[r.id]=share}); pot=T; eff=L.length}}
  const out=rows.map(r=>{const before=r.limit; let a, move;
-  if(r.disabled){a=before; move="disabled"} else if(r.id in after){a=after[r.id]; move=a>before?"up":a<before?"down":"keeps"} else {a=before; move=P.has(r.id)?"keeps":"out"}
-  return {id:r.id,used:r.used,before,after:a,move,picked:!r.disabled&&P.has(r.id),floor:!r.disabled&&P.has(r.id)&&o.job==="alloc"?e150Floor(pool,r.used):null}});
+  if(r.disabled){a=before; move="disabled"} else if(LO.has(r.id)){a=before; move="keeps"} else if(r.id in after){a=after[r.id]; move=a>before?"up":a<before?"down":"keeps"} else {a=before; move=P.has(r.id)?"keeps":"out"}
+  return {id:r.id,used:r.used,before,after:a,move,picked:!r.disabled&&P.has(r.id)&&!LO.has(r.id),leftOut:LO.has(r.id)}});   /* vE E170 */
  const allocAfter=out.reduce((t,r)=>t+Math.max(r.after,r.used),0), by={}; out.forEach(r=>{by[r.id]=r});
- return {rows:out,by,job:o.job,pool,pot,share,picked:S.length,allocBefore,allocAfter,leftBefore,leftAfter:pool-allocAfter}}
-function e150Rules(o){if(o.job!=="alloc") return e150Inner(o); const l=e150Inner(Object.assign({},o,{lift:true}));
- /* Split allocated only moves what the ticked workspaces hold: if their floors cost more than that, nobody is lifted */
- const fits=l.rows.filter(r=>r.picked).reduce((t,r)=>t+r.after,0)<=l.pot&&l.rows.every(r=>r.after>=0);
- return fits?l:e150Inner(Object.assign({},o,{lift:false}))}
+ return {rows:out,by,job:o.job,pool,pot,share,picked:eff,ticked:S.length,allocBefore,allocAfter,leftBefore,leftAfter:pool-allocAfter}}
+function e150Rules(o){return e150Inner(o)}   /* vE E170: one pass, no floors */
 function e150RowsOf(k){return Object.keys(RES[k].rows).map(id=>{const r=RES[k].rows[id], c=byId[id]; return {id,used:r.used,limit:r.cap,disabled:!c||!!c.disabled}})}
 function e150Act(k){return e101SpRows(k).map(c=>c.id)}
 function e150Calc(k){E150.cache=E150.cache||{}; if(!E150.cache[k]) E150.cache[k]=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:E150.ids,job:E150.job}); return E150.cache[k]}
@@ -15776,11 +15776,9 @@ function e150Metered(){return UL_K().filter(x=>!isUnl(x))}
 function e150In(k){return !!(E150&&E150.open)&&k===E150.k0}
 function e150Val(k,id){if(typeof E150==="undefined"||!E150||!e150In(k)||e150Sum(k).why) return null; const r=e150Calc(k).by[id]; return r?r.after:null}   /* a split that can't run changes nothing on screen */
 var E150_LAB={left:"Allocate what’s left",alloc:"Reallocate limits"};   /* vE E157: named by outcome */
-/* a row in the split that isn't plain "the share" says why, in a few words. Split allocated: one reason for every row held
-   above the share, "set to 75% used". Split what's left: a row already past its limit gets the share on top of its use */
-const e150At75=(c,r)=>r.picked&&r.after!==c.share&&r.floor!=null&&r.after===r.floor;
+/* a row in the split that isn't plain "the share" says why, in a few words. Reallocate has none (E170). Split what's left: a row already past its limit gets the share on top of its use */
 function e150Note(c,r){if(!r||!r.picked) return ""; if(c.job==="left") return r.used>r.before?`already used ${f(r.used)}`:"";
- return e150At75(c,r)?"set to 75% used":""}   /* vE E156 */
+ return ""}   /* vE E170: Reallocate has no row note */
 /* disabled workspaces keep their limits in Split allocated; the line names them */
 function e150DisTxt(c){const D=c.rows.filter(r=>r.move==="disabled"&&Math.max(r.before,r.used)>0); if(!D.length) return "";
  const amt=f(D.reduce((t,r)=>t+Math.max(r.before,r.used),0));
@@ -15788,24 +15786,23 @@ function e150DisTxt(c){const D=c.rows.filter(r=>r.move==="disabled"&&Math.max(r.
 /* the result of a split: the reason it can't run, or the line, Apply's count and the toast, all from one rules result.
    Sum check (asserted on every call): what comes off the pot = what lands on the ticked rows (+ the rest, which stays left) */
 function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.filter(r=>r.after!==r.before);
- let why="", line="", given=0, kept=0, at=0;
- if(!n) why=c.job==="left"?"Tick the workspaces to allocate to.":"Tick the workspaces to reallocate.";   /* vE E157 */
+ let why="", line="", given=0;
+ if(!c.ticked) why=c.job==="left"?"Tick the workspaces to allocate to.":"Tick the workspaces to reallocate.";   /* vE E170: ticked = the person's own ticks */   /* vE E157 */
  else if(c.job==="left"){given=c.leftBefore-c.leftAfter;
   if(c.leftBefore===0) why="Nothing left to allocate.";   /* vE E157 */ else if(c.share===0){const mx=e150MaxN(c.pool,c.leftBefore); why=`Only ${f(c.leftBefore)} left, too little for ${e101Ws(n)}.${mx>0?` Tick ${mx===1?"just one":mx+" or fewer"}.`:""}`}   /* vE E163: names the fix */
   else line=`Each ticked workspace gets ${f(c.share)} more.`}   /* vE E153: one figure; the rows and Left to allocate show the rest */
- else{given=P.reduce((t,r)=>t+r.after,0); kept=P.filter(r=>r.after!==c.share).length; at=n-kept;
-  if(n<2) why="Tick one more workspace to reallocate.";   /* vE E157 */
-  else if(!moved.length||!at){const out=c.rows.some(r=>r.move==="out"), hi=r=>ulPct(r.used,r.before)>=E150_BAND;   /* vE E153: the reason names a fix that works */
-   why=out?"Not enough room to reallocate. Tick workspaces that have room to spare.":P.every(hi)?"Nothing to reallocate: every workspace is above 75% used.":"Not enough room to reallocate. Untick workspaces above 75% used."}   /* vE E157 */
-  else{const k75=P.filter(r=>e150At75(c,r)).length, kk=kept-k75, ex=[k75?`${k75} set to 75% used`:"",kk?`${kk} that keep${kk===1?"s its":" their"} limit`:""].filter(Boolean).join(" and ");
-   line=`Each ticked workspace gets a limit of ${f(c.share)}${ex?", except "+ex:""}.`}}   /* vE E153: rounding, disabled workspaces and totals stay in the figures and rows */
+ else{given=P.reduce((t,r)=>t+r.after,0); const LOW=c.rows.filter(r=>r.leftOut);   /* vE E170 */
+  if(c.ticked<2) why="Tick one more workspace to reallocate.";
+  else if(n<2) why="Not enough room to reallocate. Tick workspaces that have room to spare.";
+  else if(!moved.length) why="These limits are already equal.";
+  else line=`Each ticked workspace gets a limit of ${f(c.share)}.${LOW.length===1?` ${byId[LOW[0].id].name} keeps its limit: it has used more than that.`:LOW.length>1?` ${LOW.length} workspaces keep their limits: they have used more than that.`:""}`}   /* vE E170 */
  /* sum check */
  if(!why){const net=c.rows.reduce((t,r)=>t+Math.max(r.after,r.used)-Math.max(r.before,r.used),0), pool=RES[k].pool;
   const ok1=c.allocAfter+c.leftAfter===pool&&c.leftAfter>=0, ok2=net===c.leftBefore-c.leftAfter;
   const ok3=c.job==="left"?P.every(r=>r.after===Math.max(r.before,r.used)+c.share)&&given===n*c.share
-   :given+(c.leftAfter-c.leftBefore)===c.pot&&P.every(r=>r.after>=r.used)&&at*c.share+P.filter(r=>r.after!==c.share).reduce((t,r)=>t+r.after,0)===given;
+   :given+(c.leftAfter-c.leftBefore)===c.pot&&P.every(r=>r.after>r.used&&r.after===c.share)&&given===n*c.share;   /* vE E170 */
   if(!(ok1&&ok2&&ok3)){const m={k,job:c.job,ok1,ok2,ok3,state:window.E150_STATE}; window.E150_SUMFAIL.push(m); console.error("E150 sum check failed",m)}}
- return {why,line,given,kept,at,n,moved:moved.length,nc:moved.length}}   /* vE E159b: nc = ticked workspaces whose limit changes; Apply and the toast count these */
+ return {why,line,given,n,moved:moved.length,nc:moved.length}}   /* vE E159b: nc = ticked workspaces whose limit changes; Apply and the toast count these */
 function e150Sum(k){return e150SumOf(k,e150Calc(k))}
 /* the menu's amount for each option, and its reason when it can't change anything (all active ticked) */
 function e150Opt(k,job){const c=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:e150Act(k),job}), s=e150SumOf(k,c);
@@ -15818,6 +15815,7 @@ function e150Sig(d){return d>0?"+"+f(d):d<0?"&minus;"+f(-d):"0"}
 /* the Change column (D7's, trimmed): signed change, Amber 700 arrow on a fall, the note when the row isn't at the share */
 function e150ChgHTML(k,cw){const c=e150Calc(k), r=c.by[cw.id]; if(e150Sum(k).why) return "";
  if(r&&r.move==="disabled") return `<span class="e150-ch"><span class="e150-cv is-k">Keeps ${f(r.before)}</span><span class="u-tip e150-i" tabindex="0" title="" data-uwtip="Disabled workspaces keep their limit" aria-label="Disabled workspaces keep their limit">${E150_INFO}</span></span>`;
+ if(r&&r.leftOut) return `<span class="e150-ch"><span class="e150-cv is-k">Keeps its limit</span></span>`;   /* vE E170 */
  if(!r||!r.picked) return "";
  const d=r.after-r.before, note=e150Note(c,r), nt=note?`<span class="e150-nt">${note}</span>`:"";
  if(!d) return `<span class="e150-ch"><span class="e150-cv is-k">Keeps its limit</span>${nt}</span>`;
@@ -15826,7 +15824,9 @@ function e150TotTd(k){if(!e150In(k)) return ""; const t=e150Sum(k).why?0:e150Cal
 function e150RowCls(k,c){if(!e150In(k)) return ""; const r=e150Calc(k).by[c.id]; return r&&r.move==="out"?" e150-out":""}
 /* ticks: at the start of the Workspace cell while a split is open; disabled rows keep the space so names line up */
 function e150Ck(k,c){if(!e150In(k)) return ""; if(c.disabled) return `<span class="e150-cb" aria-hidden="true"></span>`;
- const on=E150.ids.indexOf(c.id)>-1; return `<span class="e150-cb"><input type="checkbox" data-e150w="${c.id}"${on?" checked":""} aria-label="Split between: ${c.name}"></span>`}
+ const r=e150Calc(k).by[c.id], lo=!!(r&&r.leftOut), on=E150.ids.indexOf(c.id)>-1&&!lo, why=lo?`Has used ${f(r.used)}, more than the share.`:"";   /* vE E170 */
+ if(lo) return `<span class="e150-cb u-tip" tabindex="0" title="" data-uwtip="${why}"><input type="checkbox" data-e150w="${c.id}" disabled aria-label="Split between: ${c.name}. ${why}"></span>`;
+ return `<span class="e150-cb"><input type="checkbox" data-e150w="${c.id}"${on?" checked":""} aria-label="Split between: ${c.name}"></span>`}
 function e150Shown(k){return ulfRows(k).filter(c=>!c.disabled).map(c=>c.id)}
 function e150HeadTh(k,th){if(!e150In(k)) return th; const S=e150Shown(k), n=S.filter(id=>E150.ids.indexOf(id)>-1).length, all=S.length&&n===S.length, some=n&&!all;
  const ck=`<span class="e150-cb"><input type="checkbox" data-e150all${all?" checked":""}${some?' class="e150-mixed" aria-checked="mixed"':""} aria-label="${all?"Untick":"Tick"} all ${S.length} shown"></span>`;
@@ -15853,7 +15853,7 @@ function e150BarHTML(k){const s=e150Sum(k), lab=E150.job==="left"?`Allocate to $
  const txt=s.why?`<p class="e150-h is-why">${s.why}</p>`:`<p class="e150-ln">${s.line}</p>`;   /* vE E153 */
  return `<div class="e101-dr e150-bar${s.why?" is-why":""}" role="region" aria-label="${E150_LAB[E150.job]}" aria-live="polite">${txt}<div class="e150-act"><button type="button" class="shd-button shd-button--secondary" data-e150discard>Discard</button>${s.why?"":`<button type="button" class="shd-button shd-button--primary" data-e150apply>${lab}</button>`}</div></div>`}
 /* vE E153: the selection, on the table: ticked across every active workspace, filtered out or not */
-function e150SelHTML(k){if(!e150In(k)) return ""; const A=e150Act(k), n=E150.ids.length, blocked=!!e150Sum(k).why;   /* vE E156: blocked = the bar's own result, so no "Untick" hint under a reason */
+function e150SelHTML(k){if(!e150In(k)) return ""; const A=e150Act(k), n=E150.job==="alloc"?e150Calc(k).picked:E150.ids.length, blocked=!!e150Sum(k).why;   /* vE E156: blocked = the bar's own result, so no "Untick" hint under a reason */
  return `<p class="e150-sel" role="status"><b>${n} of ${A.length}</b> workspaces ticked.${n&&!blocked?` Untick any to leave it out.`:""}</p>`}
 function e150WaitHTML(){const L=RES[E150.k0].label; return `<div class="e150-wait"><span>Split not applied on ${L}.</span><button type="button" class="linkbtn" data-ul3tab="${E150.k0}">Go to ${L}</button></div>`}
 function e150UnlHTML(){return `<div class="e101-sum is-e150 e150-unl" role="group" aria-label="Split not applied">${e150WaitHTML()}</div>`}
@@ -19002,7 +19002,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="c09e765";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="617ad3e";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20438,6 +20438,7 @@ body .pp-row .pp-st+.linkbtn{font-size:14px;line-height:20px}
 .rc-dl dt:has(>label){align-self:start;padding-top:8px;line-height:20px}   /* fix 7: a label stays level with its field when an error sits under it */
 .rc-alist{position:relative}.rc-alist.has-cue .rc-ascroll{bottom:28px}.rc-morecue{position:absolute;right:0;bottom:0;height:28px;margin:0;padding:4px 0;font-size:13px;line-height:20px}
 .rc-morecue[hidden]{display:none}
+.rc-morecue{background:#fff}   /* vE E171: the line sits over the last person's bottom padding, so a person scrolling past never shows through it */
 .home-tbl .ws-nm .cn{white-space:normal;overflow:visible;text-overflow:clip;text-align:left}   /* fix 28: a 50 character name wraps, it is never cut */
 @media (max-width:600px){   /* fix 29: Home and People stack at phone width, nothing scrolls sideways inside its card */
  .pp-sec{overflow-x:visible}.pp-head{display:none}
@@ -20770,7 +20771,7 @@ h1.crumb-tail{margin:0}
 /* vE E166: the Renewal column; on a phone it folds back under the resource name */
 .rlt-t2 td.rlt-rnc{font-size:14px;line-height:20px;color:#1F2937;white-space:nowrap}
 @media (min-width:761px){.rlt-t2 .rlt-rn .sub.rlt-rnsub{display:none}}
-@media (max-width:760px){.rlt-t2 td.rlt-rnc,.rlt-t2 th.rlt-rnh,.rlt-t2 col.rlt-crn{display:none}}
+@media (max-width:760px){.rlt-t2 td.rlt-rnc,.rlt-t2 th.rlt-rnh,.rlt-t2 col.rlt-crn{display:none}.rlt-t2 .rlt-rn.is-nosub{min-height:40px}}   /* vE E171: phone, the other rows show their renewal under the name; this row keeps their height */
 /* vE E166: Usage & billing inside a workspace in production's billing frame (05/06 of the Inside a workspace board):
    a 220px sub-nav (Back to Settings, rule, two items 34px tall) and the main column, 24px apart; the actions sit
    on the Back to Settings line, 12px above the card */
