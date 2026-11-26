@@ -2233,7 +2233,7 @@ const CLIENTS=[
   mailboxes:[["hi@vertex-reach.com","Healthy",100,"agency"],["care@vertex-reach.com","Healthy",100,"client"]]},
  {id:"al",name:"Alloy & Co.",company:"Alloy & Co.",email:"marcus@alloyco.com",colour:"#C2410C",
   seq:5,mbx:31,prospects:5980,sent:24100,reply:8.1,prev:7.8,pos:3.4,created:"21 Jul, 2026",limitsReviewed:true,
-  users:[["marcus@alloyco.com","Client Admin"],["sales@alloyco.com","Client Collaborator"]],overrides:{priority:"Balanced Sending",dupes:"Off"},
+  users:[["marcus@alloyco.com","Client Admin"],["sales@alloyco.com","Client Collaborator"],["finance@alloyco.com","Client Viewer"]],overrides:{priority:"Balanced Sending",dupes:"Off"},   /* vE E169 (d): a Viewer in Alloy */
   mailboxes:[["m@alloy-outbound.com","Healthy",100,"agency"],["sales@alloy-outbound.com","Healthy",100,"agency"]]},
  {id:"bl",name:"Brightline SaaS",company:"Brightline",email:"ceo@brightline.app",colour:"#6D28D9",
   seq:3,mbx:9,prospects:900,sent:6400,reply:3.1,prev:5.9,pos:0.7,created:"14 Aug, 2026",limitsReviewed:true,
@@ -3056,6 +3056,7 @@ const setBif=(i,on)=>RK.filter(k=>RES[k].floors).forEach(k=>{const r=RES[k].rows
 function setLimit(k,id,v,why){
  const c=byId[id], R=RES[k], r=R.rows[id]; if(!c||!r) return false;
  v=Math.max(0,Math.round(v)); const was=r.cap; if(v===was) return true;
+ if(!isUnl(k)&&v<r.used&&v<was){RC_REFUSED={id,k,text:`Not saved. ${c.name} has used ${f(r.used)}. The limit can't go lower.`}; return false}   /* vE E168 */
  const avail=R.pool-allocOf(k);
  if(Math.max(v,r.used)-Math.max(was,r.used)>avail){RC_REFUSED={id,k,text:`Not saved. Only ${f(Math.max(0,avail))} left to allocate. Lower another limit first.`}; return false}
  RC_REFUSED=null; r.cap=v; r.custom=true; syncRes(k,r);
@@ -3456,7 +3457,7 @@ function renderRail(){
       panel (ctx==="agency") keeps the product-level names. */
    const label=(isNormal()&&k==="billing"&&"Billing & Subscription")   /* filter-nav-items.ts:40-47 */
      ||(isNormal()&&k==="crm"&&"CRM")   /* nav-items.ts:56-60: the product calls it CRM, not Prospects */
-     ||(asClient&&!inAgency()&&CLI_LBL[k])
+     /* vE E169: a client reads the agency names (Unified Inbox, Analytics); CLI_LBL is no longer read */
      ||(!inAgency()&&IN_LBL[RAIL2MOD[k]||k])
      ||label0;
    let badge=typeof badge0==="function"?badge0():badge0;
@@ -3526,7 +3527,7 @@ function renderRail(){
  el("navList").querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
    const n=b.dataset.nav; if(view.name==="profile") view={name:"clients"};   /* vE E099: any rail item leaves My Profile */
    /* Settings is the one item that means something in both workspaces */
-   if(n==="settings"){if(asClient&&!inAgency()){cView="settings";openProspect=null;openSeq=null;openReply=null;render();return}
+   if(n==="settings"){if(asClient&&!inAgency()){cView="settings";setSel="sched";openProspect=null;openSeq=null;openReply=null;render();return}
      /* item 16: clear inMod, or the module just left (Templates, say) keeps
         matching the generic rail cur() check and stays highlighted blue. */
      if(isNormal()) ctx="own";
@@ -3574,12 +3575,12 @@ function agencyUsage(c){
   if(tone!=="fine"&&(!worst||st.pct>worst.pct)) worst={k,pct:st.pct,tone,pc};
   return {k,R,r,st,pc,tone}}).filter(Boolean);
  let top="";   /* change 320: the rows say how each limit is going; the line speaks only when one needs you */
- if(worst&&canI("limits")){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
+ if(worst&&!asClient&&canI("limits")){const R=RES[worst.k], nm=worst.k==="sends"?"Emails":R.label.replace(/ \/ month$/,""), pl=/s$/.test(nm), whose=own?"Your":first+"'s";
   top=worst.tone==="paused"
    ?""   /* vE E144 F13: the used-up banner is limBanner, at the top of every module page */
    :stopBar("warn",`${nm} ${pl?"are":"is"} at ${Math.floor(worst.pct*100)}% with ${daysLeft} day${daysLeft===1?"":"s"} left.`,"",goBtn("Raise it","linkbtn",worst.k),"ws-nearbar")}   /* vE E144 F13: the same alert, amber */
  const frame=(body,acts)=>`<div class="ubf"><nav class="ubf-side" aria-label="Usage & billing"><button type="button" class="ubf-back" data-ubback>${UBF_I.back}Back to Settings</button><div class="ubf-nav">${[["allow","Limits",UBF_I.lim],["buy","Email Account Infrastructure",UBF_I.mail]].map(([k,l,i])=>`<button type="button" class="ubf-it" data-ubtab="${k}"${UB_TAB===k?' aria-current="page"':""}>${i}${l}</button>`).join("")}</div></nav><div class="ubf-main"><div class="ubf-acts">${acts||""}</div>${body}</div></div>`;   /* vE E166 */
- if(UB_TAB==="buy") return frame(mailPurchasesHTML(c)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`);
+ if(UB_TAB==="buy") return frame(mailPurchasesHTML(c,asClient)||`<div class="panel"><div class="panel-b"><span class="sub">Nothing bought through Saleshandy for ${c.name} yet.</span></div></div>`);
  /* change 303, 16 Oct 2026 (Hitesh: "make tables same in both view ... match it with what we have in client view").
     E003, 23 Oct 2026 (Hitesh: "we should have CTAs for account users for changing limits or managing resources when
     they are on Usage and billing screen inside individual workspace but as a client user I will only see this table
@@ -3595,7 +3596,8 @@ const UBF_I={back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
    Limits tab in edit (your own workspace's limits live on Billing's allocation, as before). Buy more for
    whoever holds billing: a menu of this workspace's resources, each opening Billing on the screen that sells
    it (BS_BUY) with its buy panel open (change 271). Link buttons, as the tab row's action always was. */
-function auActs(c){const L=canI("limits"), B=canI("billing"), ks=RK.filter(k=>RES[k].rows[c.id]); if(!L&&!(B&&ks.length)) return "";
+function auActs(c){if(asClient) return `<span class="ub-act">${urCtl("cu","Covers "+c.name+" only.")}</span>`;   /* vE E169: a client keeps Download usage report and gets no Change limits or Buy more */
+ const L=canI("limits"), B=canI("billing"), ks=RK.filter(k=>RES[k].rows[c.id]); if(!L&&!(B&&ks.length)) return "";
  const chg=!L?"":c.own?`<button type="button" class="linkbtn" data-goalloc="sends" data-auchg>Change limits</button>`:`<button type="button" class="linkbtn" data-culim="${c.id}|" data-auchg>Change limits</button>`;
  const buy=!B||!ks.length?"":`<span class="bs-mb au-mb"><button type="button" class="linkbtn au-buy" data-bsmb data-aubuy aria-haspopup="menu" aria-expanded="false">Buy more${HDR_I.down}</button><div class="bs-mb-menu au-menu" role="menu" hidden>${ks.map(k=>`<button type="button" role="menuitem" data-ulbuy="${k}">${RES[k].label}</button>`).join("")}</div></span>`;
  return `<span class="ub-act">${chg}${buy}</span>`}
@@ -3653,7 +3655,7 @@ function hdrSeqSlot(c,q){
  const st=q.state, key=c.id+"|"+q.name;
  if(st!=="Active"&&st!=="Paused") return "";   /* change 337: no status chip in the bar */
  const owner=!asClient&&agencyFull(c), may=owner||canC(c,"editseq"), mayPause=(may||canC(c,"pause"))&&!wsOff(c)&&!(st==="Paused"&&sendGate(c)), on=st==="Active";
- return `<span class="hdr-sww"><button type="button" class="hdr-sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${on?"Pause":"Resume"} ${hdrEsc(q.name)}" ${mayPause?`data-seqask="${key}"`:"disabled"}></button><span class="hdr-swl">${on?"Active":"Paused"}</span></span>`;
+ return `<span class="hdr-sww">${may||canC(c,"pause")?`<button type="button" class="hdr-sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${on?"Pause":"Resume"} ${hdrEsc(q.name)}" ${mayPause?`data-seqask="${key}"`:"disabled"}></button>`:""}<span class="hdr-swl">${on?"Active":"Paused"}</span></span>`;
 }
 /* ═══ change 334 (Hitesh, 20 Oct 2026: "Check breadcrum here, it should be complete breadcrum everywhere") ═══
    The path is derived in one place from where the screen sits: every level from the rail section
@@ -3668,7 +3670,7 @@ function hdrSeqSlot(c,q){
    stay on the workspace and person segments. */
 const hdrSetName=()=>{const s=setById[setSel]; return s?s[1].replace(/&amp;/g,"&"):"Settings"};
 /* the module's own name, one map for the leaf and the ancestor: production calls the list "Sequence" */
-const hdrModName=mod=>mod==="sequences"?"Sequence":asClient?(CLIENT_LBL[mod]||"Workspace"):mod==="usage"?"Usage & billing":(IN_LBL[mod]||(AGY_MOD[mod]?AGY_MOD[mod][0]:"Sequence"));
+const hdrModName=mod=>mod==="sequences"?"Sequence":mod==="usage"?"Usage & billing":(IN_LBL[mod]||(AGY_MOD[mod]?AGY_MOD[mod][0]:"Sequence"));   /* vE E169: one name per page for every role */
 const hdrLeave=()=>{ORIGIN=null;openSeq=null;openProspect=null;openReply=null;qFrom=null;focusMb=null};
 const HDR_LV={
  /* the rail section: the Workspaces list (the record's legacy #backList when already in the admin panel) */
@@ -3878,7 +3880,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
  if(i){i.value=""; i.dispatchEvent(new Event("input",{bubbles:true})); i.focus()}},true);
 /* vE E144 F23: the one workspace order everywhere (Workspaces page, switchers, Invite, Users filter, Delete account): your own first, then A to Z, disabled last */
 function wsPickOrder(L){const t=c=>c.own?0:c.disabled||c.deletedOn?2:1; return L.slice().sort((a,b)=>t(a)-t(b)||String(a.name).localeCompare(String(b.name),undefined,{sensitivity:"base"}))}
-const hdrWsList=()=>asClient?[]:wsPickOrder(myWorkspaces().filter(c=>!c.deletedOn));   /* vE E075 fix 8: yours, then A to Z, whatever the usage */
+const hdrWsList=()=>asClient?wsPickOrder(clientWsOf()):wsPickOrder(myWorkspaces().filter(c=>!c.deletedOn));   /* vE E075 fix 8: yours, then A to Z, whatever the usage */
 const hdrWsNeeds=c=>!c.own&&!c.disabled&&!c.deletedOn&&[1,2].indexOf(wsNeedTier(c))>-1;
 let HDR_WS=null;   /* the open switcher: {trig} */
 function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hidden=true; const s=el("hdrWsScrim"); if(s) s.hidden=true;
@@ -3886,7 +3888,7 @@ function hdrWsClose(refocus){const M=el("hdrWsm"); if(!M||M.hidden) return; M.hi
 function hdrWsRows(q,here){const t=(q||"").trim().toLowerCase(), cur=here!==undefined?here:ctx==="agency"?view.name==="record"?view.id:view.from:ctx;   /* here: the rail's current workspace (change 356) */
  const L=hdrWsList().filter(c=>wsMatch(c,t));   /* vE E021: the shared rule */
  const check=on=>`<span class="pop-cur${on?"":" hdr-wsnc"}"${on?"":' aria-hidden="true"'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>`;   /* the check's 16px column is kept on every row, so the dots line up */
- return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"><span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
+ return L.length?L.map(c=>`<button type="button" class="pop-r hdr-wsr${c.disabled?" is-off":""}" role="menuitem" data-hdrws="${c.id}" aria-current="${c.id===cur}"${asClient&&c.disabled?" disabled":""}><span class="avatar av-tint${wsAvCls(c)}" style="--c:${c.colour||AGENCY.colour}">${wsAvIn(c)}</span><span class="t">${hdrEsc(c.name)}</span>${c.disabled?'<span class="pop-tag">Disabled</span>':""}${check(c.id===cur)}</button>`).join("")
   :`<p class="sub hdr-wsnone">${t?nrHTML(q):"You haven’t been added to a workspace yet."}</p>`}
 function hdrWsOpen(trig){
  if(HDR_WS&&HDR_WS.trig===trig){hdrWsClose(true); return}
@@ -3928,7 +3930,7 @@ function hdrWsPick(id){
  if(id===from&&!(ctx==="agency"&&view.name==="person")) return;
  hdrLeave(); RL=null; RLI=null; FOCUS_LIM=null; LM_DECL=null; PA_ED=null;
  if(ctx==="agency"){if(view.name!=="record") tab="members"; view={name:"record",id}}   /* a record keeps its tab; a person page goes to the record's Members */
- else if(c.disabled){ctx="agency"; asClient=false; view={name:"record",id}; tab="overview"}
+ else if(c.disabled){if(asClient) return; ctx="agency"; asClient=false; view={name:"record",id}; tab="overview"}   /* vE E169: a client cannot open a disabled workspace */
  else ctx=id;   /* the same module, Settings page or API & Integrations, in the other workspace */
  /* the entry being left remembers where it was (unless it is 321's person entry, which restores itself), then the new one is pushed */
  const now=hdrSnap();
@@ -4010,7 +4012,7 @@ function e166Chrome(){
  const warn=`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
  const owners=Object.values(PEOPLE).filter(p=>p.role==="Owner"&&!p.disabled&&!p.invited).map(p=>p.email);
  const mail=`<a class="e166-cta" href="mailto:${owners.join(",")}?subject=${encodeURIComponent((inC?c.name+": ":"")+E166_TXT[L.i][0])}">Contact Owner</a>`;
- const cta=inC?(!asClient&&canI("limits")?`<button type="button" class="e166-cta" ${c.own?`data-e166al="${L.k}"`:`data-culim="${c.id}|${L.k}"`}>Raise limit</button>`:mail)
+ const cta=inC?(!asClient&&canI("limits")?`<button type="button" class="e166-cta" ${c.own?`data-e166al="${L.k}"`:`data-culim="${c.id}|${L.k}"`}>Raise limit</button>`:mail)   /* vE E169: a client role only loses the action */
    :(canI("billing")?`<button type="button" class="e166-cta" data-e166up>Upgrade Now</button>`:mail);
  util.insertAdjacentHTML("afterbegin",`<div class="e166-lim" id="e166Lim" role="status">${warn}<span class="e166-t u-tip" tabindex="0" data-uwtip="${E166_TXT[L.i][1].replace(/"/g,"&quot;")}" aria-label="${E166_TXT[L.i][0]}">${E166_TXT[L.i][0]}</span>${cta}</div>`)}
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-e166en],[data-e166al],[data-e166up]"); if(!t) return;
@@ -4033,7 +4035,7 @@ function renderShell(){
     re-inserted (with its click handler re-wired) the moment the session
     leaves that state, so a client session has no switcher trigger at all
     rather than an inert one that still answers to the DOM. */
- if(solo||(asClient&&clientWsOf().length<2&&!e105Multi())){const b=el("wsBtn"); if(b) b.remove();
+ if(solo){const b=el("wsBtn"); if(b) b.remove();   /* vE E169: a client user has the switcher too, listing their workspaces */
    /* 25 Sep 2026: the header still names the workspace for a client session; it is a
       label, not a trigger (no button, no chevron, no popover). */
    const w=solo?byId[ctx]:c;
@@ -4044,7 +4046,7 @@ function renderShell(){
  else {const st=el("wsStatic"); if(st) st.remove();
    if(!el("wsBtn")){
      el("sbWs").insertAdjacentHTML("afterbegin",WSBTN_HTML);
-     el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2&&!e105Multi()))return;popOpen?closePop():openPop()};
+     el("wsBtn").onclick=e=>{e.stopPropagation();if(solo)return;popOpen?closePop():openPop()};
    }
  }
  if(solo){const o=byId[ctx].email,loc=o.split("@")[0];
@@ -4100,7 +4102,7 @@ function renderShell(){
  el("ctxBar").className="ctx-bar"+(inC&&!norm?" on":"");
  /* 28 Sep 2026, Hitesh: the second line says which level you are on, in one
     word, instead of describing the model. */
- if(!asClient&&!solo&&el("wsCtx")) el("wsCtx").textContent=noAdmin()&&inAgency()?"":inAgency()&&!norm?"Admin Panel":"Workspace";   /* vE E159e */   /* vE E091a: renamed */
+ if(!solo&&el("wsCtx")) el("wsCtx").textContent=noAdmin()&&inAgency()?"":inAgency()&&!norm?"Admin Panel":"Workspace";   /* vE E159e */   /* vE E091a: renamed */
  /* 28 Sep 2026: no coloured bar on the switcher inside a workspace; the
     trigger's own avatar and second line say where you are. */
  el("sbWs").style.boxShadow="none";
@@ -4150,11 +4152,9 @@ function renderPop(q=""){
     only (PRD §2.2): no account row, no Add. One workspace keeps the identity
     tile and no trigger at all. */
  if(e105Multi()&&!xform){e105Pop(t,q); return}   /* vE E105: grouped by account */
- if(asClient){const mine=wsPickOrder(clientWsOf().filter(c=>wsMatch(c,t)));   /* vE E144 F23 */
-  if(clientWsOf().length<2){el("popL").innerHTML="";return}
-  el("popL").innerHTML=`<div class="pop-h">Your workspaces</div>`+(mine.length?mine.map(c=>row(c.id,av(initials(c.name),c.colour,c),c.name,c.disabled?{text:"Disabled"}:null,ctx===c.id)).join(""):`<p class="sub" style="padding:8px">${t?nrHTML(q):"You haven’t been added to a workspace yet."}</p>`);
-  el("popL").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{const id=b.dataset.go,cc=byId[id]; if(!cc) return; ctx=id;openProspect=null;openSeq=null;openReply=null;
-   const mods=roleSet(actingRole(cc)).mods,first=CLIENT_MODULES.find(m=>mods.indexOf(m[0])>-1); cView=first?first[0]:"settings"; closePop();render()});
+ if(asClient){   /* vE E169: the agency's list without the Admin Panel row; a pick keeps the page, as the agency's does */
+  el("popL").innerHTML=`<div class="pop-kids pop-kids--q" role="group" aria-label="Workspaces">${hdrWsRows(t,ctx)}</div>`;
+  el("popL").querySelectorAll("[data-hdrws]").forEach(b=>b.onclick=()=>{closePop(); hdrWsPick(b.dataset.hdrws)});
   return}
  if(isNormal()){
   el("popL").innerHTML=row("agency",av(AGENCY.initials,AGENCY.colour),AGENCY.name,null,true);
@@ -5644,7 +5644,7 @@ const LASTSEEN={"Priya Nair":"2 hours ago","Sam Doshi":"today","Alex Meridian":"
  "desk@cascade.partners":"never",
  /* 21 Sep 2026, delight pass round 3: Marcus is mid-session right now, which
     is the case the last-screen confirmation below exists for. */
- "marcus@alloyco.com":"just now","ceo@brightline.app":"never",
+ "marcus@alloyco.com":"just now","ceo@brightline.app":"never","finance@alloyco.com":"2 days ago",   /* vE E169 (d) */
  /* change 121 */
  "Jonah Reyes":"1 hour ago","Lena Okafor":"yesterday","Tariq Hassan":"4 days ago","Rosa Lindqvist":"3 weeks ago","Felix Adeyemi":"never",
  "marketing@atlasmfg.com":"today","reports@atlasmfg.com":"5 days ago","growth@summitfintech.com":"never",
@@ -6597,15 +6597,15 @@ function rlFxLine(D,k,id){if(RL&&RL.nb&&RL.nb[k]) return `<span class="ul3-mk">$
  const e=ul3EdFx(D,k,id);
  if(e.bad) return e.html+` <button type="button" class="linkbtn rlt-l" data-rlmove="${k}">Move more in Usage &amp; limits</button>`;
  return e.html}
-function rlDockHTML(c){const D=RL.D, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), st=ch.filter(ul3NewStop);
- const nb=Object.keys(RL.nb||{}).length, msg=nb?`<span class="ul3-mk">${NUM_ERR}</span>`:!n?""   /* change 333: Save stays disabled until there is a change; vE E075 fix 5: a refused number blocks Save */
+function rlDockHTML(c){const D=RL.D, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), st=ch.filter(ul3NewStop), lows=e168Lows(ch);
+ const nb=Object.keys(RL.nb||{}).length, msg=nb?`<span class="ul3-mk">${NUM_ERR}</span>`:lows.length?`<span class="ul3-mk">${e168Why(lows)}</span>`:!n?""   /* change 333: Save stays disabled until there is a change; vE E075 fix 5: a refused number blocks Save */
   :over.length?`<span class="ul3-mk">Not enough left to allocate: ${listAnd(over.map(k=>`${RES[k].label} by ${f(-ul3Free(D,k))}`))}.</span> Lower ${over.length>1?"them":"it"} to save, or move some from another workspace in Usage &amp; limits.`
   :`${ul3N(n,"change")}: ${listAnd(ch.map(x=>`${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?` ${c.name} stops ${listAnd(st.map(x=>UL3_STOP[x.k]))}.`:""}${ul3TellNote(ch)}`;
- return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-rlcancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlsave${!n||over.length||nb?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-rlcancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-rlsave${!n||over.length||nb||lows.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
 /* vE E081: Available, as Usage & limits says it (E072 row 23), after the draft; an over-raise never shows a negative figure */
 function rlAvLine(D,k){if(isUnl(k)) return ""; const a=ul3Free(D,k), n=a<0?compute(k).free:a, T=ulrTerm(k); return T?`<b>${f(n)}</b> left to allocate until ${T.to}`:`Left to allocate <b>${f(n)}</b>`}
 function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[id]);
- const lines=ks.map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=!!ul3EdFx(D,k,id).bad;
+ const lines=ks.map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=!!ul3EdFx(D,k,id).bad||!!ul3EdFx(D,k,id).low;
   return `<div class="ul3-el rlt-el" data-rlel="${k}"><label class="ul3-elab" for="rlin-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
    <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" id="rlin-${k}" data-rlin="${k}" value="${f(v)}" aria-invalid="${bad}" aria-describedby="rlfx-${k}">
    <div class="ul3-efx" id="rlfx-${k}" data-rlfx="${k}">${rlFxLine(D,k,id)}</div></div>`}).join("");
@@ -6615,7 +6615,7 @@ function rlEditorHTML(c){const id=c.id, D=RL.D, ks=UL_K().filter(k=>RES[k].rows[
 function rlPaint(){if(!RL) return; const box=document.querySelector(`[data-rledbox="${RL.id}"]`); if(!box) return; const D=RL.D, id=RL.id;
  box.querySelectorAll("[data-rlfx]").forEach(n=>n.innerHTML=rlFxLine(D,n.dataset.rlfx,id));
  box.querySelectorAll("[data-rlav]").forEach(n=>n.innerHTML=rlAvLine(D,n.dataset.rlav));   /* vE E081 */
- box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad||!!(RL.nb&&RL.nb[k])))});
+ box.querySelectorAll("[data-rlin]").forEach(i=>{const k=i.dataset.rlin; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad||!!ul3EdFx(D,k,id).low||!!(RL.nb&&RL.nb[k])))});
  box.querySelector("[data-rldock]").innerHTML=rlDockHTML(byId[id])}
 /* change 320: the sub-line is the day of the cycle; what needs you is on the rows (amber marks) */
 function rlHeadLine(c,ro){return ro?(c.deletedOn?"Deleted. Its limits are left to allocate again.":"Disabled, still counts against the plan"):`Day ${CYCLE.day} of ${CYCLE.days}`}
@@ -6649,7 +6649,7 @@ const rlCan=c=>canI("limits")&&!c.own&&!c.deletedOn&&!limGate(c)&&ul3CanEd(c,fal
 const rlD=c=>RLI&&RLI.id===c.id?RLI.D:{};
 function rlDv(k,id){const x=RLI&&RLI.id===id?RLI.D[k+"|"+id]:null; return x==null?RES[k].rows[id].cap:x}
 const rlEd=k=>UL_K().indexOf(k)>-1&&!isUnl(k);
-const rlBad=(k,id)=>RLI&&RLI.nb[k+"|"+id]?"num":RLI&&ul3Free(RLI.D,k)<0&&rlDv(k,id)>RES[k].rows[id].cap?"over":"";
+const rlBad=(k,id)=>RLI&&RLI.nb[k+"|"+id]?"num":RLI&&e168Low({k,id,v:rlDv(k,id)})?"low":RLI&&ul3Free(RLI.D,k)<0&&rlDv(k,id)>RES[k].rows[id].cap?"over":"";
 const rlOnly=k=>Math.max(0,ul3Free(RLI.D,k)+ul3Ch(RLI.D).filter(x=>x.k===k&&x.v>x.was).reduce((t,x)=>t+Math.max(x.v,RES[k].rows[x.id].used)-Math.max(x.was,RES[k].rows[x.id].used),0));
 function rlUw(c){return Math.max(3,...RKA.filter(k=>RES[k].rows[c.id]&&!isUnl(k)).map(k=>f(RES[k].rows[c.id].used).length))}
 function rlLvw(c){return Math.max(1,...RKA.filter(k=>RES[k].rows[c.id]&&!isUnl(k)).map(k=>{const t=f(rlDv(k,c.id)); return t.length-(t.split(",").length-1)/2}))}
@@ -6669,7 +6669,7 @@ const rlStops=()=>RLI?ul3Ch(RLI.D).filter(x=>{const c=byId[x.id], r=RES[x.k].row
    blocks Apply (E136's rule); a limit that stops a workspace is still asked in the confirm (rlStopHTML) */
 function rlDraftSt(c){if(!RLI||!c||RLI.id!==c.id) return null; const n=ul3Ch(RLI.D).length, nb=Object.keys(RLI.nb).length; if(!n&&!nb) return null;
  const over=UL_K().filter(k=>ul3Free(RLI.D,k)<0);
- const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(rlOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(rlOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`):"";
+ const lows=e168Lows(ul3Ch(RLI.D)), why=nb?NUM_ERR:lows.length?e168Why(lows):over.length?(over.length===1?`Only ${f(rlOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(rlOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`):"";
  return {n,why}}
 function rlHdrActs(c){const d=tab==="limits"&&rlDraftSt(c); if(!d) return "";
  return `<button type="button" class="shd-button shd-button--secondary" data-rldiscard>Discard</button><button type="button" class="shd-button shd-button--primary" data-rlapply${d.why?` disabled aria-describedby="ulrWhy"`:""}>Apply${d.n?" "+ul3N(d.n,"change"):""}</button>`}
@@ -6937,8 +6937,8 @@ function rMail(c){
  const clientSide=asClient&&!inAgency();
  const mine=c.mailboxes.filter((m,i)=>{const o=mbOwner(c,m,i); return !o||inReach(o)});
  const cnt=t=>mine.filter(m=>m[1]===t).length;
- /* vE E077 (PRD 3.8 item 5): a Client Collaborator reads one true state per email account, not a health score. showAct: a role that connects also reconnects. */
- const collab=asClient&&wsRoleHere(c)==="Client Collaborator", showAct=!asClient||canC(c,"connect");
+ /* vE E169 (b), 26 Nov 2026: a Client Collaborator reads Health like every role (was E077's Status column, PRD 3.8 item 4 / D25). showAct: a role that connects also reconnects. */
+ const collab=false, showAct=!asClient||canC(c,"connect");
  const stOf=m=>m[1]==="Disconnected"?"Disconnected":m[1]==="Reconnecting"?"Reconnecting":m[1]==="Warming"?"Warming":mbSeqs(c,m).length?"Seq":"Idle";
  const cntS=t=>mine.filter(m=>stOf(m)===t).length;
  const summary=collab?[["Warming",cntS("Warming")],["Idle",cntS("Idle")],["Seq",cntS("Seq")],["Disconnected",cntS("Disconnected")]].filter(x=>x[1])
@@ -7189,7 +7189,7 @@ function vPeople(){
  const sgTxt=r=>r.invited||r.seen==="unknown"?"Never":rmCap(r.seen);
  const stTxt=r=>r.disabled?"Disabled":r.invited?(invExpired(r.invited,!!r.k)?"Invite expired":r.invited==="never"?"Invited":"Invited "+AGE(r.invited)):"Active";
  const wsTxt=r=>r.ws===null?["All workspaces"]:r.ws.filter(id=>byId[id]&&isMember(ME(),id)).map(id=>byId[id].name);
- const team=teamAll.filter(r=>ppMatch(q,r.name,r.email,"Your team",roleName(r.role),stTxt(r),sgTxt(r),...wsTxt(r))&&inWs(r)&&(PP.role==="all"||PP.role.indexOf(r.role)>-1));   /* vE E144 F10: Account role ticks several */
+ const team=teamAll.filter(r=>ppMatch(q,r.name,r.email,"Your team",roleName(r.role),stTxt(r),sgTxt(r),...wsTxt(r))&&inWs(r));   /* vE E168: no Account role filter (Hitesh: it showed only for Your team) */   /* vE E144 F10: Account role ticks several */
  const cl=clAll.filter(r=>ppMatch(q,r.name,r.email,"Client user",sgTxt(r),ppClientRole(r),...r.all.map(x=>roleName(x.role)),stTxt(r),...r.all.map(x=>x.c.name))&&inWs(r));
  const invAll=teamAll.filter(r=>r.invited).concat(clAll.filter(r=>r.invited));
  const all=tab==="all", on=PP.inv;
@@ -7226,7 +7226,7 @@ function vPeople(){
     <span class="search">${srchI}<input type="text" id="ppQ" placeholder="${ph}" value="${PP.q.replace(/"/g,"&quot;")}" aria-label="${ph}"></span>
     ${ddHTML("ppWho",on?"invites":tab,[{items:[{value:"all",label:"All users",count:teamAll.length+clAll.length},{value:"team",label:"Your team",count:teamAll.length},{value:"clients",label:"Client users",count:clAll.length},{value:"invites",label:"Invites waiting",count:invAll.length}]}],{})}
     ${ppWsDD(wsOpts)}
-    ${tab==="team"?ppCkDD("ppRole","Account role",[["Owner","Account Owner"],["Admin","Account Admin"],["Member","Account Member"]].map(([v,t])=>({v,t})),PP.role,"data-pprolec","roles"):""}</div>
+    </div>
    <div class="pp-tb-a"><button type="button" class="linkbtn pp-rolelink" data-pproles>What each role can do</button>
    <button class="shd-button shd-button--primary" data-invite=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Invite users</button></div></div>
   ${`<section class="pp-sec">${head}${rows.length?rows.map(row).join(""):emptyBlock}</section>
@@ -8714,11 +8714,11 @@ function mailPurchasesHTML(c,forClient){
    <td>${prov(r.prov)} <b>${r.dom}</b>${r.domP&&!forClient?` <span class="sub">${r.domP}</span>`:""}</td>
    <td><b>${r.mbx}</b>${r.mbxP&&!forClient?` <span class="sub">${r.mbxP}</span>`:""}</td>
    <td><b>${r.ip}</b>${r.ipP&&!forClient?` <span class="sub">${r.ipP}</span>`:""}</td>
-   <td class="tnum">${r.renew}${r.due&&!forClient?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
+   <td class="tnum">${r.renew}${r.due?' <span style="color:#d97706;margin-left:6px" title="Renewal due">&#9888;</span>':""}</td><td>${r.plan}</td>
    ${forClient?"":`<td class="colact">${r.due?'<button class="shd-button shd-button--primary shd-button--sm" data-flash="Opens the billing portal">Renew Now</button>':'<button class="linkbtn linkbtn--sm" data-flash="Opens the billing portal">Manage Billing &#8599;</button>'}</td>`}</tr>`).join("");
  return `<div class="panel">
   <div class="panel-h"><span class="panel-t">Purchase History</span></div>
-  ${forClient?"":`<div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.</span></div></div>`}
+  <div class="panel-b" style="padding-bottom:0"><div class="msg m-warn">${infoI}<span>Renew before the listed Renewal Date to keep your domains and mailboxes active. We cannot guarantee renewal after this date.${forClient?"":`<br>Google &amp; Microsoft service provider: <b>$17/domain/year</b> &amp; <b>$6.50/mailbox/month</b>.`}</span></div></div>
   <div class="tscroll"><table class="organism inf-table" style="min-width:900px">
    <thead><tr><th>Purchase date</th><th>Domains</th><th>Email accounts</th><th>IPs / Azure tenants</th><th>Renewal date</th><th>Plan type</th>${forClient?"":'<th class="colact"></th>'}</tr></thead>
    <tbody>${rows}</tbody></table></div>
@@ -8928,6 +8928,17 @@ function ul3Ch(D){const ord=ul3RosterRows().map(c=>c.id), out=[];
 /* a change that stops a running resource (null when it was already stopped) */
 const ul3Below=x=>x.v<RES[x.k].rows[x.id].used||x.v===0;
 const ul3NewStop=x=>ul3Below(x)&&RES[x.k].rows[x.id].cap>RES[x.k].rows[x.id].used;
+/* vE E168 (Hitesh, 26 Nov: "we can allow to keep how much is used but not lower"): a limit may equal what is used, never go under it. A row already under its use may stay or rise. */
+const e168LowStrict=x=>{const r=RES[x.k]&&RES[x.k].rows[x.id]; return !!r&&!isUnl(x.k)&&x.v<r.used&&x.v<r.cap};
+/* vE E168: a partly typed number ("2" on the way to "20,000") is not judged until the person pauses */
+let E168T={key:"",at:0};
+const e168Low=x=>e168LowStrict(x)&&!(E168T.key===x.k+"|"+x.id&&Date.now()-E168T.at<700);
+document.addEventListener("input",e=>{const t=e.target, key=t&&t.dataset&&(t.dataset.ulri||t.dataset.rli&&(t.dataset.rli)); if(!key||e.e168) return; E168T={key:t.dataset.ulri||t.dataset.rli,at:Date.now()};
+ clearTimeout(E168T.tm); E168T.tm=setTimeout(()=>{E168T.at=0; if(document.body.contains(t)){const ev=new Event("input",{bubbles:true}); ev.e168=true; t.dispatchEvent(ev)}},750)},true);
+const e168Lows=ch=>ch.filter(e168Low);
+function e168Why(L){const ids=[...new Set(L.map(x=>x.id))], nm=id=>byId[id].name;   /* vE E168: the one reason, every editor */
+ if(ids.length===1) return L.length===1?`${nm(ids[0])} has used ${f(RES[L[0].k].rows[ids[0]].used)} ${RES[L[0].k].unit}. The limit can't go lower.`:`${nm(ids[0])} has used more than its new limits.`;
+ return ids.length===2?`${nm(ids[0])} and ${nm(ids[1])} have used more than their new limits.`:`${f(ids.length)} workspaces have used more than their new limits.`}
 const ul3StopLab=(L,base)=>{const n=[...new Set(L.filter(ul3NewStop).map(x=>UL3_STOP[x.k]))]; return n.length?`${base.split(" ")[0]} and stop ${listAnd(n)}`:base};
 const ul3Dirty=()=>!!UL.ed&&ul3Ch(UL.ed.D).length>0;
 const ul3N=(n,w)=>`${f(n)} ${w}${n===1?"":"s"}`;
@@ -8936,6 +8947,7 @@ const ul3Dot=t=>/\.$/.test(t)?t:t+".";
 /* the consequence line of one limit, record-limits wording, aware of every other change in the draft */
 function ul3EdFx(D,k,id){const r=RES[k].rows[id], L=r.cap, U=r.used, v=ul3Dv(D,k,id), d=v-L, after=ul3Free(D,k), bef=Math.max(0,after+d), mon=k==="sends", O=OWN_WS.name;
  if(after<0&&d>0) return {bad:true,short:-after,html:`Only ${f(bef)} left to allocate. Lower another limit first.`};
+ if(e168Low({k,id,v})) return {low:true,html:`<span class="ul3-mk">${e168Why([{k,id,v}])}</span>`};   /* vE E168 */
  if(d&&ul3Below({k,id,v})){const still=L<=U;
   return {stop:true,html:`<span class="ul3-mk">${still?"Still stopped":"Stops "+UL3_STOP[k]}</span> ${v<U?`The new limit is below the ${f(U)} already used${mon?" this month":""}, so ${mon?"nothing sends until 1 Oct or until you raise it":"it stays stopped until you raise it"}.`:`The limit is 0. ${mon?"Nothing sends until 1 Oct or until you raise it.":"It stays stopped until you raise it."}`}`}}
  if(d>0){const took=ul3Ch(D).filter(x=>x.k===k&&x.id!==id&&x.v<x.was);
@@ -8954,13 +8966,14 @@ function ul3TakeLine(D,k,id){const e=ul3EdFx(D,k,id); if(!e.bad) return ""; cons
  return `<div class="ul3-take">${mk}<label for="ul3dn-${k}">Take it from</label><select id="ul3dn-${k}" class="ul3-sel" data-ul3donor="${k}">${ds.map(c=>`<option value="${c.id}"${c.id===cur?" selected":""}>${c.name}, ${c.disabled?"disabled, ":""}${f(ul3Dv(D,k,c.id)-RES[k].rows[c.id].used)} spare</option>`).join("")}</select><button type="button" class="linkbtn ul3-l" data-ul3take="${k}|${s}">Take ${f(s)}</button></div>`}
 function ul3AlsoHTML(D,id){return ul3Ch(D).filter(x=>x.id!==id).map(x=>`<div class="ul3-also"><span class="ul3-g">Also changes</span><span class="ul3-at"><b>${byId[x.id].name}</b> ${RES[x.k].label} ${f(x.was)} to ${f(x.v)}, ${f(RES[x.k].rows[x.id].used)} used.</span><button type="button" class="linkbtn ul3-l" data-ul3untake="${x.k}|${x.id}" aria-label="Remove the change to ${byId[x.id].name}">Remove</button></div>`).join("")}
 function ul3TellNote(ch){const W=[...new Set(ch.map(x=>x.id))].filter(id=>!byId[id].own); return !W.length?"":W.length===1?(ch.every(x=>x.id===W[0])?" Its admins get a notice.":` ${byId[W[0]].name}'s admins get a notice.`):W.length===2?" Both workspaces' admins get a notice.":" Their admins get a notice."}
-function ul3DockHTML(c){const D=UL.ed.D, id=c.id, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), own=ch.filter(x=>x.id===id).concat(ch.filter(x=>x.id!==id)), st=ch.filter(ul3NewStop);
+function ul3DockHTML(c){const D=UL.ed.D, id=c.id, ch=ul3Ch(D), n=ch.length, over=UL_K().filter(k=>ul3Free(D,k)<0), own=ch.filter(x=>x.id===id).concat(ch.filter(x=>x.id!==id)), st=ch.filter(ul3NewStop), lows=e168Lows(ch);
  const msg=!n?"No changes yet."
+  :lows.length?`<span class="ul3-mk">${e168Why(lows)}</span>`
   :over.length?`${listAnd(over.map(k=>RES[k].label))} ${over.length>1?"are":"is"} above what your plan has. Lower it, or take the difference from another workspace.`
   :`${ul3N(n,"change")}: ${listAnd(own.map(x=>`${x.id===id?"":byId[x.id].name+" "}${UL3_NM[x.k]} ${f(x.was)} to ${f(x.v)}`))}.${st.length?" "+listAnd(st.map(x=>`${byId[x.id].name} stops ${UL3_STOP[x.k]}`))+".":""}${ul3TellNote(ch)}`;
- return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-ul3cancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3save${!n||over.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
+ return `<p class="ul3-dm" aria-live="polite">${msg}</p><span class="ul3-db"><button type="button" class="shd-button shd-button--tertiary shd-button--sm" data-ul3cancel>Cancel</button><button type="button" class="shd-button shd-button--primary shd-button--sm" data-ul3save${!n||over.length||lows.length?" disabled":""}>${n?ul3StopLab(ch,`Save ${ul3N(n,"change")}`):"Save"}</button></span>`}
 function ul3EdHTML(c){const id=c.id, D=UL.ed.D;
- const lines=UL_K().filter(k=>RES[k].rows[id]).map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=ul3EdFx(D,k,id).bad;
+ const lines=UL_K().filter(k=>RES[k].rows[id]).map(k=>{const R=RES[k], r=R.rows[id], v=ul3Dv(D,k,id), bad=ul3EdFx(D,k,id).bad||ul3EdFx(D,k,id).low;
   return `<div class="ul3-el" data-ul3el="${k}"><label class="ul3-elab" for="ul3in-${k}"><span>${R.label}</span><span class="ul3-g">${f(r.used)} used</span></label>
    <input type="text" inputmode="numeric" autocomplete="off" class="ul-in ul3-in${v!==r.cap?" is-ch":""}" id="ul3in-${k}" data-ul3in="${k}" value="${f(v)}" aria-invalid="${!!bad}" aria-describedby="ul3fx-${k}">
    <div class="ul3-efx" id="ul3fx-${k}" data-ul3fx="${k}">${ul3FxLine(D,k,id)}</div><div class="ul3-tk" data-ul3tk="${k}">${ul3TakeLine(D,k,id)}</div></div>`}).join("");
@@ -8969,7 +8982,7 @@ function ul3EdHTML(c){const id=c.id, D=UL.ed.D;
 function ul3EdPaint(){const E=UL.ed; if(!E) return; const box=document.querySelector(`[data-ul3edbox="${E.id}"]`); if(!box) return; const D=E.D, id=E.id;
  box.querySelectorAll("[data-ul3fx]").forEach(n=>n.innerHTML=ul3FxLine(D,n.dataset.ul3fx,id));
  box.querySelectorAll("[data-ul3tk]").forEach(n=>n.innerHTML=ul3TakeLine(D,n.dataset.ul3tk,id));
- box.querySelectorAll("[data-ul3in]").forEach(i=>{const k=i.dataset.ul3in; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad))});
+ box.querySelectorAll("[data-ul3in]").forEach(i=>{const k=i.dataset.ul3in; i.classList.toggle("is-ch",ul3Dv(D,k,id)!==RES[k].rows[id].cap); i.setAttribute("aria-invalid",String(!!ul3EdFx(D,k,id).bad||!!ul3EdFx(D,k,id).low))});
  box.querySelector("[data-ul3also]").innerHTML=ul3AlsoHTML(D,id); box.querySelector("[data-ul3dock]").innerHTML=ul3DockHTML(byId[id]); ul3Lock()}
 /* while a row holds unsaved changes, no other row (and not Edit limits) can be opened */
 function ul3Lock(){const dirty=ul3Dirty(), me=UL.ed&&UL.ed.id;
@@ -8982,7 +8995,7 @@ function ul3EdClose(){const id=UL.ed&&UL.ed.id; UL.ed=null; UL.ul3f=`[data-ul3ed
 /* vE E142 F4: one sentence for a saved limit change, the record's and Usage & limits': "Saved Atlas Manufacturing's limits.",
    "Saved limits for A, B and C.", past three a count; your own workspace reads "Saved limits for Meridian Growth (Your workspace)." (no possessive after the bracket) */
 const ul3SavedTxt=ids=>ids.length===1&&!byId[ids[0]].own?`Saved ${byId[ids[0]].name}\u2019s limits.`:ids.length<=3?sentEnd(`Saved limits for ${listAnd(ids.map(id=>byId[id].name))}`):`Saved limits for ${ids.length} workspaces.`;
-function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on its Limits tab") */const ch=ul3Ch(D); if(!ch.length||UL_K().some(k=>ul3Free(D,k)<0)) return false;
+function ul3Commit(D,verb,where){   /* change 269: where, for Activity ("set on its Limits tab") */const ch=ul3Ch(D); if(!ch.length||UL_K().some(k=>ul3Free(D,k)<0)||ch.some(e168LowStrict)) return false;   /* vE E168 */
  const prev=ch.map(x=>({k:x.k,id:x.id,was:x.was,custom:RES[x.k].rows[x.id].custom}));
  const restore=()=>prev.forEach(p=>{const r=RES[p.k].rows[p.id]; r.cap=p.was; r.custom=p.custom; syncRes(p.k,r)});
  for(const x of ch.slice().sort((a,b)=>(a.v-a.was)-(b.v-b.was))){
@@ -9079,7 +9092,7 @@ const ulrOut=k=>isUnl(k)?0:ulRows().filter(c=>!c.disabled&&RES[k].rows[c.id]&&ul
 const ulrOnly=k=>Math.max(0,ulDfree(k)+ulChanges().filter(x=>x.k===k&&x.v>x.was).reduce((t,x)=>t+Math.max(x.v,RES[k].rows[x.id].used)-Math.max(x.was,RES[k].rows[x.id].used),0));
 const ulrAvHTML=k=>{if(isUnl(k)) return UNL_TXT; const a=ulDfree(k); return a<0?f(compute(k).free):f(a)};   /* vE E071 review: an over-raise never shows a negative Available; the field and the save bar carry the error */
 /* below what is used (282's rule), or a raise while the resource is above the plan */
-const ulrBad=(k,id)=>UL.nb&&UL.nb[k+"|"+id]?"num":ulDfree(k)<0&&ulDv(k,id)>RES[k].rows[id].cap?"over":"";   /* vE E045: only raising past Available is an error (E070) */
+const ulrBad=(k,id)=>UL.nb&&UL.nb[k+"|"+id]?"num":e168Low({k,id,v:ulDv(k,id)})?"low":ulDfree(k)<0&&ulDv(k,id)>RES[k].rows[id].cap?"over":"";   /* vE E045: only raising past Available is an error (E070) */
 function ulrSet(k,id,v){if(v===RES[k].rows[id].cap) delete UL.draft[k+"|"+id]; else UL.draft[k+"|"+id]=v}
 const ulrEdRows=k=>isUnl(k)?[]:ulfPageRows(k).filter(c=>ul3CanEd(c,ulRo()));   /* vE E022: the rows on the page, in the order shown */
 function ulrUseHTML(k,c){
@@ -9955,11 +9968,7 @@ function vSolo(){
     <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="settings">Settings</button></div>
    </div>
    <div class="wrap">
-    <div class="panel"><div class="empty">${soloIll(soloMod)}
-      <p class="empty-t">${label} for ${c.company}</p>
-      <p class="empty-s">Your own Saleshandy account, exactly as it is today. This prototype does not
-      redraw the product you already use.</p>
-    </div></div>
+    
    </div>`;
  }
  /* an ordinary account's Settings: no Workspace section, because there is no
@@ -9971,11 +9980,7 @@ function vSolo(){
    <div class="tools"><button class="shd-button shd-button--tertiary" data-solonav="seq">Back to Sequences</button></div>
   </div>
   <div class="wrap">${(rb=>rb?`<div style="margin:0 -24px">${rb}</div>`:"")(receiptBar("solo:settings"))}
-   <div class="panel"><div class="empty">${ILL.settings()}
-     <p class="empty-t">Settings for ${c.company}</p>
-     <p class="empty-s">Your own Saleshandy account, exactly as it is today. This prototype does not
-     redraw the product you already use.</p>
-   </div></div>
+   
   </div>`;
 }
 
@@ -10015,8 +10020,8 @@ const RAIL2CVIEW={seq:"sequences",inbox:"inbox",crm:"prospects",leads:"leads",
  task:"task",dialer:"dialer",verify:"verify",tmpl:"tmpl",radar:"radar",warmup:"warmup",refer:"refer"};
 /* what a client calls each screen. One name per thing, used by the rail, the
    orientation line and the landing rule alike. */
-const CLIENT_LBL={sequences:"Sequences",inbox:"Replies",prospects:"Prospects",leads:"Lead Finder",
- accounts:"Email Accounts",analytics:"Reports",usage:"Usage & billing",
+const CLIENT_LBL={sequences:"Sequences",inbox:"Unified Inbox",prospects:"Prospects",leads:"Lead Finder",   /* vE E169: production's names, as the agency's */
+ accounts:"Email Accounts",analytics:"Analytics",usage:"Usage & billing",
  task:"Tasks",dialer:"Dialer",verify:"Email Verifier",tmpl:"Templates",radar:"Inbox Radar",
  warmup:"Email Warm-up",refer:"Refer a Friend"};
 /* the one line a restricted client's single screen carries, above its content.
@@ -10216,14 +10221,7 @@ function vAgencyMod(){
     placeholder that says "not redrawn" and stops is a dead end in a demo; one
     that states where the module's records and its quota live is the same screen
     doing work. Each line is the row from 20's matrix rather than a paraphrase. */
- const parked=t=>{const n=SCOPE_NOTE[k];
-  return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">${t}</span>
-    ${n?`<span class="c-a"><span class="chip c-info">${n[0]}</span></span>`:""}</div>
-   <div class="panel-b"><p class="sub" style="margin:0">${n?n[1]
-     :"The existing Saleshandy module, scoped to your workspace."}</p>
-   </div></div>`};
- let body;
+  let body;
  if(k==="seq"){
   body=O.sequences.length?`<div class="panel"><div class="tscroll"><table class="organism" style="min-width:720px">
     <thead><tr><th>Sequence Name</th><th class="ar">Prospects</th><th class="ar">Contacted</th>
@@ -10332,7 +10330,7 @@ function vAgencyMod(){
     <button class="linkbtn" data-godash>Workspaces</button>, which ranks them rather than
     blending them into one rate.</span></div></div>`;
  } else {
-  body=parked(`${label} for ${AGENCY.name}`);
+  body="";   /* vE E167: a module this prototype does not change stays blank under its header */
  }
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0">
@@ -10751,7 +10749,7 @@ function apiWebhooksTab(){
 }
 function vApiInt(){
  const wsScope=ctx!=="agency"?byId[ctx]:null;
- if(wsScope&&!isNormal()&&asClient&&wsRoleHere(wsScope)!=="Client Admin"){view={name:"settings"};return vSettings()}
+ if(wsScope&&!isNormal()&&asClient&&wsRoleHere(wsScope)!=="Client Admin"){view={name:"clients"};cView="settings";return vClientSide()}   /* vE E167 */
  return `<div class="toolbar">
    <div class="cell-main"><span style="min-width:0"><span class="semibold-3" style="display:block">API & Integrations</span>
      <span class="cs">${wsScope?"Keys, MCP, connections and webhooks scoped to "+anWsName(wsScope)+" only":"Keys, MCP, connections and webhooks owned by "+AGENCY.name}</span></span></div>
@@ -10761,6 +10759,26 @@ function vApiInt(){
   <div class="wrap">${apiTab==="keys"?apiKeysTab():apiTab==="mcp"?apiMcpTab():apiTab==="integrations"?apiIntegrationsTab():apiWebhooksTab()}</div>`;
 }
 
+/* vE E169 (26 Nov 2026, Hitesh: one set of screens inside a workspace for every role): the page under the header, for an
+   agency user and a client user alike. A role only removes what it can never do; the renderers read canC and wsOff. */
+function wsModBody(c,mod){
+ const own=!!c.own;
+ const inboxRows=own
+  ?AGENCY_OWN.replies.map(([from,snippet,age,positive])=>({from,snippet,age,positive}))
+  :REPLIES.filter(r=>r.client===c.id).filter((r,i)=>inReach(replyOwner(c,r,i)));
+ const parked=AGY_MOD[mod]&&!RAIL2MOD[mod]?AGY_MOD[mod][0]:null;
+ return parked?""   /* vE E167: unchanged production pages are blank under their header */
+  :mod==="prospects"?(openProspect?cProspect(c):cPros(c,agencyFull(c)))
+  :mod==="tmpl"?(own?ownTmpl():cTmpl(c))
+  :mod==="accounts"?rMail(c)
+  :mod==="usage"?agencyUsage(c)
+  :mod==="inbox"?`<div class="panel"><div class="tscroll"><table class="organism" style="min-width:700px">
+     <thead><tr><th>From</th><th>Message</th><th>Age</th><th class="colact"></th></tr></thead><tbody>
+     ${inboxRows.length?inboxRows.map(r=>`<tr><td style="font-weight:500">${r.from}</td><td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
+       <td class="ar colact"><span class="chip ${r.positive?"c-ok":"c-mute"}">${r.positive?"Interested":"Reply"}</span></td></tr>`).join("")
+      :'<tr><td colspan="4"><span class="sub">No replies yet'+(own?" on your own campaigns":" for "+c.name)+'.</span></td></tr>'}</tbody></table></div></div>`
+  :openSeq&&openSeq.split("|")[0]===c.id?seqDetail(c,agencyFull(c)):seqTable(c,agencyFull(c));
+}
 function vInClient(){
  const c=byId[ctx];
  /* fix 25 Sep review #18: same membership gate as vRecord, so entering a
@@ -10775,28 +10793,7 @@ function vInClient(){
     replies come from its own campaigns, its Templates tab is the library
     itself rather than an inheritance of it, and there is no client to view as. */
  const own=!!c.own;
- const inboxRows=own
-  ?AGENCY_OWN.replies.map(([from,snippet,age,positive])=>({from,snippet,age,positive}))
-  :REPLIES.filter(r=>r.client===c.id).filter((r,i)=>inReach(replyOwner(c,r,i)));
- const parked=AGY_MOD[inMod]&&!RAIL2MOD[inMod]?AGY_MOD[inMod][0]:null;
- const pnote=SCOPE_NOTE[Object.keys(AGY_MOD).find(x=>x===inMod)];
- const body=parked?`<div class="panel">
-     <div class="panel-h"><span class="panel-t">${parked} for ${c.name}</span>
-      ${pnote?`<span class="c-a"><span class="chip c-info">${pnote[0]}</span></span>`:""}</div>
-     <div class="panel-b"><p class="sub" style="margin:0 0 8px">${pnote?pnote[1]
-       :"The existing Saleshandy module, scoped to this workspace."}</p>
-      <p class="sub" style="margin:0">Everything here belongs to ${c.name}'s workspace and appears in no other.</p>
-     </div></div>`
-  :inMod==="prospects"?(openProspect?cProspect(c):cPros(c,agencyFull(c)))
-  :inMod==="tmpl"?(own?ownTmpl():cTmpl(c))
-  :inMod==="accounts"?rMail(c)
-  :inMod==="usage"?agencyUsage(c)
-  :inMod==="inbox"?`<div class="panel"><div class="tscroll"><table class="organism" style="min-width:700px">
-     <thead><tr><th>From</th><th>Message</th><th>Age</th><th class="colact"></th></tr></thead><tbody>
-     ${inboxRows.length?inboxRows.map(r=>`<tr><td style="font-weight:500">${r.from}</td><td><span class="sub">${r.snippet}</span></td><td><span class="sub">${AGE(r.age)}</span></td>
-       <td class="ar colact"><span class="chip ${r.positive?"c-ok":"c-mute"}">${r.positive?"Interested":"Reply"}</span></td></tr>`).join("")
-      :'<tr><td colspan="4"><span class="sub">No replies yet'+(own?" on your own campaigns":" for "+c.name)+'.</span></td></tr>'}</tbody></table></div></div>`
-  :openSeq&&openSeq.split("|")[0]===c.id?seqDetail(c,agencyFull(c)):seqTable(c,agencyFull(c));
+ const body=wsModBody(c,inMod);   /* vE E169: the same renderer a client user gets */
  /* the live Sequences page has no page header of its own; the normal account
     matches it exactly. Inside a workspace of a multi-workspace account the
     header stays, since it names where you are. Its search box is dropped on
@@ -11519,16 +11516,17 @@ const E166B_IC={
  dncall:'<path d="M3.4 2.8h2.2l1 2.6-1.3.9a7 7 0 0 0 3.4 3.4l.9-1.3 2.6 1v2.2a1 1 0 0 1-1 1A9.8 9.8 0 0 1 2.4 3.8a1 1 0 0 1 1-1zM10.5 2.5l3 3M13.5 2.5l-3 3"/>'};
 /* production's Schedules page (schedule.tsx, schedule-list.tsx): a name cut at 20 characters + "....", the zone, seven day chips. Static here. */
 const E166B_SCHED=[["Default Schedule",true,"Europe/London"],["US East business hours",false,"America/New_York"]];
-const e166bSchedPage=()=>`<div class="e166b-h"><h2 class="e166b-t">Schedules</h2><button type="button" class="shd-button shd-button--primary">Add new schedule</button></div>
+const e166bSchedPage=(ro)=>`<div class="e166b-h"><h2 class="e166b-t">Schedules</h2>${ro?"":'<button type="button" class="shd-button shd-button--primary">Add new schedule</button>'}</div>
   <div class="e166b-sl">${E166B_SCHED.map(x=>`<div class="e166b-sr"><div class="e166b-sn"><svg class="e166b-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg><span class="e166b-nm" title="${x[0]}">${x[0].length>20?x[0].slice(0,20)+"....":x[0]}</span>${x[1]?'<span class="e166b-df">Default</span>':""}</div><span class="e166b-tz">${x[2]}</span><span class="e166b-dy">${"MTWTFSS".split("").map((d,i)=>`<span class="e166b-d${i<5?" on":""}">${d}</span>`).join("")}</span></div>`).join("")}</div>`;
-function e166bSettings(sel,nav,utP,c){
+function e166bSettings(sel,nav,utP,c,ro){
  const k=sel[0], T=k==="sched"?"":k==="users"?"":E166B_LBL[k]||sel[1];
- const body=k==="sched"?e166bSchedPage():utP?utP
+ const body=k==="sched"?e166bSchedPage(ro):utP?utP
   :`<div class="e166b-h"><h2 class="e166b-t">${T}</h2></div>`+(k==="admin"?`<div class="panel"><div class="panel-b"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span>Let Account Members see each other&rsquo;s prospects</span><button type="button" class="sw" role="switch" aria-checked="${ACCOUNT_SETTINGS.prospectSharing}" data-pshare onclick="pshareToggle()" aria-label="Let Account Members see each other&rsquo;s prospects"></button></div><p class="sub" style="margin:6px 0 0">On: every Account Member sees every prospect in the workspaces they reach. Off: Account Members see their own prospects. One switch for the account, as in production (doc 81 §6a).</p></div></div>`
-   :`<div class="panel"><div class="panel-b"><p class="sub" style="margin:0">The existing Saleshandy page, scoped to ${c.name}${/\.$/.test(c.name)?"":"."}</p></div></div>`);
+   :"");   /* vE E167: a page this prototype does not change is left blank under its heading */
  return `<div class="e166b-set">${nav}<div class="e166b-main">${body}</div></div>`;
 }
 function vSettings(){
+ if(asClient&&!inAgency()&&!isNormal()&&ctx!=="agency"){view={name:"clients"};cView="settings";return vClientSide()}   /* vE E167 */
  const agency=inAgency(), c=agency?null:byId[ctx], asC=!agency&&asClient;
  const wsR=agency||isNormal()?null:wsRoleHere(c);
  const apiN=wsR&&wsR!=="Client Admin"?'<span style="white-space:nowrap">API &amp; Integrations</span> is with a Client Admin.':"";
@@ -11686,7 +11684,7 @@ function receipt(scope,text,undo,what,short,freed){
  clearTimeout(receiptTimer); const entry={what,at:Date.now(),freed}; DECIDED.unshift(entry);
  /* vE E070: an Undo that would push Available below 0 (someone changed limits since) is refused, in the neutral toast */
  const undo0=undo; if(undo0) undo=()=>{const snap=[]; RK.forEach(k=>Object.keys(RES[k].rows).forEach(id=>snap.push([RES[k].rows[id],RES[k].rows[id].cap]))); undo0();
-  if(RK.some(k=>rawFree(k)<0)){snap.forEach(([r,c])=>{r.cap=c}); receipt("ul","Can't undo: limits changed since.",null,"undo refused"); RECEIPT.variant="neutral"}};
+  if(RK.some(k=>rawFree(k)<0)||snap.some(([r,c])=>r.cap<r.used&&r.cap<c)){snap.forEach(([r,c])=>{r.cap=c});   /* vE E168: an Undo never lowers a limit under its use */ receipt("ul","Can't undo: limits changed since.",null,"undo refused"); RECEIPT.variant="neutral"}};
  RECEIPT={scope,text,short:short||text,undo,entry,side:!!asClient};   /* change 292: which side made it */ receiptTimer=setTimeout(()=>{RECEIPT=null;renderToast();render()},8000)}
 function clearReceipt(){RECEIPT=null;clearTimeout(receiptTimer);const L=document.getElementById("toastLayer");if(L)L.innerHTML=""}
 /* 1 Oct 2026, Hitesh: "follow the Saleshandy confirmation toast; don't invent
@@ -12871,15 +12869,35 @@ function cSettings(c){
     wrong (a personal account setting isn't "the workspace"), this is the one
     line to revert. */
  const ro=actingRole(c)==="Client Viewer"||noUser||wsOff(c);
- return `${cWorkspaceSection(c)}<div class="grid" style="margin-top:16px">
-  <!-- vE E099: Profile and Password are on My Profile (the account menu), the same page in every workspace -->
-  <div class="panel"><div class="panel-h"><span class="panel-t">Notifications</span></div><div class="panel-b" style="padding-top:4px">
+ return e167Settings(c,notif,ro);   /* vE E167 */
+}
+/* vE E167 (26 Nov 2026, Hitesh: "why client settings looks different, shouldn't it be same as workspace setting?"):
+   a client user's Settings is the agency user's Settings inside a workspace (E166b): one group, "Workspace Settings", filtered by the role.
+   One item more, first: Workspace (who manages it, your contact, since when, notifications). PRD B.2: ST2/ST3 Do Not Contact (Client Viewer read-only,
+   Collaborator adds entries), ST4/ST5 schedules, fields, outcomes, tracking domain (all see, Client Admin edits), ST1 and M2 no client role, API items Client Admin. */
+const E167_ORDER=["email","sched","fields","pout","cout","integ","webhook","apikey","mcp","ctd","dnc","dncall"];   /* vE E169: the agency's order (E166B_ORDER) less Users & Teams and Admin Settings */
+const E167_IC='<rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.6"/><path d="M2.2 6.2h11.6M6 6.2v7"/>';
+const e167Ids=c=>{const role=actingRole(c);
+ return E167_ORDER.filter(k=>k==="ws"?true:k==="email"?seesC(c,"accounts"):E166B_TAB[k]?role==="Client Admin":true)};   /* vE E169 (c): Do Not Call List for every client role, as Do Not Contact */
+const e167Note=(c,k)=>{const role=actingRole(c); if(role==="Client Admin"||k==="email"||E166B_TAB[k]) return "";
+ if(k==="dnc") return role==="Client Collaborator"?"You can add entries.":"View only.";
+ return "View only."};
+function e167Settings(c,notif,ro){
+ const ids=e167Ids(c);
+ if(ids.indexOf(setSel)<0) setSel=ids.indexOf("sched")>-1?"sched":ids[0];   /* vE E167: no Workspace item; opens on Schedules as the agency Settings */
+ const nav='<nav class="e166b-nav" aria-label="Workspace Settings"><div class="e166b-cat">Workspace Settings</div>'+ids.map(k=>
+   '<button type="button" '+(k==="email"?'data-cview="accounts"':E166B_TAB[k]?'data-goapitab="'+E166B_TAB[k]+'"':'data-set="'+k+'"')+' aria-current="'+(k===setSel)+'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(k==="ws"?E167_IC:E166B_IC[k])+'</svg><span class="e166b-l">'+(k==="ws"?"Workspace":E166B_LBL[k]||setById[k][1])+'</span>'+(k==="mcp"?'<span class="bsnav-new">NEW</span>':"")+'</button>').join("")+'</nav>';
+ if(setSel!=="ws"){
+  const k=setSel;
+  return e166bSettings(setById[k],nav,"",c,actingRole(c)!=="Client Admin");   /* vE E167: no "View only." line, as the agency screen; vE E169: Add new schedule only for a Client Admin (B.2 ST5) */
+ }
+ const banners=graceNote(c)+(grace()?"":atLimitBanner(c));
+ const body=banners+`<div class="e166b-h"><h2 class="e166b-t">Workspace</h2></div>
+  <div class="e167-w">${cWorkspaceSection(c,true)}
+   <h3 class="e167-h3">Notifications</h3>
    ${notif.map(([l,on])=>`<div class="list-row"><span>${l}</span><button class="sw" role="switch" aria-checked="${on}" ${ro?"disabled":""} aria-label="${l}"></button></div>`).join("")}
-   </div></div>
-  ${seesC(c,"sequences")?`<div class="panel"><div class="panel-h"><span class="panel-t">Workspace settings</span></div><div class="panel-b" style="padding-top:4px">
-   ${[["fields","Prospect Fields"],["pout","Prospect Outcomes"],["sched","Schedules"],["dnc","Do Not Contact List"]].map(([k,l])=>`<div class="list-row"><span>${l}</span><span class="cs">${setById[k][3]==="W"?"Yours":"Account default, add your own"}</span></div>`).join("")}
-   </div></div>`:""}
- </div>`;
+  </div>`;
+ return `<div class="e166b-set">${nav}<div class="e166b-main">${body}</div></div>`;
 }
 /* the nav a client actually has, and the correction that keeps cView inside
    it. Shared by vClientSide (the content) and renderShell (the crumb), so a
@@ -12900,58 +12918,32 @@ function vClientSide(){
     this, your contact, since when) is a section at the top of Settings since
     25 Sep 2026, Hitesh: "Please remove it". */
  const granted=fixClientCView(c);
+ if(cView==="settings") return cSettings(c);   /* vE E167: flush, as the agency Settings (E166b): no .wrap around it */
  const rb=receiptBar("client:"+c.id);
  /* change 328: the bar's path starts at the workspace (plain text for its users), so the name
     band goes. Usage keeps its two actions, right-aligned in a row with no name. */
  return `
- <div class="wrap hdr-top">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${/* change 144 (Hitesh): no orientation banner */(graceNote(c)+(cView==="usage"||grace()?"":atLimitBanner(c)))}${
-   granted.length&&granted.length<3&&granted.some(g=>g[0]===cView)
-     ?`<p class="sub" style="margin:0">${AGENCY.name} shares ${RESTRICT_NOUN[cView]||"this"} here. Ask them if you need more.</p>`:""}${
-   cView==="sequences"?cSeq(c)
-   :cView==="prospects"?(openProspect?cProspect(c):cPros(c))
-   :cView==="usage"?cUsage(c)
-   :cView==="inbox"?cInbox(c)
-   :cView==="leads"?cLeads(c)
-   /* 25 Sep 2026: this used to be a placeholder line ("Meridian Growth
-      assigns them"), left over from the central-pool model. rMail is the
-      real screen every other Email Accounts surface already uses, and it
-      already gates Buy vs. Connect on asClient&&!inAgency(), so the client
-      gets the real mailbox list, not a description of one, and never sees
-      a purchase entry. Change 227: a client Client Admin does see Buy
-      (mayBuyMail). */
-   :cView==="accounts"?rMail(c)
-   /* item 31: a full per-client Templates screen already existed (cTmpl) but
-      the dispatch routed here to the generic placeholder instead of it. */
-   :cView==="tmpl"?cTmpl(c)
-   /* item 32: Tasks, Dialer, Email Verifier, Inbox Radar and Refer a Friend
-      used to share one identical placeholder; each gets its own real,
-      workspace-scoped screen now (defined above, next to cLeads). */
-   :cView==="task"?cTasks(c)
-   :cView==="dialer"?cDialer(c)
-   :cView==="verify"?cVerify(c)
-   :cView==="radar"?cRadar(c)
-   :cView==="refer"?cRefer(c)
-   :cView==="warmup"?cWarmup(c)
-   :cView==="analytics"?cReports(c)
-   :cSettings(c)}</div>`;
+ <div class="wrap hdr-top">${rb?`<div style="margin:0 -24px">${rb}</div>`:""}${graceNote(c)}${wsModBody(c,cView)}</div>`;   /* vE E169: the agency's page, filtered by the role */
 }
 /* phase 1: every client is created and owned by the agency, so this is a
    statement of fact, not a control. Nothing here about links, IDs or requests. */
-function cWorkspaceSection(c){
+function cWorkspaceSection(c,bare){
  /* the three facts a client user asks about, as the first panel of Settings:
     who runs this workspace, who to talk to, since when. Was a rail item of its
     own until 25 Sep 2026 (a leftover of the connect path). */
  const P=clientContact()||{name:AGENCY.name,email:""};
  const row=(k,v)=>`<div style="display:flex;gap:16px;padding:11px 0;border-top:1px solid var(--gray-13)">
    <span class="sub" style="flex:0 0 150px">${k}</span><span style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:20px">${v}</span></div>`;   /* change 320: the contact's address wraps at 390 instead of running past the edge */
- return `<div class="panel">
-   <div class="panel-h"><span class="panel-t">Workspace</span></div>
-   <div class="panel-b" style="padding-top:0">
-    ${row("Managed by",`<span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:600;background:${AGENCY.colour}1a;color:${AGENCY.colour}">${AGENCY.initials}</span><strong>${AGENCY.name}</strong></span>`)}
+ const rowsH=()=>`${row("Managed by",`<span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:600;background:${AGENCY.colour}1a;color:${AGENCY.colour}">${AGENCY.initials}</span><strong>${AGENCY.name}</strong></span>`)}
     ${row("Your contact",`${P.name}${P.email?` <span class="sub">(${P.email})</span>`:""}`)}
     ${row("Workspace since",hsDate(c.created))}
     ${row("Email accounts",`${c.mbx} connected here`)}
-    ${row("Limits",`Set by ${AGENCY.name}. <button class="linkbtn" data-cview="usage">See your usage</button>`)}
+    ${row("Limits",`Set by ${AGENCY.name}. <button class="linkbtn" data-cview="usage">See your usage</button>`)}`;
+ if(bare) return `<div class="e167-rows">${rowsH()}</div>`;   /* vE E167 */
+ return `<div class="panel">
+   <div class="panel-h"><span class="panel-t">Workspace</span></div>
+   <div class="panel-b" style="padding-top:0">
+    ${rowsH()}
    </div></div>`;
 }
 const SEQ_TONE=st=>st==="Active"?"ok":st==="Paused"?"warn":"mute";
@@ -13021,12 +13013,8 @@ function seqTable(c,owner){
     Change 215: a Collaborator holds editseq, so only a Viewer reads a note here;
     the draft-only branch is kept for a role that writes but cannot launch, and
     no fixed role does today. */
- const roleNote=seqReach+(!may&&!off
-   ?(()=>{const role=actingRole(c);
-     return mayDraft
-       ?`<p class="sub" style="margin:0 0 10px">${AGENCY.name} launches these sequences. As a ${role} you can write new ones for them to launch, pause and resume running ones${canC(c,"reply")?", and reply to prospects":""}.</p>`
-       :asClient?`<p class="sub sq-view" style="margin:0 0 10px">View only. Ask your Client Admin to make changes.</p>`:""})()   /* vE E142 F15: Client Collaborator too (no editseq, no pause since E076) */   /* change 333 took the Viewer line out; vE E071 row 42 puts one back: 28 controls are disabled and say why once */
-   :"");
+ const roleNote=seqReach;   /* vE E169: no role line above the table; the agency screen has none */
+ const roleMay=owner||canC(c,"editseq"), rolePause=roleMay||canC(c,"pause"), nCol=11+(roleMay?1:0)+(rolePause?1:0);   /* vE E169: a role that can never select or pause has no checkbox or switch column */
  const I={search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
   chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>',
@@ -13053,8 +13041,8 @@ function seqTable(c,owner){
  const rows=seen.map(q=>{const key=c.id+"|"+q.name,asking=seqConfirm===key,st=grace()&&q.state==="Active"?"Paused":q.state,S=seqStats(c,q),draft=st==="Draft";
    const sc=S.score<30?"lo":S.score<70?"mid":"hi";
    return `<tr>
-     <td class="c1"><input type="checkbox" aria-label="Select ${q.name}" ${may?"":"disabled"}></td>
-     <td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}"${!draft&&mayPause&&st==="Paused"&&sendGate(c)?` data-uwtip="${SL_LINE}"`:""} ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"":`data-seqask="${key}"`}></button></td>
+     ${roleMay?`<td class="c1"><input type="checkbox" aria-label="Select ${q.name}" ${may?"":"disabled"}></td>`:""}
+     ${rolePause?`<td class="c2"><button class="sqsw${st==="Active"?" on":""}" ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"disabled":""} aria-label="${st==="Active"?"Pause":"Resume"} ${q.name}"${!draft&&mayPause&&st==="Paused"&&sendGate(c)?` data-uwtip="${SL_LINE}"`:""} ${draft||!mayPause||(st==="Paused"&&sendGate(c))?"":`data-seqask="${key}"`}></button></td>`:""}
      <td><button class="cn sq-name" data-seqopen="${key}">${q.name}</button><span class="sq-st${st==="Active"?" on":st==="Paused"?" pa":draft&&q.ask?" wt":""}"><i></i>${seqStLabel(q,st)}</span>${seqActs(c,q,may,mayDraft)}</td>
      <td><span class="sq-ring">${ring(S.pct)}<b>${f(S.contacted)}<span>/${f(q.prospects)}</span></b></span></td>
      <td><span class="sq-score ${sc}">${S.score}</span></td>
@@ -13065,14 +13053,14 @@ function seqTable(c,owner){
      <td>${S.positive?f(S.positive):dash}</td>
      <td>${S.accounts?S.accounts:dash}</td>
      <td>${S.inbox!=null?S.inbox+"%":dash}</td>
-     <td class="ar"><button class="sq-kebab" aria-label="More" ${may?"":"disabled"} data-flash="Rename, Duplicate and Delete are not in this prototype">&#8942;</button></td></tr>
-     ${asking?`<tr class="confirmrow"><td colspan="13"><div class="inlineconfirm">
+     <td class="ar">${roleMay?`<button class="sq-kebab" aria-label="More" ${may?"":"disabled"} data-flash="Rename, Duplicate and Delete are not in this prototype">&#8942;</button>`:""}</td></tr>
+     ${asking?`<tr class="confirmrow"><td colspan="${nCol}"><div class="inlineconfirm">
        <span>${st==="Paused"?seqResumeLine(q):seqPauseLine(q)}</span>
        <span class="tools"><button class="shd-button shd-button--sm shd-button--${st==="Paused"?"primary":"secondary"}" data-seqconfirm="${key}">${st==="Paused"?"Resume":"Pause"} sequence</button>
        <button class="shd-button shd-button--tertiary shd-button--sm" data-seqcancel>Cancel</button></span></div></td></tr>`:""}`}).join("");
  return `${owner||mayPause||mayDraft?receiptBar("client:"+c.id):""}${roleNote}${toolbar}<div class="panel"><div class="tscroll"><table class="sqt" style="min-width:1180px">
-   <thead><tr><th class="c1"><input type="checkbox" aria-label="Select all" ${may?"":"disabled"}></th><th class="c2"></th><th>Sequence Name</th><th>Sequence Progress ${I.info}</th><th>Score</th><th>${I.ppl}Prospect</th><th>${I.mail}Contacted</th><th>${I.open}Opened</th><th>${I.reply}Replied</th><th>${I.thumb}Positive</th><th>Email Accounts</th><th>Inbox Score</th><th></th></tr></thead>
-   <tbody>${c.seq&&rows?rows:'<tr><td colspan="13" style="height:56px"><span class="sub">No sequences yet.</span></td></tr>'}</tbody></table></div></div>`;
+   <thead><tr>${roleMay?`<th class="c1"><input type="checkbox" aria-label="Select all" ${may?"":"disabled"}></th>`:""}${rolePause?'<th class="c2"></th>':""}<th>Sequence Name</th><th>Sequence Progress ${I.info}</th><th>Score</th><th>${I.ppl}Prospect</th><th>${I.mail}Contacted</th><th>${I.open}Opened</th><th>${I.reply}Replied</th><th>${I.thumb}Positive</th><th>Email Accounts</th><th>Inbox Score</th><th></th></tr></thead>
+   <tbody>${c.seq&&rows?rows:'<tr><td colspan="'+nCol+'" style="height:56px"><span class="sub">No sequences yet.</span></td></tr>'}</tbody></table></div></div>`;
 }
 const cSeq=c=>openSeq&&openSeq.split("|")[0]===c.id?seqDetail(c,false):seqTable(c,false);
 /* item 33, 28 Sep 2026: the sequence detail a name in seqTable now opens,
@@ -13132,7 +13120,7 @@ function seqSettingsHTML(c,q){
   <dt>Safety</dt><dd>${s.safety}</dd>
  </dl>`;
 }
-function seqDetail(c,owner){
+function seqDetail(c,owner){   /* vE E169 (a): Created by shows to every role (Hitesh, 26 Nov 2026) */
  const key=openSeq, q=(c.sequences||[]).find(x=>c.id+"|"+x.name===key);
  if(!q) return seqTable(c,owner);
  const T=[["steps","Steps"],["prospects","Prospects"],["settings","Settings"]];
@@ -13145,7 +13133,7 @@ function seqDetail(c,owner){
  const asking=seqConfirm===key;
  return `<div class="hdr-sh hdr-sh--bleed seq-sh">
   <div class="tabbar" role="tablist">${T.map(([k,l])=>`<button data-seqtab="${k}" role="tab" data-t="${l}" aria-selected="${seqTab===k}">${l}</button>`).join("")}</div>
-  <div class="hdr-sh-r">${owner?`<span class="sub hdr-by">Created by ${q.owner}</span>`:""}${seqActs(c,q,owner||canC(c,"editseq"),owner||canC(c,"editseq")||canC(c,"draft"),true)}</div>
+  <div class="hdr-sh-r"><span class="sub hdr-by">Created by ${q.owner}</span>${seqActs(c,q,owner||canC(c,"editseq"),owner||canC(c,"editseq")||canC(c,"draft"),true)}</div>
  </div>
  ${sendGate(c)&&q.state!=="Draft"?slSendLine(c):""}
  ${asking?`<div class="panel hdr-seqask"><div class="inlineconfirm">
@@ -13179,9 +13167,9 @@ function ownTmpl(){
    This is ${AGENCY.name}'s library, set and published from here. A client workspace sees the
    copies shared to it.</span></div>`}</div>`;
 }
-function cTmpl(c){
- const x=tmplFor(c), ro=asClient&&!canC(c,"editseq");   /* vE E032: every client role sees templates; only editseq changes them */
- const row=(name,by,edited,tag,tone,note0)=>{const note=ro?"View only":note0;return `<tr>
+function cTmpl(c){   /* vE E169 (a): the footer note shows to every role */
+ const x=tmplFor(c);   /* vE E169: the same words for every role (was "View only" and "What you can do" for a role without editseq) */
+ const row=(name,by,edited,tag,tone,note)=>{return `<tr>
    <td><span style="font-weight:600;color:var(--blue-15)">${name}</span>
      <span class="cs" style="display:block">${by}</span></td>
    <td><span class="chip c-${tone}">${tag}</span></td>
@@ -13199,10 +13187,10 @@ function cTmpl(c){
   <div class="panel-h"><span class="panel-t">${c.name}'s templates</span>
    <span class="sub">${x.inherited.length} from ${AGENCY.name}, ${x.overrides.length+x.ownOnly.length} belonging to this workspace</span></div>
   <div class="tscroll"><table class="organism" style="min-width:800px">
-   <thead><tr><th>Template</th><th>Where it comes from</th><th>${ro?"What you can do":"What this workspace can do"}</th><th>Last edited</th></tr></thead>
+   <thead><tr><th>Template</th><th>Where it comes from</th><th>What this workspace can do</th><th>Last edited</th></tr></thead>
    <tbody>${inh+ovr+own||'<tr><td colspan="4"><span class="sub">No templates in this workspace.</span></td></tr>'}</tbody>
   </table></div>
-  ${asClient?"":`<div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
+  ${`<div class="panel-b" style="border-top:1px solid var(--gray-13)"><span class="sub">
    Inherited templates are not copies: when ${AGENCY.name} edits one, it changes here too. Nothing in
    this workspace is visible to any other workspace, including the wording it has changed.</span></div>`}</div>`;
 }
@@ -13953,7 +13941,7 @@ function ivxPreview(v){const I=v.indexOf("t:")===0?ivxTeam(v.slice(2)):ivxClient
  ivxOpen(I.kind==="team"?"e-team":I.wl?"e-clw":"e-cl",I); render()}
 function render(){
  if(asClient&&CLIENT_SESSION&&ACTING_EMAIL&&byId[ctx]&&byId[ctx].disabled){const alt=clientWsOf().filter(x=>!x.disabled).sort((a,b)=>a.name.localeCompare(b.name))[0]; if(alt){ctx=alt.id; view={name:"clients"}} else view={name:"refused"}}
- if(asClient&&view.name!=="clients"&&view.name!=="refused"&&!view.e159c) view={name:"clients"};   /* vE E159c: the signed-in invite pages are the one view a client session can show */   /* change 351: one guard, a client session has no agency view */
+ if(asClient&&view.name!=="clients"&&view.name!=="refused"&&!view.e159c&&!(view.name==="apiint"&&byId[ctx]&&actingRole(byId[ctx])==="Client Admin")) view={name:"clients"};   /* vE E169: a Client Admin opens API & Integrations (B.2 I1, I4, I5) */   /* vE E159c: the signed-in invite pages are the one view a client session can show */   /* change 351: one guard, a client session has no agency view */
  pnRoute();   /* vE E102: the person page is gone; its route opens the panel */
  if(PA_ED&&!(PN&&PN.key===PA_ED.key)&&(view.name!=="person"||view.id!==PA_ED.key)) PA_ED=null;   /* change 321: leaving the person page drops an unsaved edit */
  if(view.name!=="person"){SH_PUSHED=false; PX_MENU=false}   /* vE E048: leaving the person page closes its more menu */
@@ -14803,8 +14791,8 @@ function wire(){
  q("[data-goemail]").forEach(b=>b.onclick=()=>{inMod="accounts";openProspect=null;openSeq=null;openReply=null;view={name:"clients"};render()});   /* vE E166b: production's Email Accounts item is a link to the module */
  q("[data-goapitab]").forEach(b=>b.onclick=()=>{apiTab=b.dataset.goapitab;apiKeyFormOpen=false;view={name:"apiint"};render()});   /* vE E166b: Integrations, Webhook, API Key, MCP */
  q("[data-goapiint]").forEach(b=>b.onclick=()=>{view={name:"apiint"};render()});
- q("[data-apiback]").forEach(b=>b.onclick=()=>{view={name:"settings"};render()});
- q("[data-ubback]").forEach(b=>b.onclick=()=>{view={name:"settings"};render()});   /* vE E166 */
+ q("[data-apiback]").forEach(b=>b.onclick=()=>{if(asClient&&!inAgency()){view={name:"clients"};cView="settings";setSel="sched"}else view={name:"settings"};render()});   /* vE E167 */
+ q("[data-ubback]").forEach(b=>b.onclick=()=>{if(asClient&&!inAgency()){view={name:"clients"};cView="settings"}else view={name:"settings"};render()});   /* vE E166; vE E169: a client's Back to Settings is their Settings */
  /* item 50, 28 Sep 2026: the [data-addmember] handler deleted. Nothing emits
     the attribute (grep confirmed); the People screen's own "Add a person"
     button opens amOpen() directly with nothing pre-selected instead. */
@@ -14952,7 +14940,7 @@ el("meBtn").onclick=e=>{
   e.stopPropagation();
   if(el("meBtn").classList.contains("me-static"))return;   /* change 292: solo, or a preview with no client user yet */
   mePopOpen?closeMePop():openMePop()};
-el("wsBtn").onclick=e=>{e.stopPropagation();if(solo||(asClient&&clientWsOf().length<2&&!e105Multi()))return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
+el("wsBtn").onclick=e=>{e.stopPropagation();if(solo)return;popOpen?closePop():openPop()};   /* change 356: the sidebar is the switcher, for a client on two or more workspaces too */
 el("popQ").oninput=e=>renderPop(e.target.value);
 el("popAdd").onclick=()=>{if(!canI("limits"))return;closePop();
  /* a normal user has no Clients screen to be moved to, and moving them out of
@@ -15708,7 +15696,7 @@ function e101ActsHTML(k){if(ulRo()) return ""; const d=e101DraftState();
 /* save pattern 1: the draft in the summary, beside the figures it moves. vE E136: the row says only what blocks Apply; the table already shows the rest */
 /* vE E142 F2: the Split preview dismisses with Discard, the typed draft's word; day one keeps "Not now" */
 function e101DraftState(){const ch=ulChanges(), n=ch.length, nb=Object.keys(UL.nb||{}).length, over=ul3E2Over();
- const why=nb?NUM_ERR:over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
+ const lows=e168Lows(ch), why=nb?NUM_ERR:lows.length?e168Why(lows):over.length?(over.length===1?`Only ${f(ulrOnly(over[0]))} left to allocate.`:`Only ${listAnd(over.map(x=>f(ulrOnly(x))+" "+ul3E2Lab(x)))} left to allocate.`)+" Lower another limit first.":"";
  return {n,why}}
 function e101DraftHTML(k){const why=e101DraftState().why;   /* vE E158: the same bar as a split: the reason left, Discard and Apply right */
  return `<div class="e101-dr e150-bar" role="region" aria-label="Unsaved changes"><p class="e150-ln">${why?`<span class="ulr-why" id="ulrWhy">${why}</span>`:""}</p>${e101ActsHTML(k).replace('class="e101-fa e101-fd"','class="e150-act"')}</div>`}
@@ -19014,7 +19002,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="0e5ccff";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="c09e765";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
@@ -20989,6 +20977,12 @@ input[type=checkbox].e150-mixed{background:#1d4ed8 url("data:image/svg+xml;utf8,
  .e166b-main{padding:16px}
  .e166b-sr{grid-template-columns:minmax(0,1fr);height:auto;padding:12px 16px;row-gap:8px}
 }
+/* vE E167: the client's Workspace page: facts as rows, then Notifications; one reading column */
+.e167-w{max-width:640px;display:flex;flex-direction:column;margin-top:7px}
+.e167-rows{border-bottom:1px solid var(--gray-13)}
+@media (max-width:900px){.e167-rows>div{flex-direction:column;gap:2px!important}.e167-rows>div>.sub{flex:none!important}.e167-rows>div>span:last-child{flex:none!important}}
+.e167-rows span[style*="border-radius:50%"]{flex:none}
+.e167-h3{margin:28px 0 0;font-size:14px;line-height:20px;font-weight:600;color:var(--gray-17)}
 /* vE E166: production's Users & Teams page brings its own 24px padding; the Settings content column adds none around it */
 .e166b-main:has(>.utp){padding:0}
 </style>
