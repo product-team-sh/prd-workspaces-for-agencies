@@ -13299,8 +13299,7 @@ function modalHTML(){
     (23 §3.2: deleting the only client returns the account to where it was).  */
  if(modal.kind==="pf") return pfModalHTML();   /* vE E099 */
  if(modal.kind==="ulrstop") return ulrStopHTML();   /* vE E045 */
- if(modal.kind==="rlstop") return rlStopHTML();
- if(modal.kind==="e175cf") return e175CfHTML();   /* vE E175 */   /* vE E130 */
+ if(modal.kind==="rlstop") return rlStopHTML();   /* vE E130 */
  if(modal.kind==="limedit") return ledHTML(c);   /* change 220 */
  if(modal.kind==="share"){
   const sc=c, cur=modal.share!=null?modal.share:(SHARE0[sc.id]||sc.share||NC_SHARE_DEFAULT);
@@ -13504,8 +13503,7 @@ function renderModal(){
  if(modal&&modal.kind==="pf") pfModalWire(L);   /* vE E099 */
  if(modal&&modal.kind==="limedit") ledWire(L);   /* change 220 */
  L.querySelectorAll("[data-ulrcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); ulrApply()});   /* vE E045 */
- L.querySelectorAll("[data-rlcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); rlApply()});
- L.querySelectorAll("[data-e175ok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); e150Apply()});   /* vE E175 */   /* vE E130 */
+ L.querySelectorAll("[data-rlcfok]").forEach(b=>b.onclick=()=>{modal=null; renderModal(); rlApply()});   /* vE E130 */
  L.querySelectorAll("[data-mclose]").forEach(b=>b.onclick=()=>{const back=modal&&modal.back; modal=back||null; if(!back){INV=null;PPI=null;PP.addws=false;PP.removeConfirm=false} renderModal()});
  {const sc=L.querySelector("#mscrim"); if(sc&&modal&&(modal.kind==="ppperson"||modal.kind==="pproles")) sc.onclick=e=>{if(e.target===sc){modal=modal.back||null;PP.addws=false;PP.removeConfirm=false;renderModal()}}}
  L.querySelectorAll("[data-agencyok]").forEach(b=>b.onclick=()=>{
@@ -15810,7 +15808,7 @@ function e150SumOf(k,c){const P=c.rows.filter(r=>r.picked), n=c.picked, moved=P.
   if(c.ticked<2) why="Tick one more workspace to reallocate.";
   else if(n<2) why="Not enough room to reallocate. Tick workspaces that have room to spare.";
   else if(!moved.length) why="These limits are already equal.";
-  else line=`Each ticked workspace gets a limit of ${f(c.share)}.`}   /* vE E175: names the workspaces, in the order the table shows them */
+  else line=`Each ticked workspace gets a limit of ${f(c.share)}.${e150LoTxt(k,c,LOW)}`}   /* vE E175: names the workspaces, in the order the table shows them */
  /* sum check */
  if(!why){const net=c.rows.reduce((t,r)=>t+Math.max(r.after,r.used)-Math.max(r.before,r.used),0), pool=RES[k].pool;
   const ok1=c.allocAfter+c.leftAfter===pool&&c.leftAfter>=0, ok2=net===c.leftBefore-c.leftAfter;
@@ -15822,7 +15820,7 @@ function e150Sum(k){return e150SumOf(k,e150Calc(k))}
 /* the menu's amount for each option, and its reason when it can't change anything (all active ticked) */
 function e150Opt(k,job){const c=e150Rules({pool:RES[k].pool,rows:e150RowsOf(k),picked:e150Act(k),job}), s=e150SumOf(k,c);
  if(job==="left") return c.leftBefore===0?{off:true,v:"Nothing left"}:e150MaxN(c.pool,c.leftBefore)===0?{off:true,v:"Too little left"}:{v:f(c.leftBefore)};   /* vE E163: open while ticking fewer can work */
- return s.why?{off:true,v:"Too much already used"}:{v:f(c.allocBefore)}}   /* vE E175: the same number as Allocated above the table */   /* what can be split: the active limits (disabled keep theirs) */
+ return s.why?{off:true,v:"Too much already used"}:{v:f(c.pot)}}   /* what can be split: the active limits (disabled keep theirs) */
 var E150_DN='<svg class="e150-dn" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var E150_INFO='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.3v3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="5.1" r=".85" fill="currentColor"/></svg>';
 var E150_TICK='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -15880,15 +15878,6 @@ function e150Open(k,job){E150={open:true,job,ids:e150Act(k),k0:k,cache:{}}; if(E
 function e150Close(){E150={open:false}}
 function e150Paint(sel){const g=document.getElementById("page"), sc=g?g.scrollTop:0; render(); const g2=document.getElementById("page"); if(g2) g2.scrollTop=sc;
  const n=sel&&document.querySelector(sel); if(n) n.focus({preventScroll:true})}
-/* vE E175: the confirm adds up to Allocated: the ticked workspaces at the share, then every workspace that keeps its limit, named */
-function e175CfHTML(){const k=E150.k0, c=e150Calc(k), R=RES[k], P=c.rows.filter(r=>r.picked), sum=a=>a.reduce((t,r)=>t+r.after,0);
- const LO=c.rows.filter(r=>r.leftOut), UN=c.rows.filter(r=>!r.picked&&!r.leftOut&&r.move!=="disabled"), DI=c.rows.filter(r=>r.move==="disabled");
- const back=c.allocBefore-c.allocAfter, nm=r=>byId[r.id].name, g=e150Seq(k,ulfRows(k).map(x=>({id:x.id,disabled:!!x.disabled}))), pos=r=>{const i=g.indexOf(r.id); return i<0?999:i};
- [LO,UN,DI].forEach(A=>A.sort((a,b)=>pos(a)-pos(b)));   /* names in the table's order */
- const row=(l,v,cls)=>`<div class="e175-r${cls?" "+cls:""}"><span>${l}</span><span>${f(v)}</span></div>`;
- const grp=(A,one,many)=>!A.length?"":A.length===1?row(`${nm(A[0])} ${one}`,A[0].after):row(`${A.length} workspaces ${many}`,sum(A))+A.map(r=>row(nm(r),r.after,"is-n")).join("");
- const body=`<div class="e175-t">${row(`${e101Ws(P.length)} ${P.length===1?"gets":"get"} ${f(c.share)} each`,sum(P))}${grp(LO,`keeps its limit (used more than ${f(c.share)})`,`keep their limits (used more than ${f(c.share)})`)}${grp(UN,"keeps its limit (not ticked)","keep their limits (not ticked)")}${grp(DI,"keeps its limit (disabled)","keep their limits (disabled)")}${back>0?row("Goes back to Left to allocate",back):""}${row("Total",c.allocBefore,"is-tot")}</div>`;
- return card(`Reallocate ${f(c.allocBefore)} ${R.short}?`,body,`<button class="shd-button shd-button--tertiary" data-mclose>Cancel</button><button class="shd-button shd-button--primary" data-e175ok>Reallocate limits</button>`,"ulr-cfm modal--450 e175-cfm")}
 function e150Apply(){const k=E150.k0, c=e150Calc(k), s=e150Sum(k); if(s.why) return; const D={}; c.rows.forEach(r=>{if(r.after!==r.before) D[k+"|"+r.id]=r.after});
  const job=E150.job, t=job==="left"?`Allocated ${f(c.share)} to each of ${e101Ws(s.n)}.`:`Reallocated limits across ${e101Ws(s.n)}.`;   /* vE E162 */ e150Close(); UL.draft=D; if(!ul3Commit(UL.draft,"Saved")){render(); return}
  RECEIPT.text=RECEIPT.short=t; RECEIPT.variant="success"; ul3E2Close(); UL.focusK=k;
@@ -15906,7 +15895,7 @@ document.addEventListener("click",e=>{const t=e.target; if(!t.closest||view.name
  /* the header tick sits inside the sortable Workspace head: handled here so the click never reaches the sort */
  if((x=t.closest("[data-e150all]"))){e.stopPropagation(); const S=e150Shown(E150.k0), LOk=e150Calc(E150.k0).rows.filter(r=>r.leftOut).map(r=>r.id), all=S.filter(id=>LOk.indexOf(id)<0).every(id=>E150.ids.indexOf(id)>-1); e150Tick(S,!all);   /* vE E175: the header state counts tickable rows; ticking or unticking all still covers the left-out ones */ e150Paint("[data-e150all]"); return}
  if((x=t.closest("[data-e150discard]"))){e.stopPropagation(); e150Close(); e150Paint("[data-e101menu]"); return}
- if((x=t.closest("[data-e150apply]"))){e.stopPropagation(); if(E150.job==="alloc"){modal={kind:"e175cf"}; renderModal(); const b=document.querySelector("[data-e175ok]"); if(b) b.focus()} else e150Apply(); return}   /* vE E175 */},true);
+ if((x=t.closest("[data-e150apply]"))){e.stopPropagation(); e150Apply(); return}},true);
 document.addEventListener("change",e=>{const t=e.target; if(!E150.open||!t.matches) return;
  if(t.matches("[data-e150w]")){e150Tick([t.dataset.e150w],t.checked); e150Paint(`[data-e150w="${t.dataset.e150w}"]`); return}
  });
@@ -17520,13 +17509,6 @@ button.rmt-who:hover{color:#1D4ED8;text-decoration:underline;text-underline-offs
  .wsf-chips{padding:12px 24px 0}   /* level with the header, which keeps 24px on a phone */
 }
 .modal--450{width:450px}
-/* vE E175: the Reallocate confirm, a two-column sum: label left, amount right, names indented under their group */
-.e175-t{display:flex;flex-direction:column;font-size:14px;line-height:20px;color:#1F2937}
-.e175-r{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:6px 0}
-.e175-r>span:last-child{flex:none;font-variant-numeric:tabular-nums;text-align:right}
-.e175-r.is-n{padding:2px 0 2px 16px;font-size:13px;line-height:18px;color:#6B7280}
-.e175-r.is-n+.e175-r:not(.is-n){margin-top:4px}
-.e175-r.is-tot{margin-top:8px;padding-top:12px;border-top:1px solid var(--gray-13);font-weight:600}
 /* vE E068: .modal--450 pins 450px, which clips at 390px; the Delete modal (the one with the typed field) keeps a 16px gutter each side */
 .modal--450:has(#delConfirm){width:min(450px,calc(100vw - 32px))}
 /* vE E078a: the reason beside the Delete buttons stays on one line so the footer keeps 64px */
@@ -19032,7 +19014,7 @@ else if(/(^|[#&])present\b/.test(location.hash)){sOpen=true;sessShow(true);sessG
 else{el("sess").hidden=true;el("sessReopen").hidden=true;document.body.style.paddingBottom="0"}
 </script>
 <script>
-(function(){var B="fe4e99c";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
+(function(){var B="fe52448";window.__B=B;document.title=(typeof brandTitle==="function"?brandTitle():"Saleshandy, version C")+", build "+B;
  console.log("%cversion C build "+B,"background:#1D4ED8;color:#fff;padding:2px 6px;border-radius:3px");
  window.BUILD=B;})();
 </script>
